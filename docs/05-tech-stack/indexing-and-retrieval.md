@@ -1,0 +1,48 @@
+# **AST Indexing & Retrieval**
+
+> [!NOTE]
+> **Working Proposal Disclaimer**: A working architectural proposal, refined iteratively as practical evaluation progresses.
+
+This module was previously titled "Indexing & TurboQuant Vector Quantization." The retitle reflects a correction of priorities: **quantization was specified and chunking was not**, which is precisely backwards for retrieval quality.
+
+## **Chunking — The Dominant Variable**
+
+Retrieval quality for code is governed far more by how source is split into embeddable units than by how those units are compressed. The previous documentation set never mentioned chunking at all.
+
+**The unit is the AST-bounded span**: a function, method, or class body emitted by Tree-sitter — never a fixed character window, which severs signatures from bodies and produces fragments that cannot be interpreted.
+
+Every chunk is prefixed with the context needed to make sense of it in isolation:
+
+* File path and module docstring
+* Enclosing symbol path (`module.Class.method`)
+* The signature itself, repeated when an oversized body must split on statement boundaries
+
+## **Hybrid Retrieval Pipeline**
+
+1. **Lexical (BM25 via SQLite-FTS5)** — exact symbol names, class definitions, error strings. For code, exact-symbol matching is the single strongest signal and is **never demoted below dense retrieval**. An agent looking for `UserRepository` wants that symbol, not five semantically adjacent ones.
+2. **Dense** — embedding similarity for intent-shaped queries where the caller does not know the symbol name.
+3. **Graph expansion** — expand candidates along import, call, and co-change edges via `CodeGraph`, then contribute episodic decisions filtered to those still valid.
+
+Fusion weighting between tiers is tuned against the measured recall set, not assumed.
+
+## **Vector Storage & Quantization Sizing**
+
+A large repository chunks to roughly **10⁵–10⁶ vectors**. At 10⁵, an exhaustive float32 SIMD scan completes in single-digit milliseconds. Aggressive quantization becomes relevant around 10⁷ and above.
+
+**Quantization therefore solves a problem this system does not yet have.** The dense tier starts uncompressed (`sqlite-vec`, then LanceDB), and compression is adopted only against a **measured latency or memory ceiling** — at which point it is an adoption decision, not an implementation project: LanceDB embeds in-process with zero IPC, and Qdrant already ships a production TurboQuant engine. Building a bespoke quantization sidecar would duplicate mature work to solve a non-problem.
+
+The TurboQuant research remains catalogued in the [reference blueprint](../reference/SAGIHA2%20Architecture%20Specification%20Blueprint.md) for the day the trigger fires.
+
+## **Skeletonization**
+
+Tree-sitter strips function bodies while preserving interfaces, attributes, signatures, and docstrings — used for context compaction, and re-hydrated in full when an edit fails to compile under the compacted view.
+
+## **Incremental Update**
+
+File-watch driven, per-file re-index. Full re-index is a fallback, not the normal path; a system that rebuilds the whole index on every save has a feedback loop too slow to be part of the inner loop.
+
+## **Measuring Retrieval Directly**
+
+Retrieval is evaluated on its own terms as **recall@k against a labelled query set drawn from the target repository**, reported separately from task success so that retrieval regressions are attributable rather than hidden inside an end-to-end number.
+
+**LongMemEval is not an appropriate benchmark here** — it measures conversational long-term memory, not code retrieval, and the previous "≥90% on LongMemEval" gate could not have supported any claim about repository search.
