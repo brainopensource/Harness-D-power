@@ -38,3 +38,47 @@ dev       = [
   "import-linter>=2.0",       # CAR layer contracts
   "detect-secrets>=1.5.0",    # pre-commit secret scan
 ]
+
+[project.scripts]
+sagiha = "sagiha.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sagiha"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "--strict-markers"
+
+[tool.pyright]
+include = ["src", "tests"]
+typeCheckingMode = "strict"
+pythonVersion = "3.13"
+venvPath = "."
+venv = ".venv"
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+packages = ["sagiha"]
+mypy_path = "src"
+
+[tool.coverage.run]
+source = ["src/sagiha"]
+
+[tool.coverage.report]
+# 80% is the project-wide floor. sagiha/kernel/policy and sagiha/domain carry a
+# 95% floor instead — coverage.py has no per-path threshold, so that stricter
+# bound is checked separately in CI once those packages have real content.
+# See docs/06-guides-and-patterns/ci-and-quality-gates.md.
+fail_under = 80
+exclude_also = ["if TYPE_CHECKING:"]
+
