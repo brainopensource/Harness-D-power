@@ -921,29 +921,16 @@ The **SAGIHA** specification defines a Meta-Harness for autonomous software engi
 
 The corrected sequencing is deliberately unglamorous. Boring components first, measured before replaced, each exotic addition gated on a number rather than a date. The hexagonal discipline is what makes that sequencing safe: a query-shaped `Indexer` port admits a compiled sidecar later without touching a consumer, and a domain-shaped `Memory` port admits a temporal graph without a caller knowing. Deferral costs nothing when the seams are drawn correctly, which is the entire return on drawing them correctly at Day Zero.
 
-#### **Referências citadas**
+#### **References**
 
-> 1. Maybe the problem with non-coding agents is that they have no repo : r/ClaudeAI \- Reddit, [https://www.reddit.com/r/ClaudeAI/comments/1tni1tf/maybe\_the\_problem\_with\_noncoding\_agents\_is\_that/](https://www.reddit.com/r/ClaudeAI/comments/1tni1tf/maybe_the_problem_with_noncoding_agents_is_that/)  
-> 2. Best AI Assistants Tools \- Visalytica, [https://www.visalytica.com/category/ai-assistants](https://www.visalytica.com/category/ai-assistants)  
-> 3. Vercel Day | Product Hunt, [https://www.producthunt.com/contests/vercel-day-may-26](https://www.producthunt.com/contests/vercel-day-may-26)  
-> 4. GitHub \- getzep/graphiti: Build Real-Time Knowledge Graphs for AI Agents, [https://github.com/getzep/graphiti](https://github.com/getzep/graphiti)  
-> 5. Graphiti — Zep, [https://www.getzep.com/platform/graphiti/](https://www.getzep.com/platform/graphiti/)  
-> 6. Zep: A Temporal Knowledge Graph Architecture for Agent Memory \- GraphRAG, [https://graphrag.com/appendices/research/2501.13956/](https://graphrag.com/appendices/research/2501.13956/)  
-> 7. graphiti/mcp\_server/README.md at main \- GitHub, [https://github.com/getzep/graphiti/blob/main/mcp\_server/README.md](https://github.com/getzep/graphiti/blob/main/mcp_server/README.md)  
-> 8. TurboQuant in Qdrant, [https://qdrant.tech/articles/turboquant-quantization/](https://qdrant.tech/articles/turboquant-quantization/)  
-> 9. TurboQuant quantization (ICLR 2026\) · Issue \#8524 \- GitHub, [https://github.com/qdrant/qdrant/issues/8524](https://github.com/qdrant/qdrant/issues/8524)  
-> 10. TURBOQUANT: ONLINE VECTOR QUANTIZATION WITH NEAR-OPTIMAL DISTORTION RATE \- OpenReview, [https://openreview.net/pdf?id=tO3ASKZlok](https://openreview.net/pdf?id=tO3ASKZlok)  
-> 11. TurboQuant: Redefining AI efficiency with extreme compression \- Google Research, [https://research.google/blog/turboquant-redefining-ai-efficiency-with-extreme-compression/](https://research.google/blog/turboquant-redefining-ai-efficiency-with-extreme-compression/)  
-> 12. TurboQuant-H: Hadamard Rotation for 2-Bit Embedding Quantization \- Cactus Docs, [https://docs.cactuscompute.com/v1.14/blog/turboquant-h/](https://docs.cactuscompute.com/v1.14/blog/turboquant-h/)  
-> 13. TurboQuant : Near-Optimal Vector Quantization Without Codebooks \- Medium, [https://medium.com/@danushidk507/turboquant-near-optimal-vector-quantization-without-codebooks-3c0ccc8a41db](https://medium.com/@danushidk507/turboquant-near-optimal-vector-quantization-without-codebooks-3c0ccc8a41db)  
-> 14. TurboQuant: Online Vector Quantization with Near-optimal Distortion Rate \- ICLR 2026, [https://iclr.cc/virtual/2026/poster/10006985](https://iclr.cc/virtual/2026/poster/10006985)  
-> 15. \[2606.21448\] Fast-TurboQuant: A Multiplier-Free Online Vector Quantization Approach, [https://arxiv.org/abs/2606.21448](https://arxiv.org/abs/2606.21448)  
-> 16. Building a Vector Database That Never Decompresses Your Vectors \- Embedded Thought, [https://scotteveritt.github.io/blog/quantization-native-vector-database/](https://scotteveritt.github.io/blog/quantization-native-vector-database/)  
-> 17. What Is the Agent-to-Agent (A2A) Protocol? A Guide for API Teams \- Zuplo, [https://zuplo.com/learning-center/agent-to-agent-a2a-protocol-guide](https://zuplo.com/learning-center/agent-to-agent-a2a-protocol-guide)  
-> 18. Google A2A Protocol: How Agent-to-Agent Coordination Works \- Atlan, [https://atlan.com/know/google-a2a-protocol/](https://atlan.com/know/google-a2a-protocol/)  
-> 19. Agent-to-Agent (A2A) Protocol: Implementation and Trade-offs \- n8n Blog, [https://blog.n8n.io/agent-to-agent-protocol/](https://blog.n8n.io/agent-to-agent-protocol/)  
-> 20. Understanding A2A (Agent-to-Agent Protocol) | by praveenreddy\_c \- Medium, [https://medium.com/@mailpraveenreddy.c/understanding-a2a-agent-to-agent-protocol-249f03777ff8](https://medium.com/@mailpraveenreddy.c/understanding-a2a-agent-to-agent-protocol-249f03777ff8)  
-> 21. Agent Trajectory Annotation: The Guide | Innovatiana, [https://www.innovatiana.com/en/post/agent-trajectory-annotation](https://www.innovatiana.com/en/post/agent-trajectory-annotation)  
-> 22. A2A protocol \- Koog, [https://docs.koog.ai/a2a/](https://docs.koog.ai/a2a/)
-
-
+> 4. GitHub - getzep/graphiti: Build Real-Time Knowledge Graphs for AI Agents, https://github.com/getzep/graphiti
+> 5. Graphiti — Zep, https://www.getzep.com/platform/graphiti/
+> 6. Zep: A Temporal Knowledge Graph Architecture for Agent Memory - GraphRAG, https://graphrag.com/appendices/research/2501.13956/
+> 8. TurboQuant in Qdrant, https://qdrant.tech/articles/turboquant-quantization/
+> 9. TurboQuant quantization (ICLR 2026) · Issue #8524 - GitHub, https://github.com/qdrant/qdrant/issues/8524
+> 10. TURBOQUANT: ONLINE VECTOR QUANTIZATION WITH NEAR-OPTIMAL DISTORTION RATE - OpenReview, https://openreview.net/pdf?id=tO3ASKZlok
+> 11. TurboQuant: Redefining AI efficiency with extreme compression - Google Research, https://research.google/blog/turboquant-redefining-ai-efficiency-with-extreme-compression/
+> 15. [2606.21448] Fast-TurboQuant: A Multiplier-Free Online Vector Quantization Approach, https://arxiv.org/abs/2606.21448
+> 16. Building a Vector Database That Never Decompresses Your Vectors - Embedded Thought, https://scotteveritt.github.io/blog/quantization-native-vector-database/
+> 17. What Is the Agent-to-Agent (A2A) Protocol? A Guide for API Teams - Zuplo, https://zuplo.com/learning-center/agent-to-agent-a2a-protocol-guide
+> 18. Google A2A Protocol: How Agent-to-Agent Coordination Works - Atlan, https://atlan.com/know/google-a2a-protocol/

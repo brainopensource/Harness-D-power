@@ -70,7 +70,7 @@ outcome. Agency code must hold no reference to Runtime objects.
 Implement the record/replay cassette adapter behind `ModelProvider` so the whole kernel runs
 in CI with zero API calls. Classify every tool with an `EffectClass`; replay re-executes only
 PURE calls and serves the rest from recorded observations. Emit OTel spans using the GenAI
-semantic conventions, and derive the trajectory view from them rather than storing both.
+semantic conventions. Both the TrajectoryStore and the OTel exporter subscribe to the EventBus independently. Neither is derived from the other.
 
 Scores are emitted as separate `StepScored` events, never written back into a stored step.
 ```

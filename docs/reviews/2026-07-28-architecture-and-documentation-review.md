@@ -7,6 +7,60 @@
 
 ---
 
+## Remediation Status
+
+> [!NOTE]
+> Tracked as of 2026-07-29. Items marked **Done** have been applied to the modular docs. Items marked **Deprecated** are deferred to v2+ behind measured triggers.
+
+| ID | Status | Notes |
+| :--- | :--- | :--- |
+| D1 | ✅ Done | Grant removed from port signatures; dispatch-only pattern adopted |
+| D2 | ✅ Done | ContentBlock expanded to discriminated union with ReasoningBlock, ToolUseBlock, ToolResultBlock |
+| D3 | ✅ Done | stream() returns AsyncIterator[StreamEvent] with terminal UsageReported |
+| D4 | ✅ Done | CodeGraph.query() replaced with domain methods (callers_of, co_changed_with) |
+| D5 | ✅ Done | GateReport now includes per-criterion CriterionResult tuple |
+| D6 | ✅ Done | Provenance enum added; memory trust laundering path documented and mitigated |
+| D7 | ✅ Done | EventBus adopted as single source of truth for traces across all docs |
+| D8 | ✅ Done | Orchestrator.execute returns AsyncIterator[Event], not TrajectoryStep |
+| D9 | ✅ Done | Edit, EditRequest, HunkResult models defined; Workspace.apply_edit updated |
+| D10 | ✅ Done | git split into git_read (PURE) and git_commit (DESTRUCTIVE) |
+| D11 | ✅ Done | policy, governor, evaluator, worktree, code_graph added to conformance matrix |
+| D12 | ✅ Done | Python version normalized to >=3.13 across all files |
+| D13 | ✅ Done | Cache-hit target unified to >0.80 alert threshold only |
+| D14 | ✅ Done | Rewritten as proposed analyses; difficulty-tier table and invented targets removed |
+| D15 | ✅ Done | Superseded warnings added to contradicted reference passages |
+| D16 | ✅ Done | Citation artifacts stripped; real citations preserved |
+| G1 | 🔶 Deprecated | Embedding provider deferred with dense retrieval tier (see C4) |
+| G2 | ✅ Done | Toolchain port added; gates call through protocol, not pytest/pyright literals |
+| G3 | ✅ Done | UserMessageReceived event and TaskSpec revision contract specified |
+| G4 | ✅ Done | SubagentReport model defined |
+| G5 | 🔶 Deprecated | Edit-format ablation deferred to when benchmark suite exists |
+| G6 | 🔶 Deprecated | Benchmark repo selection deferred to implementation start |
+| G7 | ✅ Done | schema_version added to events table and cassette headers |
+| G8 | 🔶 Deprecated | LLM-judge rubric deferred to v2 |
+| G9 | 🔶 Deprecated | Velocity/adoption milestones deferred |
+| G10 | ✅ Done | Sandbox timing unified: subprocess for dev only, container for autonomous/scheduled |
+| C1 | 🔶 Deprecated | Best-of-N (N>1) deferred; sequential repair is v1 |
+| C2 | 🔶 Deprecated | RHI outer loop deferred; substrate (A/A, harvester, trajectory store) kept |
+| C3 | 🔶 Deprecated | AOI models deferred; trajectory labels logged for future training |
+| C4 | 🔶 Deprecated | Dense retrieval deferred; lexical + graph is v1. Retrieval port returns scored results for future compatibility |
+| C5 | ✅ Done | Toolchain port added to hexagonal-ports.md |
+| C6 | ✅ Done | Grant parameter removed from port signatures (see D1) |
+| C7 | 🔶 Deprecated | Container runtime ADR deferred to implementation |
+| C8 | 🔶 Deprecated | mypy vs ty/pyrefly advisory slot deferred |
+| C9 | ✅ Partial | Missing dev-dependency group noted; embedding provider deferred |
+| C10 | 🔶 Deprecated | SQLite concurrency design deferred to implementation |
+| C11 | 🔶 Deprecated | 'Dumb harness' reframing deferred |
+| X1 | 🔶 Deprecated | Ports to code — will happen at implementation start |
+| X2 | ✅ Done | Revision autobiography trimmed from modular docs |
+| X3 | ✅ Done | Superseded passages in reference/ marked with warnings |
+| X4 | ✅ Done | metrics-analytics doc rewritten |
+| X5 | 🔶 Deprecated | Build files committed at implementation start |
+| X6 | 🔶 Deprecated | v0.1 user page deferred |
+| X7 | ✅ Done | Mechanical consistency pass completed |
+
+---
+
 ## How to use this document
 
 Findings are individually addressable and stable-numbered:
