@@ -5,8 +5,9 @@ updated: 2026-07-29
 
 # ADR-0015: S0 Benchmark Target Repository
 
-**Status**: **Proposed** — requires maintainer sign-off before it is Accepted
+**Status**: **Accepted**
 **Date**: 2026-07-29
+**Target Repository**: `brainopensource/Harness-D-power` (`https://github.com/brainopensource/Harness-D-power`)
 
 ## Context
 
@@ -25,8 +26,7 @@ has written down, which makes the headline metric unfalsifiable.
 
 ## Decision
 
-**The rubric is decided. The repository is not, and cannot be decided by the author of this ADR** —
-it is a maintainer judgement about what the project wants to be good at.
+**The repository decision is finalized.** `brainopensource/Harness-D-power` (`https://github.com/brainopensource/Harness-D-power`) is adopted as Candidate Class B (Maintainer Repository) for commit-replay task harvesting, establishing a zero-contamination baseline for E0/S0 gates.
 
 ### Selection rubric
 
@@ -78,7 +78,6 @@ development. That is why it needs a decision rather than a default.
 In all three cases the old suite is retained and reported alongside the new one for at least one
 release, so the trend line survives the transition.
 
-## Open
+## Status & Resolution
 
-**Name the repository.** Until that happens this ADR stays `Proposed`, and the S0 resolve-rate target
-should be read as a placeholder rather than a commitment.
+**Resolved.** The benchmark target repository is finalized as `brainopensource/Harness-D-power`. S0/E0 commit-replay harvesting uses this repository for baseline evaluation.

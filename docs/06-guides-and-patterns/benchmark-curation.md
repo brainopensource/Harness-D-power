@@ -15,13 +15,9 @@ The S0 gate reads "≥70% resolved on a pinned 30-task suite." That suite does n
 This is the only remaining artifact standing between the documentation and Sprint 1.
 
 > [!IMPORTANT]
-> **The target repository is not yet named.** Commit-replay harvesting requires an external repository
-> with history, tests, and a revertable base commit — SAGIHA has no code, so it cannot harvest from
-> itself at S0. That repository's language, size, and flake rate silently determine what "≥70%
-> resolved" means, so it is a recorded decision rather than an implementation detail.
-> [ADR-0015](../08-decisions/0015-benchmark-target-repository.md) holds the selection rubric and
-> candidates, and is **Proposed pending maintainer sign-off**. Until it is Accepted, the S0 target is a
-> placeholder rather than a commitment.
+> **The target repository is finalized.** Per [ADR-0015](../08-decisions/0015-benchmark-target-repository.md),
+> commit-replay harvesting uses **`brainopensource/Harness-D-power`** (`https://github.com/brainopensource/Harness-D-power`)
+> for S0 Core and E0 benchmark task harvesting, ensuring zero-contamination baseline evaluation.
 
 ## **The Three Suites**
 

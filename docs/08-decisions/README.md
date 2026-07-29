@@ -32,7 +32,7 @@ Binding decisions, each with the reasoning that produced it and the conditions t
 | [0012](./0012-record-replay-determinism.md) | Determinism claim is record/replay, not reproducible generation | Accepted |
 | [0013](./0013-extension-registration.md) | Extensions register via entry points, resolved once then frozen (amends 0004) | Accepted |
 | [0014](./0014-defer-dense-retrieval.md) | Dense retrieval and the embedding provider deferred behind a recall@10 trigger | Accepted |
-| [0015](./0015-benchmark-target-repository.md) | S0 benchmark target: rubric decided, repository **not yet named** | **Proposed** |
+| [0015](./0015-benchmark-target-repository.md) | S0 benchmark target: `brainopensource/Harness-D-power` | Accepted |
 | [0016](./0016-container-runtime-podman.md) | Rootless Podman; egress allowlisted at an explicit proxy | Accepted |
 | [0017](./0017-execution-profiles.md) | Execution profiles compose ports; coding is one profile, not the only path | Accepted |
 
