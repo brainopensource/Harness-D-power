@@ -2,8 +2,12 @@
 
 ### **A World-Class, Self-Evolving Multi-LLM Orchestration Framework for Autonomous Software Engineering**
 
-**Version:** Conceptual Design 1.0 (July 2026\)  
+**Version:** Conceptual Design 1.0 (July 2026)  
 **Classification:** PhD-level Agent Systems Architecture | SOTA Meta-Harness  
+
+> [!NOTE]
+> **Working Proposal Disclaimer**: This document represents a proposed architecture and architectural blueprint for the Meta Harness CoderAGI, not an imperative or immutable final solution. Further iterative prototyping, benchmarks, and practical evaluations will be conducted to refine and finalize the ultimate harness structure.
+
 **Core Thesis:** The intelligence resides exclusively in the LLMs. The harness is a pure, modular, evolvable environment that supplies context, memory, tools, coordination, verification, and recursive self-improvement mechanisms. The system is designed so that its own source code becomes the primary artifact it optimizes until it can generate and evolve arbitrary software projects.
 
 ## **1\. Vision & Design Philosophy**

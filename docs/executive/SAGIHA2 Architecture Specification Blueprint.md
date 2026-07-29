@@ -1,5 +1,8 @@
 # **Engineering Specification and Research Brief: SOTA Meta-Harness and Infrastructure for Autonomous LLM Coding Agents (SAGIHA2)**
 
+> [!NOTE]
+> **Working Proposal Disclaimer**: This document represents a proposed architecture and architectural blueprint for the Meta Harness CoderAGI, not an imperative or immutable final solution. Further iterative prototyping, benchmarks, and practical evaluations will be conducted to refine and finalize the ultimate harness structure.
+
 ## **Ecosystem Benchmarking and Theoretical Infrastructure Analysis**
 
 Autonomous Large Language Model (LLM) coding agents have advanced beyond basic prompt-wrapping execution loops to multi-tiered, stateful software engineering runtimes. Designing a production-grade, hexagonal Meta-Harness requires evaluating modern open-source agent frameworks, dynamic graph memory architectures, mathematical vector quantization techniques, and emerging inter-agent communication standards.
@@ -396,51 +399,63 @@ Deploying autonomous meta-harnesses in software development introduces structura
 
 ### **Codebase Package Mapping**
 
+```
 sagiha2/  
 ├── pyproject.toml  
+├── sidecars/                       # Native High-Performance Compiled Services
+│   ├── ast_indexer_rust/           # Rust Tree-sitter gRPC AST parser
+│   └── tq_vector_go/               # Go tqdb scalar quantization vector server
 ├── src/  
 │   └── sagiha2/  
-│       ├── \_\_init\_\_.py  
+│       ├── __init__.py  
 │       ├── kernel/  
-│       │   ├── \_\_init\_\_.py  
+│       │   ├── __init__.py  
 │       │   ├── models.py  
-│       │   ├── protocols.py  
-│       │   └── orchestrator.py  
+│       │   ├── protocols.py        # Hexagonal typing.Protocol Port definitions
+│       │   └── orchestrator.py     # Native Async Microkernel State Machine
 │       ├── memory/  
-│       │   ├── \_\_init\_\_.py  
-│       │   ├── short\_term.py  
-│       │   ├── vector\_store.py  
-│       │   └── graphiti\_adapter.py  
+│       │   ├── __init__.py  
+│       │   ├── short_term.py  
+│       │   ├── vector_store.py  
+│       │   └── graphiti_adapter.py # Bi-temporal knowledge graph adapter
+│       ├── lsp/
+│       │   ├── __init__.py
+│       │   └── lsp_client.py       # Language Server Protocol adapter
 │       ├── isolation/  
-│       │   ├── \_\_init\_\_.py  
-│       │   ├── worktree.py  
-│       │   └── sandbox.py  
+│       │   ├── __init__.py  
+│       │   ├── worktree.py         # Git Worktree Manager
+│       │   └── sandbox.py          # Docker / gVisor sandbox runner
+│       ├── orchestration/
+│       │   ├── __init__.py
+│       │   ├── dmartic.py          # DMARTIC operational engine
+│       │   └── mcts_tree_search.py # System 2 MCTS worktree search
 │       ├── protocols/  
-│       │   ├── \_\_init\_\_.py  
-│       │   ├── mcp\_client.py  
-│       │   └── a2a\_server.py  
+│       │   ├── __init__.py  
+│       │   ├── mcp_client.py       # MCP protocol tool client/server
+│       │   └── a2a_server.py       # Agent-to-Agent protocol driver
 │       ├── aoi/  
-│       │   ├── \_\_init\_\_.py  
-│       │   ├── prm\_scorer.py  
-│       │   ├── failure\_predictor.py  
-│       │   └── model\_router.py  
-│       └── outer\_loop/  
-│           ├── \_\_init\_\_.py  
-│           ├── meta\_improver.py  
+│       │   ├── __init__.py  
+│       │   ├── prm_scorer.py  
+│       │   ├── failure_predictor.py  
+│       │   └── model_router.py  
+│       └── outer_loop/  
+│           ├── __init__.py  
+│           ├── meta_improver.py  
 │           └── evaluator.py  
 └── tests/  
     ├── unit/  
     ├── integration/  
-    └── benchmark\_swebench/
+    └── benchmark_swebench/
+```
 
 ### **Multi-Stage Production Deployment Roadmap**
 
 | Execution Phase | Target Milestone | Primary Components & Deliverables | Target Quality Gate Metric |
 | :---- | :---- | :---- | :---- |
-| **Phase 1: Core Kernel & Worktree Isolation** | Baseline Execution Runtime | Typed Pydantic v2 domain schemas, LangGraph state machine, Git Worktree Manager, Docker sandbox | 100% execution isolation; zero cross-branch state contamination |
-| **Phase 2: Neural-Symbolic Memory Subsystem** | Context Preservation Engine | Graphiti bi-temporal knowledge graph4, TurboQuant 4-bit scalar vector index8, hybrid retrieval engine | Retrieval accuracy \>= 90% on LongMemEval benchmark suites5 |
-| **Phase 3: Protocol Standardization & Delegation** | Multi-Agent Orchestration | A2A server and client implementations17, MCP tool drivers17, concurrent sub-agent execution | Execution speedup \>= 3.0x on multi-file refactoring tasks |
-| **Phase 4: AOI Engine & Outer-Loop Evolution** | Self-Evolving Super-Agent | Local CatBoost risk predictor, XGBoost PRM step scorer, Recursive Harness Self-Improvement (RHI) loop | Token cost reduction \>= 35%; zero quality regression on SWE-bench |
+| **Day 0: Core Kernel & Microkernel Baseline** | Simple Orchestration Baseline | Typed Pydantic v2 domain schemas, Native Async Microkernel (ReAct), SQLite/WAL storage, Stdio MCP drivers, Subprocess execution | 100% test passing on baseline single-file refactoring; zero crash rate |
+| **Day 1: Production Memory & Isolation** | Context & Isolation Engine | Ephemeral Git Worktree Manager, Docker sandbox, LanceDB vector store, Graphiti bi-temporal graph, Local `pygls` LSP adapter | 100% execution isolation; zero cross-branch state contamination; diagnostic verification |
+| **Day 2: Performance Sidecars & Protocol Scaling** | SOTA Performance Scaling | Rust Tree-sitter AST sidecar, Go tqdb vector sidecar, A2A inter-agent protocol, Full MCP HTTP-SSE integration | Indexing speedup >= 5.0x; retrieval accuracy >= 90% on LongMemEval |
+| **Day 3: Dual-Process MCTS & RHI Self-Evolution** | Autonomous Super-Agent AGI Harness | MCTS System 2 worktree branching, CatBoost risk predictor, XGBoost PRM step scorer, RHI Outer Loop under held-out evaluation | Token cost reduction >= 35%; zero regression on SWE-bench benchmark splits |
 
 ## **Strategic Conclusions**
 
