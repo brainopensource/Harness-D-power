@@ -11,6 +11,35 @@ CAR isolates responsibilities into **three** layers:
 2. **Agency Layer**: deliberation, reasoning loops, context synthesis, sub-task decomposition, delegation. Holds **no reference to Runtime objects** and emits intents only.
 3. **Runtime Layer**: sandboxed execution, worktree management, terminal capture, MCP tool drivers. Returns structured observations without touching agent memory or policy state.
 
+```mermaid
+graph TD
+    subgraph AgencyLayer ["Agency Layer: Deliberation & Reasoning"]
+        DMARTIC["DMARTIC Engine: System 1 / System 2"]
+        Agency["Orchestrator & CandidateSearch"]
+    end
+
+    subgraph ControlLayer ["Control Layer: Policy & Security Gate"]
+        PolicyEngine["PolicyEngine: authorize()"]
+        Governor["ResourceGovernor: acquire_lease()"]
+        ChokePoint["Single Dispatch Choke Point"]
+    end
+
+    subgraph RuntimeLayer ["Runtime Layer: Sandboxed Execution"]
+        Workspace["Workspace: read / write / run"]
+        Worktree["WorktreeManager: Git Worktrees"]
+        MCP["MCP Tool Drivers"]
+    end
+
+    DMARTIC -->|Emits ToolCall Intent| ChokePoint
+    ChokePoint --> PolicyEngine
+    PolicyEngine -->|Mints Capability Grant| ChokePoint
+    ChokePoint --> Governor
+    ChokePoint -->|Dispatches with Grant| Workspace
+    Workspace --> Worktree
+    Workspace --> MCP
+    Workspace -->|Returns Structured Observation| DMARTIC
+```
+
 **Native sidecars are not a fourth layer.** They are a deployment topology — an implementation detail of where a port's adapter happens to run — available to the Indexer and Runtime layers once measurement justifies them. Listing them as a peer of Control, Agency, and Runtime conflates logical architecture with physical process placement and obscures both.
 
 ## **Why Prose Is Not Enough**

@@ -6,6 +6,15 @@
 > [!IMPORTANT]
 > Phases here map onto the vertical slices in [`07-roadmap/phased-migration-matrix.md`](../07-roadmap/phased-migration-matrix.md), which is normative for scope and gates. Where this document and the roadmap disagree, the roadmap wins.
 
+**Before Sprint 1, read these — they resolve every stack question the prompts assume:**
+[Dependencies & Versions](../05-tech-stack/dependencies-and-versions.md) ·
+[Tool Catalog](../03-contracts-and-models/tool-catalog.md) ·
+[Prompt Architecture](../02-architecture/prompt-architecture.md) ·
+[Error Taxonomy](../03-contracts-and-models/error-taxonomy.md) ·
+[Configuration Reference](../05-tech-stack/configuration-reference.md) ·
+[CI & Quality Gates](../06-guides-and-patterns/ci-and-quality-gates.md) ·
+[ADR Log](../08-decisions/README.md)
+
 ---
 
 ## 🗓️ **Phased Execution Roadmap**
@@ -26,7 +35,11 @@
 
 ### **Sprint 1: Core Scaffolding, Typed Ports & Conformance Tests**
 ```markdown
-Scaffold the Python 3.12+ project under `src/sagiha/`. Define Pydantic v2 domain schemas in
+Scaffold the Python >=3.13 project under `src/sagiha/`, managed with uv (commit uv.lock).
+Configure ruff, pyright strict (blocking), mypy strict (advisory), pytest + pytest-asyncio,
+and import-linter with the contracts from 06-guides-and-patterns/ci-and-quality-gates.md.
+
+Define Pydantic v2 domain schemas in
 `domain/` and `typing.Protocol` interfaces in `ports/` — including `ModelProvider`, `Memory`,
 `Indexer`, `CodeGraph`, `LSPAdapter`, `Workspace`, `WorktreeManager`, `ToolRegistry`,
 `PolicyEngine`, `ResourceGovernor`, `TrajectoryStore`, `Evaluator`.

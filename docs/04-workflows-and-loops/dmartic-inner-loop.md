@@ -8,6 +8,26 @@
 * **System 1 (Fast):** direct ReAct execution for localized, low-complexity tasks.
 * **System 2 (Deliberate):** verifier-guided **best-of-N with sequential repair** across parallel worktrees, for multi-file refactoring and architectural change.
 
+```mermaid
+flowchart TD
+    Task[Task Spec Received] --> Design[1. Design: Parse TaskSpec & Accept Criteria]
+    Design --> Route{Escalation Ladder}
+    Route -- Low Complexity / Single File --> Sys1[System 1: Fast ReAct Loop]
+    Route -- Multi-File / High Risk / Sys1 Failed --> Sys2[System 2: Parallel Worktrees Best-of-N]
+
+    Sys1 --> Test1[5. Test: Execute Tool Edits]
+    Sys2 --> Test2[5. Test: Speculative Branching in Worktrees]
+
+    Test1 --> HardGates{Hard Gates Check: LSP + Pristine Tests}
+    Test2 --> HardGates
+
+    HardGates -- Fail (under retry budget) --> Repair[6. Improve: Sequential Repair on Candidate]
+    Repair --> HardGates
+
+    HardGates -- Pass --> Control[7. Control: Validate Policy, Land Winner, Update Memory]
+    Control --> SelfReflect[8. Self-Reflect: Compact Trajectory & Write Decision Record]
+```
+
 ### On the Name
 
 System 2 is deliberately **not** called MCTS. Monte Carlo Tree Search requires a persistent tree, visit counts, UCT selection, and backpropagation of values to ancestors; proposing *n* candidates and scoring each is best-of-N at depth one, which is what the port actually described.
