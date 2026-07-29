@@ -84,18 +84,19 @@ async def dispatch(
 
     lease_id = await governor.acquire(call.tool_name, ctx.run_id)
 
-    result: ToolResult
     try:
-        result = await registry.dispatch(call)
-    except Exception as exc:
-        logger.error("Error executing tool '%s': %s", call.tool_name, exc, exc_info=True)
-        result = ToolResult(
-            content=[TextBlock(text=f"Execution failure: {exc}")],
-            truncated=False,
-        )
+        try:
+            result = await registry.dispatch(call)
+        except Exception as exc:
+            logger.error("Error executing tool '%s': %s", call.tool_name, exc, exc_info=True)
+            result = ToolResult(
+                content=[TextBlock(text=f"Execution failure: {exc}")],
+                truncated=False,
+            )
     finally:
         await governor.release(lease_id)
-        await policy.record_outcome(decision.grant_id, result)
+
+    await policy.record_outcome(decision.grant_id, result)
 
     duration_ms = (time.monotonic() - start_time) * 1000.0
 

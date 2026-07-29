@@ -42,11 +42,10 @@ class DefaultPolicyEngine:
 
         # Scoped path extraction from arguments
         scope_paths: list[str] = []
-        if isinstance(call.arguments, dict):
-            for key in ("path", "file_path", "target_file", "dir"):
-                val = call.arguments.get(key)
-                if isinstance(val, str):
-                    scope_paths.append(val)
+        for key in ("path", "file_path", "target_file", "dir"):
+            val = call.arguments.get(key)
+            if isinstance(val, str):
+                scope_paths.append(val)
 
         now = utc_now()
         grant_id = str(uuid.uuid4())

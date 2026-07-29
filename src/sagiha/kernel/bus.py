@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Awaitable, Callable, Protocol
+from collections.abc import Awaitable, Callable
+from typing import Protocol
 
 from sagiha.domain.control import Decision
 from sagiha.domain.events import Event
@@ -38,10 +39,10 @@ class EventBus:
 
     def subscribe_observer(self, observer: ObserverFunc | Observer) -> None:
         """Subscribe an observer function or object to all emitted events."""
-        if hasattr(observer, "on_event"):
-            self._observers.append(getattr(observer, "on_event"))
+        if callable(observer):
+            self._observers.append(observer)
         else:
-            self._observers.append(observer)  # type: ignore[arg-type]
+            self._observers.append(observer.on_event)
 
     def subscribe_interceptor(
         self, hook_point: str, interceptor: InterceptorFunc | Interceptor
@@ -50,10 +51,10 @@ class EventBus:
         if hook_point not in self._interceptors:
             self._interceptors[hook_point] = []
 
-        if hasattr(interceptor, "before"):
-            self._interceptors[hook_point].append(getattr(interceptor, "before"))
+        if callable(interceptor):
+            self._interceptors[hook_point].append(interceptor)
         else:
-            self._interceptors[hook_point].append(interceptor)  # type: ignore[arg-type]
+            self._interceptors[hook_point].append(interceptor.before)
 
     async def emit(self, event: Event) -> None:
         """Publish an event to all observers concurrently.
@@ -98,7 +99,7 @@ class EventBus:
                 )
                 if not decision.allowed:
                     return decision
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 return Decision(
                     allowed=False,
                     reason=f"Interceptor timed out after {effective_timeout}s on hook '{hook_point}'",

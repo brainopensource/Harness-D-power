@@ -1,10 +1,13 @@
-"""Deterministic Async ReAct Microkernel State Machine — see docs/04-workflows-and-loops/dmartic-inner-loop.md."""
+"""Deterministic Async ReAct Microkernel State Machine.
+
+See docs/04-workflows-and-loops/dmartic-inner-loop.md.
+"""
 
 from __future__ import annotations
 
 import logging
 
-from sagiha.domain.content import Message, ModelRequest, TextBlock, ToolCall
+from sagiha.domain.content import Message, ModelRequest, TextBlock, ToolCall, ToolResult
 from sagiha.domain.control import RunContext
 from sagiha.domain.identity import StepId
 from sagiha.domain.trajectory import TrajectoryStep
@@ -63,7 +66,7 @@ class ReActEngine:
                 tool_calls.append(block)
 
         # Dispatch tool calls through capability choke point
-        tool_results = []
+        tool_results: list[ToolResult] = []
         for call in tool_calls:
             res = await dispatch(
                 call=call,

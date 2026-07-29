@@ -5,6 +5,7 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
+import anyio
 import pytest
 
 from sagiha import Config, build_kernel
@@ -114,7 +115,7 @@ async def test_react_engine_execution() -> None:
                 role="assistant", content=[TextBlock(text="Hello back!")]
             ),
         )
-        Path(cassette_path).write_text(f"[{entry.model_dump_json()}]")
+        await anyio.Path(cassette_path).write_text(f"[{entry.model_dump_json()}]")
 
         model = CassetteModelProvider(cassette_path=cassette_path, mode="replay")
         policy = DefaultPolicyEngine()
