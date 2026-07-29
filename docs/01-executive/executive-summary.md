@@ -24,8 +24,4 @@ SAGIHA (Super AGI Harness Agent) is a meta-harness that turns frontier LLMs into
 4. **No `Dict[str, Any]` crosses a port**, and no port speaks storage language. Contracts are verified by per-port conformance suites parametrized over every adapter.
 5. **Measure before replacing.** Every advanced component carries a trigger condition, not a calendar slot.
 
-## **What This Revision Corrected**
-
-The prior specification's ports were storage drivers rather than domain contracts, and would have broken at the first adapter migration its own roadmap called for. Its Control layer existed only in prose, with no interception point in the type system. Its self-improvement loop could edit its own grader and deploy without review. And its complexity was front-loaded onto quantization, tree search, compiled sidecars, and temporal graphs for facts a parser already knows — while the components that actually determine whether a coding agent works went unspecified: the model port, context and cache layout, chunking strategy, edit application, and error recovery.
-
-See [Phased Migration Matrix](../07-roadmap/phased-migration-matrix.md) for the vertical slice plan and [Hexagonal Ports](../03-contracts-and-models/hexagonal-ports.md) for the corrected contracts.
+See [Phased Migration Matrix](../07-roadmap/phased-migration-matrix.md) for the vertical slice plan and [Hexagonal Ports](../03-contracts-and-models/hexagonal-ports.md) for the domain contracts.

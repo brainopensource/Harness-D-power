@@ -5,7 +5,7 @@
 
 ## **Why This Module Exists**
 
-The previous specification's entry point was `execute_task(task_description: str, workspace_path: str)`. A bare string leaves **"done" undefined**, which cascades: the Evaluator has no target to evaluate against, the Plan Mode gate has nothing concrete to approve, long-horizon work cannot resume after interruption, and the `TaskStatus` enum — which existed — belonged to no model. This is the deepest missing primitive for autonomy, since a system that cannot state what success means cannot recognize it.
+A bare string leaves **"done" undefined**, which cascades: the Evaluator has no target to evaluate against, the Plan Mode gate has nothing concrete to approve, and long-horizon work cannot resume after interruption. This is the deepest missing primitive for autonomy, since a system that cannot state what success means cannot recognize it.
 
 ## **The Task Model**
 

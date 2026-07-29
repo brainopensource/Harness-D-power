@@ -73,7 +73,10 @@ Fast-TurboQuant optimizes this process further by replacing dense orthogonal rot
 | **tqdb (Pure Go)** | 4-bit | 8x | Zero Training (mmap Native)16 | Zero-Copy Memory Mapped | Embedded Scalar Approximation16 | Pure Go Local Codebase Search16 |
 | **Qdrant 1.18 (TurboQuant Engine)** | 1-bit to 4-bit | 8x to 32x | Precomputed Standard Centroids8 | AVX-512 / NEON SIMD8 | Anisotropy Compensation & Renormalization8 | Production Scale Vector Deployment8 |
 
-SAGIHA implements a hybrid retrieval engine combining lexical BM25 sparse indexes with dense TurboQuant-compressed vectors managed by LanceDB and sqlite-vec8. For local embedded search scenarios, the harness utilizes tqdb memory-mapped quantization storage, enabling search execution directly over mapped files without decompressing vectors into floating-point arrays16.
+> [!WARNING]
+> **Superseded by [ADR-0010](../08-decisions/0010-defer-exotic-components.md).** The passage below describes an approach that was evaluated and rejected. Retained for the reasoning only. Do not implement.
+
+SAGIHA implements a hybrid retrieval engine combining lexical BM25 sparse indexes with dense TurboQuant-compressed vectors managed by LanceDB and sqlite-vec. For local embedded search scenarios, the harness utilizes tqdb memory-mapped quantization storage, enabling search execution directly over mapped files without decompressing vectors into floating-point arrays.
 
 ### **Tri-Tier Persistence Layer Architecture**
 
@@ -816,7 +819,10 @@ Deploying autonomous meta-harnesses in software development introduces structura
 ### **Serialization Latency in Multi-Agent Networks**
 
 > * *Structural Failure Mode*: Relying on JSON-RPC 2.0 over HTTP-SSE across deep sub-agent hierarchies introduces message serialization overhead, high latency, and transport bloat during rapid tool dispatch loops17.  
-> * *Mitigation Strategy*: For co-located sub-agents running on the same host machine, SAGIHA utilizes high-performance gRPC over Unix domain sockets with shared memory buffers, falling back to HTTP/A2A transports only for remote cross-network calls17.
+> * *Mitigation Strategy*: For co-located sub-agents running on the same host machine, > [!WARNING]
+> **Superseded by [ADR-0010](../08-decisions/0010-defer-exotic-components.md).** The passage below describes an approach that was evaluated and rejected. Retained for the reasoning only. Do not implement.
+
+SAGIHA utilizes high-performance gRPC over Unix domain sockets with shared memory buffers, falling back to HTTP/A2A transports only for remote cross-network calls17.
 
 ### **Indirect Prompt Injection via Repository and Web Content**
 

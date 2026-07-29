@@ -1,4 +1,4 @@
-# SAGIHA — Architecture & Documentation Review
+# SAGIHA — Architecture & Documentation Review [DEPRECATED]
 
 **Date**: 2026-07-28
 **Reviewer**: Claude Opus 5 (adversarial architecture review, requested by the maintainer)

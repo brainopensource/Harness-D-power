@@ -52,12 +52,12 @@ These are **trusted** because they are derived deterministically by the harness 
 
 | Tool | Signature | Effect | Grant | Trust |
 | :--- | :--- | :--- | :--- | :--- |
-| `edit_file` | `(path, edits: Edit[]) -> EditResult` | D | write-scope | trusted |
+| `edit_file` | `(request: EditRequest) -> EditResult` | D | write-scope | trusted |
 | `write_file` | `(path, content) -> EditResult` | D | write-scope | trusted |
 
-`edit_file` is the **primary** mutation path and takes a list of anchored search/replace edits. `write_file` is reserved for new files and full rewrites; the description says so, because models otherwise default to whole-file rewrites that burn output tokens and clobber concurrent changes.
+`edit_file` is the **primary** mutation path and takes an `EditRequest` (containing `path` and `edits: tuple[Edit, ...]`). Edit uses search/replace anchors with `expected_occurrences` for disambiguation; unified-diff is reserved for a separate `apply_patch` method if ever needed. `write_file` is reserved for new files and full rewrites; the description says so, because models otherwise default to whole-file rewrites that burn output tokens and clobber concurrent changes.
 
-Both return `EditResult` with per-hunk outcomes and a Tree-sitter `syntax_valid` check, so a structurally broken edit is rejected before the language server sees it and the model gets the specific failing hunk back rather than a bare `false`.
+Both return `EditResult` with per-hunk `HunkResult` outcomes and a Tree-sitter `syntax_valid` check, so a structurally broken edit is rejected before the language server sees it and the model gets the specific failing hunk back rather than a bare `false`.
 
 ### Execution
 
@@ -70,24 +70,27 @@ Both return `EditResult` with per-hunk outcomes and a Tree-sitter `syntax_valid`
 
 `run_tests` is separated from `run_command` because it is the gate signal: `pristine=true` runs against the read-only injected suite, and results feed `GateReport` directly. Routing tests through generic command execution would let a candidate's own harness modifications shape the result.
 
-Command output is truncated at 30k characters head+tail with the middle elided and `full_output_uri` set.
+Command output is truncated at 30k characters head+tail with the middle elided and `full_output_uri` set. Note: `run_command` stays DESTRUCTIVE, which means `ls`/`cat`/`pytest --collect-only` are never re-executed in replay.
 
 ### Version Control
 
 | Tool | Signature | Effect | Grant | Trust |
 | :--- | :--- | :--- | :--- | :--- |
-| `git` | `(op, args) -> GitResult` | P for read ops, D for `commit` | vcs-scope | trusted |
+| `git_read` | `(op, args) -> GitResult` | P | vcs-scope | trusted |
+| `git_commit` | `(args) -> GitResult` | D | vcs-scope | trusted |
 
-A **single** tool with an `op` enum (`status`, `diff`, `log`, `show`, `blame`, `commit`) rather than six tools. Push, force operations, history rewrites, and remote mutations are **not exposed** — they require a human grant through `request_approval`.
+Git is split into two tools: `git_read` (ops: `status`, `diff`, `log`, `show`, `blame`) and `git_commit`. Push, force operations, history rewrites, and remote mutations are **not exposed** — they require a human grant through `request_approval`.
 
 ### Memory & Planning
 
 | Tool | Signature | Effect | Grant | Trust |
 | :--- | :--- | :--- | :--- | :--- |
-| `remember` | `(content, kind) -> memory_id` | I | — | trusted |
+| `remember` | `(content, kind, provenance) -> memory_id` | I | memory-write | trusted |
 | `recall` | `(query, k=10, as_of?) -> Recall[]` | P | — | trusted |
 | `update_plan` | `(tasks: TaskSpec[]) -> None` | I | — | trusted |
 | `request_approval` | `(summary, diff?, criteria) -> Decision` | I | — | trusted |
+
+`remember` now requires a `memory-write` grant; content derived from EXTERNAL inherits EXTERNAL provenance. `recall` results carry provenance; the prompt assembler wraps EXTERNAL in `<untrusted-data>` at render time.
 
 `request_approval` is the human gate as a **tool the model can call**, not only a policy interrupt. It blocks durably: the task parks in `input-required`, survives restart, notifies out of band, and denies on timeout.
 

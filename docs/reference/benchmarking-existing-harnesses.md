@@ -77,7 +77,7 @@ By synthesizing the best elements of these mature open-source harnesses while fi
 
 | Feature / Dimension | Claude Code CLI | Aider | OpenHands | Grok Code | **SAGIHA Meta-Harness** |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Control Plane** | TypeScript / Ink | Python / Click | Python / EventStream | Custom ReAct | **Python 3.12+ Async Microkernel (`typing.Protocol`)** |
+| **Control Plane** | TypeScript / Ink | Python / Click | Python / EventStream | Custom ReAct | **Python >=3.13+ Async Microkernel (`typing.Protocol`)** |
 | **Tool Protocol** | Native MCP | Custom Block Edits | Event Stream Actions | MCP / Local | **MCP (Tools) + A2A (Peer Delegation)** |
 | **Code Structure Index** | None (reads files) | Tree-sitter Repomap | File search | AST Indexing | **Tree-sitter AST Skeletonizer + LanceDB Hybrid BM25** |
 | **Diagnostics Gate** | Manual / CLI | Auto pytest | Pytest runner | Unit tests | **First-Class `LSPAdapter` (Real-Time Type Diagnostics)** |

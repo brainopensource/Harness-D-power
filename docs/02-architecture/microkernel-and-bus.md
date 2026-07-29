@@ -4,13 +4,13 @@
 > **Working Proposal Disclaimer**: A working architectural proposal, refined iteratively as practical evaluation progresses.
 
 ## **Overview**
-The orchestration engine is a lightweight `AsyncStateMachine` event-bus microkernel in Python 3.13+. It owns the single dispatch choke point between intent and effect.
+The orchestration engine is a lightweight `AsyncStateMachine` event-bus microkernel in Python >=3.13. It owns the single dispatch choke point between intent and effect.
 
 ## **Key Design Features**
 
 * **Zero Framework Lock-in**: decoupled from external agent frameworks; LangGraph and similar are supported strictly as optional adapters behind the `Orchestrator` port.
 * **Event-Stream Orchestration**: non-blocking async event bus with step checkpointing and OpenTelemetry instrumentation, following the **OTel GenAI semantic conventions** so ecosystem tooling works without bespoke adapters.
-* **One Source of Truth for Traces**: The `EventBus` is the single source of truth. Both the `TrajectoryStore` (durable SQLite audit log) and OpenTelemetry exporter subscribe to `EventBus` events independently, preventing trace drift while ensuring trajectory persistence is unaffected by telemetry sampling.
+* **One Source of Truth for Traces**: The EventBus is the single source of truth. Both the TrajectoryStore and the OTel exporter subscribe to it independently. Neither is derived from the other — deriving a durable audit log from a sampled telemetry pipeline would corrupt it.
 
 ## **Determinism**
 

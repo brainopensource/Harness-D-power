@@ -107,11 +107,27 @@ Note what this protects against: not a malicious agent, but a **well-optimized**
 ```yaml
 strategy:
   matrix:
-    port: [model, memory, indexer, workspace, lsp, tool_registry, trajectory]
+    port: [model, memory, indexer, workspace, lsp, tool_registry, trajectory, policy, governor, evaluator, worktree, code_graph]
 run: pytest tests/contracts/test_${{ matrix.port }}_conformance.py -v
 ```
 
 Each job runs one port's suite across **every** adapter implementing it. A new adapter is not "done" until it appears in that parametrization and passes unchanged — that is the operational meaning of swappable, and the mechanism that makes the [migration matrix](../07-roadmap/phased-migration-matrix.md) safe to execute.
+
+### Example Behavioral Tests
+
+```python
+# tests/contracts/test_policy_conformance.py
+async def test_denies_write_outside_worktree_at_every_autonomy_level(policy): ...
+async def test_forged_grant_is_rejected_at_dispatch(policy, registry): ...
+async def test_expired_grant_is_rejected(policy): ...
+async def test_grant_scope_is_path_bounded_not_prefix_matched(policy): ...
+async def test_always_gate_list_cannot_be_bypassed_by_autonomy_level(policy): ...
+
+# tests/contracts/test_evaluator_conformance.py
+async def test_candidate_modification_of_tests_fails_the_gate(evaluator): ...
+async def test_evaluator_uses_injected_suite_not_worktree_copy(evaluator): ...
+async def test_evaluator_has_no_degraded_mode(evaluator): ...
+```
 
 ## **Replay Determinism**
 

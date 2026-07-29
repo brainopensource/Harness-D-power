@@ -14,6 +14,8 @@ async def execute(
 ) -> AsyncIterator[Event]: ...
 ```
 
+All cockpits (TUI, SSE, TTS) subscribe to this event stream. TrajectoryStep is a persistence-shaped type built by the TrajectoryStore observer, not a streaming contract.
+
 A task spec goes in; a stream of typed events comes out. Everything below is a translation layer over that signature plus an [EventBus](./event-bus-and-hooks.md) subscription.
 
 ```
@@ -83,6 +85,14 @@ Neither direction touches the kernel.
 * **Text-to-speech (output)**: an `Observer` subscribed to a filtered event slice — `StepCompleted`, `ApprovalRequested`, `RunCompleted` — narrating summaries.
 
 The observer contract does the work here: narration is bounded, drops frames under backpressure, and a failing TTS engine is disabled for the run rather than stalling the agent. Voice is genuinely plug-and-play *because* the event bus was specified with these properties, not by coincidence.
+
+## **Mid-Run Steering**
+
+* A `UserMessageReceived` event type
+* When received, the orchestrator creates a new `TaskSpec` revision (TaskSpec is frozen — new revision, not mutation)
+* The new revision appends to the prompt tail (cache-friendly)
+* Active plan and retrieval set may be invalidated by the revision
+* This is the dominant interaction mode and must be supported from S1
 
 ## **Streaming Contract**
 

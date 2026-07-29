@@ -82,20 +82,32 @@ Append-only SQLite-WAL. Events are the write unit; scores arrive as separate `St
 
 ```sql
 CREATE TABLE events (
-  seq        INTEGER PRIMARY KEY,
-  run_id     TEXT NOT NULL,
-  branch_id  TEXT NOT NULL,
-  step_seq   INTEGER,
-  parent_seq INTEGER,             -- DAG ancestry, not a linear counter
-  kind       TEXT NOT NULL,
-  payload    TEXT NOT NULL,       -- serialized event model
-  ts         TEXT NOT NULL        -- ISO-8601, aware UTC
+  seq            INTEGER PRIMARY KEY,
+  schema_version INTEGER NOT NULL,
+  run_id         TEXT NOT NULL,
+  branch_id      TEXT NOT NULL,
+  step_seq       INTEGER,
+  parent_seq     INTEGER,             -- DAG ancestry, not a linear counter
+  kind           TEXT NOT NULL,
+  payload        TEXT NOT NULL,       -- serialized event model
+  ts             TEXT NOT NULL        -- ISO-8601, aware UTC
 );
 CREATE INDEX idx_run_step ON events(run_id, step_seq);
 CREATE INDEX idx_kind ON events(run_id, kind);
 ```
 
 It serves four consumers with different needs: replay (ordered read), audit (policy decisions), RHI training data (outcomes and features), and debugging (`sagiha trajectory show`).
+
+## **Schema Versioning**
+
+Both the `events` table and cassette headers include a `schema_version: int` field. 
+
+**Upgrade policy**:
+* Replay compatibility window of one major version.
+* Migration scripts for older cassettes.
+* Or explicit re-record.
+
+Note: the first change to any event model without this will orphan every cassette.
 
 ## **Inspection**
 

@@ -5,7 +5,7 @@
 
 ## **Why This Module Exists**
 
-Earlier drafts referenced an event bus, lifecycle hooks, and an extension system without ever specifying the event taxonomy or the subscriber contract. That gap blocks more than it appears to: the trajectory store, OTel spans, TUI rendering, remote pilot streaming, voice narration, and custom quality gates are **all** consumers of this one mechanism. Specifying it once removes the temptation to bolt each of them onto the kernel directly.
+The event taxonomy and subscriber contract must be clearly specified. The trajectory store, OTel spans, TUI rendering, remote pilot streaming, voice narration, and custom quality gates are **all** consumers of this one mechanism. Specifying it once removes the temptation to bolt each of them onto the kernel directly.
 
 ## **One Stream, Many Consumers**
 

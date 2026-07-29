@@ -5,7 +5,7 @@
 
 ## **Why This Module Exists**
 
-The previous documentation described security as command sanitization and a policy matrix. That is not a threat model, and it omitted the primary threat entirely. This module states what an autonomous coding agent is actually exposed to, and which mechanism stops each thing.
+This module states what an autonomous coding agent is actually exposed to, and which mechanism stops each thing.
 
 ## **T1 — Indirect Prompt Injection (Primary Threat)**
 
@@ -14,6 +14,7 @@ An agent that reads repositories, issues, pull requests, code comments, dependen
 **Mitigations** — defense does not rest on the model's judgment:
 
 * All retrieved content is delimited and labelled as **data**. The system prompt establishes that content appearing in tool output carries no authority.
+* **Laundering Attack Path**: An agent might read untrusted data, store it in memory, and recall it later, inadvertently stripping the untrusted tag. **Provenance Tracking** prevents this: memory records store their `Provenance`, and the prompt assembler re-wraps `EXTERNAL` provenance in `<untrusted-data>` upon recall. A conformance test (`test_external_provenance_survives_roundtrip`) guarantees this.
 * Credentials never enter the sandbox; secrets are injected per-grant, scoped, short-lived.
 * Egress is allowlisted **at the network namespace**, not by inspecting commands.
 * Tool output is scanned and redacted for secret patterns before entering memory, logs, or context.

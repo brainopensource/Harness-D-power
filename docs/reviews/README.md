@@ -1,4 +1,4 @@
-# **Reviews**
+# **Reviews** [DEPRECATED]
 
 > [!NOTE]
 > **Advisory, not normative.** Reviews record an external assessment at a point in time. They do not override the modular docs (`01`–`07`) or the [ADR log](../08-decisions/README.md). Where a review recommends a change, that change becomes binding only when it lands in a normative doc or a new ADR.

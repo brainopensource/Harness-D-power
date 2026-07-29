@@ -5,9 +5,9 @@
 
 ## **Slices First, Components Second**
 
-The previous roadmap was **component-wise**: each row upgraded independently, one tier at a time. That optimizes the wrong axis. The risk in this system lives in **integration**, not in any individual component — a perfect vector store and a perfect LSP adapter that have never run together tell you nothing about whether the harness works.
+The risk in this system lives in **integration**, not in any individual component — a perfect vector store and a perfect LSP adapter that have never run together tell you nothing about whether the harness works.
 
-The plan is therefore a sequence of **vertical slices**, each thin through every layer and each independently useful. The component matrix below is the appendix, not the plan.
+The plan is a sequence of **vertical slices**, each thin through every layer and each independently useful. The component matrix below is the appendix, not the plan.
 
 ## **Vertical Slice Plan**
 
@@ -36,17 +36,10 @@ Every advanced entry carries a **trigger condition** rather than a phase number.
 | **Indexing** | AST chunking + FTS5 + dense | Incremental file-watch update | Out-of-process service — *when measured indexing misses its latency budget* |
 | **Vector Compression** | None (exhaustive scan) | None | Quantization — *when corpus or latency crosses a measured ceiling, ~10⁷ vectors* |
 | **Diagnostics** | Subprocess pytest + linter | Warm LSP supervisor, pooled | More languages — *per language actually used* |
-| **Sandbox** | Local subprocess + worktree | **Container + materialization + egress allowlist** | gVisor — *when the threat model requires syscall isolation* |
+| **Sandbox** | Local subprocess (development only) + worktree; container required at autonomous/scheduled autonomy levels from S1 | **Container + materialization + egress allowlist** | gVisor — *when the threat model requires syscall isolation* |
 | **Protocols** | Stdio MCP | HTTP-SSE MCP | A2A — *when a genuinely remote peer agent exists* |
 | **Self-Improvement** | Manual iteration | PRM scoring in shadow mode | RHI — *once the A/A noise floor is established* |
 
-## **Three Corrections to the Previous Matrix**
-
-1. **Containers moved earlier.** They are the only mechanism that makes the isolation claim true, so the previous Day-1 gate ("zero cross-branch state contamination") was unreachable while containers sat at Day 2. Worktrees isolate tracked files and nothing else.
-
-2. **The LTM endpoint broke the contract guarantee.** Day-2 named a temporal graph engine as the LTM adapter, while the port demanded `store_vector(key, vector: list[float])` — an argument that engine has no way to accept. The port was reshaped to `remember`/`recall`; see [Hexagonal Ports](../03-contracts-and-models/hexagonal-ports.md).
-
-3. **Redis dropped, sidecars deferred, quantization gated.** Each was scheduled rather than triggered. STM is per-session and small, so SQLite-WAL suffices; LanceDB embeds in-process without IPC; and exhaustive scan is milliseconds at this corpus size.
 
 ## **What Makes Deferral Safe**
 

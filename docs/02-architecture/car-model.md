@@ -44,13 +44,13 @@ graph TD
 
 ## **Why Prose Is Not Enough**
 
-The previous revision asserted that Control "evaluates every agent tool request against a security policy before authorizing execution," while the implied call graph let the Orchestrator invoke `ToolRegistry.execute_tool()` directly. There was no interception point anywhere in the type system, and the Control layer had no port at all. A boundary that exists only in a document is bypassed by the first contributor in a hurry, and by the outer loop the moment it starts editing adapters.
+Control must evaluate every agent tool request against a security policy before authorizing execution. An interception point must exist in the type system; a boundary that exists only in a document is bypassed by the first contributor in a hurry, and by the outer loop the moment it starts editing adapters.
 
 ## **Three Enforcement Mechanisms**
 
 ### 1. Capability Grants
 
-Every side-effecting Runtime method requires a `Grant` — an unforgeable token minted only by `PolicyEngine.authorize()`. Code holding no Grant cannot act, so authorization cannot be forgotten at a call site:
+Every side-effecting Runtime method executes only if backed by a `Grant` — an unforgeable token minted only by `PolicyEngine.authorize()`. 
 
 ```python
 class PolicyEngine(Protocol):
@@ -58,8 +58,8 @@ class PolicyEngine(Protocol):
     async def record_outcome(self, grant_id: str, result: ToolResult) -> None: ...
 
 class Workspace(Protocol):
-    async def write(self, path: str, content: str, grant: Grant) -> None: ...
-    async def run(self, command: list[str], grant: Grant) -> CommandResult: ...
+    async def write(self, path: str, content: str) -> None: ...
+    async def run(self, command: list[str]) -> CommandResult: ...
 ```
 
 Grants are scoped to specific paths and tools, and they expire. Policy becomes non-bypassable by construction rather than by review.
@@ -71,6 +71,18 @@ CI enforces that `agency/` cannot import `runtime/` or `adapters/`, via `import-
 ### 3. A Single Dispatch Choke Point
 
 Agency emits a `ToolCall`. The kernel resolves authorization, acquires a lease from the `ResourceGovernor`, dispatches, records the outcome, and returns an observation. There is exactly one path from intent to effect, which is also the single place where audit logging, budget accounting, effect classification, and secret redaction attach.
+
+Grants never escape this dispatch choke point. The dispatch pattern becomes:
+```python
+async def dispatch(call: ToolCall, ctx: RunContext) -> ToolResult:
+    decision = await policy.authorize(call, ctx)
+    if not decision.allowed:
+        return _denied(call, decision)
+    async with governor.lease(kind=call.tool_name) as lease:
+        result = await registry.dispatch(call, decision.grant)  # grant never escapes
+        await policy.record_outcome(decision.grant.grant_id, result)
+        return result
+```
 
 ## **Admission Control**
 

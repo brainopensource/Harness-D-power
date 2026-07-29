@@ -46,3 +46,17 @@ File-watch driven, per-file re-index. Full re-index is a fallback, not the norma
 Retrieval is evaluated on its own terms as **recall@k against a labelled query set drawn from the target repository**, reported separately from task success so that retrieval regressions are attributable rather than hidden inside an end-to-end number.
 
 **LongMemEval is not an appropriate benchmark here** — it measures conversational long-term memory, not code retrieval, and the previous "≥90% on LongMemEval" gate could not have supported any claim about repository search.
+
+## **Retrieval Port Shape**
+
+Ensure the retrieval interface returns ranked, scored results:
+
+```python
+class RetrievalHit(BaseModel):
+    path: str
+    chunk: str
+    score: float  # normalized 0-1, backend-agnostic
+    metadata: dict[str, Any] = {}
+```
+
+Note: BM25/FTS5 scores normalize to 0-1; future dense (cosine) backends will use the same shape. This ensures the port is backend-agnostic without building dense retrieval now.
