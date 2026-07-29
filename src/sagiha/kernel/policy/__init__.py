@@ -1,4 +1,5 @@
-"""PolicyEngine — trusted computing base. Filled in starting S0.
+"""PolicyEngine — capability security choke point. See docs/02-architecture/car-model.md."""
 
-See docs/08-decisions/0007-trusted-computing-base.md.
-"""
+from sagiha.kernel.policy.engine import DefaultPolicyEngine
+
+__all__ = ["DefaultPolicyEngine"]

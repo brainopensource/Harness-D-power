@@ -93,3 +93,4 @@ logs/
 
 # Node (if ever used alongside)
 node_modules/
+.sagiha/trajectories.db
