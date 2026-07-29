@@ -27,7 +27,7 @@ Enforced three ways: path allowlist in `MutationProposal.targets`, residence on 
 
 ## **Cycle**
 
-1. **Trajectory Ingestion** — traces, tool logs, and step scores to an append-only store instrumented with **OTel GenAI semantic conventions**, so ecosystem tooling works without bespoke adapters. The span log and trajectory store are one source of truth, one derived from the other.
+1. **Trajectory Ingestion** — traces, tool logs, and step scores to an append-only store instrumented with **OTel GenAI semantic conventions**, so ecosystem tooling works without bespoke adapters. The EventBus is the single source of truth; the TrajectoryStore and the OTel span log are independent subscribers — neither is derived from the other (see [Microkernel & Bus](../02-architecture/microkernel-and-bus.md)).
 2. **Mutation Proposal** — the Meta-Improver reviews failure patterns and proposes targeted changes within the mutable surface. AOI ranks candidates so only promising ones reach expensive evaluation.
 3. **Verification** — the four gates below.
 4. **Deployment** — staged for **human sign-off**. Mutations do not self-deploy.

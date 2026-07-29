@@ -29,7 +29,7 @@ updated: 2026-07-29
 | **Phase 1** | S0 | Scaffolding & Ports | Package tree, Pydantic v2 schemas, `typing.Protocol` ports, composition root, conformance suite | `mypy --strict` clean; conformance suite green; `lint-imports` passes |
 | **Phase 2** | S0 | Day-Zero Microkernel | SQLite-WAL trajectory store, stdio MCP driver, ReAct microkernel, **cassette replay** | ≥70% resolved on a pinned 30-task suite within budget; 100% of runs replay deterministically |
 | **Phase 3** | S1 | Isolation, Sandbox & LSP | Worktree manager + materialization, **container sandbox + egress allowlist**, warm LSP supervisor, pristine test injection | No write outside the worktree without a grant; no credential reachable inside; parallel runs show zero interference |
-| **Phase 4** | S2 | Memory & AST Chunking | Tree-sitter skeletonizer, hybrid BM25 + dense retrieval, code graph, telemetry logging | recall@10 ≥ target on a labelled query set; retrieval beats the no-retrieval control |
+| **Phase 4** | S2 | Memory & AST Chunking | Tree-sitter skeletonizer, lexical (FTS5) + code-graph retrieval — dense tier deferred per [ADR-0014](../08-decisions/0014-defer-dense-retrieval.md), code graph, telemetry logging | recall@10 ≥ target on a labelled query set; retrieval beats the no-retrieval control |
 | **Phase 5** | S3–S4 | System 2 & Self-Improvement | Best-of-N search, hard gates, commit-replay harvester, AOI in shadow mode, Meta-Improver with TCB restrictions | Best-of-N beats single-shot by more than the A/A noise floor; CI rejects 100% of TCB diffs |
 
 **Note on gates.** "0% crash rate" and "100% passing" are not measurable for a stochastic system without a defined workload; every gate above names a suite, a threshold, and a budget.
@@ -105,9 +105,10 @@ Implement AST-bounded chunking in `src/sagiha/adapters/indexing/`: the unit is a
 function/method/class span, prefixed with file path, module docstring, and symbol path.
 Chunking dominates retrieval quality — do not substitute fixed-size windows.
 
-Build hybrid retrieval: BM25 via SQLite-FTS5 (never demoted below dense — exact symbol match
-is the strongest signal for code) plus a dense tier, fused and then expanded along code-graph
-edges. Start the dense tier uncompressed; quantization is deferred until a measured ceiling.
+Build retrieval as BM25 via SQLite-FTS5 (exact symbol match is the strongest signal for code),
+expanded along code-graph edges. The dense tier is **deferred** per ADR-0014 — add it only when
+lexical+graph measurably misses recall@10 for vocabulary-mismatch reasons; when it arrives it is
+fused with, never ranked above, the lexical tier.
 
 Build the deterministic `CodeGraph` (imports, calls, definitions, ownership, co-change)
 directly from Tree-sitter and git into SQLite. Never route deterministic structure through
