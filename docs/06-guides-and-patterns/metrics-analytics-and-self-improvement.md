@@ -67,18 +67,18 @@ By vectorizing error outputs from failed steps (using TF-IDF or embedding vector
 ```mermaid
 graph TD
     subgraph Live Execution [1. Live Inner Loop]
-        Agent[System 1 / System 2 Execution] --> Gates[LSP & Pristine Test Gates]
+        Agent[System 1 / System 2 Execution] --> Gates["LSP & Pristine Test Gates"]
     end
 
     subgraph Telemetry Store [2. Trajectory Analytics]
         Gates --> Log[SQLite-WAL TrajectoryStore]
-        Log --> Analytics[Extract Step Credits, Locality Ratio & Failure Clusters]
+        Log --> Analytics["Extract Step Credits, Locality Ratio & Failure Clusters"]
     end
 
     subgraph Outer Improvement [3. RHI Outer Loop]
         Analytics --> RHI[MetaImprover Optimization]
         RHI --> Opt1[Tune System 1/2 Escalation Thresholds]
-        RHI --> Opt2[Optimize Tree-sitter Chunk Sizes & Retrieval Weights]
+        RHI --> Opt2["Optimize Tree-sitter Chunk Sizes & Retrieval Weights"]
         RHI --> Opt3[Refine Prompt Templates against Holdout Test Bank]
     end
 ```
@@ -86,3 +86,21 @@ graph TD
 1. **Inner Loop Telemetry:** The active kernel logs all tool dispatches, LSP deltas, and costs.
 2. **Offline Trajectory Analytics:** Processes trajectories offline, calculating step credits, locality ratios, and failure clusters.
 3. **RHI Outer Loop Optimization:** The `MetaImprover` tunes prompt templates, retrieval weights, and escalation thresholds against a calibrated **A/A noise floor** ($\sigma_{noise}$ at $p < 0.05$), ensuring every harness mutation is backed by empirical statistical evidence before human sign-off and deployment.
+
+---
+
+## 6. **Task Complexity Difficulty Scale (Tiers 1 to 10)**
+
+To benchmark SAGIHA systematically and track capability growth over time, benchmark tasks are categorized along a **10-Point Difficulty Scale**:
+
+| Complexity Tier | Target Systems & Applications | Feasibility for SAGIHA + LLMs | Primary Verification Mechanism |
+| :--- | :--- | :--- | :--- |
+| **Level 1 – 3** | Single-function algorithms, unit bug fixes, simple CLI utilities (e.g., `calc_discount`). | **100% (System 1 Fast ReAct)** | Unit tests (`pytest`), `LSPAdapter` syntax check |
+| **Level 4 – 6** | Complete REST CRUD microservices (FastAPI/Express), Dockerized services, React dashboards. | **95% (System 1 ReAct)** | Container integration tests, OpenAPI validation |
+| **Level 7 – 8.5** | **SOTA Agentic Tier:** In-memory Vector Database in Rust (`HNSW` + BM25), Distributed CQRS & Event-Sourcing engine in Go/Python. | **80% – 88% (System 2 Best-of-N Worktrees)** | Multi-worktree parallel branching, PRM scoring, LSP type diagnostics |
+| **Level 9 – 10** | **Extreme Infrastructure Tier:** Multi-region Byzantine Raft/Paxos consensus engine, sub-microsecond HFT matching engine, LLVM JIT compiler. | **<15% (Requires Human Co-Pilot)** | Formal verification, micro-benchmarks, hardware cache-line profilers |
+
+### **Benchmark Progression Protocol**
+1. **Phase 1 Baseline (Levels 1–3):** Validate kernel stability, cassette replay determinism, and basic `LSPAdapter` feedback loops.
+2. **Phase 2 Expansion (Levels 4–6):** Evaluate multi-file editing precision, Docker sandbox materialization, and `Workspace` capability grant boundaries.
+3. **Phase 3 SOTA Frontier (Levels 7–8.5):** Stress-test System 2 Best-of-N parallel branch exploration, `CodeGraph` dependency closures, and PRM verifier scoring on high-concurrency Rust/Go systems.
