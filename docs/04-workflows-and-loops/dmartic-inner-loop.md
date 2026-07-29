@@ -10,22 +10,22 @@
 
 ```mermaid
 flowchart TD
-    Task[Task Spec Received] --> Design[1. Design: Parse TaskSpec & Accept Criteria]
-    Design --> Route{Escalation Ladder}
-    Route -- Low Complexity / Single File --> Sys1[System 1: Fast ReAct Loop]
-    Route -- Multi-File / High Risk / Sys1 Failed --> Sys2[System 2: Parallel Worktrees Best-of-N]
+    Task["Task Spec Received"] --> Design["1. Design: Parse TaskSpec & Acceptance Criteria"]
+    Design --> Route{"Escalation Ladder"}
+    Route -- "Low complexity / single file" --> Sys1["System 1: Fast ReAct Loop"]
+    Route -- "Multi-file / high risk / System 1 failed" --> Sys2["System 2: Parallel Worktrees Best-of-N"]
 
-    Sys1 --> Test1[5. Test: Execute Tool Edits]
-    Sys2 --> Test2[5. Test: Speculative Branching in Worktrees]
+    Sys1 --> Test1["5. Test: Execute Tool Edits"]
+    Sys2 --> Test2["5. Test: Speculative Branching in Worktrees"]
 
-    Test1 --> HardGates{Hard Gates Check: LSP + Pristine Tests}
+    Test1 --> HardGates{"Hard Gates: LSP + Pristine Tests"}
     Test2 --> HardGates
 
-    HardGates -- Fail (under retry budget) --> Repair[6. Improve: Sequential Repair on Candidate]
+    HardGates -- "Fail, under retry budget" --> Repair["6. Improve: Sequential Repair"]
     Repair --> HardGates
 
-    HardGates -- Pass --> Control[7. Control: Validate Policy, Land Winner, Update Memory]
-    Control --> SelfReflect[8. Self-Reflect: Compact Trajectory & Write Decision Record]
+    HardGates -- "Pass" --> Control["7. Control: Validate Policy, Land Winner"]
+    Control --> SelfReflect["8. Self-Reflect: Compact Trajectory & Write Decision Record"]
 ```
 
 ### On the Name
