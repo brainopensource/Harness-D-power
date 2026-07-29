@@ -1,18 +1,18 @@
-# **SAGIHA2 — Senior AGI Harness Architecture 2.0**
+# **SAGIHA — Super AGI Harness Agent**
 
 ### **A Self-Evolving Multi-LLM Orchestration Framework for Autonomous Software Engineering**
 
-**Version:** Conceptual Design 2.0 (July 2026) — revised against architectural review
+**Version:** Conceptual Design (July 2026) — revised against architectural review
 **Classification:** Agent Systems Architecture | Meta-Harness Reference Design
 
 > [!NOTE]
-> **Working Proposal Disclaimer**: This document represents a proposed architecture and architectural blueprint for the Meta Harness CoderAGI, not an imperative or immutable final solution. Further iterative prototyping, benchmarks, and practical evaluations will be conducted to refine and finalize the ultimate harness structure.
+> **Working Proposal Disclaimer**: This document represents a proposed architecture and architectural blueprint for SAGIHA, not an imperative or immutable final solution. Further iterative prototyping, benchmarks, and practical evaluations will be conducted to refine and finalize the ultimate harness structure.
 
 **Core Thesis:** The intelligence resides exclusively in the LLMs. The harness is a pure, modular, evolvable environment that supplies context, memory, tools, coordination, verification, and recursive self-improvement mechanisms. The system is designed so that its own source code becomes the primary artifact it optimizes until it can generate and evolve arbitrary software projects.
 
 ## **1\. Vision & Design Philosophy**
 
-SAGIHA2 is not another agent framework. It is a **Meta-Harness**: a stable, hexagonal, plugin-based runtime whose primary purpose is to turn one or more frontier LLMs into a Super-Agent capable of orchestrating specialized sub-agents, executing long-horizon coding tasks, and continuously rewriting its own scaffolding under strict verification.  
+SAGIHA is not another agent framework. It is a **Meta-Harness**: a stable, hexagonal, plugin-based runtime whose primary purpose is to turn one or more frontier LLMs into a Super-Agent capable of orchestrating specialized sub-agents, executing long-horizon coding tasks, and continuously rewriting its own scaffolding under strict verification.  
 **Foundational Principles**
 
 > * LLMs own all intelligence, planning, creativity, and decision-making.  
@@ -34,7 +34,7 @@ SAGIHA2 is not another agent framework. It is a **Meta-Harness**: a stable, hexa
 └───────────────────────────────┬─────────────────────────────────────────────┘  
                                 │ A2A \+ MCP \+ Typed Ports  
 ┌───────────────────────────────▼─────────────────────────────────────────────┐  
-│                         SAGIHA2 Meta-Harness Kernel                         │  
+│                         SAGIHA Meta-Harness Kernel                         │  
 │  • Composition Root      • Lifecycle & Checkpoint Manager                   │  
 │  • Dispatch Choke Point  • Observability (OTel GenAI \+ Trajectory Store)    │  
 │  • Policy Engine (TCB)   • Resource Governor (concurrency, spend, leases)   │  
@@ -222,7 +222,7 @@ The authoritative roadmap is the **vertical slice plan** in `07-roadmap/phased-m
 ## **9\. Package Structure (Clean Architecture)**
 
 ```
-sagiha2/
+sagiha/
 ├── composition.py          # THE composition root. Explicit wiring, no container.
 ├── ports/                  # All Protocols. Imports nothing internal.
 ├── domain/                 # Pydantic models. Pure: no I/O, no adapter imports.
@@ -261,7 +261,7 @@ Every metric below is reported **with variance across k ≥ 3 runs**, never as a
 
 ## **11\. Closing Statement**
 
-SAGIHA2 synthesizes what the original specification required — modular hexagonal packages, DMARTIC, replaceable indexing, LLM-centric intelligence — with what it lacked: independent evaluation whose inputs the generator cannot reach, self-improvement bounded by an immutable trusted computing base, a real security perimeter, and honest measurement.
+SAGIHA synthesizes what the original specification required — modular hexagonal packages, DMARTIC, replaceable indexing, LLM-centric intelligence — with what it lacked: independent evaluation whose inputs the generator cannot reach, self-improvement bounded by an immutable trusted computing base, a real security perimeter, and honest measurement.
 
 The harness remains deliberately "dumb." All intelligence, creativity, and ambition live in the models. The Meta-Harness's only job is to give those models the richest possible environment in which to think, act, verify, and improve — including the environment itself.
 
@@ -275,7 +275,7 @@ The following enhancements are incorporated from the publicly available Apache 2
 
 ### **12.1 Parallel Execution with Isolated Git Worktrees**
 
-SAGIHA2 now treats **git worktrees** as a first-class isolation primitive for parallel agents:
+SAGIHA now treats **git worktrees** as a first-class isolation primitive for parallel agents:
 
 > * Each sub-agent (or specialized worker) can be spawned inside its own worktree.
 > * Tracked file changes remain isolated until explicitly selected or discarded.
@@ -454,7 +454,7 @@ All adapters must support both inference and incremental/online updates.
 
 ### **14.4 Data Sources**
 
-AOI is trained exclusively on data generated by SAGIHA2 itself:
+AOI is trained exclusively on data generated by SAGIHA itself:
 
 > * Complete and partial trajectories (from Trajectory Store)  
 > * Configuration snapshots used in each run  
@@ -507,7 +507,7 @@ Because the entire system is configuration-driven (YAML \+ Pydantic), AOI can tr
 
 ### **14.8 Package Structure Additions**
 
-sagiha2/  
+sagiha/  
 ├── ...  
 ├── aoi/                          \# Auxiliary Optimization Intelligence  
 │   ├── ports.py                  \# RewardPredictor, ConfigurationSelector, etc.  
@@ -529,6 +529,6 @@ sagiha2/
 
 ### **14.10 Expected Impact**
 
-The introduction of AOI transforms SAGIHA2 from a system that improves itself through expensive trial-and-error into a system that improves itself through statistically guided, sample-efficient search.  
+The introduction of AOI transforms SAGIHA from a system that improves itself through expensive trial-and-error into a system that improves itself through statistically guided, sample-efficient search.  
 It directly addresses the core economic problem of Meta-Harness evolution: how to explore a large configuration and design space without prohibitive cost.  
 **End of Technical Specification**

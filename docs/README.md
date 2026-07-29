@@ -1,15 +1,15 @@
-# **SAGIHA2 — Senior AGI Harness Architecture 2.0**
+# **SAGIHA — Super AGI Harness Agent**
 
 > [!NOTE]
-> **Working Proposal Disclaimer**: This documentation tree is a working architectural proposal and reference blueprint for SAGIHA2, not an imperative final specification. Practical iterations, prototyping, and empirical evaluation refine these modules as the system evolves.
+> **Working Proposal Disclaimer**: This documentation tree is a working architectural proposal and reference blueprint for SAGIHA, not an imperative final specification. Practical iterations, prototyping, and empirical evaluation refine these modules as the system evolves.
 
-Welcome to the documentation hub for **SAGIHA2** — a decoupled, hexagonal Meta-Harness that turns frontier LLMs into an autonomous software engineering agent operating independently or with a human in the loop.
+Welcome to the documentation hub for **SAGIHA** — a decoupled, hexagonal Meta-Harness that turns frontier LLMs into an autonomous software engineering agent operating independently or with a human in the loop.
 
 ---
 
 ## **Naming & Scope**
 
-`SAGIHA2` expands to **Senior AGI Harness Architecture 2.0** throughout this suite. Earlier drafts used competing expansions; this one is canonical.
+`SAGIHA` expands to **Super AGI Harness Agent** throughout this suite. Earlier drafts used competing expansions; this one is canonical.
 
 The system is scoped and measured as an **autonomous coding harness**. Capability claims in this suite are stated as benchmarks with thresholds, not as unfalsifiable end-states.
 
@@ -43,8 +43,8 @@ Each topic has exactly one owner. Do not restate a contract in two places.
 ---
 
 ## 📚 **Executive & Technical Reference Documents**
-* 📘 [SAGIHA2 Conceptual Design.md](./reference/SAGIHA2%20Conceptual%20Design.md) — conceptual architecture, functional blocks, and dual-process execution engine.
-* 📗 [SAGIHA2 Architecture Specification Blueprint.md](./reference/SAGIHA2%20Architecture%20Specification%20Blueprint.md) — technical brief, full port listings, protocol interfaces, and adversarial failure analysis.
+* 📘 [SAGIHA Conceptual Design.md](./reference/SAGIHA%20Conceptual%20Design.md) — conceptual architecture, functional blocks, and dual-process execution engine.
+* 📗 [SAGIHA Architecture Specification Blueprint.md](./reference/SAGIHA%20Architecture%20Specification%20Blueprint.md) — technical brief, full port listings, protocol interfaces, and adversarial failure analysis.
 * 📙 [benchmarking-existing-harnesses.md](./reference/benchmarking-existing-harnesses.md) — comparative teardown of Claude Code CLI, Aider, OpenHands, SWE-agent, and Grok Code Build.
 
 

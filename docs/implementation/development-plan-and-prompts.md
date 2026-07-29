@@ -1,7 +1,7 @@
-# **SAGIHA2 Implementation Plan & Modular Prompt Guidelines**
+# **SAGIHA Implementation Plan & Modular Prompt Guidelines**
 
 > [!NOTE]
-> **Working Proposal Disclaimer**: This document represents a structured implementation guideline for SAGIHA2. Prompts are parameterized and modularized to remain valid even as specific adapter implementations or stack choices evolve.
+> **Working Proposal Disclaimer**: This document represents a structured implementation guideline for SAGIHA. Prompts are parameterized and modularized to remain valid even as specific adapter implementations or stack choices evolve.
 
 > [!IMPORTANT]
 > Phases here map onto the vertical slices in [`07-roadmap/phased-migration-matrix.md`](../07-roadmap/phased-migration-matrix.md), which is normative for scope and gates. Where this document and the roadmap disagree, the roadmap wins.
@@ -26,7 +26,7 @@
 
 ### **Sprint 1: Core Scaffolding, Typed Ports & Conformance Tests**
 ```markdown
-Scaffold the Python 3.12+ project under `src/sagiha2/`. Define Pydantic v2 domain schemas in
+Scaffold the Python 3.12+ project under `src/sagiha/`. Define Pydantic v2 domain schemas in
 `domain/` and `typing.Protocol` interfaces in `ports/` — including `ModelProvider`, `Memory`,
 `Indexer`, `CodeGraph`, `LSPAdapter`, `Workspace`, `WorktreeManager`, `ToolRegistry`,
 `PolicyEngine`, `ResourceGovernor`, `TrajectoryStore`, `Evaluator`.
@@ -46,7 +46,7 @@ forbidding `agency/` from importing `runtime/` or `adapters/`.
 
 ### **Sprint 2: Day-Zero Baseline Kernel, Replay & MCP Driver**
 ```markdown
-Implement the Day-Zero kernel in `src/sagiha2/kernel/`: an append-only SQLite-WAL
+Implement the Day-Zero kernel in `src/sagiha/kernel/`: an append-only SQLite-WAL
 TrajectoryStore, an in-memory ShortTermMemory over it, a stdio MCP client driver for
 filesystem and shell tools, and a deterministic async ReAct state machine.
 
@@ -64,7 +64,7 @@ Scores are emitted as separate `StepScored` events, never written back into a st
 
 ### **Sprint 3: Isolation, Sandbox & LSP Diagnostic Gate**
 ```markdown
-Implement `GitWorktreeManager` in `src/sagiha2/runtime/`: allocate, **materialize**, release.
+Implement `GitWorktreeManager` in `src/sagiha/runtime/`: allocate, **materialize**, release.
 Materialization links or copies ignored-but-required artifacts (`.env`, `.venv`,
 `node_modules`) — a fresh worktree contains only tracked files, so builds fail without it.
 `allocate` returns a `Workspace`, never a path.
@@ -83,7 +83,7 @@ is a hard gate: a candidate must never be able to edit its own grader.
 
 ### **Sprint 4: Hybrid Retrieval, Code Graph & Cache-Aware Context**
 ```markdown
-Implement AST-bounded chunking in `src/sagiha2/adapters/indexing/`: the unit is a Tree-sitter
+Implement AST-bounded chunking in `src/sagiha/adapters/indexing/`: the unit is a Tree-sitter
 function/method/class span, prefixed with file path, module docstring, and symbol path.
 Chunking dominates retrieval quality — do not substitute fixed-size windows.
 
@@ -106,7 +106,7 @@ Log task features, costs, cache hit rates, and outcomes as structured events for
 
 ### **Sprint 5: Best-of-N Search, Gates & Bounded Self-Improvement**
 ```markdown
-Implement `CandidateSearch` in `src/sagiha2/agency/`: best-of-N proposal across parallel
+Implement `CandidateSearch` in `src/sagiha/agency/`: best-of-N proposal across parallel
 worktrees with sequential repair of the best failing candidate. Do not implement MCTS — there
 is no persistent tree, visit counts, or backpropagation, and each expansion costs a full agent
 run. Tree search is gated on a calibrated value model.

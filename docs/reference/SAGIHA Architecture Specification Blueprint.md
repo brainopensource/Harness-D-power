@@ -1,7 +1,7 @@
-# **Engineering Specification and Research Brief: SOTA Meta-Harness and Infrastructure for Autonomous LLM Coding Agents (SAGIHA2)**
+# **Engineering Specification and Research Brief: SOTA Meta-Harness and Infrastructure for Autonomous LLM Coding Agents (SAGIHA)**
 
 > [!NOTE]
-> **Working Proposal Disclaimer**: This document represents a proposed architecture and architectural blueprint for the Meta Harness CoderAGI, not an imperative or immutable final solution. Further iterative prototyping, benchmarks, and practical evaluations will be conducted to refine and finalize the ultimate harness structure.
+> **Working Proposal Disclaimer**: This document represents a proposed architecture and architectural blueprint for SAGIHA, not an imperative or immutable final solution. Further iterative prototyping, benchmarks, and practical evaluations will be conducted to refine and finalize the ultimate harness structure.
 
 ## **Ecosystem Benchmarking and Theoretical Infrastructure Analysis**
 
@@ -21,7 +21,7 @@ Current software agent control planes exhibit fundamental differences in state r
 | **Aider** | Git-Centric Interactive Edit Loop | In-memory Abstract Syntax Tree (AST) symbol graph and active commit index | Synchronous block-edit tool dispatch with git auto-commit hooks | Direct host working directory execution | Direct git integration with automatic commit-per-change policy |
 
 In frameworks like SWE-agent and Aider, a primary bottleneck stems from the tight coupling between the reasoning loop and the active file system directory. Synchronous, block-based file modifications hinder parallel hypothesis testing and multi-branch exploration. In contrast, OpenHands demonstrates that event-stream architectures decouple agent decision-making from execution runtimes. However, state synchronization overhead during long-horizon tasks can cause context degradation if event logs grow unboundedly.  
-The SAGIHA2 operational model synthesizes these paradigms into a decoupled Control-Agency-Runtime (CAR) architecture. It leverages event-stream orchestration from OpenHands, repository-level symbol mapping from Aider, trajectory tracking from SWE-agent, and multi-branch isolation through native Git worktrees.
+The SAGIHA operational model synthesizes these paradigms into a decoupled Control-Agency-Runtime (CAR) architecture. It leverages event-stream orchestration from OpenHands, repository-level symbol mapping from Aider, trajectory tracking from SWE-agent, and multi-branch isolation through native Git worktrees.
 
 ### **Graph-Backed Memory Architectures and Knowledge Topologies**
 
@@ -31,7 +31,7 @@ Formally, an edge `e = (u, r, v)` asserting relationship `r` between entities `u
 
 Note the scope limit established in the memory module: this machinery applies to **learned, contestable facts**. Code structure is not modelled this way, because git already records both time axes — valid time is commit time, transaction time is index time — and structure re-derives exactly at any ref.
 Graphiti avoids expensive LLM-in-the-loop reranking during retrieval by executing vector similarity, keyword full-text search, and temporal graph traversals within a single compiled query execution step5. Empirical evaluations on the LongMemEval benchmark demonstrate that temporal context graphs achieve up to 18.5% higher retrieval accuracy with a 90% reduction in query latency compared to traditional vector-only or sliding-window agent memory systems6.  
-To comprehensively index a codebase, SAGIHA2 unifies four distinct structural topologies into a single property graph deployed on Neo4j or FalkorDB4:
+To comprehensively index a codebase, SAGIHA unifies four distinct structural topologies into a single property graph deployed on Neo4j or FalkorDB4:
 
 > * **AST Dependency Graph**: Tracks module imports, class inheritance hierarchies, function call graphs, variable definitions, and interface implementations generated via Tree-sitter parsers.  
 > * **Architectural Decision Map**: Formulates a directed acyclic graph connecting high-level system requirements, ADR markdown files, pull request rationales, and architectural module boundaries.  
@@ -69,11 +69,11 @@ Fast-TurboQuant optimizes this process further by replacing dense orthogonal rot
 | **tqdb (Pure Go)** | 4-bit | 8x | Zero Training (mmap Native)16 | Zero-Copy Memory Mapped | Embedded Scalar Approximation16 | Pure Go Local Codebase Search16 |
 | **Qdrant 1.18 (TurboQuant Engine)** | 1-bit to 4-bit | 8x to 32x | Precomputed Standard Centroids8 | AVX-512 / NEON SIMD8 | Anisotropy Compensation & Renormalization8 | Production Scale Vector Deployment8 |
 
-SAGIHA2 implements a hybrid retrieval engine combining lexical BM25 sparse indexes with dense TurboQuant-compressed vectors managed by LanceDB and sqlite-vec8. For local embedded search scenarios, the harness utilizes tqdb memory-mapped quantization storage, enabling search execution directly over mapped files without decompressing vectors into floating-point arrays16.
+SAGIHA implements a hybrid retrieval engine combining lexical BM25 sparse indexes with dense TurboQuant-compressed vectors managed by LanceDB and sqlite-vec8. For local embedded search scenarios, the harness utilizes tqdb memory-mapped quantization storage, enabling search execution directly over mapped files without decompressing vectors into floating-point arrays16.
 
 ### **Tri-Tier Persistence Layer Architecture**
 
-SAGIHA2 organizes state persistence across three unified adapters to maintain structural consistency and support rollback capabilities:
+SAGIHA organizes state persistence across three unified adapters to maintain structural consistency and support rollback capabilities:
 
 > * **Short-Term Memory (STM)**: In-memory sliding ring buffer over the active session, durably backed by the same SQLite-WAL store as the trajectory. **Redis is not adopted.** STM is per-session and small, it needs durability co-located with the trajectory rather than a network hop, and SQLite-WAL already supplies persistence, crash recovery, and queryability. Introducing a second daemon buys nothing at single-node scale, and the multi-node case that would justify it is not on the roadmap.
 > * **Transaction Store**: SQLite with write-ahead logging and append-only event sourcing for step trajectories, tool payloads, diff deltas, and checkpoints. Scores arrive as separate `StepScored` events rather than mutations of stored steps, which is what makes "append-only" true rather than aspirational.
@@ -103,7 +103,7 @@ Standardizing agent communication protocols requires distinguishing between vert
 | **Security & Authentication** | Local process boundaries, environment variable tokens | Enterprise OAuth2, Bearer tokens, API keys, mutual TLS (mTLS)17 |
 
 MCP defines a standard interface for agents to discover and invoke local host tools, inspect language server diagnostics, and read filesystem structures17. A2A provides an enterprise framework for asynchronous, cross-system agent collaboration17.  
-In SAGIHA2, an Orchestrator Super-Agent uses A2A to dispatch sub-tasks—such as writing an integration test or optimizing a database query—to remote specialized sub-agents18. The sub-agent receives the task via an A2A task lifecycle, executes local tools via MCP servers, streams real-time updates over SSE, and submits completed artifacts back to the orchestrator17.
+In SAGIHA, an Orchestrator Super-Agent uses A2A to dispatch sub-tasks—such as writing an integration test or optimizing a database query—to remote specialized sub-agents18. The sub-agent receives the task via an A2A task lifecycle, executes local tools via MCP servers, streams real-time updates over SSE, and submits completed artifacts back to the orchestrator17.
 
 ### **Outer-Loop Self-Evolution and Process Reward Models**
 
@@ -146,11 +146,11 @@ Enforcement is therefore structural, by three mechanisms:
 
 ### **Architectural Blueprint and Meta-Harness Kernel**
 
-SAGIHA2 is implemented in Python 3.12+ using Pydantic v2 for schema validation and strict hexagonal architecture protocols (`typing.Protocol`) to decouple domain logic from external adapters.
+SAGIHA is implemented in Python 3.12+ using Pydantic v2 for schema validation and strict hexagonal architecture protocols (`typing.Protocol`) to decouple domain logic from external adapters.
 
 ```python
 """
-SAGIHA2 Core Protocols and Domain Models
+SAGIHA Core Protocols and Domain Models
 Python 3.12+ Hexagonal Architecture Interface Definitions
 
 CONTRACT RULES (enforced in CI, see 06-guides-and-patterns/port-conformance-testing.md):
@@ -662,7 +662,7 @@ The inner loop executes a structured operational sequence termed **DMARTIC** wit
 
 ## **Neural-Symbolic Memory, Graph, and Search Architecture**
 
-SAGIHA2 integrates a hybrid retrieval architecture combining sparse lexical search, TurboQuant dense vector search, and temporal property graph traversals4.  
+SAGIHA integrates a hybrid retrieval architecture combining sparse lexical search, TurboQuant dense vector search, and temporal property graph traversals4.  
 When an agent initiates context retrieval for a code refactoring task, the system executes a three-phase pipeline:
 
 > 1. **Lexical Sparse Search**: BM25 keyword matching via SQLite-FTS5 extracts exact symbol names, class definitions, and error string matches. For code, exact-symbol lexical matching is the single strongest signal and is never demoted below dense retrieval.
@@ -693,11 +693,11 @@ Compaction is a **deliberate, infrequent checkpoint**, not a per-turn background
 
 ## **Multi-Agent Delegation, Parallelism, and Isolation**
 
-To enable multi-agent collaboration without file modification conflicts, SAGIHA2 isolates sub-agent execution contexts using Git worktrees and containerized sandboxes.
+To enable multi-agent collaboration without file modification conflicts, SAGIHA isolates sub-agent execution contexts using Git worktrees and containerized sandboxes.
 
 ### **Git Worktree Concurrency and Lifecycle Management**
 
-Instead of creating complete repository clones or allowing parallel sub-agents to operate within a shared working directory, SAGIHA2 assigns each sub-agent an isolated Git worktree attached to a separate branch.  
+Instead of creating complete repository clones or allowing parallel sub-agents to operate within a shared working directory, SAGIHA assigns each sub-agent an isolated Git worktree attached to a separate branch.  
 Worktree allocation follows a managed lifecycle:
 
 > 1. **Allocate**: The `WorktreeManager` creates an ephemeral directory linked to a dedicated branch off the base commit.
@@ -747,7 +747,7 @@ The harness supports interactive streaming and headless execution modes for CI a
 
 ## **Auxiliary Optimization Intelligence Engine**
 
-To optimize execution latency and token costs, SAGIHA2 integrates non-LLM machine learning models that act as deterministic co-processors.
+To optimize execution latency and token costs, SAGIHA integrates non-LLM machine learning models that act as deterministic co-processors.
 
 ### **Local Machine Learning Pipeline Architecture**
 
@@ -767,7 +767,7 @@ Every AOI model is advisory. Three constraints are binding, and the previous spe
 
 ## **Outer-Loop Self-Improvement and Verification Framework**
 
-SAGIHA2 employs Recursive Harness Self-Improvement (RHI) to systematically evolve its system prompts, context compaction parameters, and tool execution scaffolding over time.
+SAGIHA employs Recursive Harness Self-Improvement (RHI) to systematically evolve its system prompts, context compaction parameters, and tool execution scaffolding over time.
 
 ### **Harness Evolution Cycle and Multi-Tier Verification**
 
@@ -807,12 +807,12 @@ Deploying autonomous meta-harnesses in software development introduces structura
 ### **Context Compaction Degradation vs. Information Loss**
 
 > * *Structural Failure Mode*: Aggressive context compaction strategies—such as stripping docstrings, removing comments, or generating AST skeletons—risk omitting subtle business constraints, edge-case warnings, or implicit type requirements embedded in source comments.  
-> * *Mitigation Strategy*: SAGIHA2 implements a staged fallback protocol. If an edit action fails compilation or unit testing within a compacted context window, the harness automatically re-hydrates the context window with raw source files before attempting subsequent edit steps.
+> * *Mitigation Strategy*: SAGIHA implements a staged fallback protocol. If an edit action fails compilation or unit testing within a compacted context window, the harness automatically re-hydrates the context window with raw source files before attempting subsequent edit steps.
 
 ### **Serialization Latency in Multi-Agent Networks**
 
 > * *Structural Failure Mode*: Relying on JSON-RPC 2.0 over HTTP-SSE across deep sub-agent hierarchies introduces message serialization overhead, high latency, and transport bloat during rapid tool dispatch loops17.  
-> * *Mitigation Strategy*: For co-located sub-agents running on the same host machine, SAGIHA2 utilizes high-performance gRPC over Unix domain sockets with shared memory buffers, falling back to HTTP/A2A transports only for remote cross-network calls17.
+> * *Mitigation Strategy*: For co-located sub-agents running on the same host machine, SAGIHA utilizes high-performance gRPC over Unix domain sockets with shared memory buffers, falling back to HTTP/A2A transports only for remote cross-network calls17.
 
 ### **Indirect Prompt Injection via Repository and Web Content**
 
@@ -839,10 +839,10 @@ Deploying autonomous meta-harnesses in software development introduces structura
 ### **Codebase Package Mapping**
 
 ```
-sagiha2/
+sagiha/
 ├── pyproject.toml
 ├── src/
-│   └── sagiha2/
+│   └── sagiha/
 │       ├── __init__.py
 │       ├── composition.py         # THE composition root: build_kernel(config) -> Kernel
 │       ├── ports/                 # All Protocol definitions. Imports nothing internal.
@@ -905,7 +905,7 @@ The roadmap is sequenced as **vertical slices**, each thin through every layer a
 
 ## **Strategic Conclusions**
 
-The **SAGIHA2** specification defines a Meta-Harness for autonomous software engineering agents built on hexagonal boundaries, isolated worktrees inside real sandboxes, split deterministic and episodic memory, standardized protocols, and advisory local models — addressing the failure modes that dominate agent runtimes in practice: context degradation, execution locking, API cost, and fragile scaffolding.
+The **SAGIHA** specification defines a Meta-Harness for autonomous software engineering agents built on hexagonal boundaries, isolated worktrees inside real sandboxes, split deterministic and episodic memory, standardized protocols, and advisory local models — addressing the failure modes that dominate agent runtimes in practice: context degradation, execution locking, API cost, and fragile scaffolding.
 
 **What this revision deliberately changed.** The prior specification's ambition outran its foundations in four ways, each now corrected in the text above. Its ports were storage drivers rather than domain contracts, and would have broken at the first adapter migration the roadmap itself called for. Its Control layer existed only in prose, with no interception point anywhere in the type system. Its self-improvement loop could edit its own evaluator and deploy without human sign-off. And its complexity was front-loaded onto exotic components — quantization, tree search, compiled sidecars, temporal graphs for facts a parser already knows — while the components that actually determine whether a coding agent works were unspecified: the model port, context and cache layout, chunking strategy, edit application, and error recovery.
 

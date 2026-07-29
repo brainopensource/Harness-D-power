@@ -31,7 +31,7 @@ A large repository chunks to roughly **10⁵–10⁶ vectors**. At 10⁵, an exh
 
 **Quantization therefore solves a problem this system does not yet have.** The dense tier starts uncompressed (`sqlite-vec`, then LanceDB), and compression is adopted only against a **measured latency or memory ceiling** — at which point it is an adoption decision, not an implementation project: LanceDB embeds in-process with zero IPC, and Qdrant already ships a production TurboQuant engine. Building a bespoke quantization sidecar would duplicate mature work to solve a non-problem.
 
-The TurboQuant research remains catalogued in the [reference blueprint](../reference/SAGIHA2%20Architecture%20Specification%20Blueprint.md) for the day the trigger fires.
+The TurboQuant research remains catalogued in the [reference blueprint](../reference/SAGIHA%20Architecture%20Specification%20Blueprint.md) for the day the trigger fires.
 
 ## **Skeletonization**
 

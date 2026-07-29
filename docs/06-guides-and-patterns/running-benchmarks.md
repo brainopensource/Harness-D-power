@@ -8,7 +8,7 @@
 Before comparing anything to anything, run the **unmodified** harness twice against the suite and measure the score-delta distribution:
 
 ```bash
-sagiha2 bench --suite internal --runs 2 --mode aa
+sagiha bench --suite internal --runs 2 --mode aa
 ```
 
 This is the A/A test, and it is the prerequisite for every other number in this document. Most harness changes produce effects smaller than run-to-run variance; without knowing the floor, "the score went up" is indistinguishable from noise, and accepting on that basis ratchets the system permanently onto randomness.
@@ -22,8 +22,8 @@ Re-measure the floor whenever the model version changes.
 Harvest real commits from the target repository's history, revert them, and pose them as tasks with the original diff and tests as ground truth:
 
 ```bash
-sagiha2 bench harvest --repo /path/to/repo --since 2024-01-01 --limit 200
-sagiha2 bench --suite commit-replay
+sagiha bench harvest --repo /path/to/repo --since 2024-01-01 --limit 200
+sagiha bench --suite commit-replay
 ```
 
 Unbounded, uncontaminated, in-distribution, and self-maintaining as the repository evolves. Strictly better than hand-authored synthetic bugs on realism, volume, maintenance cost, and contamination resistance.
@@ -35,7 +35,7 @@ Unbounded, uncontaminated, in-distribution, and self-maintaining as the reposito
 ### Retrieval (measured separately)
 
 ```bash
-sagiha2 bench retrieval --labelled-set queries.jsonl   # recall@k
+sagiha bench retrieval --labelled-set queries.jsonl   # recall@k
 ```
 
 Reported separately from task success so retrieval regressions are attributable rather than buried in end-to-end noise. **LongMemEval is not used** — it measures conversational memory, not code retrieval.
@@ -55,9 +55,9 @@ A few hundred tasks × several dollars × k repetitions × many candidates puts 
 ## **Trajectory Analysis**
 
 ```bash
-sagiha2 trajectory show <run-id>       # steps, tool calls, diagnostics, scores
-sagiha2 trajectory diff <id-a> <id-b>  # where two runs diverged
-sagiha2 replay --run-id <id>           # deterministic re-execution, zero API calls
+sagiha trajectory show <run-id>       # steps, tool calls, diagnostics, scores
+sagiha trajectory diff <id-a> <id-b>  # where two runs diverged
+sagiha replay --run-id <id>           # deterministic re-execution, zero API calls
 ```
 
 Trajectories are stored append-only in SQLite-WAL and instrumented with OTel GenAI semantic conventions, so standard tracing tooling works on them directly.

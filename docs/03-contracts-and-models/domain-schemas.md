@@ -3,7 +3,7 @@
 > [!NOTE]
 > **Working Proposal Disclaimer**: A working architectural proposal, refined iteratively as practical evaluation progresses.
 
-Frozen Pydantic v2 models used throughout the kernel. Full definitions in the [Architecture Specification Blueprint](../reference/SAGIHA2%20Architecture%20Specification%20Blueprint.md).
+Frozen Pydantic v2 models used throughout the kernel. Full definitions in the [Architecture Specification Blueprint](../reference/SAGIHA%20Architecture%20Specification%20Blueprint.md).
 
 ## **Identity & Time**
 

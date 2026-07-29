@@ -1,10 +1,10 @@
-# **Executive Summary: SAGIHA2 Meta-Harness**
+# **Executive Summary: SAGIHA Meta-Harness**
 
 > [!NOTE]
 > **Working Proposal Disclaimer**: A working architectural proposal, refined iteratively as practical evaluation progresses.
 
 ## **Overview**
-SAGIHA2 (Senior AGI Harness Architecture 2.0) is a meta-harness that turns frontier LLMs into an autonomous software engineering agent, operating independently or with a human in the loop. It is scoped and measured as a coding harness: every capability claim is stated as a benchmark with a threshold.
+SAGIHA (Super AGI Harness Agent) is a meta-harness that turns frontier LLMs into an autonomous software engineering agent, operating independently or with a human in the loop. It is scoped and measured as a coding harness: every capability claim is stated as a benchmark with a threshold.
 
 ## **Key Architectural Pillars**
 

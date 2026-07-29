@@ -3,7 +3,7 @@
 > [!NOTE]
 > **Working Proposal Disclaimer**: A working architectural proposal, refined iteratively as practical evaluation progresses.
 
-All kernel components interact exclusively via stable `typing.Protocol` interfaces. Full signatures live in the [Architecture Specification Blueprint](../reference/SAGIHA2%20Architecture%20Specification%20Blueprint.md); this module is the normative index and the rules that govern the boundary.
+All kernel components interact exclusively via stable `typing.Protocol` interfaces. Full signatures live in the [Architecture Specification Blueprint](../reference/SAGIHA%20Architecture%20Specification%20Blueprint.md); this module is the normative index and the rules that govern the boundary.
 
 ## **Four Contract Rules**
 

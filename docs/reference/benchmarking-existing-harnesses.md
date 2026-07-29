@@ -1,7 +1,7 @@
 # **SOTA AI Coding Agent Harnesses: Benchmarking & Architectural Teardown**
 
 > [!NOTE]
-> **Working Proposal Disclaimer**: This reference brief analyzes production-proven AI coding agent harnesses (Claude Code CLI, Aider, OpenHands, SWE-agent, Grok Code Build) to extract technical teardowns, prompt caching rules, tool interfaces, and actionable lessons for SAGIHA2.
+> **Working Proposal Disclaimer**: This reference brief analyzes production-proven AI coding agent harnesses (Claude Code CLI, Aider, OpenHands, SWE-agent, Grok Code Build) to extract technical teardowns, prompt caching rules, tool interfaces, and actionable lessons for SAGIHA.
 
 ---
 
@@ -21,7 +21,7 @@ Claude Code is Anthropic's official terminal-based agentic CLI built with TypeSc
   `[System Instructions] -> [Tool Schemas] -> [CLAUDE.md Memory] -> [Dynamic Context / Conversation Turns]`
 * **Cache Invalidation Avoidance**: Changing tool definitions or model parameters mid-session breaks prefix matching and invalidates the cache. By keeping the prefix static and appending turns monotonically, Claude Code achieves **96%+ cache hit rates**, cutting latency and token costs drastically.
 
-### **Lessons for SAGIHA2**:
+### **Lessons for SAGIHA**:
 * Adopt a **prefix-locked prompt layout** (System instructions -> Tool schemas -> Static repo context -> Dynamic turns) to maximize prompt caching efficiency.
 * Implement pre/post tool hooks for LSP diagnostic checks and secret redaction.
 
@@ -37,7 +37,7 @@ Aider is a terminal-based AI coding assistant focused on interactive file editin
 3. **Git Auto-Commit Engine**: Every edit applied by the model automatically triggers a Git commit with a generated commit message. Git serves as the primary transaction, rollback, and checkpoint engine.
 4. **Caching & Invalidation**: Tree-sitter tag metadata is cached locally in SQLite (`diskcache`) and invalidated strictly using file modification timestamps (`mtime`).
 
-### **Lessons for SAGIHA2**:
+### **Lessons for SAGIHA**:
 * Use Tree-sitter for **deterministic AST symbol graph extraction** and PageRank-style relevance scoring instead of expensive LLM-based extraction.
 * Enforce **commit-per-step inside Git worktrees** to provide instant rollbacks, audit logs, and diff verification.
 
@@ -52,7 +52,7 @@ OpenHands and SWE-agent focus on long-horizon autonomous software engineering an
 2. **Agent-Computer Interface (ACI)**: Replaces raw shell calls with specialized, compact terminal tools (e.g. `scroll_up`, `goto_line`, `search_dir`) to prevent terminal output from blowing the context window.
 3. **Containerized Sandbox Isolation**: Code execution runs inside containerized Docker / gVisor (`runsc`) sandboxes with restricted network egress and filesystem mounts.
 
-### **Lessons for SAGIHA2**:
+### **Lessons for SAGIHA**:
 * Decouple the event stream from the execution sandbox so agent state transitions remain replayable.
 * Truncate and structure terminal output (with `truncated: true` flags and resource handles) to protect context windows.
 
@@ -66,16 +66,16 @@ Grok Code emphasizes high-throughput ReAct execution and isolated parallel branc
 1. **Git Worktree Concurrency**: Spawns sub-agents inside isolated Git worktree directories (`git worktree add`), allowing multiple hypotheses to be tested concurrently without file lock collisions.
 2. **Extension System (Skills, Plugins, Hooks)**: Modular skills and dynamic plugins registered via configuration files without altering core kernel code.
 
-### **Lessons for SAGIHA2**:
+### **Lessons for SAGIHA**:
 * Use **Git worktrees as the primary parallel isolation primitive**, ensuring parallel sub-agents never collide on active file state.
 
 ---
 
-## 5. **SAGIHA2 Synthesis & Superior Architectural Blueprint**
+## 5. **SAGIHA Synthesis & Superior Architectural Blueprint**
 
-By synthesizing the best elements of these mature open-source harnesses while fixing their documented flaws, SAGIHA2 establishes a superior architecture:
+By synthesizing the best elements of these mature open-source harnesses while fixing their documented flaws, SAGIHA establishes a superior architecture:
 
-| Feature / Dimension | Claude Code CLI | Aider | OpenHands | Grok Code | **SAGIHA2 Meta-Harness** |
+| Feature / Dimension | Claude Code CLI | Aider | OpenHands | Grok Code | **SAGIHA Meta-Harness** |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Control Plane** | TypeScript / Ink | Python / Click | Python / EventStream | Custom ReAct | **Python 3.12+ Async Microkernel (`typing.Protocol`)** |
 | **Tool Protocol** | Native MCP | Custom Block Edits | Event Stream Actions | MCP / Local | **MCP (Tools) + A2A (Peer Delegation)** |

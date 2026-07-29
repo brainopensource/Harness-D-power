@@ -18,7 +18,7 @@ mode      = "live"         # or "replay" to run from cassettes with zero API cal
 
 [workspace]
 root         = "/path/to/target/repo"
-worktree_dir = ".sagiha2/worktrees"
+worktree_dir = ".sagiha/worktrees"
 
 [autonomy]
 level = "interactive"      # interactive | hybrid | autonomous | scheduled
@@ -41,7 +41,7 @@ Slice S0 delivers one thing end-to-end: **the agent resolves a failing test in a
 Components in S0: `ModelProvider` with cassette replay, Pydantic domain models, the dispatch choke point, `PolicyEngine` with capability grants, SQLite-WAL trajectory store, Tree-sitter chunking with FTS5, structured edit application, a pytest runner, and commit-per-step checkpoints.
 
 ```bash
-sagiha2 run --task "fix the failing test in tests/test_parser.py"
+sagiha run --task "fix the failing test in tests/test_parser.py"
 ```
 
 ## **Verify Your Setup**
@@ -51,7 +51,7 @@ sagiha2 run --task "fix the failing test in tests/test_parser.py"
 pytest tests/contracts/
 
 # 2. Replay determinism — the kernel runs with zero API calls
-sagiha2 replay --run-id <id>
+sagiha replay --run-id <id>
 
 # 3. Boundary enforcement — agency/ cannot reach runtime/
 lint-imports

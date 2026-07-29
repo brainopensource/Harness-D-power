@@ -5,15 +5,15 @@
 
 ## **The Pattern**
 
-1. **Read the Protocol** in `sagiha2/ports/`. Structural typing means you do **not** inherit from it — implementing the methods is sufficient, and inheriting couples you needlessly.
+1. **Read the Protocol** in `sagiha/ports/`. Structural typing means you do **not** inherit from it — implementing the methods is sufficient, and inheriting couples you needlessly.
 2. **Implement the methods**, accepting and returning the declared Pydantic models. No `Dict[str, Any]` crosses the boundary.
 3. **Add your adapter to the conformance suite** — the required step, detailed below.
 4. **Wire it in the composition root** (`composition.py`). There is no container to register with and no discovery to trigger.
 
 ```python
-# sagiha2/adapters/memory/my_store.py
-from sagiha2.ports.memory import Memory
-from sagiha2.domain.memory import MemoryRecord, RecallQuery, Recall
+# sagiha/adapters/memory/my_store.py
+from sagiha.ports.memory import Memory
+from sagiha.domain.memory import MemoryRecord, RecallQuery, Recall
 
 class MyStore:                       # no base class needed
     async def remember(self, record: MemoryRecord) -> str: ...
