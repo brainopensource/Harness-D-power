@@ -102,6 +102,7 @@ SAGIHA explicitly supports self-hosted execution for privacy and zero-marginal-c
 * **Representative model**: Qwen 2.5 Coder 32B-Instruct at Q4_K_M via Ollama, vLLM, or ROCm.
 * **Allocation**: roughly 15GB resident in VRAM with the remainder offloaded to system RAM.
 * **Operating mode**: unlimited iteration against LSP diagnostics and unit tests at zero API cost.
+* **Setup**: [Ollama & Qwen2.5-Coder on Linux](../06-guides-and-patterns/ollama-qwen-coder-setup.md) walks the install, model pull, and `[model.tiers.local]` `base_url` binding end to end.
 
 **Zero marginal cost is not zero cost.** Local inference trades dollars for latency and hardware, and slower inference lengthens every DMARTIC cycle — which lowers tasks-per-hour even when it lowers dollars-per-task. Two further caveats decide where local models actually fit:
 

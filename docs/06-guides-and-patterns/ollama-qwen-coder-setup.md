@@ -5,7 +5,14 @@ updated: 2026-07-29
 
 # **Ollama & Qwen2.5-Coder Setup Guide for Linux**
 
-This guide provides step-by-step instructions to install **Ollama** on Linux (Fedora, Ubuntu, Debian, Arch, RHEL), download and set up **Qwen2.5-Coder 7B**, and start chatting with your local AI assistant.
+> [!NOTE]
+> **Working Proposal Disclaimer**: A working architectural proposal, refined iteratively as practical evaluation progresses.
+
+This guide sets up the reference **Tier 4 (Local)** environment named in
+[Model Tiering](../05-tech-stack/llm-providers-and-economics.md#2-model-tiering) — Ollama plus
+Qwen2.5-Coder, for offline and air-gapped operation at zero marginal cost. It installs **Ollama** on
+Linux (Fedora, Ubuntu, Debian, Arch, RHEL), pulls **Qwen2.5-Coder**, and verifies a chat session before
+wiring it into `config.toml`.
 
 ---
 
@@ -166,3 +173,29 @@ curl http://localhost:11434/api/generate -d '{
 * **Check Memory Consumption**:
   * NVIDIA: `nvidia-smi`
   * AMD: `rocm-smi` or `radeontop`
+
+---
+
+## 🔗 **Wiring Into SAGIHA**
+
+Once `ollama run qwen2.5-coder:7b` answers, bind it as the `local` tier in `config.toml`
+([Configuration Reference](../05-tech-stack/configuration-reference.md)) — no other file changes,
+since routing is [composition, not a port method](../05-tech-stack/llm-providers-and-economics.md#roles-bind-tiers-to-call-sites):
+
+```toml
+[model.tiers.local]
+provider = "openai-compatible"   # Ollama speaks the OpenAI-compatible API
+model    = "qwen2.5-coder:7b"
+base_url = "http://localhost:11434/v1"
+max_tokens = 8192
+```
+
+Point any role at it directly (`[model.roles] execution = "local"`), or bind it as `fallback` so the
+harness degrades to local inference when the primary tier's breaker opens
+([Error Taxonomy](../03-contracts-and-models/error-taxonomy.md)). For a fully air-gapped run, point
+every role in `[model.roles]` at `local` — no other config changes, since role resolution is a lookup,
+not a code path.
+
+Read [Local GPU Target](../05-tech-stack/llm-providers-and-economics.md#3-local-gpu-target-16gb-vram)
+before treating this as a drop-in replacement for a frontier tier: zero marginal cost is not zero
+cost, and slower inference lengthens every DMARTIC cycle even as it lowers dollars-per-task.
