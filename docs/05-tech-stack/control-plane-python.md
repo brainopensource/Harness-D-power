@@ -5,7 +5,7 @@
 
 ## **Core Runtime & Ecosystem**
 
-* **Runtime Engine**: Python 3.12+, async-first.
+* **Runtime Engine**: Python 3.13+, async-first.
 * **Schema Validation**: Pydantic v2 for frozen domain schemas, trajectories, and configuration.
 * **Hexagonal Protocols**: `typing.Protocol`, verified by `mypy`/`pyright` in strict mode plus per-port conformance suites. **`@runtime_checkable` is not used as a correctness mechanism** — it checks method presence only, never signatures, so an adapter with wrong argument types passes it while incurring runtime cost for a guarantee it does not provide.
 * **Composition**: a single explicit composition root, `build_kernel(config) -> Kernel`.
@@ -29,7 +29,7 @@ Extensions (skills, hooks) remain supported, but are loaded from **declared loca
 
 ## **Observability**
 
-OpenTelemetry using the **GenAI semantic conventions**, so LLM call spans carry token counts, cost, and cache-hit data in a form existing tooling already understands. The Trajectory Store is derived from the span log rather than maintained as an independent second record of the same facts — two stores of one truth drift, and reconciling them later is strictly harder than deriving one now.
+OpenTelemetry using the **GenAI semantic conventions**, so LLM call spans carry token counts, cost, and cache-hit data in a form existing tooling already understands. The `EventBus` is the single source of truth; both the `TrajectoryStore` and the OTel exporter subscribe to event streams independently so telemetry sampling never corrupts trajectory audit logs.
 
 ## **Configuration**
 

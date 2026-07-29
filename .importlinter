@@ -1,0 +1,54 @@
+[importlinter]
+root_packages = sagiha
+
+[importlinter:contract:car-layering]
+name = Agency must not reach the Runtime
+type = forbidden
+source_modules =
+    sagiha.agency
+forbidden_modules =
+    sagiha.runtime
+    sagiha.adapters
+ignore_imports =
+    sagiha.agency.* -> sagiha.ports.*
+
+[importlinter:contract:ports-are-pure]
+name = Ports import nothing internal
+type = forbidden
+source_modules = sagiha.ports
+forbidden_modules =
+    sagiha.adapters
+    sagiha.runtime
+    sagiha.agency
+    sagiha.kernel
+
+[importlinter:contract:domain-is-pure]
+name = Domain models have no I/O dependencies
+type = forbidden
+source_modules = sagiha.domain
+forbidden_modules =
+    sagiha.adapters
+    sagiha.runtime
+    httpx
+    sqlite3
+
+[importlinter:contract:tcb-isolation]
+name = Trusted computing base depends on nothing mutable
+type = forbidden
+source_modules =
+    sagiha.kernel.policy
+    sagiha.outer_loop.evaluator
+forbidden_modules =
+    sagiha.agency
+    sagiha.aoi
+    sagiha.adapters
+
+[importlinter:contract:layers]
+name = Overall layering
+type = layers
+layers =
+    sagiha.agency
+    sagiha.kernel
+    sagiha.adapters
+    sagiha.ports
+    sagiha.domain

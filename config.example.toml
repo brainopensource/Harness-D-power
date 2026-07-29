@@ -1,0 +1,122 @@
+# ─── Model access ────────────────────────────────────────────────────────────
+[model]
+provider    = "anthropic"        # anthropic | openai | google | openai-compatible
+model       = "claude-3-7-sonnet-20250219"
+mode        = "live"             # live | replay (cassette) | record
+max_tokens  = 8192
+fallback    = "openai"           # provider used when the breaker opens; omit to disable
+
+# Secrets are NEVER stored here. Env var name only; the value is read at runtime
+# and excluded from the sandbox.
+api_key_env = "ANTHROPIC_API_KEY"
+
+[model.thinking]
+enabled       = true
+budget_tokens = 4096
+
+# ─── Workspace ───────────────────────────────────────────────────────────────
+[workspace]
+root         = "/path/to/target/repo"
+worktree_dir = ".sagiha/worktrees"
+# Ignored-but-required artifacts linked into every fresh worktree.
+materialize  = [".env", ".venv", "node_modules"]
+
+# ─── Autonomy & approval ─────────────────────────────────────────────────────
+[autonomy]
+level             = "interactive"   # interactive | hybrid | autonomous | scheduled
+approval_timeout_s = 3600
+on_timeout        = "deny"          # deny | escalate. Never "allow".
+
+# Always require a human grant regardless of level.
+always_gate = [
+  "write_outside_worktree",
+  "credential_access",
+  "ci_config_change",
+  "harness_policy_change",
+]
+
+# ─── Resource governor (global admission control) ────────────────────────────
+[governor]
+max_concurrent_runs      = 2
+max_concurrent_sandboxes = 4
+max_lsp_servers          = 4
+max_spend_usd_per_run    = 5.0
+max_spend_usd_per_hour   = 20.0
+max_wall_clock_s         = 7200
+max_steps_per_run        = 200
+tokens_per_minute        = 200_000
+
+# ─── Sandbox (the security perimeter) ────────────────────────────────────────
+[sandbox]
+runtime          = "container"      # container | gvisor | subprocess
+image            = "sagiha/runtime:latest"
+network          = "restricted"     # none | restricted | host  ("host" refused unless allow_unsafe)
+egress_allowlist = ["pypi.org", "files.pythonhosted.org", "registry.npmjs.org", "github.com"]
+memory_limit_mb  = 4096
+cpu_limit        = 2.0
+env_passthrough  = ["LANG", "TZ"]
+
+# ─── Retrieval ───────────────────────────────────────────────────────────────
+[retrieval]
+chunk_strategy    = "ast_bounded"   # ast_bounded | fixed_window
+max_chunk_tokens  = 1024
+lexical_weight    = 0.5             # BM25 vs dense fusion
+dense_weight      = 0.5
+top_k             = 20
+graph_expansion_hops = 2
+embedding_model   = "text-embedding-3-small"
+embedding_dims    = 1024
+
+# ─── Context assembly ────────────────────────────────────────────────────────
+[context]
+max_context_tokens    = 200_000
+compact_at_headroom   = 0.15        # compact when <15% of the window remains
+cache_breakpoints     = true
+tool_output_max_chars = 30_000
+read_file_max_lines   = 2000
+
+# ─── Candidate search (System 2) ─────────────────────────────────────────────
+[search]
+enabled            = true
+candidates         = 3
+max_repair_rounds  = 2
+escalate_after_failures = 2         # System 1 → System 2 trigger
+escalate_on_files  = 3
+escalate_on_diff_lines = 150
+
+# ─── Gates ───────────────────────────────────────────────────────────────────
+[gates]
+require_tests_pass          = true
+require_tests_unmodified    = true   # never disable: this is the anti-grader-editing gate
+require_no_new_suppressions = true
+require_coverage_not_decreased = true
+max_diff_lines              = 1000
+
+# ─── Observability ───────────────────────────────────────────────────────────
+[telemetry]
+otlp_endpoint      = "http://localhost:4317"
+service_name       = "sagiha"
+trajectory_db      = ".sagiha/trajectories.db"
+log_level          = "INFO"
+redact_patterns    = ["(?i)api[_-]?key", "(?i)secret", "(?i)password", "(?i)token"]
+sample_rate        = 1.0
+
+# ─── AOI (advisory models) ───────────────────────────────────────────────────
+[aoi]
+enabled              = false        # off until calibrated
+shadow_mode          = true         # never flip to false without a reliability diagram
+exploration_fraction = 0.10
+
+# ─── MCP servers ─────────────────────────────────────────────────────────────
+[[mcp_servers]]
+name      = "postgres"
+transport = "stdio"
+command   = ["mcp-server-postgres"]
+trusted_output = false
+
+# ─── Hooks ───────────────────────────────────────────────────────────────────
+[[hooks]]
+event      = "post_edit"
+kind       = "observer"             # observer | interceptor
+module     = "myorg.hooks.autoformat:run"
+timeout_ms = 5000

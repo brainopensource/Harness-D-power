@@ -146,7 +146,7 @@ Extended DMARTIC execution sequence:
 
 **Runtime & Languages**
 
-> * Primary Control Plane: Python 3.12+ (async-first, Pydantic v2 + typing.Protocol)
+> * Primary Control Plane: Python 3.13+ (async-first, Pydantic v2 + typing.Protocol)
 > * High-Performance Sidecars: **deferred, and scoped down when they arrive.** See the sidecar note below.
 > * Optional UI/IDE Layer: TypeScript / React
 
@@ -325,11 +325,14 @@ This loop lives inside every Orchestrator node and is fully instrumented with Op
 
 A lightweight but powerful extension layer is added:
 
-> * **Skills** — reusable, versioned instruction \+ tool packages (loaded from skills/ or MCP).  
-> * **Plugins** — full adapters that can register new Ports or replace existing ones at runtime.  
+> * **Skills** — reusable, versioned instruction + tool packages (loaded from skills/ or MCP).  
+> * **Plugins** — static adapters registered via explicit composition root.
+> 
+> > [!WARNING]
+> > **Superseded by [ADR-0004](../08-decisions/0004-explicit-wiring.md).**
+> > Runtime plugin discovery and dynamic port registration are rejected. All wiring is explicit and static to preserve language-server type resolution and "go to definition" for AI agents.
+> 
 > * **Hooks** — lifecycle callbacks (pre-tool, post-tool, pre-plan, post-improve, etc.) that allow observation or interception without modifying core code.
-
-Discovery is automatic via the Plugin Discovery component already present in the Kernel. This brings the modularity of Grok Build’s extension model into the hexagonal design.
 
 ### **12.4 Plan Mode with Human Review Gate**
 

@@ -4,19 +4,17 @@
 > **Working Proposal Disclaimer**: A working architectural proposal, refined iteratively as practical evaluation progresses.
 
 ## **Overview**
-The orchestration engine is a lightweight `AsyncStateMachine` event-bus microkernel in Python 3.12+. It owns the single dispatch choke point between intent and effect.
+The orchestration engine is a lightweight `AsyncStateMachine` event-bus microkernel in Python 3.13+. It owns the single dispatch choke point between intent and effect.
 
 ## **Key Design Features**
 
 * **Zero Framework Lock-in**: decoupled from external agent frameworks; LangGraph and similar are supported strictly as optional adapters behind the `Orchestrator` port.
 * **Event-Stream Orchestration**: non-blocking async event bus with step checkpointing and OpenTelemetry instrumentation, following the **OTel GenAI semantic conventions** so ecosystem tooling works without bespoke adapters.
-* **One Source of Truth for Traces**: the span log and the Trajectory Store are not two parallel records of the same facts. One is derived from the other; maintaining both independently guarantees they drift.
+* **One Source of Truth for Traces**: The `EventBus` is the single source of truth. Both the `TrajectoryStore` (durable SQLite audit log) and OpenTelemetry exporter subscribe to `EventBus` events independently, preventing trace drift while ensuring trajectory persistence is unaffected by telemetry sampling.
 
-## **Determinism, Stated Honestly**
+## **Determinism**
 
-The previous revision claimed "strictly reproducible" execution. That claim is false and worth correcting precisely, because it would have driven the wrong test strategy: LLM calls are not reproducible even at temperature zero, and model versions drift underneath a running system.
-
-What the kernel actually guarantees is **record/replay determinism**, which is both achievable and more useful:
+LLM calls are not reproducible even at temperature zero, and model versions drift underneath a running system. What the kernel guarantees is **record/replay determinism**:
 
 * Every model call and tool result is recorded.
 * Replay serves recorded observations rather than re-executing.
@@ -34,7 +32,7 @@ Time-travel debugging over an agent that touched a filesystem is only sound if r
 | `IDEMPOTENT` | Re-execution converges; may re-run under policy |
 | `DESTRUCTIVE` | **Never** re-executed; always served from the recorded observation |
 
-Without this, replaying a trajectory containing `git push` or `rm -rf` would cheerfully perform it again. The previous specification promised checkpoints and time-travel with no effect model at all.
+Without this, replaying a trajectory containing `git push` or `rm -rf` would perform it again.
 
 ## **Checkpointing**
 

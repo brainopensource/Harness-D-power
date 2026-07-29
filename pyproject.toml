@@ -1,0 +1,39 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sagiha"
+version = "0.1.0"
+description = "SOTA autonomous coding harness with microkernel, capability security, and verification gates"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+  "pydantic>=2.10,<3",          # domain models + config validation, all port boundaries
+  "anyio>=4.6",                 # structured concurrency, portable task groups
+  "httpx>=0.28",                # HTTP for providers and MCP HTTP-SSE
+  "typer>=0.15",                # CLI
+  "rich>=13.9",                 # TUI rendering, diff display
+  "structlog>=24.4",            # structured logging bridged to OTel
+  "tree-sitter>=0.23",          # AST parsing
+  "tree-sitter-language-pack>=0.7",   # bundled grammars, avoids per-language pins
+  "sqlite-vec>=0.1",            # dense retrieval tier, Day 0
+  "lsprotocol>=2023.0",         # typed LSP messages
+  "mcp>=1.0",                   # official MCP SDK, stdio + HTTP-SSE
+  "opentelemetry-sdk>=1.29",
+  "opentelemetry-exporter-otlp>=1.29",
+]
+
+[project.optional-dependencies]
+anthropic = ["anthropic>=0.40"]     # cache_control prompt caching, extended thinking
+google    = ["google-genai>=0.1"]   # unified Google SDK
+openai    = ["openai>=1.50"]        # GPT-*, plus every OpenAI-compatible endpoint
+dev       = [
+  "pytest>=8.0",
+  "pytest-asyncio>=0.23",
+  "pytest-cov>=5.0",
+  "ruff>=0.8.0",
+  "pyright>=1.1.380",
+  "import-linter>=2.0",
+  "detect-secrets>=1.5.0",
+]

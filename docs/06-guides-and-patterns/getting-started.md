@@ -5,7 +5,7 @@
 
 ## **Prerequisites**
 
-Python 3.12+, Git, SQLite3, and a container runtime (Docker or Podman). The container runtime is required rather than optional: the sandbox is the security perimeter, so an agent with shell access runs inside one from the first slice.
+Python 3.13+, Git, SQLite3, and a container runtime (Docker or Podman). The container runtime is required rather than optional: the sandbox is the security perimeter, so an agent with shell access runs inside one from the first slice.
 
 ## **Configuration**
 

@@ -31,7 +31,11 @@ Formally, an edge `e = (u, r, v)` asserting relationship `r` between entities `u
 
 Note the scope limit established in the memory module: this machinery applies to **learned, contestable facts**. Code structure is not modelled this way, because git already records both time axes — valid time is commit time, transaction time is index time — and structure re-derives exactly at any ref.
 Graphiti avoids expensive LLM-in-the-loop reranking during retrieval by executing vector similarity, keyword full-text search, and temporal graph traversals within a single compiled query execution step5. Empirical evaluations on the LongMemEval benchmark demonstrate that temporal context graphs achieve up to 18.5% higher retrieval accuracy with a 90% reduction in query latency compared to traditional vector-only or sliding-window agent memory systems6.  
-To comprehensively index a codebase, SAGIHA unifies four distinct structural topologies into a single property graph deployed on Neo4j or FalkorDB4:
+To comprehensively index a codebase, SAGIHA unifies four distinct structural topologies:
+
+> [!WARNING]
+> **Superseded by [ADR-0011](../08-decisions/0011-sqlite-as-primary-store.md).**
+> External graph daemons like Neo4j or FalkorDB break the local-first, zero-dependency principle. The structural code graph is backed by SQLite FTS5 / relational tables locally, while the episodic graph is isolated in SQLite-WAL.
 
 > * **AST Dependency Graph**: Tracks module imports, class inheritance hierarchies, function call graphs, variable definitions, and interface implementations generated via Tree-sitter parsers.  
 > * **Architectural Decision Map**: Formulates a directed acyclic graph connecting high-level system requirements, ADR markdown files, pull request rationales, and architectural module boundaries.  
@@ -146,12 +150,12 @@ Enforcement is therefore structural, by three mechanisms:
 
 ### **Architectural Blueprint and Meta-Harness Kernel**
 
-SAGIHA is implemented in Python 3.12+ using Pydantic v2 for schema validation and strict hexagonal architecture protocols (`typing.Protocol`) to decouple domain logic from external adapters.
+SAGIHA is implemented in Python 3.13+ using Pydantic v2 for schema validation and strict hexagonal architecture protocols (`typing.Protocol`) to decouple domain logic from external adapters.
 
 ```python
 """
 SAGIHA Core Protocols and Domain Models
-Python 3.12+ Hexagonal Architecture Interface Definitions
+Python 3.13+ Hexagonal Architecture Interface Definitions
 
 CONTRACT RULES (enforced in CI, see 06-guides-and-patterns/port-conformance-testing.md):
   1. No `Dict[str, Any]` crosses a port boundary. Every payload is a Pydantic model.
@@ -573,7 +577,7 @@ class CandidateSearch(Protocol):
 
 
 class Orchestrator(Protocol):
-    async def execute(self, task: "TaskSpec", context: RunContext) -> AsyncIterator[TrajectoryStep]: ...
+    async def execute(self, task: "TaskSpec", context: RunContext) -> AsyncIterator[Event]: ...
 
 
 class AcceptanceCriterion(BaseModel):

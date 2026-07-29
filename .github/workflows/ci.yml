@@ -1,0 +1,67 @@
+name: CI & Quality Gates
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  tcb-check:
+    name: Protect Trusted Computing Base
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reject TCB modifications from agent-authored branches
+        run: |
+          TCB_PATHS='src/sagiha/kernel/policy|src/sagiha/outer_loop/evaluator|benchmarks/definitions|\.github/workflows|\.importlinter'
+          if git diff --name-only origin/main...HEAD | grep -qE "$TCB_PATHS"; then
+            if [ "${{ github.event.pull_request.user.login }}" = "sagiha-agent" ]; then
+              echo "::error::PR touches the trusted computing base"; exit 1
+            fi
+            echo "::warning::TCB touched — human review required"
+          fi
+
+  quality-gates:
+    name: Lint & Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install uv && uv pip install --system -e ".[dev]"
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: pyright
+      - run: lint-imports
+
+  conformance:
+    name: Port Conformance Matrix
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        port: [model, memory, indexer, workspace, lsp, tool_registry, trajectory, policy, governor, evaluator, worktree, code_graph]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install uv && uv pip install --system -e ".[dev]"
+      - run: pytest tests/contracts/test_${{ matrix.port }}_conformance.py -v
+
+  replay:
+    name: Replay Determinism Verification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install uv && uv pip install --system -e ".[dev]"
+      - run: sagiha replay --verify-all --fixtures tests/fixtures/cassettes/
