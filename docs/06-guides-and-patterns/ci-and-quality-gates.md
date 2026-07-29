@@ -1,3 +1,8 @@
+---
+status: normative
+updated: 2026-07-29
+---
+
 # **CI & Quality Gates**
 
 > [!NOTE]
@@ -107,9 +112,15 @@ Note what this protects against: not a malicious agent, but a **well-optimized**
 ```yaml
 strategy:
   matrix:
-    port: [model, memory, indexer, workspace, lsp, tool_registry, trajectory, policy, governor, evaluator, worktree, code_graph]
+    port: [model, memory, indexer, workspace, lsp, tool_registry, trajectory, policy, governor, evaluator, worktree, code_graph, toolchain, reviewer, port_shape, profile_resolution]
 run: pytest tests/contracts/test_${{ matrix.port }}_conformance.py -v
 ```
+
+`port_shape` is the odd one out: it is a **meta-conformance** suite that checks the shape of the
+contracts themselves rather than the behavior of an adapter — no `Dict[str, Any]` across a boundary,
+every method `async`, every payload serializable, no `Grant` in a public signature. See
+[Remoteable Ports](../02-architecture/remoteable-ports.md) and
+[Contracts to Code](../implementation/contracts-to-code.md).
 
 Each job runs one port's suite across **every** adapter implementing it. A new adapter is not "done" until it appears in that parametrization and passes unchanged — that is the operational meaning of swappable, and the mechanism that makes the [migration matrix](../07-roadmap/phased-migration-matrix.md) safe to execute.
 
@@ -127,7 +138,20 @@ async def test_always_gate_list_cannot_be_bypassed_by_autonomy_level(policy): ..
 async def test_candidate_modification_of_tests_fails_the_gate(evaluator): ...
 async def test_evaluator_uses_injected_suite_not_worktree_copy(evaluator): ...
 async def test_evaluator_has_no_degraded_mode(evaluator): ...
+
+# tests/contracts/test_profile_resolution_conformance.py
+async def test_profile_without_workspace_never_dispatches_a_write(kernel): ...
+async def test_ungated_profile_emits_no_gate_report_not_an_empty_one(kernel): ...
+async def test_every_profile_dispatches_through_policy_engine(kernel): ...
+async def test_always_gate_holds_under_every_profile(kernel): ...
+async def test_unknown_profile_name_is_refused_at_composition(config): ...
 ```
+
+The profile suite exists because [execution profiles](../02-architecture/execution-profiles.md)
+introduce exactly one behavioral risk: a run that mounts fewer ports could be mistaken for a run that
+passed fewer checks. The first two tests close it. The next two assert the invariant that a profile
+subtracts capability but never supervision — the failure mode where a config key becomes a
+privilege-escalation surface.
 
 ## **Replay Determinism**
 

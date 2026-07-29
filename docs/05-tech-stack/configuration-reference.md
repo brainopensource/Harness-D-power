@@ -1,3 +1,8 @@
+---
+status: normative
+updated: 2026-07-29
+---
+
 # **Configuration Reference**
 
 > [!NOTE]
@@ -11,25 +16,97 @@ Precedence: CLI flags → environment (`SAGIHA_*`) → `config.toml` → default
 
 ```toml
 # ─── Model access ────────────────────────────────────────────────────────────
+# Tiers are defined by ROLE, not vendor, so routing policy survives model releases.
+# Call sites request a role; the composition root binds one provider per role.
 [model]
-provider    = "anthropic"        # anthropic | openai | google | openai-compatible
-model       = "..."              # provider model id
-mode        = "live"             # live | replay (cassette) | record
-max_tokens  = 8192
-fallback    = "openai"           # provider used when the breaker opens; omit to disable
+mode     = "live"                # live | replay (cassette) | record — applies to every tier
+fallback = "workhorse"           # tier used when a breaker opens; omit to disable
 
+[model.tiers.frontier]           # deepest reasoning: planning, judging, meta-improvement
+provider    = "anthropic"
+model       = "..."              # provider model id
+max_tokens  = 16384
 # Secrets are NEVER stored here. Env var name only; the value is read at runtime
 # and excluded from the sandbox.
 api_key_env = "ANTHROPIC_API_KEY"
 
-[model.thinking]
+[model.tiers.frontier.thinking]
+enabled       = true
+budget_tokens = 8192
+
+[model.tiers.workhorse]          # default execution — the large majority of steps
+provider    = "anthropic"
+model       = "..."
+max_tokens  = 8192
+api_key_env = "ANTHROPIC_API_KEY"
+
+[model.tiers.workhorse.thinking]
 enabled       = true
 budget_tokens = 4096
+
+[model.tiers.fast]               # compaction, summarization, classification, commit messages
+provider    = "anthropic"
+model       = "..."
+max_tokens  = 4096
+api_key_env = "ANTHROPIC_API_KEY"
+
+[model.tiers.local]              # offline / air-gapped; zero marginal cost
+provider    = "openai-compatible"
+model       = "..."
+base_url    = "http://localhost:11434/v1"
+max_tokens  = 8192
+
+# Role → call-site defaults. Override per profile with `model_role`.
+[model.roles]
+planning    = "frontier"
+execution   = "workhorse"
+candidates  = "workhorse"        # N× cost: this line dominates System 2 spend
+compaction  = "fast"
+judge       = "frontier"         # must differ from the generating model
+meta        = "frontier"
+
+# ─── Execution profiles ──────────────────────────────────────────────────────
+# A profile declares what a run MOUNTS and what ADMITS its result. Coding is one
+# profile, not the privileged path. Third parties add profiles via entry points.
+#   workspace: worktree | readonly | none
+#   toolchain: full | readonly | none
+#   gates:     full | acceptance_only | none
+[profiles.coding]
+workspace  = "worktree"
+toolchain  = "full"
+gates      = "full"
+model_role = "execution"
+tools      = ["*"]
+
+[profiles.analysis]              # code explanation, architecture Q&A, impact assessment
+workspace  = "readonly"
+toolchain  = "readonly"
+gates      = "acceptance_only"
+model_role = "execution"
+tools      = ["read_file", "list_dir", "glob", "grep", "recall", "remember"]
+
+[profiles.review]                # PR review bot — soft score only, never a hard gate
+workspace  = "readonly"
+toolchain  = "readonly"
+gates      = "none"
+model_role = "judge"
+tools      = ["read_file", "glob", "grep", "git_read", "recall"]
+
+[profiles.chat]                  # conversational; no repository access at all
+workspace  = "none"
+toolchain  = "none"
+gates      = "none"
+model_role = "fast"
+tools      = ["recall", "remember", "web_search"]
 
 # ─── Workspace ───────────────────────────────────────────────────────────────
 [workspace]
 root         = "/path/to/target/repo"
 worktree_dir = ".sagiha/worktrees"
+# All three stores live under .sagiha/ at the REPOSITORY ROOT, never inside a
+# worktree — a per-candidate trajectory is deleted on release and the run becomes
+# unreplayable. One writer per database; see control-plane-python.md.
+state_dir    = ".sagiha"
 # Ignored-but-required artifacts linked into every fresh worktree.
 # Without these, the first build in a new worktree fails. See git-worktree-branching.md
 materialize  = [".env", ".venv", "node_modules"]
@@ -74,12 +151,11 @@ env_passthrough  = ["LANG", "TZ"]
 [retrieval]
 chunk_strategy    = "ast_bounded"   # ast_bounded | fixed_window (fixed_window is a baseline for ablation only)
 max_chunk_tokens  = 1024
-lexical_weight    = 0.5             # BM25 vs dense fusion
-dense_weight      = 0.5
 top_k             = 20
 graph_expansion_hops = 2
-embedding_model   = "..."
-embedding_dims    = 1024
+# v1 is lexical (BM25/FTS5) + graph expansion. `dense_weight`, `embedding_model`, and
+# `embedding_dims` return with the dense tier — deferred behind a measured recall@10
+# trigger, see ADR-0014.
 
 # ─── Context assembly ────────────────────────────────────────────────────────
 [context]

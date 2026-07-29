@@ -1,3 +1,8 @@
+---
+status: normative
+updated: 2026-07-29
+---
+
 # ADR-0011: Split the Code Graph from Episodic Memory
 
 **Status**: Accepted

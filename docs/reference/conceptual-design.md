@@ -1,3 +1,8 @@
+---
+status: rationale
+updated: 2026-07-29
+---
+
 # **SAGIHA — Super AGI Harness Agent**
 
 ### **A Self-Evolving Multi-LLM Orchestration Framework for Autonomous Software Engineering**
@@ -71,9 +76,9 @@ Every block exposes a minimal, stable **Port** (Protocol / Interface). Implement
 | **Policy & Control** | **PolicyEngine** | **Static policy + capability grants** | **Risk-classified policy, learned escalation** | **Authorizing every effect; minting grants** |
 | **Admission Control** | **ResourceGovernor** | **In-process semaphore + spend ledger** | **Distributed leases** | **Concurrency, rate limits, budget enforcement** |
 | Short-Term Memory | ShortTermMemory | In-memory ring buffer over SQLite-WAL | Trajectory-compressed context ring | Session context, step trajectories, compaction |
-| Long-Term Memory | Memory | SQLite + sqlite-vec | LanceDB; episodic temporal graph | Durable knowledge, decisions, preferences |
+| Long-Term Memory | Memory | SQLite + sqlite-vec ⚠️ | LanceDB; episodic temporal graph | Durable knowledge, decisions, preferences |
 | **Code Graph** | **CodeGraph** | **SQLite tables from Tree-sitter + git** | **Embedded property store (Kùzu)** | **Deterministic imports, calls, ownership, co-change** |
-| Indexing | Indexer | Tree-sitter chunker + FTS5 + dense tier | Out-of-process index service | Symbol lookup, skeletons, neighbors — query-shaped only |
+| Indexing | Indexer | Tree-sitter chunker + FTS5 + dense tier ⚠️ | Out-of-process index service | Symbol lookup, skeletons, neighbors — query-shaped only |
 | Language Diagnostics | LSPAdapter | Warm server supervisor over stdio LSP | Pooled multi-language supervisor | Type checking, diagnostics, definitions, references |
 | Tools & Scripts | ToolRegistry | Local functions + stdio MCP | Full MCP ecosystem | Tool discovery and dispatch under grants |
 | **Workspace** | **Workspace** | **Mediated FS + subprocess** | **Container / remote runtime** | **Read, write, structured edit, run, checkpoint, restore** |
@@ -82,6 +87,12 @@ Every block exposes a minimal, stable **Port** (Protocol / Interface). Implement
 | Candidate Search | CandidateSearch | Best-of-N + sequential repair | Tree search, once a calibrated value model exists | Exploring and selecting alternative solutions |
 | Evaluation | Evaluator | Pytest against pristine injected suite | Multi-judge + PRM scoring | Independent quality gate |
 | Meta-Improvement | MetaImprover | Propose-Evaluate-Accept, human sign-off | RHI under held-out validation | Evolution of the *mutable* surface only |
+
+> [!WARNING]
+> ⚠️ **Superseded by [ADR-0014](../08-decisions/0014-defer-dense-retrieval.md).** The dense tier —
+> `sqlite-vec`, LanceDB, and any embedding provider — is **not** a Day-0 adapter. v1 retrieval is
+> BM25/FTS5 plus code-graph expansion; the dense tier is deferred behind a measured recall@10 trigger,
+> and the `EmbeddingProvider` port exists with no adapter behind it.
 
 Rows in **bold** are ports the prior revision lacked entirely. Their absence was not cosmetic: without `ModelProvider` the system had no contract for its single most important dependency, and without `PolicyEngine` the Control layer of the CAR model had no interface at all.
 
@@ -166,7 +177,7 @@ The Rust AST indexer remains a legitimate future option, gated on a measured Pyt
 **Memory & Retrieval**
 
 > * STM: In-memory sliding buffer durably backed by SQLite-WAL. **Redis is not adopted** — STM is per-session and small, wants durability co-located with the trajectory rather than a network hop, and SQLite-WAL already provides persistence, crash recovery, and queryability. A second daemon earns nothing at single-node scale.
-> * LTM / Index: SQLite + sqlite-vec (Day 0) → LanceDB. Quantization is adopted against a measured ceiling, not on schedule: a large repository chunks to ~10⁵–10⁶ vectors, where an exhaustive SIMD scan runs in single-digit milliseconds and compression solves a problem the system does not have. **Chunking strategy, hybrid fusion, and reranking govern retrieval quality far more than the quantizer**, and are specified in the retrieval module.
+> * LTM / Index: SQLite FTS5 + code-graph expansion (Day 0). ⚠️ *The dense tier — `sqlite-vec`, then LanceDB — is deferred behind a measured recall@10 trigger ([ADR-0014](../08-decisions/0014-defer-dense-retrieval.md)).* Quantization is adopted against a measured ceiling, not on schedule: a large repository chunks to ~10⁵–10⁶ vectors, where an exhaustive SIMD scan runs in single-digit milliseconds and compression solves a problem the system does not have. **Chunking strategy, hybrid fusion, and reranking govern retrieval quality far more than the quantizer**, and are specified in the retrieval module.
 > * Graph: **split by epistemics.** Deterministic code structure (imports, calls, ownership, co-change) is derived exactly from Tree-sitter and git into SQLite, or an embedded store such as Kùzu — never through LLM extraction, which charges tokens for facts the parser already knows and admits hallucinated edges into dependency analysis. Episodic and decision memory, where facts are genuinely unstructured and lose validity over time, is where a bi-temporal engine such as Graphiti earns its cost. Note that git is already bi-temporal for code: valid time is commit time, and structure re-derives at any ref.
 
 **Execution Safety & Language Tooling**
@@ -209,7 +220,7 @@ The authoritative roadmap is the **vertical slice plan** in `07-roadmap/phased-m
 | **Kernel Orchestrator** | Native async ReAct loop | State machine + checkpoints | Candidate search; A2A fleet — *when single-agent plateaus on multi-file tasks* |
 | **Control Layer** | Static policy + capability grants | Risk-classified gates, durable approvals | Learned escalation — *once approval history exists* |
 | **Short-Term Memory** | Ring buffer over SQLite-WAL | Compaction at checkpoints | Trajectory-compressed ring — *when sessions exceed the window routinely* |
-| **Long-Term Memory** | SQLite + sqlite-vec | LanceDB | Episodic temporal graph — *when decision recall demonstrably fails* |
+| **Long-Term Memory** | SQLite FTS5 + record links ⚠️ | Backlinks, bi-temporal reads | Episodic temporal graph — *when decision recall demonstrably fails* |
 | **Code Graph** | SQLite tables from Tree-sitter + git | Impact closure queries | Embedded property store — *when recursive traversal outgrows SQL* |
 | **Indexing Engine** | AST-bounded chunking + FTS5 + dense tier | Incremental update on file watch | Out-of-process index service — *when measured Python indexing misses its latency budget* |
 | **Diagnostic Layer** | Subprocess pytest + linter | Warm LSP supervisor with pooling | Broader language coverage — *per language actually used* |
@@ -327,12 +338,15 @@ A lightweight but powerful extension layer is added:
 
 > * **Skills** — reusable, versioned instruction + tool packages (loaded from skills/ or MCP).  
 > * **Plugins** — static adapters registered via explicit composition root.
-> 
-> > [!WARNING]
-> > **Superseded by [ADR-0004](../08-decisions/0004-explicit-wiring.md).**
-> > Runtime plugin discovery and dynamic port registration are rejected. All wiring is explicit and static to preserve language-server type resolution and "go to definition" for AI agents.
-> 
 > * **Hooks** — lifecycle callbacks (pre-tool, post-tool, pre-plan, post-improve, etc.) that allow observation or interception without modifying core code.
+
+> [!NOTE]
+> **Refined by [ADR-0004](../08-decisions/0004-no-di-container.md) and [ADR-0013](../08-decisions/0013-extension-registration.md).**
+> Runtime plugin discovery and dynamic port registration remain rejected — all wiring is explicit and
+> static, to preserve language-server type resolution and "go to definition" for AI agents. But
+> "registered via explicit composition root" is not the same as "requires a fork": extensions declare
+> themselves through packaging entry points, which the composition root resolves once and then freezes.
+> The normative account of all four surfaces is [Extension Model](../02-architecture/extension-model.md).
 
 ### **12.4 Plan Mode with Human Review Gate**
 
@@ -346,27 +360,27 @@ This directly implements the “plan-then-execute” pattern and strengthens the
 
 ### **12.5 Workspace Abstraction & Headless Operation**
 
-A dedicated **Workspace** port mediates every filesystem and process interaction. This
-resolves a contradiction between earlier drafts, where one document defined
-read/write/run/checkpoint/restore while another reduced the port to `get_path()` and
-`apply_diff()`:
+A dedicated **Workspace** port mediates every filesystem and process interaction: read, write,
+structured edit, run, checkpoint, restore. The signature is normative in
+[Hexagonal Ports](../03-contracts-and-models/hexagonal-ports.md) and is **not** restated here.
 
-```python
-class Workspace(Protocol):
-    async def read(self, path: str) -> str: ...
-    async def write(self, path: str, content: str, grant: Grant) -> None: ...
-    async def apply_edit(self, diff_text: str, grant: Grant) -> EditResult: ...
-    async def run(self, command: list[str], grant: Grant) -> CommandResult: ...
-    async def checkpoint(self, label: str) -> str: ...
-    async def restore(self, checkpoint_id: str) -> None: ...
-```
+> [!WARNING]
+> **Superseded in part.** This section previously showed `write`, `apply_edit`, and `run` taking a
+> `grant: Grant` parameter, and `apply_edit` taking `diff_text: str`. Both are wrong as of
+> [ADR-0013](../08-decisions/0013-extension-registration.md)-era contracts: grants **never** appear in
+> a public signature (they are held only inside `kernel/dispatch.py`, so possession confers nothing and
+> reachability is the control), and `apply_edit` takes a structured `EditRequest` rather than a unified
+> diff. The rationale below still holds; the signatures did not.
 
 Three properties are deliberate:
 
 > * **No `get_path()`.** Exposing a real path lets consumers bypass the port entirely, which
 >   would make the container and remote-runtime adapters unreachable.
-> * **Side-effecting methods require a `Grant`.** The capability token is minted only by the
->   Policy Engine, so authorization cannot be forgotten at a call site.
+> * **Side-effecting methods require authorization.** The capability `Grant` is minted only by the
+>   Policy Engine. *(Refined: the grant is not passed as a parameter — Runtime methods are reachable
+>   only from the dispatch choke point, so authorization cannot be forgotten at a call site and a
+>   forged token buys nothing. A parameter that can be constructed by any caller looks like enforcement
+>   and is not.)*
 > * **`apply_edit` returns `EditResult`, not `bool`.** Edit application is the highest-frequency
 >   operation in the system; a bare boolean discards which hunks failed and why, leaving the
 >   model unable to repair its own patch. The result carries per-hunk outcomes and a

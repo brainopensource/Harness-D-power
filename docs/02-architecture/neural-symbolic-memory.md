@@ -1,7 +1,18 @@
+---
+status: normative
+updated: 2026-07-29
+---
+
 # **Neural-Symbolic Memory Subsystem**
 
 > [!NOTE]
 > **Working Proposal Disclaimer**: A working architectural proposal, refined iteratively as practical evaluation progresses.
+
+> [!NOTE]
+> **Where these stores live and who writes to them** — file layout, WAL and `busy_timeout` as a
+> connection-factory invariant, and the one-writer-per-database rule that keeps parallel worktrees from
+> contending — is specified in
+> [Storage Layout & Concurrency](../05-tech-stack/control-plane-python.md#storage-layout--concurrency).
 
 ## **Persistence Tiers**
 
@@ -29,6 +40,40 @@ Imports, call edges, definitions, inheritance, ownership, and co-change coupling
 
 ADRs, pull-request rationale, "we tried X and it failed because Y", operator preferences. Here facts are genuinely unstructured, genuinely contested, and genuinely lose validity over time — so LLM extraction and **bi-temporal modelling earn their cost**. An engine such as Graphiti applies here, and only here.
 
+#### The Knowledge Net
+
+Episodic memory is a **linked** store, not a bag of documents. Every `MemoryRecord` carries
+`links: tuple[str, ...]` of other memory ids, which makes the tier a navigable graph in the sense a
+personal knowledge base is one: a decision links to the episodes that produced it, an episode links to
+the files it touched and the failure it explains, a preference links to every episode where it was
+applied.
+
+This costs one field, and it is what turns recall from ranked snippets into a traversal. Two queries
+matter and neither is expressible over a flat store:
+
+* **Neighborhood** — "what else is connected to this decision, one hop out." The context an engineer
+  gets from following a wiki link, and the reason a good note-taking system beats a better search box.
+* **Backlinks** — "what depends on this belief." Required for honest invalidation: when a decision is
+  reversed, everything that cited it is stale, and without backlinks nothing knows.
+
+The links are cheap because both endpoints already exist. What is deliberately **not** built:
+
+| Not built | Why |
+| :--- | :--- |
+| A fourth store | The three tiers plus links carry it. A separate knowledge database would duplicate the episodic store with a different name. |
+| A dedicated graph daemon | Same reasoning as the code graph: embedded or nothing. |
+| Automatic link inference at write time | Cheap to add later against real data, and wrong links are worse than absent ones — a hallucinated edge is a fact the traversal then trusts. Links are written by whoever creates the record: the operator, the agent, or the harness. |
+
+**Where it connects to code.** The two graphs stay separate (they have different sources of truth —
+[ADR-0011](../08-decisions/0011-split-code-and-episodic-graphs.md)), but a memory record may reference
+a path or `SymbolRef`. That reference is a *pointer*, resolved against the code graph at recall time,
+never a copied edge. So "what did we learn about this module" is answerable while the code graph stays
+fully rebuildable from HEAD.
+
+**Trust travels the links.** A traversal that reaches an `EXTERNAL` record returns an `EXTERNAL`
+record; provenance is per node and never inherited from the node that pointed at it. Otherwise the
+graph becomes exactly the laundering path the provenance model exists to close.
+
 ### On Bi-Temporality for Code
 
 **Git is already a bi-temporal store.** Valid time is commit time; transaction time is index time; structure re-derives at any ref. Rebuilding that inside a graph database duplicates version control. Temporal invalidation is therefore reserved for learned facts, which git does not track.
@@ -36,23 +81,21 @@ ADRs, pull-request rationale, "we tried X and it failed because Y", operator pre
 ## **The Memory Port**
 
 ```python
-class Provenance(str, Enum):
-    OPERATOR = "operator"    # human turn — authoritative
-    HARNESS = "harness"      # tree-sitter, LSP, git — deterministic, trusted
-    MODEL = "model"          # agent's own reasoning
-    EXTERNAL = "external"    # repo content, web, MCP — untrusted
-
-class MemoryRecord(BaseModel):
-    # ...
-    provenance: Provenance
-
 class Memory(Protocol):
     async def remember(self, record: MemoryRecord) -> str: ...
     async def recall(self, query: RecallQuery) -> list[Recall]: ...
+    async def neighbors(self, memory_id: str, hops: int = 1) -> list[Recall]: ...
+    async def backlinks(self, memory_id: str) -> list[Recall]: ...
     async def invalidate(self, memory_id: str, at: datetime) -> None: ...
 ```
 
-No vector appears in the signature. Embedding lives behind `EmbeddingProvider`, entirely inside the adapter.
+`Provenance`, `MemoryRecord`, `RecallQuery`, and `Recall` are defined in
+[Domain Schemas](../03-contracts-and-models/domain-schemas.md#memory).
+
+**No vector appears in the signature.** Embedding lives behind `EmbeddingProvider`, entirely inside the
+adapter — which is what lets the dense tier be deferred ([ADR-0014](../08-decisions/0014-defer-dense-retrieval.md))
+without any consumer knowing. A v1 adapter backed by FTS5 and link traversal satisfies this Protocol
+completely.
 
 ## **Time Handling**
 

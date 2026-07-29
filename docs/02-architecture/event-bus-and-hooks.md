@@ -1,3 +1,8 @@
+---
+status: normative
+updated: 2026-07-29
+---
+
 # **Event Bus & Hook System**
 
 > [!NOTE]
@@ -24,7 +29,11 @@ This is why remote piloting, voice, and IDE integration require **zero core chan
 
 ## **Event Taxonomy**
 
-All events are frozen Pydantic models carrying `run_id`, `step_id`, and an aware-UTC `timestamp`.
+All events are frozen Pydantic models carrying `run_id`, `step_id`, `schema_version`, and an aware-UTC
+`timestamp`.
+
+> The summary below names the groups. The **normative registry** — payloads, emitters, subscribers, and
+> replay-relevance for every event — is the [Event Catalog](../04-workflows-and-loops/event-catalog.md).
 
 ### Lifecycle
 `RunStarted` · `RunCompleted` · `RunFailed` · `RunCanceled` · `CheckpointCreated`
@@ -41,7 +50,14 @@ The split between *requested* and *authorized* is deliberate: it makes the polic
 `EditApplied` (carries `EditResult`) · `CommandExecuted` · `DiagnosticsChanged` · `WorktreeAllocated` · `WorktreeReleased`
 
 ### Evaluation & Control
-`GateEvaluated` (carries `GateReport`) · `CandidateProposed` · `CandidateSelected` · `ApprovalRequested` · `ApprovalResolved` · `BudgetWarning` · `BudgetExhausted`
+`GateEvaluated` (carries `GateReport`) · `ReviewCompleted` (soft score) · `CandidateProposed` · `CandidateSelected` · `ApprovalRequested` · `ApprovalResolved` · `BudgetWarning` · `BudgetExhausted`
+
+### Steering
+`UserMessageReceived` · `TaskRevised`
+
+Mid-run steering appends to the tail and never touches the cache-stable prefix. A goal change produces
+a **new `TaskSpec` revision** rather than a mutation, so the trajectory records what the agent was
+graded against at each step. Rules in the [Event Catalog](../04-workflows-and-loops/event-catalog.md#steering).
 
 ## **Two Subscriber Kinds**
 
@@ -113,10 +129,10 @@ The `TrajectoryStore` observer is the sole exception: its queue is unbounded and
 
 ## **Relationship to the Extension System**
 
-Skills, plugins, and hooks are the three extension mechanisms:
+Hooks are one of four extension surfaces — alongside adapters, tools, and skills. All four, their
+registration mechanism, and their trust levels are specified in
+[Extension Model](./extension-model.md).
 
-* **Hooks** observe or veto, as specified here.
-* **Skills** are versioned instruction + tool bundles, loaded into the prompt's stable prefix.
-* **Plugins** are adapters implementing an existing port, wired in the composition root — and required to pass that port's conformance suite before being usable.
-
-None of the three may register new ports or reach past a port boundary. Extension is additive within the hexagon, never a hole through it.
+The invariant that spans all of them: **extension is additive within the hexagon, never a hole through
+it.** None may register new ports, reach past a port boundary, or widen authority. For hooks
+specifically that means `pre_tool` supplements `PolicyEngine` and never replaces it.

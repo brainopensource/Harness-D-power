@@ -40,13 +40,16 @@ jobs:
       - run: ruff format --check .
       - run: pyright
       - run: lint-imports
+      # Advisory second opinion — never blocks. See ADR-0009.
+      - run: mypy src/
+        continue-on-error: true
 
   conformance:
     name: Port Conformance Matrix
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        port: [model, memory, indexer, workspace, lsp, tool_registry, trajectory, policy, governor, evaluator, worktree, code_graph]
+        port: [model, memory, indexer, workspace, lsp, tool_registry, trajectory, policy, governor, evaluator, worktree, code_graph, toolchain, reviewer, port_shape, profile_resolution]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

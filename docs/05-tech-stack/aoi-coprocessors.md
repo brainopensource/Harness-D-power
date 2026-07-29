@@ -1,3 +1,8 @@
+---
+status: normative
+updated: 2026-07-29
+---
+
 # **Auxiliary Optimization Intelligence (AOI) Co-processors**
 
 > [!NOTE]
@@ -25,11 +30,11 @@ A scalar carries no way to express uncertainty, and therefore no basis for decid
 
 ## **Three Binding Constraints**
 
-The previous specification satisfied none of these, and each corrects a specific failure.
+Each closes a specific way that learned advisory models go wrong in practice.
 
 ### 1. Shadow mode before gating
 
-Every model ships predicting-and-logging, and is promoted to acting only when a reliability diagram and Brier score on held-out runs justify it. The previous fixed **0.85 halt threshold** was an arbitrary number chosen before any calibration data existed — and a threshold on an uncalibrated model is not a decision rule, it is a guess with a decimal point.
+Every model ships predicting-and-logging, and is promoted to acting only when a reliability diagram and Brier score on held-out runs justify it. **No fixed halt threshold is specified anywhere in this tree**, deliberately: a threshold chosen before calibration data exists is not a decision rule, it is a guess with a decimal point. The number comes from the reliability diagram or it does not exist.
 
 ### 2. Exploration against self-confirmation
 

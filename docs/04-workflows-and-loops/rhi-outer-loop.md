@@ -1,3 +1,8 @@
+---
+status: normative
+updated: 2026-07-29
+---
+
 # **Recursive Harness Self-Improvement (RHI) Outer Loop**
 
 > [!NOTE]
@@ -7,7 +12,7 @@ The outer loop optimizes harness scaffolding under held-out validation. It is **
 
 ## **The Trusted Computing Base**
 
-A self-improving system able to edit its own evaluator has a trivial optimum: edit the evaluator. The previous specification listed policies and adapter code as mutable and had validated mutations "automatically commit to the production baseline," which made rewriting the grader the cheapest available path to a higher score.
+A self-improving system able to edit its own evaluator has a trivial optimum: edit the evaluator. Any design that lists policy or grading code as mutable, or that auto-commits validated mutations to the production baseline, makes rewriting the grader the cheapest available path to a higher score — and an optimizer will find it before it finds a real improvement.
 
 **Never writable by the agent:**
 

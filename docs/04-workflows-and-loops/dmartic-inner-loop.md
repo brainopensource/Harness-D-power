@@ -1,3 +1,8 @@
+---
+status: normative
+updated: 2026-07-29
+---
+
 # **DMARTIC Inner Loop — Dual-Process Execution Engine**
 
 > [!NOTE]
@@ -38,7 +43,7 @@ The naming matters because it drives engineering. MCTS's guarantees assume cheap
 
 ## **Routing: A Deterministic Escalation Ladder**
 
-The previous design consumed `task_complexity: float` that nothing in the system produced, and expected a learned router to exist before any trajectories had been collected. Routing is therefore deterministic at the start:
+Routing is **deterministic at the start**, because a learned router needs trajectories that do not exist on day one, and a complexity score has to be produced by something. Nothing in the system can estimate task complexity before it has run tasks — so the ladder is hand-written:
 
 1. Attempt System 1.
 2. Escalate to System 2 on any of: repeated failure (N attempts), file-set closure spanning multiple modules, diff size above threshold, or an explicit risk classification.
@@ -55,6 +60,32 @@ The ladder doubles as a **label generator** — its decisions and their outcomes
 6. **Improve** — Admit candidates through hard gates; rank survivors by score; repair sequentially on failure.
 7. **Control** — Validate policy and budget; land the winning candidate; invalidate stale episodic facts.
 8. **Self-Reflect** — Compact the trajectory at a deliberate checkpoint; commit the event log; write durable decisions back to `docs/decisions/`.
+
+## **Profile-Conditional Stages**
+
+The cycle above describes the `coding` profile. Under other
+[execution profiles](../02-architecture/execution-profiles.md) the loop is **the same loop** — stages
+whose ports are unbound are simply no-ops, and the orchestrator contains no branch on profile.
+
+| Stage | Without a `Toolchain` | Without a writable `Workspace` |
+| :--- | :--- | :--- |
+| 1. Design | unchanged | unchanged |
+| 2. Measure | no-op — nothing to baseline | diagnostics only, if a repository is mounted |
+| 3. Analyze | unchanged | unchanged (retrieval is read-only) |
+| 4. Review gate | unchanged — approval is profile-independent | unchanged |
+| 5. Test | no-op | no-op |
+| 6. Improve | no-op | no-op |
+| 7. Control | budget and policy only | budget and policy only |
+| 8. Self-Reflect | unchanged | trajectory only; no decision write-back |
+
+Two consequences worth stating:
+
+* **The escalation ladder only applies where candidates are meaningful.** System 2 explores parallel
+  worktrees; with no writable workspace there is nothing to branch. Such profiles run System 1 only,
+  and the ladder never fires — not because it is disabled, but because its trigger conditions
+  (multi-file closure, diff size) are undefined without edits.
+* **A no-op verification stage is not a passed verification stage.** Stages 5–6 collapsing to nothing
+  is exactly why `gates = "none"` emits no `GateReport` rather than an empty one.
 
 ## **Gates and Scores Are Separate**
 

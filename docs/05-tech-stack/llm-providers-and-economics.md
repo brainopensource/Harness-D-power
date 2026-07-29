@@ -1,3 +1,8 @@
+---
+status: normative
+updated: 2026-07-29
+---
+
 # **LLM Provider Tiering, Economics & Task Routing**
 
 > [!NOTE]
@@ -36,12 +41,56 @@ Tiers are defined by **role**, not vendor, so routing policy survives model rele
 Tier-to-model binding lives in `config.toml`, never in code:
 
 ```toml
-[model.tiers]
-frontier  = { provider = "anthropic", model = "..." }
-workhorse = { provider = "anthropic", model = "..." }
-fast      = { provider = "anthropic", model = "..." }
-local     = { provider = "openai-compatible", model = "...", base_url = "http://localhost:11434/v1" }
+[model.tiers.frontier]
+provider = "anthropic"
+model    = "..."
+
+[model.tiers.workhorse]
+provider = "anthropic"
+model    = "..."
+
+[model.tiers.fast]
+provider = "anthropic"
+model    = "..."
+
+[model.tiers.local]
+provider = "openai-compatible"
+model    = "..."
+base_url = "http://localhost:11434/v1"
 ```
+
+### Roles Bind Tiers to Call Sites
+
+A taxonomy of tiers is not a routing policy. **What makes it a mechanism is stating which tier serves
+which call** — otherwise every call site silently uses the same model and tiering is decorative.
+
+| Call site | Default role → tier | Why |
+| :--- | :--- | :--- |
+| Planning, `TaskSpec` authoring, decomposition | `planning` → **frontier** | Runs once per task. The cheapest place in the system to buy quality, because a bad plan is paid for by every step that follows. |
+| System 1 execution, edits, tool loops | `execution` → **workhorse** | The large majority of steps; this is what the cost-per-success number is mostly made of. |
+| System 2 candidate generation | `candidates` → **workhorse** | Multiplied by N. **This one line dominates System 2 spend** — frontier here is the fastest way to make best-of-N unaffordable. |
+| Compaction, summarization, commit messages, classification | `compaction` → **fast** | Mechanical, high volume, low reasoning demand. Using a workhorse here is pure waste. |
+| `Reviewer` judge | `judge` → **frontier**, and **never the generating model** | Self-review is not review. The constraint is on identity, not on tier. |
+| Meta-Improver | `meta` → **frontier** | Rare, and the highest blast radius in the system. |
+
+```toml
+[model.roles]
+planning   = "frontier"
+execution  = "workhorse"
+candidates = "workhorse"
+compaction = "fast"
+judge      = "frontier"
+meta       = "frontier"
+```
+
+An [execution profile](../02-architecture/execution-profiles.md) overrides the execution role for its
+runs via `model_role` — a `chat` profile has no business paying workhorse prices for a one-turn answer.
+Air-gapped operation is a single edit: point every role at `local`.
+
+**Routing is composition, not a port method.** The composition root binds one `ModelProvider` per role
+and callers request a role, never a model. Putting a `route()` on the port would move policy into an
+adapter and break the cassette substitution that lets the kernel run in CI with zero API calls — see
+[Hexagonal Ports](../03-contracts-and-models/hexagonal-ports.md).
 
 ---
 

@@ -13,11 +13,17 @@ This repository houses the architecture, specification, and implementation of **
    - `sagiha.domain` models are pure Pydantic models with zero I/O dependencies.
    - `sagiha.ports` define typed `Protocol` boundaries with zero internal dependencies.
    - All port implementations (`adapters/`) must pass their respective port conformance test suites.
+   - **Contracts live in `src/`. A `Protocol` or `BaseModel` defined in a `.md` file is a bug.** Documentation carries rules and rationale; the definition has exactly one home. Until `src/` exists, that home is `docs/03-contracts-and-models/` — see `docs/implementation/contracts-to-code.md`.
+   - **Every port must be implementable over a wire**: payloads are Pydantic-serializable, every method is `async`, and no `Path`, file handle, callable, generator, or live object crosses a boundary. See `docs/02-architecture/remoteable-ports.md`.
 
 3. **Verification & Gates**:
    - `require_tests_unmodified`: Test suite modifications by agents are rejected by default.
    - Deterministic replay via cassettes must match step sequences byte-for-byte.
-   - Hard gates rank and admit candidates; proxies never override hard gate failures.
+   - Hard gates admit candidates; proxies may rank but never admit, and never override a gate failure.
+
+4. **Extension**:
+   - Adapters, tools, and skills register via packaging entry points, resolved once at composition and then frozen. No runtime discovery, no filesystem scanning.
+   - Extensions may never define a new port, reach past a port boundary, or widen authority.
 
 ## Codebase Conventions
 

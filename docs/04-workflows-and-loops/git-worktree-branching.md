@@ -1,3 +1,8 @@
+---
+status: normative
+updated: 2026-07-29
+---
+
 # **Worktree Branching & Parallel Isolation**
 
 > [!NOTE]
@@ -14,7 +19,7 @@
 
 ## **Materialization Is Required, Not Optional**
 
-A fresh worktree contains **only tracked files**. `.env`, `node_modules`, `.venv`, `target/`, and every build cache are simply absent, so the first command the agent runs fails. The previous design omitted this step entirely, which would have blocked the very first parallel run.
+A fresh worktree contains **only tracked files**. `.env`, `node_modules`, `.venv`, `target/`, and every build cache are simply absent, so the first command the agent runs fails. This step is easy to omit when designing on paper and blocks the very first parallel run in practice.
 
 Materialization links or copies these artifacts, and the strategy is per-ecosystem: symlink where the toolchain tolerates it, copy where it does not, and share a read-only dependency store where the package manager supports one.
 

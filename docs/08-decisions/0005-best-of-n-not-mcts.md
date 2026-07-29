@@ -1,3 +1,8 @@
+---
+status: normative
+updated: 2026-07-29
+---
+
 # ADR-0005: System 2 Is Best-of-N, Not MCTS
 
 **Status**: Accepted

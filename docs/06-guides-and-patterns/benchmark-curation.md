@@ -1,3 +1,8 @@
+---
+status: normative
+updated: 2026-07-29
+---
+
 # **Benchmark Curation**
 
 > [!NOTE]
@@ -8,6 +13,15 @@
 The S0 gate reads "≥70% resolved on a pinned 30-task suite." That suite does not exist, and it is the one prerequisite that cannot be derived from the architecture — it must be curated. Without it, S0 has no exit criterion and every subsequent slice inherits an unmeasurable baseline.
 
 This is the only remaining artifact standing between the documentation and Sprint 1.
+
+> [!IMPORTANT]
+> **The target repository is not yet named.** Commit-replay harvesting requires an external repository
+> with history, tests, and a revertable base commit — SAGIHA has no code, so it cannot harvest from
+> itself at S0. That repository's language, size, and flake rate silently determine what "≥70%
+> resolved" means, so it is a recorded decision rather than an implementation detail.
+> [ADR-0015](../08-decisions/0015-benchmark-target-repository.md) holds the selection rubric and
+> candidates, and is **Proposed pending maintainer sign-off**. Until it is Accepted, the S0 target is a
+> placeholder rather than a commitment.
 
 ## **The Three Suites**
 

@@ -1,3 +1,8 @@
+---
+status: normative
+updated: 2026-07-29
+---
+
 # **Dependencies & Version Policy**
 
 > [!NOTE]
@@ -43,7 +48,7 @@ dependencies = [
   "structlog>=24.4",            # structured logging bridged to OTel
   "tree-sitter>=0.23",          # AST parsing
   "tree-sitter-language-pack>=0.7",   # bundled grammars, avoids per-language pins
-  "sqlite-vec>=0.1",            # dense retrieval tier, Day 0
+  "watchfiles>=0.24",           # file-watch driven incremental re-index
   "lsprotocol>=2023.0",         # typed LSP messages
   "mcp>=1.0",                   # official MCP SDK, stdio + HTTP-SSE
   "opentelemetry-sdk>=1.29",
@@ -52,6 +57,28 @@ dependencies = [
 ```
 
 Floors here, exact pins in `uv.lock`. The lock file is committed and authoritative — the agent must never resolve dependencies non-deterministically mid-run.
+
+**`watchfiles` earns its place** because per-file incremental re-index is the *normal* path, not an optimization ([Indexing & Retrieval](./indexing-and-retrieval.md)). A system that rebuilds the whole index on every save has a feedback loop too slow to sit inside the inner loop, and polling for changes across a large repository costs more than the Rust notify backend it wraps.
+
+## **Development Dependencies**
+
+```toml
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3",              # conformance suites
+  "pytest-asyncio>=0.24",     # parametrized async fixtures
+  "pytest-cov>=5.0",          # backs the coverage_not_decreased gate
+  "ruff>=0.8.0",              # lint + format
+  "pyright>=1.1.380",         # blocking type gate
+  "mypy>=1.13",               # advisory second opinion, non-blocking
+  "import-linter>=2.0",       # CAR layer contracts
+  "detect-secrets>=1.5.0",    # pre-commit secret scan
+]
+```
+
+Every tool named in the [Toolchain](#toolchain) table appears here. That correspondence is the point: a toolchain entry with no dependency behind it is a CI step that fails on a clean checkout, and `pytest-cov` in particular is load-bearing — without it the `coverage_not_decreased` gate cannot be computed at all.
+
+**No container SDK.** [ADR-0016](../08-decisions/0016-container-runtime-podman.md) selects rootless Podman, and the harness drives it through its **CLI**, not through `docker`/`podman` Python bindings. The Python SDKs bind to a daemon socket — which is precisely the root-equivalent capability the rootless decision exists to avoid — and they add a dependency that tracks an API this project uses perhaps a dozen calls of. Container invocation is an implementation detail of the `Workspace` adapter and stays behind that port, which is also what keeps a future gVisor or remote-runtime adapter a drop-in.
 
 ## **Model Provider SDKs — Native, Behind One Port**
 
@@ -74,9 +101,9 @@ The obvious alternative — LiteLLM or similar — buys 100+ providers for one i
 
 **Model-agnosticism is a property of the port, not of the client library.** Zero lock-in comes from `ModelProvider` being one narrow interface with a conformance suite — not from routing everything through someone else's abstraction.
 
-## **LSP Client — A Correction to Earlier Drafts**
+## **LSP Client**
 
-Earlier revisions named **`pygls`**. `pygls` is a framework for *building* language servers; the harness needs to *consume* them. The stack is therefore:
+The harness **consumes** language servers; it does not build them. That rules out `pygls`, which is a framework for the opposite direction and is the library most people reach for first. The stack is therefore:
 
 * **`lsprotocol`** for typed LSP messages
 * **a small in-house async JSON-RPC client** driving server subprocesses over stdio
@@ -91,10 +118,12 @@ Earlier revisions named **`pygls`**. `pygls` is a framework for *building* langu
 | LangChain / LlamaIndex | The orchestrator *is* the product; adopting a framework means inheriting its control flow |
 | LangGraph | Optional adapter behind `Orchestrator`, never a core dependency |
 | Redis | STM is per-session and small; SQLite-WAL already gives durability and queryability |
-| LanceDB (at Day 0) | `sqlite-vec` suffices below ~10⁶ vectors; revisit at S2 if measured |
+| `sqlite-vec`, LanceDB, any embedding provider | The dense tier is deferred behind a measured recall@10 trigger ([ADR-0014](../08-decisions/0014-defer-dense-retrieval.md)). v1 retrieval is BM25/FTS5 + code-graph expansion, which needs no new dependency. Pinning a vector store for a tier that is not built is how a deferral becomes a plan. |
 | Neo4j / FalkorDB | Code graph is SQLite; embedded Kùzu only if traversal outgrows SQL |
 | black, flake8, isort | Subsumed by ruff |
 | poetry | uv resolves faster and its lock diffs cleanly |
+| `docker` / `podman` Python SDKs | The container runtime is driven through its CLI from inside the `Workspace` adapter. The SDKs bind to a daemon socket — the root-equivalent capability [ADR-0016](../08-decisions/0016-container-runtime-podman.md) exists to avoid — for a dozen calls' worth of ergonomics |
+| `ty` / `pyrefly` | Promising and dramatically faster than mypy, but not yet stable enough to hold the advisory slot. Re-evaluate when either reaches 1.0; the advisory role is exactly where a fast checker would pay off, since it could run on every save rather than only in CI |
 
 ## **Upgrade Policy**
 

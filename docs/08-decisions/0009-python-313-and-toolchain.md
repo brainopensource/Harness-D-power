@@ -1,3 +1,8 @@
+---
+status: normative
+updated: 2026-07-29
+---
+
 # ADR-0009: Python ≥3.13 and Toolchain
 
 **Status**: Accepted

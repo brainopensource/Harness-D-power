@@ -1,3 +1,8 @@
+---
+status: normative
+updated: 2026-07-29
+---
+
 # **Security & Threat Model**
 
 > [!NOTE]
@@ -26,7 +31,9 @@ An agent that reads repositories, issues, pull requests, code comments, dependen
 
 The correct framing is unambiguous: **if the agent has a shell, it has every capability the sandbox grants that shell.**
 
-**Mitigations**: the container or gVisor boundary is the perimeter, required from the first slice rather than deferred; filesystem scope enforced by mount, not by path string inspection; no host credential material reachable from inside; network policy at the namespace.
+**Mitigations**: the container boundary is the perimeter, required from the first slice rather than deferred; filesystem scope enforced by mount, not by path string inspection; no host credential material reachable from inside; network policy at the namespace.
+
+The runtime is **rootless Podman**, and egress is allowlisted by hostname at an explicit HTTP/HTTPS proxy with direct outbound dropped by the namespace firewall — hostname-based DNS filtering is bypassed by dialing a literal IP, and IP allowlisting breaks against CDN-hosted package indexes. Mechanism and rationale: [ADR-0016](../08-decisions/0016-container-runtime-podman.md).
 
 ## **T3 — Evaluation Capture**
 

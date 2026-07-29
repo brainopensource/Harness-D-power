@@ -1,3 +1,8 @@
+---
+status: normative
+updated: 2026-07-29
+---
+
 # **SAGIHA — Super AGI Harness Agent**
 
 > [!NOTE]
@@ -9,9 +14,11 @@ Welcome to the documentation hub for **SAGIHA** — a decoupled, hexagonal Meta-
 
 ## **Naming & Scope**
 
-`SAGIHA` expands to **Super AGI Harness Agent** throughout this suite. Earlier drafts used competing expansions; this one is canonical.
+`SAGIHA` expands to **Super AGI Harness Agent** throughout this suite. See [ADR-0001](./08-decisions/0001-project-name.md).
 
-The system is scoped and measured as an **autonomous coding harness**. Capability claims in this suite are stated as benchmarks with thresholds, not as unfalsifiable end-states.
+The system is **measured** as an autonomous coding harness — every capability claim in this suite is stated as a benchmark with a threshold, not as an unfalsifiable end-state, and the benchmark is a coding benchmark.
+
+It is not *limited* to coding. Coding is the default [execution profile](./02-architecture/execution-profiles.md); analysis, review, and conversational profiles mount fewer ports and skip the worktree and gate pipeline entirely. Measurement stays scoped to coding because that is what can be verified — a profile with no machine-checkable acceptance criteria produces no number, and the tree reports no numbers it cannot defend.
 
 ```mermaid
 graph TD
@@ -32,7 +39,7 @@ graph TD
     subgraph InfrastructurePorts ["Hexagonal Ports & Sandboxes"]
         Workspace["Workspace & WorktreeManager: Ephemeral Git Worktrees"]
         LSP["LSPAdapter: Real-Time Type Diagnostics"]
-        Memory["Memory & Indexer: Tree-sitter AST + LanceDB Hybrid"]
+        Memory["Memory and Indexer: Tree-sitter AST + FTS5 + Code Graph"]
         Evaluator["Evaluator: Pristine Injected Test Suite"]
     end
 
@@ -52,10 +59,16 @@ graph TD
 
 ## **Source of Truth**
 
-To avoid the documentation drift that affected earlier revisions, ownership is explicit:
+Documentation drift is the failure mode this tree is structured against, so ownership is explicit:
 
-* The **modular docs (`01` – `07`)** are the **normative source of truth**. When a detail is contested, these win.
-* The **reference blueprints** in [`reference/`](./reference/) are the long-form derivation and rationale. They carry the research context, comparative analysis, and full port listings.
+* The **modular docs (`01` – `08`)** and [`implementation/`](./implementation/) are the **normative source of truth**. When a detail is contested, these win.
+* **Contracts — ports and domain models — live only in [`03-contracts-and-models/`](./03-contracts-and-models/)**, and move into `src/sagiha/{ports,domain}/` at implementation start ([Contracts to Code](./implementation/contracts-to-code.md)). Nowhere else defines a `Protocol` or a `BaseModel`.
+* [`reference/`](./reference/) is long-form derivation and rationale: research context and comparative analysis. It carries **no interface definitions**. Read it for *why*, not *what*.
+* [`reviews/`](./reviews/) is historical: past adversarial reviews and their remediation status.
+
+Every file declares `status:` in front matter (`normative` / `rationale` / `historical`), because this
+tree is read by retrieval as often as by a human, and a status note in a README does not survive
+chunking.
 
 Each topic has exactly one owner. Do not restate a contract in two places.
 
@@ -66,21 +79,22 @@ Each topic has exactly one owner. Do not restate a contract in two places.
 | Module Directory | Status | Primary Documents |
 | :--- | :--- | :--- |
 | 📁 [`01-executive/`](./01-executive/) | **Normative** | [vision-and-philosophy.md](./01-executive/vision-and-philosophy.md), [executive-summary.md](./01-executive/executive-summary.md), [glossary.md](./01-executive/glossary.md) |
-| 📁 [`02-architecture/`](./02-architecture/) | **Normative** | [car-model.md](./02-architecture/car-model.md), [microkernel-and-bus.md](./02-architecture/microkernel-and-bus.md), [event-bus-and-hooks.md](./02-architecture/event-bus-and-hooks.md), [entry-points-and-piloting.md](./02-architecture/entry-points-and-piloting.md), [prompt-architecture.md](./02-architecture/prompt-architecture.md), [context-and-cache-engineering.md](./02-architecture/context-and-cache-engineering.md), [neural-symbolic-memory.md](./02-architecture/neural-symbolic-memory.md), [security-and-threat-model.md](./02-architecture/security-and-threat-model.md), [performance-sidecars.md](./02-architecture/performance-sidecars.md) |
-| 📁 [`03-contracts-and-models/`](./03-contracts-and-models/) | **Normative** | [hexagonal-ports.md](./03-contracts-and-models/hexagonal-ports.md), [domain-schemas.md](./03-contracts-and-models/domain-schemas.md), [tool-catalog.md](./03-contracts-and-models/tool-catalog.md), [task-and-acceptance.md](./03-contracts-and-models/task-and-acceptance.md), [error-taxonomy.md](./03-contracts-and-models/error-taxonomy.md), [lsp-interface.md](./03-contracts-and-models/lsp-interface.md), [protocols-mcp-a2a.md](./03-contracts-and-models/protocols-mcp-a2a.md) |
-| 📁 [`04-workflows-and-loops/`](./04-workflows-and-loops/) | **Normative** | [dmartic-inner-loop.md](./04-workflows-and-loops/dmartic-inner-loop.md), [git-worktree-branching.md](./04-workflows-and-loops/git-worktree-branching.md), [rhi-outer-loop.md](./04-workflows-and-loops/rhi-outer-loop.md) |
-| 📁 [`05-tech-stack/`](./05-tech-stack/) | **Normative** | [control-plane-python.md](./05-tech-stack/control-plane-python.md), [dependencies-and-versions.md](./05-tech-stack/dependencies-and-versions.md), [llm-providers-and-economics.md](./05-tech-stack/llm-providers-and-economics.md), [configuration-reference.md](./05-tech-stack/configuration-reference.md), [indexing-and-retrieval.md](./05-tech-stack/indexing-and-retrieval.md), [observability-and-telemetry.md](./05-tech-stack/observability-and-telemetry.md), [aoi-coprocessors.md](./05-tech-stack/aoi-coprocessors.md) |
-| 📁 [`06-guides-and-patterns/`](./06-guides-and-patterns/) | **Normative** | [getting-started.md](./06-guides-and-patterns/getting-started.md), [writing-adapters.md](./06-guides-and-patterns/writing-adapters.md), [port-conformance-testing.md](./06-guides-and-patterns/port-conformance-testing.md), [metrics-analytics-and-self-improvement.md](./06-guides-and-patterns/metrics-analytics-and-self-improvement.md), [ci-and-quality-gates.md](./06-guides-and-patterns/ci-and-quality-gates.md), [benchmark-curation.md](./06-guides-and-patterns/benchmark-curation.md), [running-benchmarks.md](./06-guides-and-patterns/running-benchmarks.md), [sidecar-development.md](./06-guides-and-patterns/sidecar-development.md) |
+| 📁 [`02-architecture/`](./02-architecture/) | **Normative** | [car-model.md](./02-architecture/car-model.md), [microkernel-and-bus.md](./02-architecture/microkernel-and-bus.md), [event-bus-and-hooks.md](./02-architecture/event-bus-and-hooks.md), [entry-points-and-piloting.md](./02-architecture/entry-points-and-piloting.md), [**execution-profiles.md**](./02-architecture/execution-profiles.md), [**extension-model.md**](./02-architecture/extension-model.md), [**remoteable-ports.md**](./02-architecture/remoteable-ports.md), [prompt-architecture.md](./02-architecture/prompt-architecture.md), [context-and-cache-engineering.md](./02-architecture/context-and-cache-engineering.md), [neural-symbolic-memory.md](./02-architecture/neural-symbolic-memory.md), [security-and-threat-model.md](./02-architecture/security-and-threat-model.md), [performance-sidecars.md](./02-architecture/performance-sidecars.md) |
+| 📁 [`03-contracts-and-models/`](./03-contracts-and-models/) | **Normative** | [hexagonal-ports.md](./03-contracts-and-models/hexagonal-ports.md), [domain-schemas.md](./03-contracts-and-models/domain-schemas.md), [**port-stability-and-versioning.md**](./03-contracts-and-models/port-stability-and-versioning.md), [tool-catalog.md](./03-contracts-and-models/tool-catalog.md), [task-and-acceptance.md](./03-contracts-and-models/task-and-acceptance.md), [error-taxonomy.md](./03-contracts-and-models/error-taxonomy.md), [lsp-interface.md](./03-contracts-and-models/lsp-interface.md), [protocols-mcp-a2a.md](./03-contracts-and-models/protocols-mcp-a2a.md) |
+| 📁 [`04-workflows-and-loops/`](./04-workflows-and-loops/) | **Normative** | [dmartic-inner-loop.md](./04-workflows-and-loops/dmartic-inner-loop.md), [**event-catalog.md**](./04-workflows-and-loops/event-catalog.md), [git-worktree-branching.md](./04-workflows-and-loops/git-worktree-branching.md), [rhi-outer-loop.md](./04-workflows-and-loops/rhi-outer-loop.md) |
+| 📁 [`05-tech-stack/`](./05-tech-stack/) | **Normative** | [control-plane-python.md](./05-tech-stack/control-plane-python.md), [**composition-and-configuration.md**](./05-tech-stack/composition-and-configuration.md), [dependencies-and-versions.md](./05-tech-stack/dependencies-and-versions.md), [llm-providers-and-economics.md](./05-tech-stack/llm-providers-and-economics.md), [configuration-reference.md](./05-tech-stack/configuration-reference.md), [indexing-and-retrieval.md](./05-tech-stack/indexing-and-retrieval.md), [observability-and-telemetry.md](./05-tech-stack/observability-and-telemetry.md), [aoi-coprocessors.md](./05-tech-stack/aoi-coprocessors.md) |
+| 📁 [`06-guides-and-patterns/`](./06-guides-and-patterns/) | **Normative** | [getting-started.md](./06-guides-and-patterns/getting-started.md), [ollama-qwen-coder-setup.md](./06-guides-and-patterns/ollama-qwen-coder-setup.md), [writing-adapters.md](./06-guides-and-patterns/writing-adapters.md), [port-conformance-testing.md](./06-guides-and-patterns/port-conformance-testing.md), [metrics-analytics-and-self-improvement.md](./06-guides-and-patterns/metrics-analytics-and-self-improvement.md), [ci-and-quality-gates.md](./06-guides-and-patterns/ci-and-quality-gates.md), [benchmark-curation.md](./06-guides-and-patterns/benchmark-curation.md), [running-benchmarks.md](./06-guides-and-patterns/running-benchmarks.md), [sidecar-development.md](./06-guides-and-patterns/sidecar-development.md) |
 | 📁 [`07-roadmap/`](./07-roadmap/) | **Normative** | [phased-migration-matrix.md](./07-roadmap/phased-migration-matrix.md) |
-| 📁 [`08-decisions/`](./08-decisions/) | **Normative** | [ADR log](./08-decisions/README.md) — 12 binding decisions with rationale and reversal conditions |
-| 📁 [`implementation/`](./implementation/) | **Normative** | [development-plan-and-prompts.md](./implementation/development-plan-and-prompts.md) |
-| 📁 [`reference/`](./reference/) | **Rationale** | Long-form conceptual design and architecture specification blueprints |
+| 📁 [`08-decisions/`](./08-decisions/) | **Normative** | [ADR log](./08-decisions/README.md) — 17 decisions with rationale and reversal conditions |
+| 📁 [`implementation/`](./implementation/) | **Normative** | [**contracts-to-code.md**](./implementation/contracts-to-code.md), [development-plan-and-prompts.md](./implementation/development-plan-and-prompts.md) |
+| 📁 [`reference/`](./reference/) | **Rationale** | Long-form derivation and comparative research. No interface definitions. |
+| 📁 [`reviews/`](./reviews/) | **Historical** | Past adversarial reviews and their remediation status |
 
 ---
 
 ## 📚 **Executive & Technical Reference Documents**
-* 📘 [SAGIHA Conceptual Design.md](./reference/SAGIHA%20Conceptual%20Design.md) — conceptual architecture, functional blocks, and dual-process execution engine.
-* 📗 [SAGIHA Architecture Specification Blueprint.md](./reference/SAGIHA%20Architecture%20Specification%20Blueprint.md) — technical brief, full port listings, protocol interfaces, and adversarial failure analysis.
+* 📘 [conceptual-design.md](./reference/conceptual-design.md) — conceptual architecture, functional blocks, and dual-process execution engine.
+* 📗 [design-derivation.md](./reference/design-derivation.md) — the research and comparative analysis behind the contracts, plus the adversarial failure analysis. **Contains no interface definitions**; those live in [`03-contracts-and-models/`](./03-contracts-and-models/).
 * 📙 [benchmarking-existing-harnesses.md](./reference/benchmarking-existing-harnesses.md) — comparative teardown of Claude Code CLI, Aider, OpenHands, SWE-agent, and Grok Code Build.
 
 

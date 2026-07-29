@@ -1,3 +1,8 @@
+---
+status: normative
+updated: 2026-07-29
+---
+
 # ADR-0007: The Trusted Computing Base Is Never Agent-Writable
 
 **Status**: Accepted

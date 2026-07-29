@@ -1,3 +1,8 @@
+---
+status: normative
+updated: 2026-07-29
+---
+
 # ADR-0008: Native Provider SDKs, No Universal Abstraction Layer
 
 **Status**: Accepted

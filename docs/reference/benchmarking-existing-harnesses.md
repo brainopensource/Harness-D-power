@@ -1,3 +1,8 @@
+---
+status: rationale
+updated: 2026-07-29
+---
+
 # **SOTA AI Coding Agent Harnesses: Benchmarking & Architectural Teardown**
 
 > [!NOTE]
@@ -19,7 +24,7 @@ Claude Code is Anthropic's official terminal-based agentic CLI built with TypeSc
 ### **Prompt Caching Mechanics**
 * **Prefix Matching Rule**: Anthropic’s API caches static prompt prefixes. Claude Code structures its prompt layout with zero variation at the top:
   `[System Instructions] -> [Tool Schemas] -> [CLAUDE.md Memory] -> [Dynamic Context / Conversation Turns]`
-* **Cache Invalidation Avoidance**: Changing tool definitions or model parameters mid-session breaks prefix matching and invalidates the cache. By keeping the prefix static and appending turns monotonically, Claude Code achieves **96%+ cache hit rates**, cutting latency and token costs drastically.
+* **Cache Invalidation Avoidance**: Changing tool definitions or model parameters mid-session breaks prefix matching and invalidates the cache. Keeping the prefix static and appending turns monotonically is what preserves the hit rate, and it is the single largest cost lever in a multi-step harness. *(Specific hit-rate figures for competing harnesses were previously quoted here without a source and have been removed — this tree does not tabulate numbers it has not measured.)*
 
 ### **Lessons for SAGIHA**:
 * Adopt a **prefix-locked prompt layout** (System instructions -> Tool schemas -> Static repo context -> Dynamic turns) to maximize prompt caching efficiency.
@@ -79,8 +84,8 @@ By synthesizing the best elements of these mature open-source harnesses while fi
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Control Plane** | TypeScript / Ink | Python / Click | Python / EventStream | Custom ReAct | **Python >=3.13+ Async Microkernel (`typing.Protocol`)** |
 | **Tool Protocol** | Native MCP | Custom Block Edits | Event Stream Actions | MCP / Local | **MCP (Tools) + A2A (Peer Delegation)** |
-| **Code Structure Index** | None (reads files) | Tree-sitter Repomap | File search | AST Indexing | **Tree-sitter AST Skeletonizer + LanceDB Hybrid BM25** |
+| **Code Structure Index** | None (reads files) | Tree-sitter Repomap | File search | AST Indexing | **Tree-sitter AST Skeletonizer + BM25/FTS5 + code-graph expansion** (dense tier deferred, ADR-0014) |
 | **Diagnostics Gate** | Manual / CLI | Auto pytest | Pytest runner | Unit tests | **First-Class `LSPAdapter` (Real-Time Type Diagnostics)** |
 | **Parallel Isolation** | Single Workspace | Single Workspace | Single Docker Container | Git Worktrees | **Ephemeral Git Worktree Branches + Pristine Test Gate** |
-| **Prompt Cache Strategy**| Static Prefix Match | Manual Windowing | Event Compaction | KV Cache | **Strict Cache-Stable Prefix Layout (95%+ hit rate)** |
+| **Prompt Cache Strategy**| Static Prefix Match | Manual Windowing | Event Compaction | KV Cache | **Strict Cache-Stable Prefix Layout** (alert threshold > 0.80; no target claimed before measurement) |
 | **Cognitive Engine** | ReAct Loop | Single-Turn ReAct | ReAct Loop | High-Throughput ReAct | **Dual-Process Engine (System 1 ReAct / System 2 verifier-guided Best-of-N + sequential repair)** |

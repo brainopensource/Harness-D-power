@@ -1,3 +1,8 @@
+---
+status: normative
+updated: 2026-07-29
+---
+
 # **Context & Cache Engineering**
 
 > [!NOTE]
@@ -5,11 +10,13 @@
 
 ## **Why This Module Exists**
 
-Context assembly was the largest unspecified component in the previous revision, and it is the single highest-leverage cost decision in the system. The prior "Dynamic Token Allocation" scheme — partitioning the window into 15% instructions, 25% graph context, 40% snippets, 20% history — is **withdrawn**, because applied literally it would have made the harness's own token-reduction target unreachable.
+Context assembly is the single highest-leverage cost decision in the system. What goes into the window, and in what order, determines both what the model can reason about and what fraction of every call is paid at full price.
 
 ## **The Cache Constraint**
 
-Prompt caching requires a **byte-identical prefix**. Any scheme that repartitions the window each turn changes that prefix and forfeits the cache on *every single call*, paying full input price for content that was already cached moments earlier. A percentage-based allocator recomputed per turn is the worst possible layout: it churns the prefix continuously while saving nothing.
+Prompt caching requires a **byte-identical prefix**. Any scheme that repartitions the window each turn changes that prefix and forfeits the cache on *every single call*, paying full input price for content that was already cached moments earlier.
+
+This rules out an entire class of design that looks appealing on paper: percentage-based token allocators that divide the window into shares (*n*% instructions, *n*% retrieved snippets, *n*% history) and recompute them per turn. Recomputed allocation churns the prefix continuously while saving nothing — it is the worst available layout, and it is the intuitive one. **Order by stability, not by budget share.**
 
 ## **Layered Assembly, Ordered by Stability**
 

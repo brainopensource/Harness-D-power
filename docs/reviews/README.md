@@ -1,3 +1,8 @@
+---
+status: historical
+updated: 2026-07-29
+---
+
 # **Reviews** [DEPRECATED]
 
 > [!NOTE]

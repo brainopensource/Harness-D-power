@@ -1,3 +1,8 @@
+---
+status: normative
+updated: 2026-07-29
+---
+
 # **Proposed Analyses: Metrics, Analytics, & Trajectory Mining**
 
 > [!NOTE]

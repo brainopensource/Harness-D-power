@@ -1,3 +1,8 @@
+---
+status: normative
+updated: 2026-07-29
+---
+
 # **Port Conformance Testing**
 
 > [!NOTE]
@@ -5,7 +10,7 @@
 
 ## **Why This Module Exists**
 
-The previous documentation asserted a "Contract Guarantee" — that replacing any adapter never requires changes to consumers — across 24 documents that never once described how it would be enforced. Without a mechanism, that guarantee is a hope, and it fails silently on the day it is first exercised: the SQLite adapter is swapped for LanceDB, retrieval quietly degrades, and a month is spent blaming prompts.
+"Swappable adapters" is the most common unenforced claim in hexagonal architectures. Asserting that replacing an adapter never requires changes to consumers is free; making it true requires a mechanism. Without one the guarantee fails silently on the day it is first exercised — the SQLite adapter is swapped for LanceDB, retrieval quietly degrades, and a month is spent blaming prompts.
 
 **Conformance suites are that mechanism.** They are the reason the phased migration matrix is safe to execute, and they are a Day-0 deliverable, not a later refinement.
 

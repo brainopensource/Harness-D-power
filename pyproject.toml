@@ -17,7 +17,7 @@ dependencies = [
   "structlog>=24.4",            # structured logging bridged to OTel
   "tree-sitter>=0.23",          # AST parsing
   "tree-sitter-language-pack>=0.7",   # bundled grammars, avoids per-language pins
-  "sqlite-vec>=0.1",            # dense retrieval tier, Day 0
+  "watchfiles>=0.24",           # file-watch driven incremental re-index
   "lsprotocol>=2023.0",         # typed LSP messages
   "mcp>=1.0",                   # official MCP SDK, stdio + HTTP-SSE
   "opentelemetry-sdk>=1.29",
@@ -29,11 +29,12 @@ anthropic = ["anthropic>=0.40"]     # cache_control prompt caching, extended thi
 google    = ["google-genai>=0.1"]   # unified Google SDK
 openai    = ["openai>=1.50"]        # GPT-*, plus every OpenAI-compatible endpoint
 dev       = [
-  "pytest>=8.0",
-  "pytest-asyncio>=0.23",
-  "pytest-cov>=5.0",
-  "ruff>=0.8.0",
-  "pyright>=1.1.380",
-  "import-linter>=2.0",
-  "detect-secrets>=1.5.0",
+  "pytest>=8.3",              # conformance suites; floor matches ADR-0009
+  "pytest-asyncio>=0.24",     # parametrized async fixtures
+  "pytest-cov>=5.0",          # backs the coverage_not_decreased gate
+  "ruff>=0.8.0",              # lint + format
+  "pyright>=1.1.380",         # blocking type gate
+  "mypy>=1.13",               # advisory second opinion, non-blocking (ADR-0009)
+  "import-linter>=2.0",       # CAR layer contracts
+  "detect-secrets>=1.5.0",    # pre-commit secret scan
 ]

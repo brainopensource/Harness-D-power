@@ -1,3 +1,8 @@
+---
+status: normative
+updated: 2026-07-29
+---
+
 # ADR-0006: The Sandbox Is the Security Perimeter
 
 **Status**: Accepted

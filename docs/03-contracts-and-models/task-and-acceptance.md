@@ -1,3 +1,8 @@
+---
+status: normative
+updated: 2026-07-29
+---
+
 # **Task Model & Acceptance Criteria**
 
 > [!NOTE]
@@ -17,11 +22,15 @@ class AcceptanceCriterion(BaseModel):
 
 class TaskSpec(BaseModel):
     task_id: str
+    revision: int = 0
     goal: str
-    acceptance: list[AcceptanceCriterion]
+    acceptance: tuple[AcceptanceCriterion, ...]
+    profile: str = "coding"     # execution profile — see below
     parent_task_id: str | None = None
-    status: TaskStatus = TaskStatus.SUBMITTED
+    status: TaskStatus = "submitted"
 ```
+
+Full definition in [Domain Schemas](./domain-schemas.md).
 
 ## **Acceptance Criteria Must Be Machine-Checkable**
 
@@ -35,6 +44,28 @@ class TaskSpec(BaseModel):
 | No new entries in `# type: ignore` census | "code quality is maintained" |
 
 Criteria that cannot be expressed as a check belong in `goal` as context, never in `acceptance`. This distinction is what keeps the Evaluator honest: it evaluates only what can be verified, and everything else is explicitly acknowledged as unverified.
+
+## **Profiles and Unverified Completion**
+
+`profile` selects the [execution profile](../02-architecture/execution-profiles.md) — which ports the
+run mounts and what admits its result. It does **not** relax this file's rules: wherever acceptance
+criteria exist, they must still be machine-checkable, under every profile.
+
+What a profile can change is whether criteria exist at all. Some work has no verifiable success
+condition — a question, an explanation, a conversation — and forcing a synthetic `check` onto it
+produces a criterion that is satisfied by anything, which is worse than none.
+
+> **A task with no acceptance criteria and no gates terminates on the model's own completion signal.
+> Nothing independently verifies it.**
+
+That is a genuine epistemic downgrade from everything else this architecture insists on, and it is
+stated here rather than buried in a profile table. Three consequences follow:
+
+* `coding` remains the default. Un-verified completion is opt-in, never the fallback.
+* The profile is recorded in `run.started` and persisted with the trajectory, so no later analysis,
+  benchmark report, or outer-loop training set can mistake an ungated run for a gated one.
+* Such runs are **excluded from benchmark suites and from outer-loop evidence** by construction —
+  there is no measurement to contribute.
 
 ## **Acceptance Is Authored Before Execution**
 

@@ -1,4 +1,16 @@
-# SAGIHA — Architecture & Documentation Review [DEPRECATED]
+---
+status: historical
+updated: 2026-07-29
+---
+
+# SAGIHA — Architecture & Documentation Review
+
+> [!NOTE]
+> **Historical record, retained for its evidence.** Every finding below has been dispositioned in the
+> Remediation Status table. Line citations were accurate at review time and many are now stale — in
+> particular `reference/SAGIHA Architecture Specification Blueprint.md` has been renamed to
+> `reference/design-derivation.md` and its interface section deleted. Grep the quoted strings rather
+> than trusting the line numbers.
 
 **Date**: 2026-07-28
 **Reviewer**: Claude Opus 5 (adversarial architecture review, requested by the maintainer)
@@ -10,7 +22,10 @@
 ## Remediation Status
 
 > [!NOTE]
-> Tracked as of 2026-07-29. Items marked **Done** have been applied to the modular docs. Items marked **Deprecated** are deferred to v2+ behind measured triggers.
+> **Re-verified 2026-07-29** against the tree with the commands in Appendix B. The prior tracker had
+> drifted in both directions: several items marked *Deprecated* had in fact shipped, and three marked
+> *Done* were only partial. Corrected below. **Done** means verified present; **Partial** means the
+> item is cited with what remains; **Deferred** means intentionally out of v1 behind a trigger.
 
 | ID | Status | Notes |
 | :--- | :--- | :--- |
@@ -26,18 +41,18 @@
 | D10 | ✅ Done | git split into git_read (PURE) and git_commit (DESTRUCTIVE) |
 | D11 | ✅ Done | policy, governor, evaluator, worktree, code_graph added to conformance matrix |
 | D12 | ✅ Done | Python version normalized to >=3.13 across all files |
-| D13 | ✅ Done | Cache-hit target unified to >0.80 alert threshold only |
+| D13 | ✅ Done | Unified to >0.80 alert threshold; unsourced 95%/96% competitive claims deleted from `reference/benchmarking-existing-harnesses.md` |
 | D14 | ✅ Done | Rewritten as proposed analyses; difficulty-tier table and invented targets removed |
 | D15 | ✅ Done | Superseded warnings added to contradicted reference passages |
-| D16 | ✅ Done | Citation artifacts stripped; real citations preserved |
-| G1 | 🔶 Deprecated | Embedding provider deferred with dense retrieval tier (see C4) |
+| D16 | ✅ Done | Citation artifacts stripped (incl. residual `\[cite: …\]` markers at former `:71, :72, :106`); real citations preserved |
+| G1 | ✅ Done | ADR-0014: dense tier deferred behind a recall@10 trigger; `sqlite-vec` and the embedding config keys removed so the deferral is real rather than prose-only |
 | G2 | ✅ Done | Toolchain port added; gates call through protocol, not pytest/pyright literals |
 | G3 | ✅ Done | UserMessageReceived event and TaskSpec revision contract specified |
 | G4 | ✅ Done | SubagentReport model defined |
 | G5 | 🔶 Deprecated | Edit-format ablation deferred to when benchmark suite exists |
-| G6 | 🔶 Deprecated | Benchmark repo selection deferred to implementation start |
+| G6 | 🟡 Proposed | ADR-0015 written with a selection rubric and candidates; **requires maintainer sign-off to move to Accepted** |
 | G7 | ✅ Done | schema_version added to events table and cassette headers |
-| G8 | 🔶 Deprecated | LLM-judge rubric deferred to v2 |
+| G8 | ✅ Done | `Reviewer` port added — independent-judge design-quality **soft score, never a gate** |
 | G9 | 🔶 Deprecated | Velocity/adoption milestones deferred |
 | G10 | ✅ Done | Sandbox timing unified: subprocess for dev only, container for autonomous/scheduled |
 | C1 | 🔶 Deprecated | Best-of-N (N>1) deferred; sequential repair is v1 |
@@ -46,17 +61,17 @@
 | C4 | 🔶 Deprecated | Dense retrieval deferred; lexical + graph is v1. Retrieval port returns scored results for future compatibility |
 | C5 | ✅ Done | Toolchain port added to hexagonal-ports.md |
 | C6 | ✅ Done | Grant parameter removed from port signatures (see D1) |
-| C7 | 🔶 Deprecated | Container runtime ADR deferred to implementation |
+| C7 | ✅ Done | ADR-0016: rootless Podman, with the egress-allowlist mechanism specified |
 | C8 | 🔶 Deprecated | mypy vs ty/pyrefly advisory slot deferred |
-| C9 | ✅ Partial | Missing dev-dependency group noted; embedding provider deferred |
-| C10 | 🔶 Deprecated | SQLite concurrency design deferred to implementation |
+| C9 | ✅ Done | `dev` dependency group added to `pyproject.toml` (pytest, pytest-cov, ruff, pyright, import-linter, detect-secrets); embedding provider deferred per ADR-0014; `watchfiles` and a container SDK land with their features |
+| C10 | ✅ Done | Storage layout and concurrency specified in `control-plane-python.md`: three named stores under `.sagiha/` at the repo root (never inside a worktree), WAL + `busy_timeout` as a connection-factory invariant, one writer per database, parallel worktrees are readers |
 | C11 | 🔶 Deprecated | 'Dumb harness' reframing deferred |
-| X1 | 🔶 Deprecated | Ports to code — will happen at implementation start |
-| X2 | ✅ Done | Revision autobiography trimmed from modular docs |
-| X3 | ✅ Done | Superseded passages in reference/ marked with warnings |
-| X4 | ✅ Done | metrics-analytics doc rewritten |
-| X5 | 🔶 Deprecated | Build files committed at implementation start |
-| X6 | 🔶 Deprecated | v0.1 user page deferred |
+| X1 | ✅ Done | Dual source of truth removed: the blueprint's ~500-line interface section **deleted** (not synced); `03-contracts-and-models/` is now the sole normative home; [Contracts to Code](../implementation/contracts-to-code.md) specifies the day-1 move into `src/` |
+| X2 | ✅ Done | Revision autobiography moved to ADR `Context` sections |
+| X3 | ✅ Done | Superseded passages in `reference/` marked or removed; file renamed `design-derivation.md` and marked non-normative |
+| X4 | ✅ Done | metrics-analytics doc rewritten as proposed analyses |
+| X5 | ✅ Done | `pyproject.toml`, `.importlinter`, `.pre-commit-config.yaml`, `config.example.toml`, `AGENTS.md` all committed at repo root |
+| X6 | ✅ Done | [`01-executive/v0.1-user-guide.md`](../01-executive/v0.1-user-guide.md) |
 | X7 | ✅ Done | Mechanical consistency pass completed |
 
 ---

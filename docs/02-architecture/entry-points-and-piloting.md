@@ -1,3 +1,8 @@
+---
+status: normative
+updated: 2026-07-29
+---
+
 # **Entry Points & Multi-Channel Piloting**
 
 > [!NOTE]
@@ -17,6 +22,12 @@ async def execute(
 All cockpits (TUI, SSE, TTS) subscribe to this event stream. TrajectoryStep is a persistence-shaped type built by the TrajectoryStore observer, not a streaming contract.
 
 A task spec goes in; a stream of typed events comes out. Everything below is a translation layer over that signature plus an [EventBus](./event-bus-and-hooks.md) subscription.
+
+The signature is also what generalizes the harness beyond coding. Work that needs no worktree — a
+question, a review, a conversation — selects a different [execution profile](./execution-profiles.md)
+**inside the `TaskSpec`**, not through a different entry point. There is no `execute_chat()`: a second
+entry point would fork the event stream every cockpit subscribes to, and "adding a channel requires
+zero core changes" would stop being true the first time a channel only spoke one of them.
 
 ```
   CLI / TUI ─┐
