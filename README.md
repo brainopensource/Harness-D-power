@@ -1,4 +1,4 @@
-# SAGIHA — Super AGI Harness Agent
+# SAGIHA — Super AGI Harness Agent v0.0.1
 
 SOTA autonomous coding harness with a microkernel, capability security, and verification gates.
 
