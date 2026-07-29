@@ -83,4 +83,4 @@ By synthesizing the best elements of these mature open-source harnesses while fi
 | **Diagnostics Gate** | Manual / CLI | Auto pytest | Pytest runner | Unit tests | **First-Class `LSPAdapter` (Real-Time Type Diagnostics)** |
 | **Parallel Isolation** | Single Workspace | Single Workspace | Single Docker Container | Git Worktrees | **Ephemeral Git Worktree Branches + Pristine Test Gate** |
 | **Prompt Cache Strategy**| Static Prefix Match | Manual Windowing | Event Compaction | KV Cache | **Strict Cache-Stable Prefix Layout (95%+ hit rate)** |
-| **Cognitive Engine** | ReAct Loop | Single-Turn ReAct | ReAct Loop | High-Throughput ReAct | **Dual-Process Engine (System 1 ReAct / System 2 MCTS)** |
+| **Cognitive Engine** | ReAct Loop | Single-Turn ReAct | ReAct Loop | High-Throughput ReAct | **Dual-Process Engine (System 1 ReAct / System 2 verifier-guided Best-of-N + sequential repair)** |

@@ -1,17 +1,53 @@
-# **Phased Day 0 → Day N Adapter Migration Matrix**
+# **Roadmap: Vertical Slices & Component Migration**
 
 > [!NOTE]
-> **Working Proposal Disclaimer**: This document represents a working architectural proposal for SAGIHA2 and will be iteratively refined as practical evaluations progress.
+> **Working Proposal Disclaimer**: A working architectural proposal, refined iteratively as practical evaluation progresses.
 
-## **Evolution Roadmap Matrix**
+## **Slices First, Components Second**
 
-| Component | Day 0 (Simple Baseline) | Day 1 (Production Ready) | Day 2 (SOTA AGI Harness) |
+The previous roadmap was **component-wise**: each row upgraded independently, one tier at a time. That optimizes the wrong axis. The risk in this system lives in **integration**, not in any individual component — a perfect vector store and a perfect LSP adapter that have never run together tell you nothing about whether the harness works.
+
+The plan is therefore a sequence of **vertical slices**, each thin through every layer and each independently useful. The component matrix below is the appendix, not the plan.
+
+## **Vertical Slice Plan**
+
+| Slice | Capability Delivered End-to-End | Components | Gate (measurable) |
 | :---- | :---- | :---- | :---- |
-| **Kernel Orchestrator** | Native Async ReAct Loop | Stateful State Machine + Checkpoints | Dual-Process MCTS + A2A Multi-Agent Fleet |
-| **Short-Term Memory** | In-Memory Circular Buffer | Redis Persistence + Compaction | Trajectory-Compressed Context Ring |
-| **Long-Term Memory** | SQLite + simple embeddings | LanceDB + SQLite-WAL Event Log | Graphiti Bi-Temporal Graph + LanceDB |
-| **Indexing Engine** | Python Tree-sitter + BM25 | SQLite-FTS5 + AST Skeletonizer | Rust/Go gRPC Sidecar (tqdb + Tree-sitter) |
-| **Diagnostic Layer** | Subprocess pytest + flake8 | Local Stdio LSP (`pygls`) Adapter | Multi-language LSP Daemon Sidecar |
-| **Execution Sandbox** | Local Subprocess + Git Branch | Ephemeral Isolated Git Worktrees | Containerized Docker/gVisor Worktrees |
-| **Protocol Integration** | Stdio MCP Tool Drivers | HTTP-SSE MCP Server/Client | Full MCP + A2A Protocol Infrastructure |
-| **Self-Improvement** | Manual Prompt Iteration | Automated PRM Step Scoring | RHI Outer Loop under Held-Out Validation |
+| **S0** | Agent resolves a failing test in one file — verified, logged, replayable | `ModelProvider` + cassette replay, domain models, dispatch choke point, `PolicyEngine` + grants, SQLite-WAL trajectory store, Tree-sitter chunking + FTS5, structured edit application, pytest runner, commit-per-step | ≥70% resolved on a pinned 30-task internal suite within cost and time budget; 100% of runs replay deterministically; conformance suite green; `lint-imports` clean |
+| **S1** | Agent works in a materialized worktree inside a container, under enforced grants | Worktree allocate/materialize/release, container sandbox, egress allowlist, secret redaction, `ResourceGovernor`, warm LSP supervisor | No write outside the worktree without a grant; no credential reachable inside the sandbox; parallel runs show zero port, cache, or database interference |
+| **S2** | Retrieval measurably improves task success | AST-bounded chunking, hybrid lexical + dense fusion, `CodeGraph`, episodic memory with temporal reads | recall@10 ≥ target on a labelled query set; ablation shows retrieval beats the no-retrieval control |
+| **S3** | Best-of-N with sequential repair on multi-file tasks | `CandidateSearch`, hard gates, pristine injected test suite, graph-partitioned decomposition, escalation ladder | Best-of-N beats single-shot by more than the measured A/A noise floor; zero instances of a candidate modifying its grader |
+| **S4** | Outer loop proposes mutations that survive statistical scrutiny | Commit-replay harvester, PRM scorer, calibrated AOI in shadow mode, Meta-Improver with TCB restrictions, human sign-off | Noise floor established and published; every accepted mutation beats it under paired evaluation with multiple-comparison correction; CI rejects 100% of TCB diffs |
+
+**On gates.** "100% test passing" and "zero crash rate" are not measurable gates for a stochastic system without a defined workload. Every gate above names a fixed suite, a threshold, and a budget.
+
+## **Component Migration Appendix**
+
+Every advanced entry carries a **trigger condition** rather than a phase number. A component migrates when a measurement demands it.
+
+| Component | Day 0 | Day 1 | Later — and its trigger |
+| :---- | :---- | :---- | :---- |
+| **Model Access** | Provider client + cassettes | Cache-aware assembly, budget accounting | Multi-provider routing — *when cost or availability data justifies it* |
+| **Kernel Orchestrator** | Async ReAct loop | State machine + checkpoints | Candidate search; A2A — *when single-agent plateaus; when a real remote peer exists* |
+| **Control Layer** | Static policy + grants | Risk gates, durable approvals | Learned escalation — *once approval history exists* |
+| **Short-Term Memory** | Ring buffer over SQLite-WAL | Compaction at checkpoints | Compressed ring — *when sessions routinely exceed the window* |
+| **Long-Term Memory** | SQLite + sqlite-vec | LanceDB | Episodic temporal graph — *when decision recall demonstrably fails* |
+| **Code Graph** | SQLite from Tree-sitter + git | Impact closure queries | Embedded property store (Kùzu) — *when traversal outgrows SQL* |
+| **Indexing** | AST chunking + FTS5 + dense | Incremental file-watch update | Out-of-process service — *when measured indexing misses its latency budget* |
+| **Vector Compression** | None (exhaustive scan) | None | Quantization — *when corpus or latency crosses a measured ceiling, ~10⁷ vectors* |
+| **Diagnostics** | Subprocess pytest + linter | Warm LSP supervisor, pooled | More languages — *per language actually used* |
+| **Sandbox** | Local subprocess + worktree | **Container + materialization + egress allowlist** | gVisor — *when the threat model requires syscall isolation* |
+| **Protocols** | Stdio MCP | HTTP-SSE MCP | A2A — *when a genuinely remote peer agent exists* |
+| **Self-Improvement** | Manual iteration | PRM scoring in shadow mode | RHI — *once the A/A noise floor is established* |
+
+## **Three Corrections to the Previous Matrix**
+
+1. **Containers moved earlier.** They are the only mechanism that makes the isolation claim true, so the previous Day-1 gate ("zero cross-branch state contamination") was unreachable while containers sat at Day 2. Worktrees isolate tracked files and nothing else.
+
+2. **The LTM endpoint broke the contract guarantee.** Day-2 named a temporal graph engine as the LTM adapter, while the port demanded `store_vector(key, vector: list[float])` — an argument that engine has no way to accept. The port was reshaped to `remember`/`recall`; see [Hexagonal Ports](../03-contracts-and-models/hexagonal-ports.md).
+
+3. **Redis dropped, sidecars deferred, quantization gated.** Each was scheduled rather than triggered. STM is per-session and small, so SQLite-WAL suffices; LanceDB embeds in-process without IPC; and exhaustive scan is milliseconds at this corpus size.
+
+## **What Makes Deferral Safe**
+
+Every deferred component sits behind a port already shaped to accept it, verified by a conformance suite that the future adapter must pass unchanged. That is the entire return on drawing the hexagon correctly at Day Zero: **it lets you build the simple thing now without paying for it later.**

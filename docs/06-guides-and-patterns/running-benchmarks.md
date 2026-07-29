@@ -1,9 +1,69 @@
 # **Running Benchmarks & Evaluating Trajectories**
 
 > [!NOTE]
-> **Working Proposal Disclaimer**: This document represents a working architectural proposal for SAGIHA2 and will be iteratively refined as practical evaluations progress.
+> **Working Proposal Disclaimer**: A working architectural proposal, refined iteratively as practical evaluation progresses.
 
-## **Evaluation Pipeline**
-1. **Public Screening Runs**: Execute harness test suites against public SWE-bench Lite task subsets.
-2. **Private Verification Splits**: Run candidate harness mutations against private synthetic codebases to evaluate generalization and prevent reward hacking.
-3. **Trajectory & PRM Analysis**: Inspect OTel-instrumented step-wise PRM scores and trajectory logs stored in SQLite/WAL.
+## **Establish the Noise Floor First**
+
+Before comparing anything to anything, run the **unmodified** harness twice against the suite and measure the score-delta distribution:
+
+```bash
+sagiha2 bench --suite internal --runs 2 --mode aa
+```
+
+This is the A/A test, and it is the prerequisite for every other number in this document. Most harness changes produce effects smaller than run-to-run variance; without knowing the floor, "the score went up" is indistinguishable from noise, and accepting on that basis ratchets the system permanently onto randomness.
+
+Re-measure the floor whenever the model version changes.
+
+## **The Suites**
+
+### Commit-Replay (primary)
+
+Harvest real commits from the target repository's history, revert them, and pose them as tasks with the original diff and tests as ground truth:
+
+```bash
+sagiha2 bench harvest --repo /path/to/repo --since 2024-01-01 --limit 200
+sagiha2 bench --suite commit-replay
+```
+
+Unbounded, uncontaminated, in-distribution, and self-maintaining as the repository evolves. Strictly better than hand-authored synthetic bugs on realism, volume, maintenance cost, and contamination resistance.
+
+### Public (smoke test only)
+
+**SWE-bench Lite is not a primary screen**: contaminated across frontier models, Python-only, and shaped as single-repo issue resolution rather than the long-horizon multi-file target. Optimizing against it tunes the harness for a distribution nobody wants. Prefer SWE-bench Verified or Multi-SWE-bench when public comparison is needed, and treat the result as a sanity check rather than the objective.
+
+### Retrieval (measured separately)
+
+```bash
+sagiha2 bench retrieval --labelled-set queries.jsonl   # recall@k
+```
+
+Reported separately from task success so retrieval regressions are attributable rather than buried in end-to-end noise. **LongMemEval is not used** — it measures conversational memory, not code retrieval.
+
+## **Reporting Rules**
+
+1. **Never report a point estimate.** k ≥ 3 runs per task, with variance.
+2. **Judge against the noise floor.** A delta inside it is not a result.
+3. **Correct for multiple comparisons.** Screening many candidates against one uncorrected threshold manufactures winners.
+4. **Pair your runs.** Same tasks, same seeds, same model version. Unpaired comparisons across model updates measure the provider, not your harness.
+5. **Report cost and cache hit rate alongside success.** A token-reduction claim that ignores cache economics measures the wrong quantity.
+
+## **Budget**
+
+A few hundred tasks × several dollars × k repetitions × many candidates puts a full outer-loop iteration in the thousands of dollars. Use the AOI pre-filter to rank candidates before spending, run the loop on a schedule rather than continuously, and set `governor.max_spend_usd_per_hour` before starting a long sweep.
+
+## **Trajectory Analysis**
+
+```bash
+sagiha2 trajectory show <run-id>       # steps, tool calls, diagnostics, scores
+sagiha2 trajectory diff <id-a> <id-b>  # where two runs diverged
+sagiha2 replay --run-id <id>           # deterministic re-execution, zero API calls
+```
+
+Trajectories are stored append-only in SQLite-WAL and instrumented with OTel GenAI semantic conventions, so standard tracing tooling works on them directly.
+
+## **Watch For**
+
+* **Gate failures clustering on `tests_unmodified`** — the agent is trying to edit its grader. Investigate the prompt, not the gate.
+* **Improvements that vanish on the commit-replay split** — overfitting to the public suite.
+* **Cost rising while success holds** — usually a cache-invalidating change to context assembly.

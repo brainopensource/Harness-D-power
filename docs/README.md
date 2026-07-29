@@ -43,9 +43,9 @@ Each topic has exactly one owner. Do not restate a contract in two places.
 ---
 
 ## 📚 **Executive & Technical Reference Documents**
-* 📘 [SAGIHA2 Conceptual Design.md](file:///home/rock_dev/Code/Harness/docs/executive/SAGIHA2%20Conceptual%20Design.md) — SOTA conceptual architecture, functional blocks, and dual-process cognitive engine.
-* 📗 [SAGIHA2 Architecture Specification Blueprint.md](file:///home/rock_dev/Code/Harness/docs/executive/SAGIHA2%20Architecture%20Specification%20Blueprint.md) — Comprehensive technical brief, protocol interfaces, performance sidecars, and package mapping.
-* 📙 [benchmarking-existing-harnesses.md](file:///home/rock_dev/Code/Harness/docs/reference/benchmarking-existing-harnesses.md) — Comparative teardown and architectural analysis of Claude Code CLI, Aider, OpenHands, SWE-agent, and Grok Code Build.
+* 📘 [SAGIHA2 Conceptual Design.md](./reference/SAGIHA2%20Conceptual%20Design.md) — conceptual architecture, functional blocks, and dual-process execution engine.
+* 📗 [SAGIHA2 Architecture Specification Blueprint.md](./reference/SAGIHA2%20Architecture%20Specification%20Blueprint.md) — technical brief, full port listings, protocol interfaces, and adversarial failure analysis.
+* 📙 [benchmarking-existing-harnesses.md](./reference/benchmarking-existing-harnesses.md) — comparative teardown of Claude Code CLI, Aider, OpenHands, SWE-agent, and Grok Code Build.
 
 
 ---
