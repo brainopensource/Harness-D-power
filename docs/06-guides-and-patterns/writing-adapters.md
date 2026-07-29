@@ -20,7 +20,8 @@ updated: 2026-07-29
 from sagiha.ports.memory import Memory
 from sagiha.domain.memory import MemoryRecord, RecallQuery, Recall
 
-class MyStore:                       # no base class needed
+
+class MyStore:  # no base class needed
     async def remember(self, record: MemoryRecord) -> str: ...
     async def recall(self, query: RecallQuery) -> list[Recall]: ...
     async def invalidate(self, memory_id: str, at: datetime) -> None: ...

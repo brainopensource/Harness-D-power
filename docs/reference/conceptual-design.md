@@ -443,17 +443,21 @@ way to decide whether it may be acted upon:
 class Prediction(BaseModel):
     value: float
     confidence: float
-    calibrated: bool          # uncalibrated predictions may never gate a decision
+    calibrated: bool  # uncalibrated predictions may never gate a decision
     shadow_mode: bool = True  # predict and log; do not act
+
 
 class RewardPredictor(Protocol):
     async def score_step(self, run_id: str, step_id: StepId) -> Prediction: ...
 
+
 class FailurePredictor(Protocol):
     async def predict_risk(self, run_id: str) -> Prediction: ...
 
+
 class ConfigurationSelector(Protocol):
     async def select(self, task: TaskSpec, candidates: list[Config]) -> list[RankedConfig]: ...
+
 
 class CostPerformanceEstimator(Protocol):
     async def estimate(self, task: TaskSpec) -> Prediction: ...

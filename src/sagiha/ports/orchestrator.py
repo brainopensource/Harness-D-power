@@ -6,7 +6,8 @@ See docs/02-architecture/entry-points-and-piloting.md ("One Core, Many Cockpits"
 
 from __future__ import annotations
 
-from typing import AsyncIterator, Final, Protocol
+from collections.abc import AsyncIterator
+from typing import Final, Protocol
 
 from sagiha.domain.control import RunContext
 from sagiha.domain.events import Event

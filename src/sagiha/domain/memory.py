@@ -8,7 +8,7 @@ not at storage time, so the label cannot be stripped by a round trip.
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -16,7 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sagiha.domain.identity import utc_now
 
 
-class Provenance(str, Enum):
+class Provenance(StrEnum):
     OPERATOR = "operator"  # the human's turn — authoritative
     HARNESS = "harness"  # tree-sitter, LSP, git — deterministic, trusted
     MODEL = "model"  # the agent's own reasoning

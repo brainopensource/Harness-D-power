@@ -5,7 +5,10 @@ file is derived from this module, not hand-maintained. See docs/implementation/c
 
 Naming convention: `group.past_tense`. Events describe what happened, never what should happen.
 `replay_relevant` mirrors the catalog's Replay column: `sagiha replay --verify-all` asserts on
-those events; the rest are fire-and-observe.
+those events; the rest are fire-and-observe. `emitted_by`/`consumers` carry the narrative that
+would otherwise be lost when the hand-written catalog is deleted — consumers use the abbreviations
+from the catalog: TS TrajectoryStore, OT OTel exporter, UI TUI/SSE/A2A streamers, HK user hooks,
+GV ResourceGovernor, MI MetaImprover / trajectory mining.
 """
 
 from __future__ import annotations
@@ -39,6 +42,9 @@ class Event(BaseModel):
     timestamp: datetime = Field(default_factory=utc_now)
 
     replay_relevant: ClassVar[bool] = True
+    group: ClassVar[str] = "Lifecycle"
+    emitted_by: ClassVar[str] = ""
+    consumers: ClassVar[tuple[str, ...]] = ()
 
 
 # --- Lifecycle ---
@@ -51,11 +57,17 @@ class RunStarted(Event):
     profile: str
     extension_manifest: tuple[str, ...] = ()
 
+    emitted_by: ClassVar[str] = "Orchestrator"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI", "MI")
+
 
 class RunCompleted(Event):
     event: Literal["run.completed"] = "run.completed"
     gate_report: GateReport | None
     cost: CostSummary
+
+    emitted_by: ClassVar[str] = "Orchestrator"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI", "HK", "MI")
 
 
 class RunFailed(Event):
@@ -64,17 +76,26 @@ class RunFailed(Event):
     disposition: Disposition
     message: str
 
+    emitted_by: ClassVar[str] = "Orchestrator"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI", "HK")
+
 
 class RunCanceled(Event):
     event: Literal["run.canceled"] = "run.canceled"
     reason: str
     canceled_by: str
 
+    emitted_by: ClassVar[str] = "Orchestrator"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI")
+
 
 class CheckpointCreated(Event):
     event: Literal["checkpoint.created"] = "checkpoint.created"
     label: str
     commit_sha: str
+
+    emitted_by: ClassVar[str] = "Workspace"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "UI")
 
 
 # --- Reasoning ---
@@ -83,6 +104,10 @@ class CheckpointCreated(Event):
 class StepStarted(Event):
     event: Literal["step.started"] = "step.started"
 
+    group: ClassVar[str] = "Reasoning"
+    emitted_by: ClassVar[str] = "Orchestrator"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI")
+
 
 class ModelCallStarted(Event):
     event: Literal["model.call_started"] = "model.call_started"
@@ -90,12 +115,19 @@ class ModelCallStarted(Event):
     request_digest: str
     cache_breakpoints: tuple[int, ...] = ()
 
+    group: ClassVar[str] = "Reasoning"
+    emitted_by: ClassVar[str] = "ModelProvider"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI", "GV")
+
 
 class ModelDelta(Event):
     event: Literal["model.delta"] = "model.delta"
     frame: StreamEvent
 
     replay_relevant: ClassVar[bool] = False
+    group: ClassVar[str] = "Reasoning"
+    emitted_by: ClassVar[str] = "ModelProvider"
+    consumers: ClassVar[tuple[str, ...]] = ("UI",)
 
 
 class ModelCallCompleted(Event):
@@ -104,10 +136,18 @@ class ModelCallCompleted(Event):
     stop_reason: str
     cost: CostSummary
 
+    group: ClassVar[str] = "Reasoning"
+    emitted_by: ClassVar[str] = "ModelProvider"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI", "GV", "MI")
+
 
 class StepCompleted(Event):
     event: Literal["step.completed"] = "step.completed"
     step: TrajectoryStep
+
+    group: ClassVar[str] = "Reasoning"
+    emitted_by: ClassVar[str] = "Orchestrator"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI", "MI")
 
 
 class StepScoredEvent(Event):
@@ -117,6 +157,9 @@ class StepScoredEvent(Event):
     scored: StepScored
 
     replay_relevant: ClassVar[bool] = False
+    group: ClassVar[str] = "Reasoning"
+    emitted_by: ClassVar[str] = "Evaluator / Reviewer / AOI"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "MI")
 
 
 # --- Tools ---
@@ -126,12 +169,20 @@ class ToolCallRequested(Event):
     event: Literal["tool.call_requested"] = "tool.call_requested"
     call: ToolCall
 
+    group: ClassVar[str] = "Tools"
+    emitted_by: ClassVar[str] = "Agency"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI", "HK")
+
 
 class ToolCallAuthorized(Event):
     """Never carries a Grant — see docs/02-architecture/car-model.md."""
 
     event: Literal["tool.call_authorized"] = "tool.call_authorized"
     decision: Decision
+
+    group: ClassVar[str] = "Tools"
+    emitted_by: ClassVar[str] = "PolicyEngine"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "HK")
 
 
 class ToolCallDenied(Event):
@@ -140,17 +191,29 @@ class ToolCallDenied(Event):
     reason: str
     requires_human: bool
 
+    group: ClassVar[str] = "Tools"
+    emitted_by: ClassVar[str] = "PolicyEngine"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI", "HK")
+
 
 class ToolCallCompleted(Event):
     event: Literal["tool.call_completed"] = "tool.call_completed"
     result: ToolResult
     duration_ms: float
 
+    group: ClassVar[str] = "Tools"
+    emitted_by: ClassVar[str] = "Dispatch"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI", "HK", "MI")
+
 
 class ToolCallFailed(Event):
     event: Literal["tool.call_failed"] = "tool.call_failed"
     error_kind: str
     disposition: Disposition
+
+    group: ClassVar[str] = "Tools"
+    emitted_by: ClassVar[str] = "Dispatch"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI", "HK")
 
 
 # --- Workspace ---
@@ -159,6 +222,10 @@ class ToolCallFailed(Event):
 class EditApplied(Event):
     event: Literal["edit.applied"] = "edit.applied"
     result: EditResult
+
+    group: ClassVar[str] = "Workspace"
+    emitted_by: ClassVar[str] = "Workspace"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI", "HK", "MI")
 
 
 class CommandExecuted(Event):
@@ -169,6 +236,10 @@ class CommandExecuted(Event):
     truncated: bool = False
     full_output_uri: str | None = None
 
+    group: ClassVar[str] = "Workspace"
+    emitted_by: ClassVar[str] = "Workspace"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI", "HK")
+
 
 class DiagnosticsChanged(Event):
     event: Literal["diagnostics.changed"] = "diagnostics.changed"
@@ -176,6 +247,9 @@ class DiagnosticsChanged(Event):
     removed: tuple[DiagnosticItem, ...] = ()
 
     replay_relevant: ClassVar[bool] = False
+    group: ClassVar[str] = "Workspace"
+    emitted_by: ClassVar[str] = "LSPAdapter"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI", "MI")
 
 
 class WorktreeAllocated(Event):
@@ -183,11 +257,19 @@ class WorktreeAllocated(Event):
     branch_id: str
     base_commit: str
 
+    group: ClassVar[str] = "Workspace"
+    emitted_by: ClassVar[str] = "WorktreeManager"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI")
+
 
 class WorktreeReleased(Event):
     event: Literal["worktree.released"] = "worktree.released"
     branch_id: str
     disposition: str
+
+    group: ClassVar[str] = "Workspace"
+    emitted_by: ClassVar[str] = "WorktreeManager"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI")
 
 
 class IndexUpdated(Event):
@@ -197,6 +279,9 @@ class IndexUpdated(Event):
     duration_s: float
 
     replay_relevant: ClassVar[bool] = False
+    group: ClassVar[str] = "Workspace"
+    emitted_by: ClassVar[str] = "Indexer"
+    consumers: ClassVar[tuple[str, ...]] = ("OT", "UI")
 
 
 # --- Evaluation & Control ---
@@ -208,12 +293,19 @@ class GateEvaluated(Event):
     event: Literal["gate.evaluated"] = "gate.evaluated"
     gate_report: GateReport
 
+    group: ClassVar[str] = "Evaluation & Control"
+    emitted_by: ClassVar[str] = "Evaluator"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI", "HK", "MI")
+
 
 class ReviewCompleted(Event):
     event: Literal["review.completed"] = "review.completed"
     review: ReviewReport
 
     replay_relevant: ClassVar[bool] = False
+    group: ClassVar[str] = "Evaluation & Control"
+    emitted_by: ClassVar[str] = "Reviewer"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "MI", "UI")
 
 
 class CandidateProposed(Event):
@@ -222,12 +314,20 @@ class CandidateProposed(Event):
     strategy: str
     budget_usd: float
 
+    group: ClassVar[str] = "Evaluation & Control"
+    emitted_by: ClassVar[str] = "CandidateSearch"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI")
+
 
 class CandidateSelected(Event):
     event: Literal["candidate.selected"] = "candidate.selected"
     branch_id: str
     gate_report: GateReport
     selection_basis: str
+
+    group: ClassVar[str] = "Evaluation & Control"
+    emitted_by: ClassVar[str] = "CandidateSearch"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI")
 
 
 class ApprovalRequested(Event):
@@ -239,12 +339,20 @@ class ApprovalRequested(Event):
     rationale: str
     blast_radius: str
 
+    group: ClassVar[str] = "Evaluation & Control"
+    emitted_by: ClassVar[str] = "PolicyEngine"
+    consumers: ClassVar[tuple[str, ...]] = ("UI", "HK (blocking)")
+
 
 class ApprovalResolved(Event):
     event: Literal["approval.resolved"] = "approval.resolved"
     approved: bool
     resolved_by: str
     note: str = ""
+
+    group: ClassVar[str] = "Evaluation & Control"
+    emitted_by: ClassVar[str] = "Entry point"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI")
 
 
 class BudgetWarning(Event):
@@ -254,6 +362,9 @@ class BudgetWarning(Event):
     projected_usd: float
 
     replay_relevant: ClassVar[bool] = False
+    group: ClassVar[str] = "Evaluation & Control"
+    emitted_by: ClassVar[str] = "ResourceGovernor"
+    consumers: ClassVar[tuple[str, ...]] = ("UI", "HK")
 
 
 class BudgetExhausted(Event):
@@ -261,6 +372,10 @@ class BudgetExhausted(Event):
     spent_usd: float
     limit_usd: float
     limit_kind: str
+
+    group: ClassVar[str] = "Evaluation & Control"
+    emitted_by: ClassVar[str] = "ResourceGovernor"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "UI", "HK")
 
 
 # --- Steering ---
@@ -272,11 +387,19 @@ class UserMessageReceived(Event):
     provenance: Literal[Provenance.OPERATOR] = Provenance.OPERATOR
     at_step: StepId | None = None
 
+    group: ClassVar[str] = "Steering"
+    emitted_by: ClassVar[str] = "Entry point"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI")
+
 
 class TaskRevised(Event):
     event: Literal["task.revised"] = "task.revised"
     task: TaskSpec  # new revision
     supersedes: int  # prior revision number
+
+    group: ClassVar[str] = "Steering"
+    emitted_by: ClassVar[str] = "Orchestrator"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI", "MI")
 
 
 ALL_EVENTS: tuple[type[Event], ...] = (

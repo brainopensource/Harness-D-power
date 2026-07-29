@@ -1,1 +1,4 @@
-"""Typed Protocol boundaries. Import only sagiha.domain — see docs/03-contracts-and-models/hexagonal-ports.md."""
+"""Typed Protocol boundaries. Import only sagiha.domain.
+
+See docs/03-contracts-and-models/hexagonal-ports.md.
+"""

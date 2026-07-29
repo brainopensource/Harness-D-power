@@ -58,6 +58,8 @@ the harness itself, not what it is pointed at.
 > breaks the cassette substitution that lets the whole kernel run in CI with zero API calls — a
 > recording satisfies a narrow port, not a router.
 
+Protocol definitions: `ports/model.py`, `ports/policy.py`, `ports/governor.py`.
+
 ### Memory & Retrieval
 | Port | Responsibility |
 | :---- | :---- |
@@ -68,19 +70,9 @@ the harness itself, not what it is pointed at.
 | **`CodeGraph`** | Deterministic code structure from Tree-sitter and git; `upsert_edges`, `impacted_by`, `callers_of`, `co_changed_with`. |
 | `LSPAdapter` | Diagnostics, definitions, references. Returns typed `Symbol` and `DiagnosticItem`. |
 
-```python
-class CodeGraph(Protocol):
-    async def upsert_edges(self, edges: list[GraphEdge]) -> None: ...
-    async def impacted_by(self, file_path: str, hops: int = 2) -> list[str]: ...
-    async def callers_of(self, symbol: SymbolRef) -> list[SymbolRef]: ...
-    async def co_changed_with(self, path: str, since: datetime) -> list[CoChange]: ...
-
-class RetrievalHit(BaseModel):
-    path: str
-    chunk: str
-    score: float  # backend-agnostic relevance score, normalized 0-1
-    metadata: dict[str, Any] = {}
-```
+Protocol definitions: `ports/memory.py` (`ShortTermMemory`, `Memory`), `ports/embedding.py`,
+`ports/indexer.py`, `ports/code_graph.py`, `ports/lsp.py`. Payload models —
+including `RetrievalHit` — live in `domain/graph.py` and `domain/content.py`.
 
 ### Execution
 | Port | Responsibility |
@@ -89,16 +81,10 @@ class RetrievalHit(BaseModel):
 | `WorktreeManager` *(optional)* | `allocate`, **`materialize`**, `release`. Returns a `Workspace`, not a path. |
 | `ToolRegistry` | Register schemas with an `EffectClass`; dispatch. Open tool namespace. |
 | **`TrajectoryStore`** | Append-only steps and scores; source of truth for replay, audit, and training data. |
-| **`Toolchain`** *(optional)* | `detect`, `test`, `typecheck`, `lint`, `coverage`. Python adapter is the only v1 implementation. The port exists so gates never hardcode pytest/pyright. |
+| **`Toolchain`** *(optional)* | `detect`, `test`, `typecheck`, `lint`, `coverage`. Python adapter is the only v1 implementation. The port exists so gates never hardcode pytest/pyright. `detect(root: str)` is workspace-relative — never a `Path`. |
 
-```python
-class Toolchain(Protocol):
-    async def detect(self, root: str) -> ToolchainInfo: ...   # workspace-relative; never a Path
-    async def test(self, selector: str | None = None, pristine: bool = True) -> TestReport: ...
-    async def typecheck(self) -> list[Diagnostic]: ...
-    async def lint(self) -> list[Diagnostic]: ...
-    async def coverage(self) -> CoverageReport: ...
-```
+Protocol definitions: `ports/workspace.py` (`Workspace`, `WorktreeManager`), `ports/tool_registry.py`,
+`ports/trajectory.py`, `ports/toolchain.py`.
 
 ### Orchestration & Improvement
 | Port | Responsibility |
@@ -109,10 +95,8 @@ class Toolchain(Protocol):
 | **`Reviewer`** *(optional)* | Design-quality assessment from an independent judge. Returns a `ReviewReport` — a **soft score that ranks, never a gate that admits**. |
 | `MetaImprover` | Proposes mutations restricted to the mutable surface, outside the trusted computing base. |
 
-```python
-class Reviewer(Protocol):
-    async def review(self, task: TaskSpec, diff: str, branch_id: str) -> ReviewReport: ...
-```
+Protocol definitions: `ports/orchestrator.py`, `ports/search.py`, `ports/evaluator.py`,
+`ports/reviewer.py`, `ports/meta_improver.py`.
 
 **Why a port and not a gate.** Every hard gate in this system rewards *tests pass, nothing regressed,
 diff bounded* — all mechanical, all satisfiable by code no engineer would merge. Nothing measures
@@ -127,3 +111,5 @@ measurable.
 
 ### Advisory (AOI)
 `RewardPredictor`, `FailurePredictor`, `CostPerformanceEstimator` — all return a calibrated `Prediction`, all ship in shadow mode. Advisory only; they rank and filter but never admit or reject.
+
+Protocol definitions: `ports/advisory.py`. `Prediction` lives in `domain/work.py`.

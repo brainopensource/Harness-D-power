@@ -133,7 +133,7 @@ The system prompt establishes that content inside such an envelope is **informat
 ```python
 registry.register(
     name="edit_file",
-    schema=EDIT_FILE_SCHEMA,     # JSON Schema, validated at dispatch
+    schema=EDIT_FILE_SCHEMA,  # JSON Schema, validated at dispatch
     effect=EffectClass.DESTRUCTIVE,
     grant_scope="write",
     trusted_output=True,

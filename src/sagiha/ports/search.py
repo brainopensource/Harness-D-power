@@ -18,7 +18,9 @@ STABILITY: Final = "provisional"
 
 
 class CandidateSearch(Protocol):
-    async def propose(self, task: TaskSpec, context: RunContext, n: int) -> list[str]: ...  # branch_ids
+    async def propose(
+        self, task: TaskSpec, context: RunContext, n: int
+    ) -> list[str]: ...  # branch_ids
 
     async def evaluate(self, branch_id: str) -> GateReport | None: ...
 

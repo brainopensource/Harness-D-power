@@ -9,9 +9,9 @@ updated: 2026-07-29
 > **Working Proposal Disclaimer**: A working architectural proposal, refined iteratively as practical evaluation progresses.
 
 > [!IMPORTANT]
-> **This file becomes generated.** It is hand-maintained until `src/sagiha/domain/events.py` exists,
-> then produced from it by a script run in CI. A hand-written registry of thirty-odd events drifts
-> within a month. See [Contracts to Code](../implementation/contracts-to-code.md).
+> **This file is generated** from `src/sagiha/domain/events.py` by `scripts/gen_event_catalog.py`,
+> run in CI with `--check`. Edit the Python, not this file — see
+> [Contracts to Code](../implementation/contracts-to-code.md).
 
 ## **Why This Module Exists**
 
@@ -43,107 +43,88 @@ streamers · **HK** user hooks · **GV** ResourceGovernor · **MI** MetaImprover
 
 | Event | Payload | Emitted by | Consumers | Replay |
 | :--- | :--- | :--- | :--- | :--- |
-| `run.started` | `TaskSpec`, `RunContext`, **resolved profile**, extension manifest | Orchestrator | TS OT UI MI | ✅ |
-| `run.completed` | `GateReport \| None`, `CostSummary` | Orchestrator | TS OT UI HK MI | ✅ |
-| `run.failed` | `error_kind`, `disposition`, message | Orchestrator | TS OT UI HK | ✅ |
+| `run.started` | `task`, `run_context`, `profile`, `extension_manifest` | Orchestrator | TS OT UI MI | ✅ |
+| `run.completed` | `gate_report`, `cost` | Orchestrator | TS OT UI HK MI | ✅ |
+| `run.failed` | `error_kind`, `disposition`, `message` | Orchestrator | TS OT UI HK | ✅ |
 | `run.canceled` | `reason`, `canceled_by` | Orchestrator | TS OT UI | ✅ |
 | `checkpoint.created` | `label`, `commit_sha` | Workspace | TS UI | ✅ |
 
-`run.started` carries the **resolved profile** because which events a run can emit depends on it — see
-"Profile-Dependent Events" below — and because an ungated run must never be mistaken for a gated one
-by a later benchmark report or outer-loop training set.
+`run.started` carries the **resolved profile** because which events a run can emit depends on it — see "Profile-Dependent Events" below — and because an ungated run must never be mistaken for a gated one by a later benchmark report or outer-loop training set.
 
-`run.started` carries the extension manifest because a trajectory that replays against a different
-extension set is not a replay. See [ADR-0013](../08-decisions/0013-extension-registration.md).
+`run.started` carries the extension manifest because a trajectory that replays against a different extension set is not a replay. See [ADR-0013](../08-decisions/0013-extension-registration.md).
 
 ## **Reasoning**
 
 | Event | Payload | Emitted by | Consumers | Replay |
 | :--- | :--- | :--- | :--- | :--- |
-| `step.started` | `StepId`, parent | Orchestrator | TS OT UI | ✅ |
-| `model.call_started` | `model`, `request_digest`, cache breakpoints | ModelProvider | TS OT UI GV | ✅ |
-| `model.delta` | `StreamEvent` frame | ModelProvider | UI | ❌ |
-| `model.call_completed` | `TokenUsage` (incl. cache read/write), `stop_reason`, `CostSummary` | ModelProvider | TS OT UI GV MI | ✅ |
-| `step.completed` | `TrajectoryStep` | Orchestrator | TS OT UI MI | ✅ |
-| `step.scored` | `score`, `dimension`, `scorer` | Evaluator / Reviewer / AOI | TS MI | ❌ |
+| `step.started` | — | Orchestrator | TS OT UI | ✅ |
+| `model.call_started` | `model`, `request_digest`, `cache_breakpoints` | ModelProvider | TS OT UI GV | ✅ |
+| `model.delta` | `frame` | ModelProvider | UI | ❌ |
+| `model.call_completed` | `usage`, `stop_reason`, `cost` | ModelProvider | TS OT UI GV MI | ✅ |
+| `step.completed` | `step` | Orchestrator | TS OT UI MI | ✅ |
+| `step.scored` | `scored` | Evaluator / Reviewer / AOI | TS MI | ❌ |
 
-`model.delta` is the one high-volume event and the only one observers are permitted to drop under
-backpressure — losing a rendering frame is acceptable; losing a step is not.
+`model.delta` is the one high-volume event and the only one observers are permitted to drop under backpressure — losing a rendering frame is acceptable; losing a step is not.
 
-`step.scored` is a **separate event rather than a mutation** of the stored step. That is what makes
-the append-only claim true rather than aspirational.
+`step.scored` is a **separate event rather than a mutation** of the stored step. That is what makes the append-only claim true rather than aspirational.
 
-`model.call_completed` is the sole source of spend and cache-hit truth. Every adapter emits exactly
-one `UsageReported` before `StreamEnd` on the streaming path — without that, the governor never fires
-and the economics are unmeasured on the default interactive path.
+`model.call_completed` is the sole source of spend and cache-hit truth. Every adapter emits exactly one `UsageReported` before `StreamEnd` on the streaming path — without that, the governor never fires and the economics are unmeasured on the default interactive path.
 
 ## **Tools**
 
 | Event | Payload | Emitted by | Consumers | Replay |
 | :--- | :--- | :--- | :--- | :--- |
-| `tool.call_requested` | `ToolCall` (name, args, declared `EffectClass`) | Agency | TS OT UI HK | ✅ |
-| `tool.call_authorized` | `Decision` (no grant — see below) | PolicyEngine | TS OT HK | ✅ |
-| `tool.call_denied` | `Decision`, `reason`, `requires_human` | PolicyEngine | TS OT UI HK | ✅ |
-| `tool.call_completed` | `ToolResult`, `duration_ms` | Dispatch | TS OT UI HK MI | ✅ |
+| `tool.call_requested` | `call` | Agency | TS OT UI HK | ✅ |
+| `tool.call_authorized` | `decision` | PolicyEngine | TS OT HK | ✅ |
+| `tool.call_denied` | `decision`, `reason`, `requires_human` | PolicyEngine | TS OT UI HK | ✅ |
+| `tool.call_completed` | `result`, `duration_ms` | Dispatch | TS OT UI HK MI | ✅ |
 | `tool.call_failed` | `error_kind`, `disposition` | Dispatch | TS OT UI HK | ✅ |
 
-The **requested / authorized** split is deliberate: it makes the policy decision independently
-observable, so an audit answers "what did the agent try to do" separately from "what was it allowed to
-do." Those are different questions and a single event cannot answer both.
+The **requested / authorized** split is deliberate: it makes the policy decision independently observable, so an audit answers "what did the agent try to do" separately from "what was it allowed to do." Those are different questions and a single event cannot answer both.
 
-**No event ever carries a `Grant`.** Grants do not leave `kernel/dispatch.py`, and an audit log
-containing capability tokens is a credential store with extra steps. `tool.call_authorized` carries the
-`Decision`, including the grant *id* for correlation — never the grant.
+**No event ever carries a `Grant`.** Grants do not leave `kernel/dispatch.py`, and an audit log containing capability tokens is a credential store with extra steps. `tool.call_authorized` carries the `Decision`, including the grant *id* for correlation — never the grant.
 
 ## **Workspace**
 
 | Event | Payload | Emitted by | Consumers | Replay |
 | :--- | :--- | :--- | :--- | :--- |
-| `edit.applied` | `EditResult` (per-hunk, `syntax_valid`) | Workspace | TS OT UI HK MI | ✅ |
-| `command.executed` | argv, exit code, truncated output, `full_output_uri` | Workspace | TS OT UI HK | ✅ |
-| `diagnostics.changed` | added/removed `DiagnosticItem`s | LSPAdapter | TS OT UI MI | ❌ |
-| `worktree.allocated` | `branch_id`, base commit | WorktreeManager | TS OT UI | ✅ |
-| `worktree.released` | `branch_id`, disposition | WorktreeManager | TS OT UI | ✅ |
-| `index.updated` | paths, chunk delta, duration | Indexer | OT UI | ❌ |
+| `edit.applied` | `result` | Workspace | TS OT UI HK MI | ✅ |
+| `command.executed` | `argv`, `exit_code`, `output`, `truncated`, `full_output_uri` | Workspace | TS OT UI HK | ✅ |
+| `diagnostics.changed` | `added`, `removed` | LSPAdapter | TS OT UI MI | ❌ |
+| `worktree.allocated` | `branch_id`, `base_commit` | WorktreeManager | TS OT UI | ✅ |
+| `worktree.released` | `branch_id`, `disposition` | WorktreeManager | TS OT UI | ✅ |
+| `index.updated` | `paths`, `chunk_delta`, `duration_s` | Indexer | OT UI | ❌ |
 
-`edit.applied` carries per-hunk outcomes because `edit.hunk_failure_ratio` is a top-tier quality
-signal and the edit format is an empirical question. An aggregate boolean would make it unanswerable.
+`edit.applied` carries per-hunk outcomes because `edit.hunk_failure_ratio` is a top-tier quality signal and the edit format is an empirical question. An aggregate boolean would make it unanswerable.
 
 ## **Evaluation & Control**
 
 | Event | Payload | Emitted by | Consumers | Replay |
 | :--- | :--- | :--- | :--- | :--- |
-| `gate.evaluated` | `GateReport` (per-criterion) | Evaluator | TS OT UI HK MI | ✅ |
-| `review.completed` | `ReviewReport` — **soft score, never a gate** | Reviewer | TS MI UI | ❌ |
-| `candidate.proposed` | `branch_id`, strategy, budget | CandidateSearch | TS OT UI | ✅ |
-| `candidate.selected` | `branch_id`, `GateReport`, selection basis | CandidateSearch | TS OT UI | ✅ |
-| `approval.requested` | action, scope, rationale, blast radius | PolicyEngine | UI HK **(blocking)** | ✅ |
+| `gate.evaluated` | `gate_report` | Evaluator | TS OT UI HK MI | ✅ |
+| `review.completed` | `review` | Reviewer | TS MI UI | ❌ |
+| `candidate.proposed` | `branch_id`, `strategy`, `budget_usd` | CandidateSearch | TS OT UI | ✅ |
+| `candidate.selected` | `branch_id`, `gate_report`, `selection_basis` | CandidateSearch | TS OT UI | ✅ |
+| `approval.requested` | `action`, `scope`, `rationale`, `blast_radius` | PolicyEngine | UI HK (blocking) | ✅ |
 | `approval.resolved` | `approved`, `resolved_by`, `note` | Entry point | TS OT UI | ✅ |
-| `budget.warning` | spent, remaining, projected | ResourceGovernor | UI HK | ❌ |
-| `budget.exhausted` | spent, limit, limit kind | ResourceGovernor | TS UI HK | ✅ |
+| `budget.warning` | `spent_usd`, `remaining_usd`, `projected_usd` | ResourceGovernor | UI HK | ❌ |
+| `budget.exhausted` | `spent_usd`, `limit_usd`, `limit_kind` | ResourceGovernor | TS UI HK | ✅ |
 
-`approval.requested` is the only event whose delivery blocks the run — it is a question, and the run
-cannot proceed without the answer. Every other event is fire-and-observe.
+`approval.requested` is the only event whose delivery blocks the run — it is a question, and the run cannot proceed without the answer. Every other event is fire-and-observe.
 
 ## **Steering**
 
 | Event | Payload | Emitted by | Consumers | Replay |
 | :--- | :--- | :--- | :--- | :--- |
-| `user.message_received` | text, `Provenance.OPERATOR`, `at_step` | Entry point | TS OT UI | ✅ |
-| `task.revised` | new `TaskSpec` (revision + 1), `supersedes` | Orchestrator | TS OT UI MI | ✅ |
+| `user.message_received` | `text`, `provenance`, `at_step` | Entry point | TS OT UI | ✅ |
+| `task.revised` | `task`, `supersedes` | Orchestrator | TS OT UI MI | ✅ |
 
-Mid-run steering is the dominant interaction mode in every comparable harness, and retrofitting an
-input channel into a one-shot pipeline is expensive. The rules:
+Mid-run steering is the dominant interaction mode in every comparable harness, and retrofitting an input channel into a one-shot pipeline is expensive. The rules:
 
-1. A new operator turn **appends to the tail** — the cache-stable prefix is untouched, so steering
-   costs no cache.
-2. If it changes the goal or acceptance criteria, the orchestrator emits `task.revised` with a **new
-   `TaskSpec` revision**. `TaskSpec` is frozen; it is never mutated. The trajectory therefore records
-   which revision each step was working against, which is what keeps the gate report interpretable.
-3. A revision invalidates the active plan and the retrieval set — both are recomputed. It does **not**
-   invalidate the system prefix, tool definitions, or skill descriptors.
-4. Operator content is `Provenance.OPERATOR` and is the only untrusted-by-default channel that is
-   authoritative.
+1. A new operator turn **appends to the tail** — the cache-stable prefix is untouched, so steering costs no cache.
+2. If it changes the goal or acceptance criteria, the orchestrator emits `task.revised` with a **new `TaskSpec` revision**. `TaskSpec` is frozen; it is never mutated. The trajectory therefore records which revision each step was working against, which is what keeps the gate report interpretable.
+3. A revision invalidates the active plan and the retrieval set — both are recomputed. It does **not** invalidate the system prefix, tool definitions, or skill descriptors.
+4. Operator content is `Provenance.OPERATOR` and is the only untrusted-by-default channel that is authoritative.
 
 ## **Profile-Dependent Events**
 
@@ -172,9 +153,11 @@ identically whether the task is a refactor or a question. In particular **every 
 
 ## **Adding an Event**
 
-1. Add the model to `sagiha/domain/events.py` with `schema_version = 1`.
-2. Regenerate this catalog; the diff is the review artifact.
-3. Decide replay-relevance deliberately. Marking a high-volume rendering event replay-relevant makes
-   every cassette larger and every replay slower, for no audit value.
+1. Add the model to `sagiha/domain/events.py` with `schema_version = 1`, a `group`, `emitted_by`, and
+   `consumers`.
+2. Regenerate this catalog with `uv run python scripts/gen_event_catalog.py`; the diff is the review
+   artifact.
+3. Decide replay-relevance deliberately via `replay_relevant`. Marking a high-volume rendering event
+   replay-relevant makes every cassette larger and every replay slower, for no audit value.
 4. Changing an existing event's payload requires a version bump **and** an upcaster
    ([Port Stability](../03-contracts-and-models/port-stability-and-versioning.md)).

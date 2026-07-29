@@ -6,7 +6,7 @@ dispatch) rather than a closed enum — see ADR and docs/03-contracts-and-models
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -14,7 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sagiha.domain.graph import DiagnosticItem, SymbolRef
 
 
-class EffectClass(str, Enum):
+class EffectClass(StrEnum):
     """Governs replay safety. Without it, replaying a recorded trajectory re-executes `git push`."""
 
     PURE = "pure"  # safe to re-execute
@@ -47,7 +47,7 @@ class ToolUseBlock(BaseModel):
 class ToolResultBlock(BaseModel):
     kind: Literal["tool_result"] = "tool_result"
     call_id: str
-    content: list["ContentBlock"]
+    content: list[ContentBlock]
     is_error: bool = False
 
 

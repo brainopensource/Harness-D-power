@@ -17,15 +17,16 @@ A bare string leaves **"done" undefined**, which cascades: the Evaluator has no 
 ```python
 class AcceptanceCriterion(BaseModel):
     description: str
-    check: str          # machine-checkable command or predicate
+    check: str  # machine-checkable command or predicate
     required: bool = True
+
 
 class TaskSpec(BaseModel):
     task_id: str
     revision: int = 0
     goal: str
     acceptance: tuple[AcceptanceCriterion, ...]
-    profile: str = "coding"     # execution profile — see below
+    profile: str = "coding"  # execution profile — see below
     parent_task_id: str | None = None
     status: TaskStatus = "submitted"
 ```

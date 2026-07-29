@@ -21,14 +21,17 @@ One behavioral suite per port, parametrized over **every** adapter implementing 
 ```python
 # tests/contracts/test_memory_conformance.py
 
+
 @pytest.fixture(params=[SqliteMemory, LanceMemory, EpisodicGraphMemory])
 def memory(request) -> Memory:
     return request.param(**test_config_for(request.param))
+
 
 async def test_recall_returns_what_was_remembered(memory):
     mid = await memory.remember(MemoryRecord(content="auth uses JWT", kind="decision"))
     hits = await memory.recall(RecallQuery(text="how does auth work", k=5))
     assert mid in {h.memory_id for h in hits}
+
 
 async def test_invalidated_facts_are_excluded(memory):
     mid = await memory.remember(MemoryRecord(content="auth uses sessions", kind="decision"))
@@ -36,9 +39,11 @@ async def test_invalidated_facts_are_excluded(memory):
     hits = await memory.recall(RecallQuery(text="how does auth work", k=5))
     assert mid not in {h.memory_id for h in hits}
 
+
 async def test_as_of_read_sees_prior_state(memory):
     """Bi-temporal read: a query as-of an earlier time still sees the old fact."""
     ...
+
 
 async def test_timestamps_are_timezone_aware(memory):
     hits = await memory.recall(RecallQuery(text="anything"))

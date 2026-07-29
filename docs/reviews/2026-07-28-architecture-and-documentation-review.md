@@ -159,7 +159,7 @@ async def dispatch(call: ToolCall, ctx: RunContext) -> ToolResult:
     if not decision.allowed:
         return _denied(call, decision)
     async with governor.lease(kind=call.tool_name) as lease:
-        result = await registry.dispatch(call, decision.grant)   # grant never escapes
+        result = await registry.dispatch(call, decision.grant)  # grant never escapes
         await policy.record_outcome(decision.grant.grant_id, result)
         return result
 ```
@@ -174,11 +174,11 @@ class Grant(BaseModel):
     grant_id: str
     tool_name: str
     scope_paths: tuple[str, ...]
-    run_id: str                    # binds to one run; prevents cross-run replay
+    run_id: str  # binds to one run; prevents cross-run replay
     issued_at: datetime
     expires_at: datetime
     nonce: str
-    signature: str                 # HMAC-SHA256 over canonical serialization
+    signature: str  # HMAC-SHA256 over canonical serialization
 ```
 
 The signing key is generated per process, held only by `PolicyEngine`, and verified inside `ToolRegistry.dispatch` before any effect. Add a conformance test asserting that a hand-constructed `Grant` is rejected.
@@ -204,24 +204,28 @@ class TextBlock(BaseModel):
     kind: Literal["text"] = "text"
     text: str
 
+
 class ReasoningBlock(BaseModel):
     kind: Literal["reasoning"] = "reasoning"
     provider: str
-    opaque: dict[str, Any]        # provider-native, round-tripped verbatim
+    opaque: dict[str, Any]  # provider-native, round-tripped verbatim
     summary: str = ""
     redacted: bool = False
+
 
 class ToolUseBlock(BaseModel):
     kind: Literal["tool_use"] = "tool_use"
     call_id: str
     tool_name: str
-    arguments: dict[str, Any]     # validated against the registered JSON Schema
+    arguments: dict[str, Any]  # validated against the registered JSON Schema
+
 
 class ToolResultBlock(BaseModel):
     kind: Literal["tool_result"] = "tool_result"
     call_id: str
     content: list["ContentBlock"]
     is_error: bool = False
+
 
 ContentBlock = Annotated[
     TextBlock | ReasoningBlock | ToolUseBlock | ToolResultBlock | ImageBlock | ResourceBlock,
@@ -253,10 +257,12 @@ class UsageReported(BaseModel):
     kind: Literal["usage"] = "usage"
     usage: TokenUsage
 
+
 StreamEvent = Annotated[
     BlockStart | BlockDelta | BlockEnd | UsageReported | StreamEnd,
     Field(discriminator="kind"),
 ]
+
 
 class ModelProvider(Protocol):
     def stream(self, request: ModelRequest) -> AsyncIterator[StreamEvent]: ...
@@ -316,9 +322,10 @@ class CriterionResult(BaseModel):
     output: str = ""
     duration_ms: float = 0.0
 
+
 class GateReport(BaseModel):
     model_config = ConfigDict(frozen=True)
-    criteria: tuple[CriterionResult, ...]      # per-criterion, from TaskSpec.acceptance
+    criteria: tuple[CriterionResult, ...]  # per-criterion, from TaskSpec.acceptance
     tests_unmodified: bool
     no_new_suppressions: bool
     coverage_not_decreased: bool
@@ -330,9 +337,13 @@ class GateReport(BaseModel):
 
     @property
     def admitted(self) -> bool:
-        return (self.acceptance_met and self.tests_unmodified
-                and self.no_new_suppressions and self.coverage_not_decreased
-                and self.diff_within_bounds)
+        return (
+            self.acceptance_met
+            and self.tests_unmodified
+            and self.no_new_suppressions
+            and self.coverage_not_decreased
+            and self.diff_within_bounds
+        )
 ```
 
 This also fixes the benchmark reporting format, which currently has no way to say *which* acceptance check failed.
@@ -355,15 +366,16 @@ This also fixes the benchmark reporting format, which currently has no way to sa
 
 ```python
 class Provenance(str, Enum):
-    OPERATOR = "operator"          # the human's turn — authoritative
-    HARNESS = "harness"            # tree-sitter, LSP, git — deterministic, trusted
-    MODEL = "model"                # the agent's own reasoning
-    EXTERNAL = "external"          # repo content, web, MCP servers — untrusted
+    OPERATOR = "operator"  # the human's turn — authoritative
+    HARNESS = "harness"  # tree-sitter, LSP, git — deterministic, trusted
+    MODEL = "model"  # the agent's own reasoning
+    EXTERNAL = "external"  # repo content, web, MCP servers — untrusted
+
 
 class MemoryRecord(BaseModel):
     content: str
     kind: Literal["episode", "decision", "preference", "artifact"]
-    provenance: Provenance                  # required, not inferred
+    provenance: Provenance  # required, not inferred
     source_uri: str | None = None
     valid_from: datetime = Field(default_factory=utc_now)
 ```
@@ -419,20 +431,26 @@ All three are marked normative. `implementation/development-plan-and-prompts.md:
 ```python
 class Edit(BaseModel):
     model_config = ConfigDict(frozen=True)
-    old_string: str                 # unique anchor; empty == insert at start
+    old_string: str  # unique anchor; empty == insert at start
     new_string: str
-    expected_occurrences: int = 1   # explicit; ambiguity is an error, not a guess
+    expected_occurrences: int = 1  # explicit; ambiguity is an error, not a guess
+
 
 class EditRequest(BaseModel):
     path: str
     edits: tuple[Edit, ...]
 
+
 class HunkResult(BaseModel):
     applied: bool
     index: int
-    reason: Literal["ok", "anchor_not_found", "ambiguous_anchor",
-                    "skipped_after_failure", "syntax_invalid"] | None = None
-    nearest_match: str | None = None    # what the model should have written
+    reason: (
+        Literal[
+            "ok", "anchor_not_found", "ambiguous_anchor", "skipped_after_failure", "syntax_invalid"
+        ]
+        | None
+    ) = None
+    nearest_match: str | None = None  # what the model should have written
 ```
 
 `Workspace.apply_edit(request: EditRequest, ...) -> EditResult`. Reserve unified-diff application for a separate `apply_patch` method if it is ever needed.
@@ -473,15 +491,16 @@ Note the same issue applies to `run_command` (registered `DESTRUCTIVE`), which i
 ```python
 # tests/contracts/test_policy_conformance.py
 async def test_denies_write_outside_worktree_at_every_autonomy_level(policy): ...
-async def test_forged_grant_is_rejected_at_dispatch(policy, registry): ...     # covers D1
+async def test_forged_grant_is_rejected_at_dispatch(policy, registry): ...  # covers D1
 async def test_expired_grant_is_rejected(policy): ...
-async def test_grant_scope_is_path_bounded_not_prefix_matched(policy): ...     # ../ escapes
+async def test_grant_scope_is_path_bounded_not_prefix_matched(policy): ...  # ../ escapes
 async def test_always_gate_list_cannot_be_bypassed_by_autonomy_level(policy): ...
+
 
 # tests/contracts/test_evaluator_conformance.py
 async def test_candidate_modification_of_tests_fails_the_gate(evaluator): ...
 async def test_evaluator_uses_injected_suite_not_worktree_copy(evaluator): ...
-async def test_evaluator_has_no_degraded_mode(evaluator): ...                  # per error-taxonomy:90
+async def test_evaluator_has_no_degraded_mode(evaluator): ...  # per error-taxonomy:90
 ```
 
 ---

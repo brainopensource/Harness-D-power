@@ -22,7 +22,7 @@ Lightweight non-LLM models that make the harness sample-efficient. **Advisory on
 class Prediction(BaseModel):
     value: float
     confidence: float
-    calibrated: bool          # uncalibrated predictions may never gate
+    calibrated: bool  # uncalibrated predictions may never gate
     shadow_mode: bool = True  # predict and log; do not act
 ```
 

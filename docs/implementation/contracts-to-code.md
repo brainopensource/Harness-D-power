@@ -63,11 +63,11 @@ These are not follow-ups. A contract without them is prose in a `.py` file.
    rules mechanically rather than by review:
 
    ```python
-   def test_no_untyped_dict_crosses_a_port(): ...        # rule 1, with the documented exemptions
-   def test_every_port_method_is_async(): ...            # remoteability
-   def test_all_port_payloads_are_serializable(): ...    # remoteability — see below
-   def test_no_grant_in_any_public_signature(): ...      # the CAR invariant
-   def test_all_datetimes_are_aware(): ...               # rule 3
+   def test_no_untyped_dict_crosses_a_port(): ...  # rule 1, with the documented exemptions
+   def test_every_port_method_is_async(): ...  # remoteability
+   def test_all_port_payloads_are_serializable(): ...  # remoteability — see below
+   def test_no_grant_in_any_public_signature(): ...  # the CAR invariant
+   def test_all_datetimes_are_aware(): ...  # rule 3
    ```
 
    `test_all_port_payloads_are_serializable` walks every `Protocol` in `ports/`, resolves the

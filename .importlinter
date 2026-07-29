@@ -1,5 +1,8 @@
 [importlinter]
-root_packages = sagiha
+root_package = sagiha
+# Required whenever any contract forbids an external module (domain-is-pure forbids httpx and
+# sqlite3) — otherwise import-linter refuses to build a graph that could check them.
+include_external_packages = True
 
 [importlinter:contract:car-layering]
 name = Agency must not reach the Runtime
@@ -11,6 +14,10 @@ forbidden_modules =
     sagiha.adapters
 ignore_imports =
     sagiha.agency.* -> sagiha.ports.*
+# agency/ is an empty stub until S3 (see docs/07-roadmap/phased-migration-matrix.md) — the
+# ignore above legitimately matches nothing yet. warn, not error, on an unmatched ignore so
+# Sprint 1's empty package skeleton doesn't fail this contract; revisit once agency/ has code.
+unmatched_ignore_imports_alerting = warn
 
 [importlinter:contract:ports-are-pure]
 name = Ports import nothing internal

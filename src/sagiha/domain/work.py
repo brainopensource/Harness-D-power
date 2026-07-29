@@ -124,7 +124,9 @@ class HunkResult(BaseModel):
     applied: bool
     index: int
     reason: (
-        Literal["ok", "anchor_not_found", "ambiguous_anchor", "skipped_after_failure", "syntax_invalid"]
+        Literal[
+            "ok", "anchor_not_found", "ambiguous_anchor", "skipped_after_failure", "syntax_invalid"
+        ]
         | None
     ) = None
     nearest_match: str | None = None

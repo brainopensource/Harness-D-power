@@ -24,7 +24,7 @@ the config." The discipline is to name what is parametric and what is fixed, and
 One function, one place:
 
 ```python
-def build_kernel(config: Config) -> Kernel: ...     # sagiha/composition.py
+def build_kernel(config: Config) -> Kernel: ...  # sagiha/composition.py
 ```
 
 It is the only place adapters are constructed and the only place ports are bound. Every other module
@@ -44,9 +44,9 @@ mode     = "live"        # live | record | replay
 
 ```python
 MODEL_ADAPTERS = {
-    "anthropic":        AnthropicProvider,
-    "openai":           OpenAIProvider,
-    "google":           GoogleProvider,
+    "anthropic": AnthropicProvider,
+    "openai": OpenAIProvider,
+    "google": GoogleProvider,
     "openai-compatible": OpenAICompatibleProvider,
 }
 ```
@@ -69,7 +69,7 @@ adapter* to *whether a port is bound*:
 PROFILE_WORKSPACE = {
     "worktree": WorktreeWorkspaceFactory,
     "readonly": ReadOnlyWorkspaceFactory,
-    "none":     None,          # the port is genuinely unbound, not a null object
+    "none": None,  # the port is genuinely unbound, not a null object
 }
 ```
 

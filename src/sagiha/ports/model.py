@@ -11,7 +11,8 @@ Conformance suite must assert: `test_reasoning_block_round_trip_byte_identical`,
 
 from __future__ import annotations
 
-from typing import AsyncIterator, Final, Protocol
+from collections.abc import AsyncIterator
+from typing import Final, Protocol
 
 from sagiha.domain.content import Message, ModelRequest
 from sagiha.domain.trajectory import StreamEvent
