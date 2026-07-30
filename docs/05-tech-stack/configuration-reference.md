@@ -1,6 +1,6 @@
 ---
 status: normative
-updated: 2026-07-29
+updated: 2026-07-30
 ---
 
 # **Configuration Reference**
@@ -8,9 +8,37 @@ updated: 2026-07-29
 > [!NOTE]
 > **Working Proposal Disclaimer**: A working architectural proposal, refined iteratively as practical evaluation progresses.
 
+> [!IMPORTANT]
+> The TOML below is the **target schema** (validated by `src/sagiha/domain/config.py`).
+> Composition does **not** yet honor every section — see the table and [STATUS.md](../STATUS.md).
+> Setting a planned field today is inert (or only validated), not a live control.
+
 Single local-first `config.toml`, validated by Pydantic at startup. **Misconfiguration fails at load, never at first dispatch** — an agent that discovers a bad sandbox setting forty minutes into a run has already done unbounded damage.
 
 Precedence: CLI flags → environment (`SAGIHA_*`) → `config.toml` → defaults.
+
+## **Implementation Status (composition vs schema)**
+
+| Section | Schema / validation | Consumed by `build_kernel` today | Becomes real |
+| :--- | :--- | :--- | :--- |
+| `model.mode` | Yes | Partial — both branches bind replay cassette (Sprint 3 fixes) | Sprint 3 |
+| `model.tiers` / `model.roles` | Yes (role→tier consistency) | No | Sprint 3+ |
+| `profiles.*` | Yes (defaults) | No | Sprint 3 |
+| `workspace.*` | Yes | No | Sprint 3 (root); Block 5 (worktrees) |
+| `autonomy.always_gate` | Yes | Yes | — |
+| `autonomy.level` / timeouts | Yes | Validation only (subprocess refuse) | Sprint 3 / Block 3 |
+| `governor.max_spend_usd_per_run` | Yes | Wired into governor ctor | Spend recording Sprint 3 |
+| `governor.max_concurrent_sandboxes` | Yes | Stored; admission not enforced | Block 3 |
+| Other `governor.*` | Yes | No | Later |
+| `sandbox.*` | Yes (host/subprocess refuses) | No runtime adapter | Block 5 |
+| `retrieval.*` / `context.*` / `search.*` | Yes | No | Blocks 4 / later |
+| `gates.*` | Yes (`require_tests_unmodified` refuse) | No evaluator | Sprint 3 (acceptance); later for code gates |
+| `telemetry.trajectory_db` | Yes | Yes | — |
+| Other `telemetry.*` | Yes | No | Block 5 (OTel) |
+| `aoi.*` | Yes | No | Deferred |
+| `mcp_servers` / `hooks` | Yes | No | Block 5 |
+
+Sprint 3 must shrink this table: each closed checklist item names which config sections became live.
 
 ## **Complete Reference**
 
@@ -232,6 +260,8 @@ A config file containing a literal key is rejected at load with an explicit erro
 
 ## **Profiles**
 
+> **Planned — Sprint 3**: CLI profile selection. See [STATUS.md](../STATUS.md).
+
 ```bash
 sagiha run --profile ci        # config.ci.toml overlays config.toml
 ```
@@ -239,6 +269,8 @@ sagiha run --profile ci        # config.ci.toml overlays config.toml
 Standard profiles: `dev` (interactive, subprocess sandbox, replay-friendly), `ci` (autonomous, container, strict gates, hard budget), `bench` (records A/A metadata, forbids gate relaxation).
 
 ## **Validation Output**
+
+> **Planned — Sprint 3+**: resolved-config dump. Config *validation at load* already exists in the `Config` model; the CLI command below is not shipping yet.
 
 ```bash
 sagiha config validate --profile ci

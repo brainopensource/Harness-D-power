@@ -1,6 +1,6 @@
 ---
 status: normative
-updated: 2026-07-29
+updated: 2026-07-30
 ---
 
 # **Roadmap: Vertical Slices & Component Migration**
@@ -8,23 +8,43 @@ updated: 2026-07-29
 > [!NOTE]
 > **Working Proposal Disclaimer**: A working architectural proposal, refined iteratively as practical evaluation progresses.
 
+> [!IMPORTANT]
+> **Current build contract:** [Sprint 3](../sprints/sprint-3.md) (Block 1 — close the loop).
+> Implementation truth: [STATUS.md](../STATUS.md). Sprint 2 is closed with known defects;
+> do not extend periphery (MCP/OTel) before the Sprint 3 exit test is green.
+
 ## **Slices First, Components Second**
 
 The risk in this system lives in **integration**, not in any individual component — a perfect vector store and a perfect LSP adapter that have never run together tell you nothing about whether the harness works.
 
 The plan is a sequence of **vertical slices**, each thin through every layer and each independently useful. The component matrix below is the appendix, not the plan.
 
-## **E0 Comes First: The Evaluation Harness**
+## **Sequencing Decision (Foundation Review 2026-07-29)**
 
-Before S0, one slice that is not about the agent at all: **a standalone evaluation harness** — commit-replay harvester, task runner, A/A noise floor, paired statistics with multiple-comparison correction, and reporting. It grades *any* coding agent against a repository's real commit history, not only SAGIHA.
+E0 (standalone evaluation harness) remains the **strategic moat** — without a noise floor,
+every later claim is unfalsifiable. Strict E0-before-any-agent would build a grader with nothing
+to grade. The accepted near-term order is therefore:
 
-Three reasons it is first rather than last:
+1. **Block 1 / Sprint 3** — close one runnable, replayable coding loop.
+2. **Block 2 / E0-lite** — harvest tasks, A/A noise floor, measure that loop.
+3. **Blocks 3–5** — authority → retrieval → sandbox / MCP / OTel.
+
+E0's full standalone product (grade *any* agent) still expands from E0-lite; it is not cancelled.
+
+## **E0: The Evaluation Harness (strategic first product)**
+
+Before treating the agent as “done,” one slice that is not only about the agent: **a standalone
+evaluation harness** — commit-replay harvester, task runner, A/A noise floor, paired statistics
+with multiple-comparison correction, and reporting. It grades *any* coding agent against a
+repository's real commit history, not only SAGIHA.
+
+Three reasons it stays first-class rather than last:
 
 1. **It is the prerequisite for self-improvement, not a companion to it.** The stated goal is a harness that improves itself under structured tests and benchmarks. That is impossible before a measured noise floor exists — without one, every self-modification is accepted or rejected on noise, and the loop ratchets permanently on randomness. Most harness work in this space is an undiagnosed random walk for exactly this reason.
-2. **It produces the S0 suite as a byproduct.** The chicken-and-egg problem — S0 needs a benchmark, the benchmark needs harvesting, harvesting needs a harness — dissolves when the harvester *is* the first deliverable ([ADR-0015](../08-decisions/0015-benchmark-target-repository.md)).
-3. **It is independently useful and ships in weeks.** No sandbox, no LSP pool, no candidate search, no embeddings. "Grade any coding agent on your own repository's history, against a measured noise floor" is a tool people would use before SAGIHA can resolve a single task — which is the project's realistic path to external feedback.
+2. **It produces the S0 suite as a byproduct.** The chicken-and-egg problem — S0 needs a benchmark, the benchmark needs harvesting, harvesting needs a harness — dissolves when the harvester *is* an early deliverable ([ADR-0015](../08-decisions/0015-benchmark-target-repository.md)).
+3. **It is independently useful.** No sandbox, no LSP pool, no candidate search, no embeddings. "Grade any coding agent on your own repository's history, against a measured noise floor" is a tool people would use before SAGIHA can resolve a single task — which is the project's realistic path to external feedback.
 
-Every slice below is graded by E0 from day one. That is what converts each subsequent architectural claim from an argument into a number.
+Every slice below is graded by E0 (or E0-lite) once Block 2 exists. That is what converts each subsequent architectural claim from an argument into a number.
 
 ## **Vertical Slice Plan**
 

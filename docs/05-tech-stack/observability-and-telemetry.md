@@ -116,6 +116,8 @@ Note: the first change to any event model without this will orphan every cassett
 
 ## **Inspection**
 
+> **Planned — Sprint 3** for `replay`; trajectory inspection commands land with or after the run loop ([STATUS.md](../STATUS.md)). Trajectory *storage* exists today; these CLIs do not.
+
 ```bash
 sagiha trajectory show <run-id>              # steps, tools, diagnostics, scores
 sagiha trajectory diff <id-a> <id-b>         # where two runs diverged

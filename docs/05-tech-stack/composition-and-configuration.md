@@ -195,5 +195,7 @@ autonomy.level  = "interactive"
 sandbox.runtime = "subprocess"    # permitted: autonomy is interactive
 ```
 
+> **Planned — Sprint 3**: `sagiha run --profile …` lands with the CLI. Profile *data* is already in the config schema; composition does not yet resolve profiles at run time ([STATUS.md](../STATUS.md)).
+
 `sagiha run --profile ci`. Profiles apply at layer 2/3 and remain subject to every validation rule
 above — a profile is a shorthand, not an exemption.

@@ -1,6 +1,6 @@
 ---
 status: normative
-updated: 2026-07-29
+updated: 2026-07-30
 ---
 
 # **SAGIHA Implementation Plan & Modular Prompt Guidelines**
@@ -10,29 +10,40 @@ updated: 2026-07-29
 
 > [!IMPORTANT]
 > Phases here map onto the vertical slices in [`07-roadmap/phased-migration-matrix.md`](../07-roadmap/phased-migration-matrix.md), which is normative for scope and gates. Where this document and the roadmap disagree, the roadmap wins.
+>
+> **Current work:** [Sprint 3](../sprints/sprint-3.md) (Block 1 — close the loop). Sprint 1–2 scaffolding/kernel are done with known defects. Do **not** start Phase 2's MCP/OTel items — deferred per the foundation review. Implementation truth: [STATUS.md](../STATUS.md).
+>
+> **Sequencing:** Block 1 (Sprint 3) → Block 2 (E0-lite measurement) → later phases. A measured loop needs a loop to measure.
 
-**Before Sprint 1, read these — they resolve every stack question the prompts assume:**
+**Before continuing development, read these:**
+[STATUS.md](../STATUS.md) ·
+[Sprint 3](../sprints/sprint-3.md) ·
 [Dependencies & Versions](../05-tech-stack/dependencies-and-versions.md) ·
 [Tool Catalog](../03-contracts-and-models/tool-catalog.md) ·
 [Prompt Architecture](../02-architecture/prompt-architecture.md) ·
 [Error Taxonomy](../03-contracts-and-models/error-taxonomy.md) ·
 [Configuration Reference](../05-tech-stack/configuration-reference.md) ·
 [CI & Quality Gates](../06-guides-and-patterns/ci-and-quality-gates.md) ·
-[ADR Log](../08-decisions/README.md)
+[ADR Log](../08-decisions/README.md) ·
+[Foundation Review](../reviews/2026-07-29-foundation-review.md)
 
 ---
 
 ## 🗓️ **Phased Execution Roadmap**
 
-| Phase | Slice | Focus Area | Primary Deliverables | Gate (measurable) |
-| :--- | :--- | :--- | :--- | :--- |
-| **Phase 1** | S0 | Scaffolding & Ports | Package tree, Pydantic v2 schemas, `typing.Protocol` ports, composition root, conformance suite | `mypy --strict` clean; conformance suite green; `lint-imports` passes |
-| **Phase 2** | S0 | Day-Zero Microkernel | SQLite-WAL trajectory store, stdio MCP driver, ReAct microkernel, **cassette replay** | ≥70% resolved on a pinned 30-task suite within budget; 100% of runs replay deterministically |
-| **Phase 3** | S1 | Isolation, Sandbox & LSP | Worktree manager + materialization, **container sandbox + egress allowlist**, warm LSP supervisor, pristine test injection | No write outside the worktree without a grant; no credential reachable inside; parallel runs show zero interference |
-| **Phase 4** | S2 | Memory & AST Chunking | Tree-sitter skeletonizer, lexical (FTS5) + code-graph retrieval — dense tier deferred per [ADR-0014](../08-decisions/0014-defer-dense-retrieval.md), code graph, telemetry logging | recall@10 ≥ target on a labelled query set; retrieval beats the no-retrieval control |
-| **Phase 5** | S3–S4 | System 2 & Self-Improvement | Best-of-N search, hard gates, commit-replay harvester, AOI in shadow mode, Meta-Improver with TCB restrictions | Best-of-N beats single-shot by more than the A/A noise floor; CI rejects 100% of TCB diffs |
+| Phase | Slice / Block | Focus Area | Primary Deliverables | Gate (measurable) | Status |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Phase 1** | S0 scaffold | Scaffolding & Ports | Package tree, Pydantic schemas, Protocols, composition root, port-shape suite | pyright/ruff; contracts green; `lint-imports` | **Done** |
+| **Phase 2** | S0 kernel / Sprint 2 | Day-Zero Microkernel | Trajectory store, ReAct step, dispatch, cassette stub, bus | Kernel unit tests; known defects D1–D18 remain | **Closed** (MCP/OTel cut) |
+| **Phase 2b** | Block 1 / Sprint 3 | Close the loop | ToolUseBlock→ToolCall, ModelRequest v2, digest cassette, 5 tools, evaluator, `run`/`replay` | E2E cassette + replay verify in CI | **Current** |
+| **Phase 2c** | Block 2 / E0-lite | Measure | Harvester, A/A noise floor, bench report | Committed baseline; cassette re-run within floor | Next |
+| **Phase 3** | S1 / Block 5 | Isolation, Sandbox & LSP | Worktrees, container + egress, warm LSP, pristine injection | No grantless out-of-tree writes; no credentials in sandbox | Later |
+| **Phase 4** | S2 / Block 4 | Memory & AST Chunking | Tree-sitter skeletonizer, lexical (FTS5) + code-graph retrieval — dense deferred [ADR-0014](../08-decisions/0014-defer-dense-retrieval.md) | recall@10; retrieval beats no-retrieval | Later |
+| **Phase 5** | S3–S4 | System 2 & Self-Improvement | Best-of-N, hard gates, full E0, AOI shadow, Meta-Improver | Beats A/A floor; CI rejects TCB diffs | Later |
 
 **Note on gates.** "0% crash rate" and "100% passing" are not measurable for a stochastic system without a defined workload; every gate above names a suite, a threshold, and a budget.
+
+**Note on Phase 2 historical prompts below.** Sprint/phase prompts that still mention “stdio MCP” or “OTel” as Phase 2 deliverables are **superseded** — those land in Block 5. Prefer [Sprint 3](../sprints/sprint-3.md) as the executable checklist.
 
 ---
 

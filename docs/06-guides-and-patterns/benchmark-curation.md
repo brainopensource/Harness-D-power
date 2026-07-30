@@ -35,6 +35,8 @@ Only Smoke runs per-PR. The others run nightly and on release tags.
 
 Harvest from the target repository's own history — real commits, reverted and posed as tasks:
 
+> **Planned — Block 2 (E0-lite)** ([STATUS.md](../STATUS.md)).
+
 ```bash
 sagiha bench harvest \
   --repo /path/to/repo \
@@ -118,6 +120,8 @@ A moving benchmark makes every historical comparison meaningless. When the suite
 ## **Establishing the Noise Floor**
 
 Before the suite grades anything:
+
+> **Planned — Block 2**.
 
 ```bash
 sagiha bench --suite s0-core --runs 2 --mode aa --model <exact-version>

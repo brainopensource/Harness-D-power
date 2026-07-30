@@ -88,7 +88,7 @@ _GROUP_INTRO = {
 
 _HEADER = """---
 status: normative
-updated: 2026-07-29
+updated: 2026-07-30
 ---
 
 # **Event Catalog**
@@ -121,7 +121,8 @@ needs a new event is a feature that changes this table, in public, on purpose.
 * Names are `group.past_tense`. Events describe **what happened**, never what should happen — an event
   named as a command is a method call wearing a costume.
 * `schema_version` is per event type, not global.
-* **Replay-relevant** means `sagiha replay --verify-all` asserts on it. Those events are the replay
+* **Replay-relevant** means the future `sagiha replay --verify-all` gate
+  (**Planned — Sprint 3**, [STATUS.md](../STATUS.md)) asserts on it. Those events are the replay
   contract; changing one requires an upcaster
   ([Port Stability](../03-contracts-and-models/port-stability-and-versioning.md)).
 

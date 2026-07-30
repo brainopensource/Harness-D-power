@@ -1,6 +1,6 @@
 ---
 status: rationale
-updated: 2026-07-29
+updated: 2026-07-30
 ---
 
 # **SAGIHA — Super AGI Harness Agent**
@@ -12,6 +12,14 @@ updated: 2026-07-29
 
 > [!NOTE]
 > **Working Proposal Disclaimer**: This document represents a proposed architecture and architectural blueprint for SAGIHA, not an imperative or immutable final solution. Further iterative prototyping, benchmarks, and practical evaluations will be conducted to refine and finalize the ultimate harness structure.
+
+> [!IMPORTANT]
+> **Rationale only — not the contract source.** Normative ports and domain models live in
+> `src/sagiha/{ports,domain}/` and [`03-contracts-and-models/`](../03-contracts-and-models/).
+> This file must not define `Protocol` or `BaseModel` interfaces. Agent-facing retrieval must
+> **exclude** `docs/reference/` and `docs/reviews/` (front-matter `status: rationale` /
+> `historical`); otherwise superseded narratives can be served as current design.
+> Implementation truth: [STATUS.md](../STATUS.md).
 
 **Core Thesis:** The intelligence resides exclusively in the LLMs. The harness is a pure, modular, evolvable environment that supplies context, memory, tools, coordination, verification, and recursive self-improvement mechanisms. The system is designed so that its own source code becomes the primary artifact it optimizes until it can generate and evolve arbitrary software projects.
 
@@ -307,14 +315,9 @@ only tracked files, so `.env`, installed dependencies, and build caches are simp
 and every build fails immediately. The lifecycle therefore links or copies
 ignored-but-required artifacts before the agent runs.
 
-**Port:**
-
-```python
-class WorktreeManager(Protocol):
-    async def allocate(self, base_ref: str = "HEAD", branch: str = ...) -> Workspace: ...
-    async def materialize(self, workspace: Workspace) -> None: ...
-    async def release(self, branch: str) -> None: ...
-```
+**Port:** normative contract in `src/sagiha/ports/workspace.py` (`WorktreeManager`, `Workspace`) —
+see [Hexagonal Ports](../03-contracts-and-models/hexagonal-ports.md). This rationale document does
+**not** redefine Protocols.
 
 Note that `allocate` returns a `Workspace`, not a path. Handing out a filesystem path lets
 consumers call `open()` directly, which permanently forecloses substituting a container or
@@ -437,33 +440,17 @@ AOI never replaces the deliberative reasoning of the frontier LLMs. It acts as a
 
 AOI integrates through dedicated Ports. Every prediction is a calibrated object rather
 than a bare float, because a scalar carries no way to express uncertainty and therefore no
-way to decide whether it may be acted upon:
+way to decide whether it may be acted upon.
 
-```python
-class Prediction(BaseModel):
-    value: float
-    confidence: float
-    calibrated: bool  # uncalibrated predictions may never gate a decision
-    shadow_mode: bool = True  # predict and log; do not act
+Contracts live in code — do **not** redefine them here:
 
+* `Prediction` — `src/sagiha/domain/work.py`
+* `RewardPredictor`, `FailurePredictor`, `CostPerformanceEstimator` — `src/sagiha/ports/advisory.py`
+* Normative rationale — [AOI Coprocessors](../05-tech-stack/aoi-coprocessors.md)
 
-class RewardPredictor(Protocol):
-    async def score_step(self, run_id: str, step_id: StepId) -> Prediction: ...
+(`ConfigurationSelector` is design rationale only; it is not a shipped port yet — deferred with AOI.)
 
-
-class FailurePredictor(Protocol):
-    async def predict_risk(self, run_id: str) -> Prediction: ...
-
-
-class ConfigurationSelector(Protocol):
-    async def select(self, task: TaskSpec, candidates: list[Config]) -> list[RankedConfig]: ...
-
-
-class CostPerformanceEstimator(Protocol):
-    async def estimate(self, task: TaskSpec) -> Prediction: ...
-```
-
-These Ports are wired in the composition root.
+These Ports are wired in the composition root when AOI is enabled.
 Concrete adapters may be implemented with:
 
 > * Gradient Boosting (XGBoost, LightGBM, CatBoost)  

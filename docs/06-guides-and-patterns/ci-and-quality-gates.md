@@ -12,6 +12,10 @@ The architecture's guarantees are only real to the extent CI enforces them. Ever
 
 ## **The Gate Sequence**
 
+> **Target CI sequence.** Steps through `lint-imports` and `pytest tests/contracts/` are enforced today.
+> Full unit/integration coverage and `sagiha replay --verify-all` are **Planned — Sprint 3**
+> ([STATUS.md](../STATUS.md)); the replay job is currently a skip stub until that sprint exits.
+
 ```bash
 ruff format --check .          # formatting
 ruff check .                   # lint
@@ -19,9 +23,9 @@ pyright                        # types, strict — BLOCKING
 mypy src/                      # types, second opinion — advisory
 lint-imports                   # CAR layer boundaries — BLOCKING
 pytest tests/contracts/        # port conformance, all adapters — BLOCKING
-pytest tests/unit/             # unit
-pytest tests/integration/      # integration
-sagiha replay --verify-all     # trajectory replay determinism — BLOCKING
+pytest tests/unit/             # unit — Planned Sprint 3 (must run in CI)
+pytest tests/integration/      # integration — Planned
+sagiha replay --verify-all     # trajectory replay determinism — Planned Sprint 3 — BLOCKING
 ```
 
 Four are blocking for architectural rather than hygienic reasons: types, layer contracts, conformance, and replay determinism. Each corresponds to a property the rest of the documentation *claims*, and a claim nobody checks is decoration.
@@ -156,6 +160,8 @@ subtracts capability but never supervision — the failure mode where a config k
 privilege-escalation surface.
 
 ## **Replay Determinism**
+
+> **Planned — Sprint 3**. Target CI gate; currently a skip stub until Sprint 3 exits ([STATUS.md](../STATUS.md)).
 
 ```bash
 sagiha replay --verify-all --fixtures tests/fixtures/cassettes/

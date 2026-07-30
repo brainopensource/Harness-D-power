@@ -1,7 +1,10 @@
 # **Sprint 2: Day-Zero Baseline Kernel, Replay & MCP Driver**
 
-> **Status**: In Progress (Core Microkernel & Dispatched Replay Complete)  
-> **Target**: Baseline runnable ReAct microkernel, SQLite-WAL trajectory storage, capability dispatch choke point, stdio MCP driver, and cassette record/replay adapter.
+> **Status**: Closed (2026-07-29) — core microkernel delivered; MCP/OTel deferred to Block 5.
+> Known defects D1–D18 tracked in [Sprint 3](./sprint-3.md) and
+> [STATUS.md](../STATUS.md).
+> **Target (historical)**: Baseline ReAct microkernel, SQLite-WAL trajectory storage, capability
+> dispatch choke point, cassette record/replay adapter.
 
 ---
 

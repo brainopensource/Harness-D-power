@@ -4,15 +4,16 @@
 > **Language**: Rust
 > **License**: Custom (source-available, see LICENSE)
 > **Source Path**: `src/grok_build/`
-> **Source Files**: ~2,325 Rust files across ~63 crates
+> **Source Files**: ~2,402 Rust files across 75 crates
 
 ---
 
 ## 1. Project Identity
 
 Grok Build is xAI's Rust-based coding agent infrastructure powering Grok's autonomous
-coding capabilities. It is organized as a large Cargo workspace with ~63 crates
-providing modular, strongly-typed components for every aspect of an AI coding agent.
+coding capabilities. It is organized as a large Cargo workspace with 75 crates
+(under `crates/codegen/`, `crates/common/`, and `crates/build/`) providing modular,
+strongly-typed components for every aspect of an AI coding agent.
 
 | Attribute | Value |
 |-----------|-------|
@@ -34,12 +35,21 @@ providing modular, strongly-typed components for every aspect of an AI coding ag
 | **State** | `xai-chat-state` | Conversation state, token tracking |
 | **IPC Protocol** | `xai-acp-lib` | Agent Client Protocol for UI↔agent communication |
 | **Sampling** | `xai-grok-sampler`, `xai-grok-models` | LLM API integration |
-| **Workspace** | `xai-grok-workspace`, `xai-fast-worktree` | File system operations |
+| **Workspace** | `xai-grok-workspace`, `xai-fast-worktree` | FS, VCS, permissions, tool config wiring |
 | **MCP** | `xai-grok-mcp` | Model Context Protocol integration |
-| **Persistence** | `xai-sqlite-journal` | SQLite-based persistent storage |
+| **SQLite journal safety** | `xai-sqlite-journal` | Network-filesystem-aware journal-mode selection (not general persistence — see §6) |
 | **Sub-agents** | `xai-grok-subagent-resolution` | Sub-agent coordination |
 | **PTY Control** | `ptyctl`, `ptyctl-cli` | Terminal multiplexing |
 | **Testing** | `xai-grok-test-support`, `xai-test-utils` | Hermetic test infrastructure |
+| **Tool Runtime (Computer Hub)** | `xai-tool-runtime`, `xai-tool-protocol`, `xai-tool-types`, `xai-computer-hub-core`, `xai-computer-hub-mcp-adapter`, `xai-computer-hub-sdk` | Transport-agnostic tool contract, wire protocol, registry/resolver, MCP bridge |
+| **Compaction** | `xai-grok-compaction` | Transport-agnostic context compaction engine (policy, prompts, selection, assembly) |
+| **Resilience** | `xai-circuit-breaker`, `xai-crash-handler`, `xai-system-power` | Sliding-window circuit breaker; SIGBUS/SIGSEGV crash handler; sleep/wake notifications |
+| **Interjection & Prompting** | `xai-interjection-core`, `xai-prompt-queue` | Mid-turn user interjection buffering; queued-prompt merge rules |
+| **Hooks & Plugins** | `xai-grok-hooks`, `xai-grok-plugin-marketplace` | File-based hook discovery/execution/policy; plugin marketplace browse/install |
+| **Memory & Voice** | `xai-grok-memory`, `xai-grok-voice` | Markdown-based cross-session memory (`~/.grok/memory/`); streaming STT dictation pipeline |
+| **Auth & Secrets** | `xai-grok-auth`, `xai-grok-secrets` | Refresh-aware token resolution; secret redaction utilities |
+| **Workflow** | `xai-workflow` | Multi-phase agent workflow engine/host/journal |
+| **Token estimation** | `xai-token-estimation` | Shared bytes/4 heuristic for `/context`, auto-compact, overflow checks |
 
 ---
 
@@ -127,8 +137,13 @@ The core agent loop is implemented across two key components:
 
 | Component | File | Role |
 |-----------|------|------|
-| `MvpAgent` | `xai-grok-shell/src/agent/mvp_agent/` | The main agent logic |
-| `acp_session` | `xai-grok-shell/src/session/acp_session.rs` | Session actor managing turns |
+| `MvpAgent` | `xai-grok-shell/src/agent/mvp_agent/` (`mod.rs`, `acp_agent.rs`, `agent_ops.rs`, `subagent_coordinator.rs`, ...) | The main agent logic |
+| `SessionActor` | `xai-grok-shell/src/session/acp_session.rs` (struct at L581) | Session actor managing turns — "each session runs as an actor with its own chat history and tool context" |
+
+**Note:** despite the single-file name `acp_session.rs`, the session actor's implementation
+is decomposed across `session/acp_session/` (hooks), `session/acp_session_impl/` (~25 files:
+`run_loop.rs`, `turn.rs`, `tool_dispatch.rs`, `sampler_turn.rs`, `spawn.rs`, ...), and
+`session/acp_session_tests/` (40+ test files).
 
 ```mermaid
 flowchart LR
@@ -197,13 +212,21 @@ Grok Build uses **SQLite** for persistent cross-session storage:
 |-----------|------|-------------|
 | `xai-sqlite-journal` | Dedicated crate | SQLite persistence layer |
 
-**NFS resilience (standout feature):**
-- The system detects if the SQLite database file resides on an NFS mount
-  (common in clustered development environments).
-- On NFS, it automatically degrades from WAL (Write-Ahead Logging) mode to
-  Truncate rollback journal mode.
-- This prevents `SIGBUS` panics caused by peer NFS clients truncating the WAL
-  file, which is a known SQLite failure mode on network filesystems.
+**Network-filesystem resilience (standout feature):**
+- `xai-sqlite-journal::JournalMode::for_db_path()` classifies the parent directory's
+  filesystem and picks `Wal` or `Truncate` accordingly (overridable via the
+  `GROK_SQLITE_JOURNAL_MODE` env var).
+- Detection isn't NFS-only: it recognizes NFS (`NFS_SUPER_MAGIC = 0x6969`), `smbfs`,
+  `cifs`, `afpfs`, `webdav`, FUSE-based mounts (fuse-t/macfuse/osxfuse), and `wekafs`.
+- On any of these, it degrades from WAL (Write-Ahead Logging) mode to Truncate
+  rollback journal mode, and each host opens its own per-host DB file.
+- This prevents `SIGBUS` panics: WAL keeps its wal-index in an mmap'd `-shm` file,
+  and network filesystems don't provide coherent shared memory / reliable POSIX
+  locks — a peer host truncating/rebuilding the `-shm` during WAL recovery rips
+  the backing out from under the mapping.
+- **Scope correction:** this crate handles journal-mode selection only, not general
+  persistence. Session/conversation persistence (JSONL, full-text search) lives in
+  `xai-grok-shell/src/session/storage/`.
 
 **This is brilliant production engineering** — most coding agents silently crash
 in NFS-mounted home directories.
@@ -294,6 +317,16 @@ Tools are registered and invoked via a strongly-typed bridge:
 This separation allows the agent to leverage both local resources and remote
 compute transparently.
 
+**Computer Hub (not covered in the original survey):** a transport-agnostic tool
+subsystem spanning `xai-tool-runtime` (the `Tool` trait, `ToolDispatch`, `ToolError`,
+`ToolCallContext`, `ToolStream` contract), `xai-tool-protocol` (JSON-RPC 2.0 wire
+envelope, handshake), `xai-tool-types` (canonical extensible tool types),
+`xai-computer-hub-core` (`Transport`, `ToolRegistry`, `CompoundResolver`),
+`xai-computer-hub-mcp-adapter` (bridges MCP servers into Hub routing via `McpBridge`),
+and `xai-computer-hub-sdk` (`HubConnectionPool`/`HubConnection` for tool-server and
+harness-side dispatch). This appears to be the unifying layer underneath the
+local/hosted/MCP tool distinction described above.
+
 ---
 
 ## 11. LLM Integration
@@ -305,10 +338,18 @@ compute transparently.
 | API client | `async-openai` (forked) | OpenAI-compatible streaming API |
 
 **Key features:**
-- Uses a **forked `async-openai`** crate for streaming completions, likely
-  customized for xAI's API specifics.
-- Model prefetching (`xai-grok-models`) suggests models can be warmed up or
-  cached before use.
+- Uses a **forked `async-openai`** crate (`our-forks/async-openai`, pinned rev, patched
+  over upstream `0.33.0` with `features = ["responses"]`) for streaming completions —
+  `xai-grok-sampler/src/client.rs` has explicit workaround comments (e.g. "Strip tools
+  that async_openai's rs::Tool can't deserialize", "Inject xAI-specific fields not in
+  async-openai's CreateResponse type").
+- `xai-grok-sampler` is an actor-based sampler (`src/actor/`, `client.rs`, `retry.rs`,
+  `doom_loop.rs`, `stream/{chat_completions,responses,messages,collect}.rs`).
+- **Correction:** `xai-grok-models` does *not* prefetch or warm models. It's a small
+  (~70-line) crate that loads default model IDs from a compile-time-embedded
+  `default_models.json` and exposes resolution helpers (`default_model()`,
+  `default_web_search_model()`, etc.) following a
+  `CLI flag > ENV var > config.toml > remote settings > built-in defaults` precedence.
 - The sampler abstracts all LLM interaction, enabling easy provider switching.
 
 ---
@@ -319,14 +360,18 @@ compute transparently.
 |-----------|------|-------------|
 | Sandbox | `xai-grok-sandbox` | Sandboxed execution environment |
 | Folder trust | `folder_trust.rs` | Trust-level management per directory |
-| Permission mode | `PermissionMode` | Gating based on `ClientType` |
-| Permission events | `PermissionEvent` | Configurable permission triggers |
+| Permission mode | `PermissionMode` (`xai-grok-agent/src/config.rs`) | Gating based on `ClientType` |
+| Permission events | `PermissionEvent`, `ClientType` (`xai-grok-workspace/src/permission/types.rs`) | Configurable permission triggers |
 
 **Permission model:**
-- `PermissionMode` gates operations based on `ClientType` (e.g., interactive user
-  vs. automated pipeline).
-- `folder_trust.rs` manages trust levels per directory — allowing fine-grained
-  control over which parts of the filesystem the agent can modify.
+- `PermissionMode` (variants `Default`, `AcceptEdits`, `Auto`) is defined in
+  `xai-grok-agent/src/config.rs`, not `xai-grok-workspace` — it gates operations based
+  on `ClientType` defined in `xai-grok-workspace/src/permission/types.rs` (e.g.
+  `Generic`/`GrokTui` clients), so the two live in different crates despite being
+  used together.
+- `folder_trust.rs` manages trust levels per directory — it exists in **two** places:
+  `xai-grok-workspace/src/folder_trust.rs` (core logic) and
+  `xai-grok-shell/src/agent/folder_trust.rs` (agent-facing wrapper/prompt flow).
 - `xai-grok-sandbox` provides the actual execution sandbox for tool invocations.
 
 ---
@@ -357,6 +402,14 @@ Grok Build has a **sophisticated goal decomposition system**:
 | Goal Planner | `goal_planner.rs` | Decomposes goals into steps |
 | Goal Tracker | `goal_tracker.rs` | Tracks progress and completion |
 | Goal Strategist | `goal_strategist.rs` | Selects execution strategies |
+
+All four live in `xai-grok-shell/src/session/`, alongside several additional goal-system
+files the original survey missed: `goal_classifier.rs` (+ `goal_classifier/evidence.rs`),
+`goal_evaluator.rs`, `goal_next_step.rs`, `goal_role_tools.rs`, `goal_stop_detector.rs`,
+`goal_summarizer.rs`, plus `session/acp_session_impl/goal.rs` / `goal_support.rs` and
+prompt templates under `session/templates/` (`goal_planner_prompt.md`,
+`goal_strategist_prompt.md`, `goal_summarizer_prompt.md`, `goal_verifier_prompt.md`,
+`goal_rules.md`). The goal system is considerably larger than the four headline actors.
 
 This is implemented within `xai-grok-shell/src/session/` as a set of specialized
 actors:

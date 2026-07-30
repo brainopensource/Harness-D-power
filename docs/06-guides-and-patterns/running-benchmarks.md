@@ -12,6 +12,8 @@ updated: 2026-07-29
 
 Before comparing anything to anything, run the **unmodified** harness twice against the suite and measure the score-delta distribution:
 
+> **Planned — Block 2 (E0-lite)** ([STATUS.md](../STATUS.md)). The methodology below is the target measurement contract; the `sagiha bench` CLI is not available yet.
+
 ```bash
 sagiha bench --suite internal --runs 2 --mode aa
 ```
@@ -26,6 +28,8 @@ Re-measure the floor whenever the model version changes.
 
 Harvest real commits from the target repository's history, revert them, and pose them as tasks with the original diff and tests as ground truth:
 
+> **Planned — Block 2**. Harvester and suite runner land with E0-lite.
+
 ```bash
 sagiha bench harvest --repo /path/to/repo --since 2024-01-01 --limit 200
 sagiha bench --suite commit-replay
@@ -38,6 +42,8 @@ Unbounded, uncontaminated, in-distribution, and self-maintaining as the reposito
 **SWE-bench Lite is not a primary screen**: contaminated across frontier models, Python-only, and shaped as single-repo issue resolution rather than the long-horizon multi-file target. Optimizing against it tunes the harness for a distribution nobody wants. Prefer SWE-bench Verified or Multi-SWE-bench when public comparison is needed, and treat the result as a sanity check rather than the objective.
 
 ### Retrieval (measured separately)
+
+> **Planned — Block 4** (retrieval) after Block 2 measurement substrate exists.
 
 ```bash
 sagiha bench retrieval --labelled-set queries.jsonl   # recall@k
@@ -58,6 +64,8 @@ Reported separately from task success so retrieval regressions are attributable 
 A few hundred tasks × several dollars × k repetitions × many candidates puts a full outer-loop iteration in the thousands of dollars. Use the AOI pre-filter to rank candidates before spending, run the loop on a schedule rather than continuously, and set `governor.max_spend_usd_per_hour` before starting a long sweep.
 
 ## **Trajectory Analysis**
+
+> **Planned — Sprint 3** for `replay`; trajectory CLIs with or after the run loop ([STATUS.md](../STATUS.md)).
 
 ```bash
 sagiha trajectory show <run-id>       # steps, tool calls, diagnostics, scores

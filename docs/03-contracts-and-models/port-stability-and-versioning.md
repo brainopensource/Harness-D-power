@@ -88,9 +88,12 @@ model calls.
 
 ### Replay compatibility window
 
-`sagiha replay --verify-all` asserts byte-for-byte step-sequence equality against recorded cassettes.
-Without a policy, the first change to any event model orphans every cassette and reds CI with no path
-forward.
+The *policy* below is the ADR-0012 target. The CLI gate that enforces it —
+`sagiha replay --verify-all` — is **Planned — Sprint 3** ([STATUS.md](../STATUS.md)); graded
+fidelity (L0/L1/L2) is defined in the [foundation review](../reviews/2026-07-29-foundation-review.md#11-measurement-plan).
+
+`sagiha replay --verify-all` asserts byte-for-byte step-sequence equality against recorded cassettes
+at fidelity L2 for `replay_relevant` events; earlier Sprint 3 work targets L1 digest matching first.
 
 * The current major reads **all** `schema_version`s it has ever written, via upcasters.
 * An **upcaster** is a pure function `v(n) → v(n+1)` in `sagiha/domain/upcasters.py`, chained on read.

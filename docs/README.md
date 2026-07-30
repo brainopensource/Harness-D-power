@@ -78,6 +78,7 @@ Each topic has exactly one owner. Do not restate a contract in two places.
 
 | Module Directory | Status | Primary Documents |
 | :--- | :--- | :--- |
+| 📄 [`STATUS.md`](./STATUS.md) | **Normative** | Implementation truth — what works now vs planned |
 | 📁 [`01-executive/`](./01-executive/) | **Normative** | [vision-and-philosophy.md](./01-executive/vision-and-philosophy.md), [executive-summary.md](./01-executive/executive-summary.md), [glossary.md](./01-executive/glossary.md) |
 | 📁 [`02-architecture/`](./02-architecture/) | **Normative** | [car-model.md](./02-architecture/car-model.md), [microkernel-and-bus.md](./02-architecture/microkernel-and-bus.md), [event-bus-and-hooks.md](./02-architecture/event-bus-and-hooks.md), [entry-points-and-piloting.md](./02-architecture/entry-points-and-piloting.md), [**execution-profiles.md**](./02-architecture/execution-profiles.md), [**extension-model.md**](./02-architecture/extension-model.md), [**remoteable-ports.md**](./02-architecture/remoteable-ports.md), [prompt-architecture.md](./02-architecture/prompt-architecture.md), [context-and-cache-engineering.md](./02-architecture/context-and-cache-engineering.md), [neural-symbolic-memory.md](./02-architecture/neural-symbolic-memory.md), [security-and-threat-model.md](./02-architecture/security-and-threat-model.md), [performance-sidecars.md](./02-architecture/performance-sidecars.md) |
 | 📁 [`03-contracts-and-models/`](./03-contracts-and-models/) | **Normative** | [hexagonal-ports.md](./03-contracts-and-models/hexagonal-ports.md), [domain-schemas.md](./03-contracts-and-models/domain-schemas.md), [**port-stability-and-versioning.md**](./03-contracts-and-models/port-stability-and-versioning.md), [tool-catalog.md](./03-contracts-and-models/tool-catalog.md), [task-and-acceptance.md](./03-contracts-and-models/task-and-acceptance.md), [error-taxonomy.md](./03-contracts-and-models/error-taxonomy.md), [lsp-interface.md](./03-contracts-and-models/lsp-interface.md), [protocols-mcp-a2a.md](./03-contracts-and-models/protocols-mcp-a2a.md) |
@@ -102,18 +103,27 @@ Each topic has exactly one owner. Do not restate a contract in two places.
 
 ## **Start Here**
 
-1. [Vision & Philosophy](./01-executive/vision-and-philosophy.md) — what the harness owns and what it deliberately does not.
-2. [Glossary](./01-executive/glossary.md) — terms carry precise meanings here; skim this first.
-3. [Hexagonal Ports](./03-contracts-and-models/hexagonal-ports.md) — the contracts everything else depends on.
-4. [Tool Catalog](./03-contracts-and-models/tool-catalog.md) — the agent's actual capability surface.
-5. [Port Conformance Testing](./06-guides-and-patterns/port-conformance-testing.md) — what makes adapter swapping real rather than aspirational.
+1. **[Current Status](./STATUS.md)** — what is implemented today vs planned; the only page that answers “can I run this yet?”
+2. [Vision & Philosophy](./01-executive/vision-and-philosophy.md) — what the harness owns and what it deliberately does not.
+3. [Glossary](./01-executive/glossary.md) — terms carry precise meanings here; skim this first.
+4. [Sprint 3](./sprints/sprint-3.md) — near-term executable build contract (close the loop).
+5. [Hexagonal Ports](./03-contracts-and-models/hexagonal-ports.md) — the contracts everything else depends on.
 6. [ADR Log](./08-decisions/README.md) — every binding decision, with what would reverse it.
 7. [Phased Migration Matrix](./07-roadmap/phased-migration-matrix.md) — vertical slices, gates, and deliberate deferrals.
+8. [Foundation Review](./reviews/2026-07-29-foundation-review.md) — current audit of record until Sprint 3 closes.
 
 ---
 
 ## **Build Readiness**
 
-Sprint 1 has **zero open decisions**. Runtime, package manager, type checkers, model SDKs, tool surface, prompt layout, config schema, CI gates, and layer contracts are all pinned — see [Dependencies](./05-tech-stack/dependencies-and-versions.md), [Tool Catalog](./03-contracts-and-models/tool-catalog.md), and [ADR Log](./08-decisions/README.md).
+**Architecture decisions are pinned; the product loop is not shipping yet.** Runtime, package
+manager, type checkers, model SDK strategy, tool surface *design*, prompt layout, config schema,
+CI gates, and layer contracts are decided — see [Dependencies](./05-tech-stack/dependencies-and-versions.md),
+[Tool Catalog](./03-contracts-and-models/tool-catalog.md), and [ADR Log](./08-decisions/README.md).
 
-One artifact remains to be **curated rather than decided**: the pinned 30-task S0 benchmark suite, which must be harvested from a real repository. Method in [Benchmark Curation](./06-guides-and-patterns/benchmark-curation.md). It gates S0's exit criterion, not Sprint 1's start.
+What is **not** ready: `sagiha run` / `replay` / `bench`, a multi-step agent loop, built-in tools,
+an evaluator, and digest-verified replay. The near-term contract is
+[Sprint 3](./sprints/sprint-3.md). Implementation truth: **[STATUS.md](./STATUS.md)**.
+
+Command examples elsewhere in this tree that show `sagiha run`, `sagiha replay`, or `sagiha bench`
+are **target UX** — Planned until the sprint/block named on [STATUS.md](./STATUS.md) exits.

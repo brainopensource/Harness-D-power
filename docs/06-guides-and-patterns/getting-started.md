@@ -1,6 +1,6 @@
 ---
 status: normative
-updated: 2026-07-29
+updated: 2026-07-30
 ---
 
 # **Getting Started & Day-Zero Quickstart**
@@ -8,18 +8,26 @@ updated: 2026-07-29
 > [!NOTE]
 > **Working Proposal Disclaimer**: A working architectural proposal, refined iteratively as practical evaluation progresses.
 
+> [!IMPORTANT]
+> **Implementation truth:** [STATUS.md](../STATUS.md). Today you can verify the scaffold
+> (`pytest tests/contracts/`, `lint-imports`, `sagiha version`). `sagiha run` / `replay` are
+> **Planned — Sprint 3**, not available yet.
+
 ## **Prerequisites**
 
-Python >=3.13, Git, SQLite3, and a container runtime (Docker or Podman). The container runtime is required for autonomous/scheduled operation; optional for local development.
+Python >=3.13, Git, SQLite3. A container runtime (Docker or Podman) is required for
+autonomous/scheduled operation ([ADR-0006](../08-decisions/0006-sandbox-is-the-perimeter.md));
+optional for local interactive development (subprocess sandbox).
 
 ## **Configuration**
 
-A single local-first `config.toml`:
+A single local-first `config.toml` (see [Configuration Reference](../05-tech-stack/configuration-reference.md)).
+Many sections are **planned**; composition today consumes only a subset — STATUS.md and the
+configuration reference mark which fields are live.
 
 ```toml
 [model]
-provider  = "..."          # endpoint and credentials
-mode      = "live"         # or "replay" to run from cassettes with zero API calls
+mode      = "replay"       # live | record | replay — live/record wiring is Sprint 3
 
 [workspace]
 root         = "/path/to/target/repo"
@@ -30,44 +38,59 @@ level = "interactive"      # interactive | hybrid | autonomous | scheduled
 
 [governor]
 max_concurrent_runs   = 2
-max_spend_usd_per_hour = 5.0
-max_lsp_servers       = 4
-
-[sandbox]
-egress_allowlist = ["pypi.org", "registry.npmjs.org"]
+max_spend_usd_per_run = 5.0
 ```
 
-Validated by Pydantic at startup, so misconfiguration fails immediately rather than at the first tool dispatch.
+Validated by Pydantic at startup for security invariants that already exist (e.g. refuse
+subprocess+autonomous, refuse host network without `allow_unsafe`).
 
-## **The Day-Zero Slice (S0)**
+## **Near-Term Goal — Sprint 3 (Close the Loop)**
 
-Slice S0 delivers one thing end-to-end: **the agent resolves a failing test in a single file, verified, logged, and replayable.** That is deliberately unglamorous, and it exercises every layer thinly — which is where the real risk lives.
+Sprint 3 delivers one end-to-end capability: **the agent resolves a failing test in a fixture
+repo, verified by a gate, logged, and replayable from a cassette** — see
+[Sprint 3](../sprints/sprint-3.md).
 
-Components in S0: `ModelProvider` with cassette replay, Pydantic domain models, the dispatch choke point, `PolicyEngine` with capability grants, SQLite-WAL trajectory store, Tree-sitter chunking with FTS5, structured edit application, a pytest runner, and commit-per-step checkpoints.
+Components in scope: fixed tool-call parsing, `ModelRequest` v2, digest-matched cassette,
+OpenAI-compatible (Ollama) adapter, five built-in tools, minimal evaluator, `sagiha run` /
+`sagiha replay --verify`. Retrieval/FTS5, container sandbox, and best-of-N are **out of scope**
+for this sprint (Blocks 4–5 / later).
+
+> **Planned — Sprint 3** target UX:
 
 ```bash
 sagiha run --task "fix the failing test in tests/test_parser.py"
+sagiha replay --run-id <id> --verify
 ```
 
-## **Verify Your Setup**
+## **Verify Your Setup (today)**
 
 ```bash
-# 1. Port conformance — every adapter satisfies its contract
-pytest tests/contracts/
+# 1. Port shape / config contracts
+uv run pytest tests/contracts/ -q
 
-# 2. Replay determinism — the kernel runs with zero API calls
-sagiha replay --run-id <id>
+# 2. Boundary enforcement — agency/ cannot reach runtime/
+uv run lint-imports
 
-# 3. Boundary enforcement — agency/ cannot reach runtime/
-lint-imports
+# 3. Types on the harness package
+uv run pyright src/sagiha
+
+# 4. CLI surface today
+uv run sagiha version
 ```
 
-If all three pass, the architecture's load-bearing guarantees hold on your machine.
+Replay determinism and a full agent run are **not** verifiable until Sprint 3's exit test is green.
 
 ## **What Comes Next**
 
-Slices S1–S4 add sandboxed isolation, measured retrieval, candidate search, and the outer loop. Each has a gate that must pass before the next begins — see the [Phased Migration Matrix](../07-roadmap/phased-migration-matrix.md).
+| Block | Focus | Doc |
+| :--- | :--- | :--- |
+| Sprint 3 / Block 1 | Close the loop | [sprint-3.md](../sprints/sprint-3.md) |
+| Block 2 | E0-lite measurement | [phased-migration-matrix.md](../07-roadmap/phased-migration-matrix.md) |
+| Blocks 3–5 | Authority, retrieval, sandbox/MCP/OTel | [STATUS.md](../STATUS.md) |
 
 ## **Working Order That Avoids the Common Trap**
 
-Build in this order, and resist reordering it: **model port and replay → policy and dispatch → edit application → retrieval → isolation → search → outer loop.** The temptation is to start with the interesting parts — quantization, tree search, sidecars. Those are the parts that will not matter if the boring ones are wrong, and the correct seams are what make deferring them free.
+Build in this order, and resist reordering it: **model port and digest replay → policy and
+dispatch → edit/tools → run loop + gates → measurement → retrieval → isolation → search →
+outer loop.** The temptation is to start with quantization, tree search, or sidecars. Those
+will not matter if the boring path is wrong; correct seams make deferring them free.

@@ -4,7 +4,7 @@
 > **Language**: TypeScript (Node.js / Bun)
 > **License**: Proprietary (source-available)
 > **Source Path**: `src/claude_code/`
-> **Source Files**: ~1,915 TypeScript files
+> **Source Files**: ~1,897 TypeScript files (`.ts`/`.tsx` under `src/`)
 
 ---
 
@@ -177,18 +177,30 @@ passed to the LLM on each turn.
 
 ## 6. Long-Term Memory
 
-Claude Code implements **file-based persistent memory** across sessions:
+Claude Code implements **file-based persistent memory** across sessions, and the
+system is considerably richer than a flat `CLAUDE.md` file. The `src/memdir/`
+module implements a full **auto-memory subsystem** with a typed taxonomy,
+semantic-ish retrieval, and (in team contexts) synced shared memory.
 
-| Mechanism | Storage | Description |
-|-----------|---------|-------------|
+| Mechanism | File | Description |
+|-----------|------|-------------|
+| Memory taxonomy | `memdir/memoryTypes.ts` | Memories are constrained to four types: `user`, `feedback`, `project`, `reference` — each with its own save/use heuristics baked into the system prompt |
+| Memory index | `memdir/memdir.ts` | Writes an `MEMORY.md` entrypoint file (capped at 200 lines / ~25KB) that indexes individual memory files, each with YAML frontmatter (`name`, `description`, `metadata.type`) |
+| Relevance selection | `memdir/findRelevantMemories.ts` | Uses a small/fast model (`sideQuery`) to pick up to 5 relevant memory files from the manifest for a given user query — not embeddings, but an LLM-driven retrieval step |
+| Memory age tracking | `memdir/memoryAge.ts`, `memdir/memoryScan.ts` | Scans and ages memory files to support staleness handling |
+| Team memory sync | `memdir/teamMemPaths.ts`, `services/teamMemorySync/` | A `TEAMMEM` feature-gated path lets memories be shared across a team, with path-traversal sanitization and a secret scanner (`teamMemorySync/secretScanner.ts`) before syncing |
+| Automatic extraction | `services/extractMemories/extractMemories.ts` | Background job that extracts candidate memories from session activity rather than relying solely on explicit user asks |
+| Memory consolidation ("dream") | `services/autoDream/autoDream.ts` | A background consolidation pass (with a lock file to prevent concurrent runs) that periodically merges/prunes memory files, analogous to sleep consolidation |
+| Away-session recap | `services/awaySummary.ts` + `services/SessionMemory/` | Builds a short "where we left off" summary from recent messages and session memory when a session resumes after being away |
 | Session transcripts | `~/.claude/sessions/` | Full conversation logs persisted to disk |
-| Task data | `.claude/` (project dir) | Shared task board files for multi-agent coordination |
 | CLAUDE.md | Project root / directories | User-authored persistent instructions read on every session |
 | Project config | `.claude.json` | Per-project configuration persisted between sessions |
 
-**Notable:** There is no embedding-based vector store or database-backed long-term
-memory. Persistence is entirely file-based, relying on `CLAUDE.md` files as the
-primary mechanism for cross-session knowledge.
+**Notable:** There is still no embedding-based vector store — retrieval is
+LLM-driven manifest selection over flat files, not nearest-neighbor search over
+embeddings. But calling the system "just `CLAUDE.md` files" undersells it: it's a
+structured, typed, self-curating memory store with explicit save/don't-save rules,
+team synchronization, secret scanning, and a background consolidation process.
 
 ---
 
@@ -203,11 +215,15 @@ the Language Server Protocol (LSP)**.
 |-----------|------|-------------|
 | LSP Tool | `src/tools/LSPTool/LSPTool.ts` | Exposes standard LSP methods as tools |
 
-**LSP methods exposed to the LLM:**
+**LSP methods exposed to the LLM** (`tools/LSPTool/LSPTool.ts`):
 - `workspace/symbol` — find symbols across the workspace
 - `textDocument/definition` — go to definition
 - `textDocument/references` — find all references
 - `textDocument/hover` — get type information
+- `textDocument/documentSymbol` — outline symbols in a single file
+- `textDocument/implementation` — find implementations of an interface/abstract member
+- `textDocument/prepareCallHierarchy` — incoming/outgoing call hierarchy
+- `textDocument/didOpen` — sent internally before other operations, since most LSP servers require a file to be "open" first
 
 This means the LLM can leverage the same code intelligence that IDEs use (TypeScript
 language server, Pyright, gopls, etc.) without the agent needing to implement any
@@ -283,21 +299,42 @@ Tools are built using `buildTool()` from `Tool.ts`, which enforces:
 - Permission checks before execution
 - Structured result formatting
 
-**Built-in tools include:**
+**Built-in tools** (`src/tools/`, ~40 tool directories — the table below is not
+exhaustive):
 | Tool | Purpose |
 |------|---------|
 | `FileEditTool` | Edit files via string replacement |
 | `FileWriteTool` | Create/overwrite files |
-| `ReadFileTool` | Read file contents |
+| `FileReadTool` | Read file contents (doc previously said `ReadFileTool` — the actual name is `FileReadTool`) |
+| `NotebookEditTool` | Edit Jupyter notebook cells |
 | `GrepTool` | Ripgrep-based text search |
 | `GlobTool` | File pattern matching |
 | `LSPTool` | Language server integration |
-| `AgentTool` | Spawn sub-agents |
-| `TaskCreateTool` | Create tasks for coordination |
-| `TaskUpdateTool` | Update task status |
-| `TaskListTool` | List active tasks |
-| `BashTool` | Execute shell commands |
-| MCP-proxied tools | Dynamically loaded from MCP servers |
+| `BashTool` / `PowerShellTool` | Execute shell commands (POSIX and Windows) |
+| `AgentTool` | Spawn sub-agents (single agent, optionally in an isolated worktree) |
+| `TeamCreateTool` / `TeamDeleteTool` | Spawn and tear down a multi-agent **team/swarm** (distinct from single-agent `AgentTool`) |
+| `SendMessageTool` | Send a message to a running agent/teammate to resume or steer it |
+| `TaskCreateTool` / `TaskUpdateTool` / `TaskListTool` / `TaskGetTool` / `TaskOutputTool` / `TaskStopTool` | Shared task board: create, update, list, inspect, read output from, and stop tasks |
+| `SkillTool` | Invoke a packaged skill |
+| `ToolSearchTool` | Look up deferred/not-yet-loaded tool schemas on demand |
+| `TodoWriteTool` | Maintain an in-session todo/plan list |
+| `EnterPlanModeTool` / `ExitPlanModeTool` | Toggle read-only planning mode |
+| `EnterWorktreeTool` / `ExitWorktreeTool` | Explicit git worktree isolation controls |
+| `ScheduleCronTool` | Schedule recurring/cloud-run agent invocations |
+| `WebFetchTool` / `WebSearchTool` | Fetch a URL / perform a web search |
+| `AskUserQuestionTool` | Ask the user a structured clarifying question |
+| `ConfigTool` | Read/update harness configuration |
+| `MCPTool` / `ListMcpResourcesTool` / `ReadMcpResourceTool` / `McpAuthTool` | MCP-proxied tools, resource listing/reading, and MCP OAuth |
+| `SleepTool` | Pause execution for a duration (e.g. polling loops) |
+| `SyntheticOutputTool` | Emit synthetic/structured output for internal worker flows |
+| `REPLTool` | Interactive REPL execution |
+| `BriefTool` | Produce a condensed brief/summary |
+
+Tool availability is further gated by feature flags — e.g. `isAgentSwarmsEnabled()`
+gates `TeamCreateTool`/`TeamDeleteTool`, and `coordinator/coordinatorMode.ts`
+restricts *internal worker* agents to a narrower allowlist
+(`TeamCreate`, `TeamDelete`, `Agent`, `Bash`, `FileRead`, `SendMessage`,
+`SyntheticOutput`, `TaskStop`) than a normal top-level session.
 
 ---
 
@@ -349,13 +386,24 @@ Claude Code has a sophisticated **pluggable permission system**:
 
 ## 13. Multi-Agent / Sub-Agent Support
 
-Claude Code has **first-class sub-agent support** with a standout feature:
+Claude Code has **first-class sub-agent support**, and it goes beyond a single
+`AgentTool` — there is a distinct, feature-gated **Teams/swarm layer** on top of it.
 
 | Component | File | Description |
 |-----------|------|-------------|
-| Agent tool | `src/tools/AgentTool/AgentTool.tsx` | Spawns sub-agents |
-| Task tools | `src/utils/tasks.ts` | Shared task board for coordination |
+| Agent tool | `src/tools/AgentTool/AgentTool.tsx` | Spawns a single sub-agent |
+| Team tools | `src/tools/TeamCreateTool/`, `src/tools/TeamDeleteTool/` | Create/tear down a named team of teammates that coordinate via the task board; gated by `isAgentSwarmsEnabled()` |
+| Coordinator mode | `src/coordinator/coordinatorMode.ts` | Restricts internal worker agents spawned as part of a team to a narrow tool allowlist (team/agent/bash/file-read/send-message/task-stop) distinct from a normal session's tools |
+| Send-message tool | `src/tools/SendMessageTool/` | Lets an agent (or the user) resume/steer a running teammate mid-task |
+| Task tools | `src/utils/tasks.ts`, `src/tools/TaskCreateTool/` etc. | Shared task board for coordination |
 | Lock files | `src/utils/lockfile.ts` | File-system locks for concurrent access |
+
+**Teams vs. single AgentTool:** `TeamCreateTool` stands up `~/.claude/teams/{team-name}/`
+and `~/.claude/tasks/{team-name}/` directories that multiple teammates read/write
+concurrently (lock-protected), and `TeamDeleteTool` refuses to clean up while any
+member is still active. This is a heavier-weight coordination primitive than a
+single `AgentTool` spawn/return call — it's built for standing up a persistent
+group of collaborating agents rather than a one-shot delegated task.
 
 **Git Worktree Isolation:**
 The most innovative feature — sub-agents are spawned in **isolated git worktrees**:
@@ -431,7 +479,40 @@ to decompose tasks. The infrastructure provides the coordination primitives.
 
 ---
 
-## 17. Configuration & Extensibility
+## 17. Remote Bridge (Mobile/Companion Sessions)
+
+Undocumented in the original overview: `src/bridge/` implements a **remote
+session bridge** that lets a Claude Code session be driven from another device
+(e.g. a mobile companion app) rather than only the local terminal.
+
+| Component | File | Description |
+|-----------|------|-------------|
+| Bridge core | `bridge/remoteBridgeCore.ts`, `bridge/bridgeMain.ts` | Establishes and runs the remote bridge connection |
+| Session transport | `bridge/replBridge.ts`, `bridge/replBridgeTransport.ts`, `bridge/replBridgeHandle.ts` | Transports REPL I/O over the bridge |
+| Messaging | `bridge/inboundMessages.ts`, `bridge/inboundAttachments.ts`, `bridge/bridgeMessaging.ts` | Handles inbound messages/attachments from the remote client |
+| Auth | `bridge/jwtUtils.ts`, `bridge/trustedDevice.ts`, `bridge/workSecret.ts` | JWT-based auth and trusted-device pairing for the bridge |
+| Permission callbacks | `bridge/bridgePermissionCallbacks.ts` | Routes permission prompts to the remote device |
+| Session creation | `bridge/createSession.ts`, `bridge/codeSessionApi.ts`, `bridge/sessionRunner.ts` | Creates/runs a bridgeable session and exposes a session API |
+
+This is effectively a mobile/remote control plane bolted onto the same session
+state used by the terminal UI — permission prompts, tool execution, and REPL
+output are all mirrored across the bridge to a remote client.
+
+---
+
+## 18. Voice Input
+
+`src/services/voice.ts` and related files implement **push-to-talk voice input**:
+
+| Component | File | Description |
+|-----------|------|-------------|
+| Audio capture | `services/voice.ts` | Native audio capture (`cpal`-based) on macOS/Linux/Windows, with a fallback to `sox rec` / ALSA `arecord` on Linux |
+| Streaming STT | `services/voiceStreamSTT.ts` | Streams captured audio to a speech-to-text backend |
+| Keyterm biasing | `services/voiceKeyterms.ts` | Supplies domain/keyterm hints to bias transcription |
+
+---
+
+## 19. Configuration & Extensibility
 
 | Mechanism | File | Scope |
 |-----------|------|-------|
@@ -449,7 +530,7 @@ to decompose tasks. The infrastructure provides the coordination primitives.
 
 ---
 
-## 18. Testing & Quality
+## 20. Testing & Quality
 
 **No test files** (`*.test.ts`, `*.spec.ts`) are present in the distributed source
 tree. Tests were stripped before packaging/distribution.
@@ -459,7 +540,7 @@ is configured via `tsconfig.json` with strict mode.
 
 ---
 
-## 19. Key Strengths
+## 21. Key Strengths
 
 1. **Git Worktree Isolation** — Spawning sub-agents in isolated worktrees is a
    genius approach to safe parallel execution. Sub-agents can freely edit files
@@ -483,7 +564,7 @@ is configured via `tsconfig.json` with strict mode.
 
 ---
 
-## 20. Key Weaknesses / Gaps
+## 22. Key Weaknesses / Gaps
 
 1. **File Editing Fragility** — The literal `old_string` → `new_string` replacement
    is brittle. LLM whitespace hallucination frequently causes edit failures.
@@ -496,8 +577,10 @@ is configured via `tsconfig.json` with strict mode.
 3. **No Semantic Search** — Despite being a code agent, there is no embedding-based
    semantic search. All search is literal (ripgrep) or LSP-based.
 
-4. **No Database-Backed Memory** — Long-term memory relies entirely on flat files
-   (`CLAUDE.md`, session logs). No structured query capabilities over history.
+4. **No Database-Backed Memory** — Even accounting for the typed auto-memory
+   system (§6), retrieval is still flat-file + LLM-driven manifest selection, not
+   embeddings or a queryable store. There's no structured query capability (e.g.
+   "show me all `feedback` memories from the last month") over history.
 
 5. **No Test Suite** — The distributed source contains no tests, making it
    impossible to verify correctness or run regression tests.
@@ -508,7 +591,7 @@ is configured via `tsconfig.json` with strict mode.
 
 ---
 
-## 21. Lessons for SAGIHA
+## 23. Lessons for SAGIHA
 
 ### Patterns to Adopt
 
@@ -520,6 +603,9 @@ is configured via `tsconfig.json` with strict mode.
 | **Auto-compaction** | Dynamic conversation summarization to manage long sessions within token limits. |
 | **`CLAUDE.md`-style project files** | Let users provide persistent per-project instructions via markdown files. |
 | **Zod-validated tool schemas** | Use strong schema validation (Pydantic in SAGIHA's case) for all tool inputs/outputs. |
+| **Typed memory taxonomy** | Constrain long-term memory to a small set of explicit types (user/feedback/project/reference) with save/don't-save rules, instead of one undifferentiated notes file. Keeps memory precise and prevents it from absorbing things better derived from code/git. |
+| **Background memory consolidation** | A periodic "dream" pass (`services/autoDream`) that merges/prunes stale memories keeps the memory store from growing unbounded, without requiring the user to curate it manually. |
+| **Tiered multi-agent primitives** | Distinguish a lightweight single sub-agent spawn (`AgentTool`) from a heavier persistent multi-agent team (`TeamCreateTool`/`TeamDeleteTool`) with its own restricted tool allowlist for internal workers. Don't force every delegation through the same heavyweight mechanism. |
 
 ### Anti-Patterns to Avoid
 

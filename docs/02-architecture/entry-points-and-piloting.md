@@ -45,6 +45,8 @@ The architectural claim worth stating plainly: **adding a channel requires zero 
 
 `typer` for commands, `rich` for rendering. The TUI is an `Observer` on the event bus with no privileged access whatsoever — it sees exactly what a remote pilot sees.
 
+> **Planned — Sprint 3** ([STATUS.md](../STATUS.md)). Today only `sagiha version` is available. The commands below are the target UX for the closed loop.
+
 ```bash
 sagiha run --task "fix the failing test in tests/test_parser.py"
 sagiha run --spec task.yaml --autonomy hybrid
@@ -57,6 +59,8 @@ Interactive approval prompts are the CLI's rendering of `ApprovalRequested`; the
 ### 2. Headless / CI
 
 The same entry point with no TTY. Exit code reflects the terminal `GateReport`; the trajectory is written for later inspection.
+
+> **Planned — Sprint 3** (autonomous/scheduled profiles harden further in later blocks).
 
 ```bash
 sagiha run --spec .sagiha/tasks/nightly-lint.yaml --autonomy autonomous --json

@@ -1,12 +1,19 @@
 ---
 status: rationale
-updated: 2026-07-29
+updated: 2026-07-30
 ---
 
 # **Engineering Specification and Research Brief: SOTA Meta-Harness and Infrastructure for Autonomous LLM Coding Agents (SAGIHA)**
 
 > [!NOTE]
 > **Working Proposal Disclaimer**: This document represents a proposed architecture and architectural blueprint for SAGIHA, not an imperative or immutable final solution. Further iterative prototyping, benchmarks, and practical evaluations will be conducted to refine and finalize the ultimate harness structure.
+
+> [!IMPORTANT]
+> **Rationale / research brief — not normative.** Binding decisions live in [`08-decisions/`](../08-decisions/)
+> and modular docs `01`–`07`. Superseded narratives (e.g. quantization product names, earlier
+> trace-ownership wording) may appear under warning banners for historical context.
+> Agent-facing retrieval must **exclude** `docs/reference/` and `docs/reviews/`.
+> Implementation truth: [STATUS.md](../STATUS.md).
 
 ## **Ecosystem Benchmarking and Theoretical Infrastructure Analysis**
 
@@ -326,7 +333,7 @@ SAGIHA employs Recursive Harness Self-Improvement (RHI) to systematically evolve
 
 The outer-loop self-evolution framework operates continuously across four operational steps:
 
-> 1. **Trajectory Ingestion**: Traces, tool logs, and step scores are written to an append-only Trajectory Store instrumented with OpenTelemetry, following the OTel **GenAI semantic conventions** so ecosystem tooling works without bespoke adapters. The span log and the trajectory store are one source of truth with one derived from the other, never two stores of the same facts drifting apart.
+> 1. **Trajectory Ingestion**: Traces, tool logs, and step scores are written through the **EventBus** and persisted by independent subscribers (TrajectoryStore and, later, an OTel GenAI exporter), following the OTel **GenAI semantic conventions** so ecosystem tooling works without bespoke adapters. The EventBus is the single source of truth; the span log and the trajectory store are **not** derived from each other — see [Microkernel & Bus](../02-architecture/microkernel-and-bus.md).
 > 2. **Mutation Proposal**: A Meta-Improver agent reviews failure patterns and proposes targeted mutations, restricted to the writable surface defined below.
 > 3. **Multi-Tier Verification**: see gates below.
 > 4. **Deployment**: Validated mutations are staged for **human sign-off**. They do not self-deploy.
