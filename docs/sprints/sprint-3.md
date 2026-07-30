@@ -1,6 +1,6 @@
 # **Sprint 3: Close the Loop — First Runnable, Replayable, Measured Agent Step Chain**
 
-> **Status**: **3a closed (2026-07-30, exit test green in CI)** · 3b next
+> **Status**: **3a closed (2026-07-30, exit test green in CI)** · **3b closed (2026-07-30)**
 > **Source**: [2026-07-29 Foundation Review](../reviews/doing/2026-07-29-foundation-review.md) — Block 1,
 > narrowed by the [2026-07-30 Final Review](../../final_review_sagiha_concept_and_plan.md) §5.6/§11 (**C3**).
 > **Target**: `sagiha run` completes a small coding task end-to-end on a cassette in CI; `sagiha
@@ -13,7 +13,10 @@
 > evaluator, a CLI, resume, and a bus rewrite. **3a is the closed loop** — the smallest slice that
 > makes the exit test below true. **3b is hardening** — resume, bus resilience, and deny-path
 > coverage that must land before the loop is trusted with longer or riskier runs. 3a's exit test is
-> now green in CI; 3b has not started.
+> green in CI; **3b's six items and the five remaining refactor debts (R1/R4/R5/R9/R11) are closed
+> as of 2026-07-30** — see the 3b section below for evidence per item, and
+> [`todo_list_development.md`](../../todo_list_development.md#-refactor-register--must-be-remade)
+> for the refactor register.
 
 ---
 
@@ -212,33 +215,79 @@ Workflow DAG / `PRDSpec` / `StoryBoard` (ADR-0018 — gated on Block 2 ablation,
 
 ---
 
-## 🅱️ **Sprint 3b — Hardening**
+## 🅱️ **Sprint 3b — Hardening — ✅ CLOSED (2026-07-30)**
 
 **Exit condition:** 3a's exit test is green in CI (not merely implemented on a branch), and the
-items below land without reopening 3a's checklist.
+items below land without reopening 3a's checklist. All six items and the five open refactor debts
+(R1/R4/R5/R9/R11) landed in one pass; the full suite (`pytest tests/ --cov`, 76 tests), `ruff` +
+`ruff format --check`, `pyright`, `lint-imports`, `gen_event_catalog.py --check`, and
+`sagiha replay --verify` against the committed fixture were all re-run green afterward, matching
+the same "CI green, not just implemented" bar the final review's C3 set for 3a.
 
-- [ ] **1. Resumable run state (D9)** — add a `runs` table (run_id, task, status, updated_at);
-  derive step `seq` from `TrajectoryStore`, not engine memory; `sagiha run --resume <run_id>`
-  continues without seq collisions.
-- [ ] **2. `anyio` bus correctness (D16, D17)** — construct one `ToolCallRequested` instance for
-  both emit and intercept; add observer timeout + quarantine (doc-specified behavior in
-  `event-bus-and-hooks.md`); replace raw `asyncio` primitives with `anyio` per AGENTS.md.
-- [ ] **3. Kernel required ports non-optional (D14)** — `model_provider`, `policy_engine`,
-  `resource_governor`, `tool_registry`, `trajectory_store` become mandatory; `build_kernel` fails
-  at composition when unbindable. Profile-optional ports stay `| None`.
-- [ ] **4. Security deny-path tests (U1, D8)** — beyond 3a's grant-expiry check:
-  - [ ] A tool in `always_gate` is refused with `requires_human=True` and emits `ToolCallDenied`.
-  - [ ] Interceptor denial and interceptor timeout both block execution (fail-closed).
-- [ ] **5. Provenance filtering (D7)** — fix `InMemoryMemory.recall` to honor `min_provenance`, with
-  a test.
-- [ ] **6. NFS / non-local filesystem SQLite journal mode probe** — WAL is currently assumed; a long
-  unattended run on a non-local filesystem can SIGBUS without a probe and fallback (final review
-  §11.4, G21 family — cheap, high value).
+- [x] **1. Resumable run state (D9)** — added a `runs` table (run_id, task_json, status,
+  updated_at) to `SQLiteTrajectoryStore`, exposed as `TrajectoryStore.upsert_run`/`get_run`
+  (`ports/trajectory.py` PORT_VERSION 2). `RunLoop.run(task, ctx, *, resume=True)` derives the
+  starting `seq` from `steps_for_run`'s high-water mark — never from engine memory — and folds
+  prior steps back into both the returned `steps` list and a reconstructed prompt history.
+  `sagiha run --resume <run_id>` loads the stored `TaskSpec` and continues; `goal` becomes
+  optional and is required only when `--resume` is absent.
+  → `tests/unit/test_run_resume.py` (seq continuation, no primary-key collision, reconstructed
+  history reaches the model), `tests/unit/test_cli_resume.py` (CLI argument handling plus a full
+  two-phase cassette round trip through the CLI's own async entry point).
+- [x] **2. `anyio` bus correctness (D16, D17)** — `kernel/dispatch.py` already constructed one
+  `ToolCallRequested` for both `emit` and `intercept` (verified, not something this pass needed to
+  fix). `EventBus` now runs observers inside an `anyio` task group with `anyio.fail_after` per
+  observer; an observer that raises or times out is logged and **quarantined** — removed from the
+  active set for the remainder of the bus's life — without blocking a healthy observer or failing
+  the run. `intercept` moved from `asyncio.wait_for` to `anyio.fail_after`, same fail-closed
+  semantics. The doc's eight hook points are marked "reserved" where unimplemented, since only
+  `pre_tool` fires today (event-bus-and-hooks.md).
+  → `tests/unit/test_event_bus_hardening.py`.
+- [x] **3. Kernel required ports non-optional (D14)** — turned out already true in the `Kernel`
+  dataclass (`model_provider`, `policy_engine`, `resource_governor`, `tool_registry`,
+  `trajectory_store`, `memory`, `workspace` have no `None` default); only `evaluator`, `indexer`,
+  `code_graph`, `lsp_adapter`, `worktree_manager` are profile-optional. This pass added the
+  regression test that was missing, locking the property in via `dataclasses.fields` inspection
+  plus a `TypeError`-on-missing-args check.
+  → `tests/unit/test_kernel_sprint2.py::test_kernel_mandatory_ports_are_not_optional`.
+- [x] **4. Security deny-path tests (U1, D8)** — both mechanisms already existed in
+  `DefaultPolicyEngine.authorize` (`always_gate` → `requires_human=True`) and `EventBus.intercept`
+  (timeout fails closed); this pass added the missing coverage:
+  - [x] A tool in `always_gate` is refused with `requires_human=True` and emits `ToolCallDenied`.
+  - [x] Interceptor denial and interceptor timeout both block execution (fail-closed).
+  → `tests/unit/test_deny_path_security.py`.
+- [x] **5. Provenance filtering (D7)** — `InMemoryMemory.recall` now ranks `Provenance` by trust
+  (`OPERATOR` > `HARNESS` > `MODEL` > `EXTERNAL`) and filters out anything below
+  `query.min_provenance`.
+  → `tests/unit/test_memory_provenance.py`.
+- [x] **6. NFS / non-local filesystem SQLite journal mode probe** — `_configure_connection` now
+  disables `mmap_size` unconditionally (the SIGBUS vector on network filesystems, independent of
+  journal mode) and probes the *actual* journal mode SQLite grants rather than trusting the
+  request — WAL relies on shared memory that some filesystems silently refuse; when refused, it
+  falls back explicitly to `DELETE` + `synchronous=FULL`.
+  → `tests/unit/test_sqlite_journal_probe.py` (uses `:memory:`, which sqlite3 never grants WAL for,
+  as a reproducible stand-in for a filesystem that rejects it).
+
+### Refactor debts closed alongside 3b
+
+**R1** (`kernel/react.py` deleted, its two tests migrated to drive `RunLoop`), **R4** (evaluator
+moved to `outer_loop/evaluator/GateEvaluator`, bound through the `Evaluator` port — PORT_VERSION 2,
+now takes `RunContext` instead of a bare `branch_id` since dispatching acceptance-criteria tool
+calls needs the full context), **R5** (`car-model.md` and `runtime/__init__.py` now state plainly
+that the Runtime layer has no code until Block 5's sandbox, rather than leaving the empty package
+unexplained), **R9** (compaction's three numbers — headroom 20%, keep-first-N=2, keep-last-M=6 —
+specified in `prompt-architecture.md`), **R11** (`mcp`/`opentelemetry-*`/`lsprotocol`/`watchfiles`
+moved to optional extras; none was imported anywhere in `src/sagiha`). Full detail in
+[`todo_list_development.md`](../../todo_list_development.md#-refactor-register--must-be-remade).
+All 11 refactor debts are now closed; **R10** (unsandboxed `run_command`) is not a debt — it is a
+documented hard constraint that stays open until Block 5.
 
 ### 🚫 Explicit non-goals for 3b
 
 Everything listed as a 3a non-goal remains out of scope for 3b as well; 3b only hardens what 3a
-ships, it does not grow the surface.
+ships, it does not grow the surface. The OpenAI-compatible provider adapter (B.12) and
+`build_kernel`'s `live`/`record` binding (A.4) remain open — they were never 3b items, only 3a's
+tracked fast-follow.
 
 ---
 

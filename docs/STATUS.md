@@ -11,11 +11,14 @@ updated: 2026-07-30
 > disagree, this page wins.
 >
 > **Sprint 3a is closed (2026-07-30).** Its exit test is green in CI, not merely on a branch.
-> Sprint 3b (hardening) has not started.
+> **Sprint 3b (hardening) is closed (2026-07-30)** — same evidentiary bar: full suite green, not
+> merely implemented. Block 2 (E0-lite benchmark harness) is next; the OpenAI-compatible provider
+> adapter (B.12, tracked as a fast-follow since 3a) remains the one item standing between the
+> harness and a run against a real model.
 
 Authority: [2026-07-29 Foundation Review](./reviews/doing/2026-07-29-foundation-review.md),
 narrowed by the [2026-07-30 Final Review](../final_review_sagiha_concept_and_plan.md) ·
-near-term contract: [Sprint 3a (closed) / 3b (next)](./sprints/sprint-3.md).
+near-term contract: [Sprint 3a / 3b (both closed)](./sprints/sprint-3.md).
 
 ## **Doc Audit (C8) — Complete**
 
@@ -26,13 +29,13 @@ than the markdown contracts (X18), the mutation tool is named `apply_edit` every
 `provisional` or `experimental`, none `stable` — matching the three-tier scheme in
 [Port Stability & Versioning](./03-contracts-and-models/port-stability-and-versioning.md) rather
 than a fourth `draft` label an earlier pass introduced (X16, corrected 2026-07-30). Sprint 3 is
-split into **3a** (closed runnable loop — now closed) and **3b** (hardening, not started) per **C3**
-— see [Sprint 3](./sprints/sprint-3.md).
+split into **3a** (closed runnable loop) and **3b** (hardening) per **C3** — both closed
+2026-07-30 — see [Sprint 3](./sprints/sprint-3.md).
 
-## **What Works Now — Sprint 3a closed**
+## **What Works Now — Sprint 3a and 3b closed**
 
-Commit history through the 2026-07-30 path-containment and CI-closure passes. Marked against code,
-not intent:
+Commit history through the 2026-07-30 path-containment, CI-closure, and hardening passes. Marked
+against code, not intent:
 
 | Area | Status |
 | :--- | :--- |
