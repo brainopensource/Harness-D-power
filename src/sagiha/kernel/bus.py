@@ -89,8 +89,7 @@ class EventBus:
                 self._quarantined.add(id(obs))
             except Exception as exc:
                 logger.error(
-                    "Observer error handling event %s: %s; quarantining for the remainder of "
-                    "the run",
+                    "Observer error handling event %s: %s; quarantining for the remainder of the run",
                     event.event,
                     exc,
                     exc_info=True,

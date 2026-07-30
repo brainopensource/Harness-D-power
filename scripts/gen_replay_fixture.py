@@ -21,6 +21,8 @@ import json
 from collections.abc import AsyncIterator
 from pathlib import Path
 
+import anyio
+
 from sagiha.adapters.model.cassette import CassetteEntry, request_digest
 from sagiha.agency.run_loop import RunLoop, make_task
 from sagiha.composition import build_kernel
@@ -88,14 +90,12 @@ async def main() -> None:
     assert result.gate_report.admitted is True, "fixture generation must itself admit"
 
     entries = [
-        CassetteEntry(
-            request=req, response=resp, digest=request_digest(req)
-        ).model_dump(mode="json")
+        CassetteEntry(request=req, response=resp, digest=request_digest(req)).model_dump(mode="json")
         for req, resp in scripted.recorded
     ]
     cassette_path.write_text(json.dumps(entries, indent=2) + "\n", encoding="utf-8")
     for suffix in ("", "-wal", "-shm"):
-        Path(str(trajectory_db) + suffix).unlink(missing_ok=True)
+        await anyio.Path(str(trajectory_db) + suffix).unlink(missing_ok=True)
     print(f"Wrote {len(entries)} cassette entr{'y' if len(entries) == 1 else 'ies'} to {cassette_path}")
 
 

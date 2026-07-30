@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import AsyncIterator
 from pathlib import Path
 
@@ -20,6 +21,7 @@ def test_run_without_goal_or_resume_fails_cleanly() -> None:
 
 
 def test_run_resume_of_unknown_run_id_fails_cleanly(tmp_path: Path) -> None:
+    (tmp_path / "c.json").write_text("[]", encoding="utf-8")
     result = runner.invoke(
         app,
         [
@@ -82,7 +84,9 @@ async def test_run_or_resume_round_trip(tmp_path: Path) -> None:
         [
             Message(
                 role="assistant",
-                content=[ToolUseBlock(call_id="c1", tool_name="run_command", arguments={"command": ["true"]})],
+                content=[
+                    ToolUseBlock(call_id="c1", tool_name="run_command", arguments={"command": ["true"]})
+                ],
             )
         ]
     )
@@ -133,7 +137,7 @@ async def test_run_or_resume_round_trip(tmp_path: Path) -> None:
             request=resumed_request, response=end_turn, digest=request_digest(resumed_request)
         ).model_dump(mode="json")
     ]
-    cassette_path.write_text(__import__("json").dumps(entries), encoding="utf-8")
+    cassette_path.write_text(json.dumps(entries), encoding="utf-8")
 
     # Phase 3: resume through the CLI's own async entry point, now in replay mode with the
     # cassette containing exactly the continuation request.

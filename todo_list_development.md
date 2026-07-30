@@ -2,7 +2,7 @@
 
 > **Source of Truth Alignment:** Based on [`pitch.md`](pitch.md), [`README.md`](README.md), [`docs/STATUS.md`](docs/STATUS.md), [`docs/sprints/`](docs/sprints/), and [`docs/07-roadmap/phased-migration-matrix.md`](docs/07-roadmap/phased-migration-matrix.md).
 >
-> **Last verified:** 2026-07-30 against `HEAD` — 57 tests pass · `pyright` 0 errors · `import-linter` 5/5 contracts kept (agency contract now enforced, not warned) · `ruff` clean · event catalog `--check` green.
+> **Last verified:** 2026-07-30 against `HEAD` — 76 tests pass · `pyright` 0 errors · `import-linter` 5/5 contracts kept (agency contract now enforced, not warned) · `ruff` + `ruff format --check` clean · event catalog `--check` green · `sagiha replay --verify` green.
 >
 > **CI policy:** GitHub Actions now runs the full suite. **D28/D29 are closed** — a `tests` job runs
 > `pytest tests/ --cov` with the 80% floor applied, and the `replay` job invokes the real
@@ -40,11 +40,21 @@
     the exit test and left open as a fast-follow: the OpenAI-compatible provider adapter — no run
     against a real model is possible yet.
   - Closed **5 of 11 refactor debts** in the same pass — **R2, R3, R6, R7, R8**. **R1, R4, R5, R9,
-    R11** remain — see register below.
+    R11** closed in Sprint 3b below.
 * **Sprint 3a-security: Path Containment** — `[x] COMPLETED (2026-07-30)`
   - Closed **D26** (sibling-prefix / symlink escape) and **D27** (`scope_paths` collected but never enforced).
-* **Sprint 3b: Hardening** — `[ ] NEXT`
-  - Target: resumable state (D9), `anyio` bus quarantine + observer timeout (D17), deny-path security tests, provenance filtering (D7), NFS journal probe, plus refactor debts R1/R4/R5/R9/R11.
+* **Sprint 3b: Hardening** — `[x] CLOSED (2026-07-30)`
+  - Resumable run state (D9, `sagiha run --resume`), `anyio` bus observer timeout + quarantine
+    (D16/D17), mandatory kernel ports regression-tested (D14), deny-path security tests beyond
+    grant expiry (U1/D8), `InMemoryMemory.recall` provenance filtering (D7), NFS/non-local
+    filesystem SQLite journal mode probe with automatic fallback.
+  - Closed the remaining **6 of 11** refactor debts — **R1** (`kernel/react.py` deleted, tests
+    migrated to `RunLoop`), **R4** (evaluator moved to `outer_loop/evaluator/`, bound through the
+    `Evaluator` port), **R5** (`car-model.md` and `runtime/__init__.py` now state plainly that
+    Runtime has no code until Block 5, rather than leaving the empty package unexplained), **R9**
+    (compaction's three numbers specified in `prompt-architecture.md`), **R11** (`mcp`,
+    `opentelemetry-*`, `lsprotocol`, `watchfiles` moved to optional extras). All 11 refactor debts
+    are now closed.
 
 ---
 
@@ -142,11 +152,11 @@
 
 ## 🔁 **Refactor Register — Must Be Remade**
 
-Each open item **passes its tests today**. Each is flagged because the shape will cost more later than it does now. Five of eleven closed alongside Sprint 3a; six remain.
+Each closed item passed its tests before being remade — none was a bug, only a shape debt. Five of eleven closed alongside Sprint 3a; the remaining six closed alongside Sprint 3b (2026-07-30). Only **R10** (Block 5's Podman perimeter) is open, and it is a hard product constraint, not a remake — see its row below.
 
 | ID | Item | What is wrong | Remake as | Status |
 | :--- | :--- | :--- | :--- | :--- |
-| **R1** | `kernel/react.py` | Superseded by `agency/run_loop.py`. Two loop implementations coexist; the kernel one is no longer the path taken, but two test files (`test_kernel_sprint2.py`, `test_sprint3a_phase2_3.py`) still import `ReActEngine` | Delete, or demote to a private helper `RunLoop` calls, and migrate those tests | Open — Sprint 3b |
+| ~~**R1**~~ | ~~`kernel/react.py`~~ | **Closed (2026-07-30).** `kernel/react.py` deleted outright — `RunLoop` already superseded it and there was no remaining caller to demote it for. `test_kernel_sprint2.py::test_react_engine_execution` and `test_sprint3a_phase2_3.py::test_react_parses_tool_use_block` migrated to drive `RunLoop` instead of `ReActEngine`, preserving the same regression coverage (end-turn-with-no-tools, and ToolUseBlock→ToolCall resolution+dispatch) | — | **Closed** |
 | ~~**R2**~~ | ~~Grant verification~~ | **Fixed (2026-07-30).** `PolicyEngine.verify_grant(grant_id) -> bool` is now a mandatory Protocol method; `dispatch.py` calls it unconditionally, no `getattr` | — | **Closed** |
 | ~~**R3**~~ | ~~Path scoping fallback~~ | **Fixed (2026-07-30).** No registered schema → `authorize()` returns `allowed=False` ("cannot scope grant"); the key-name-guessing fallback is deleted | — | **Closed** |
 | **R4** | Evaluator location | Gate evaluation lives in `agency/run_loop.py`; `outer_loop/evaluator/` is still a docstring-only package. The evaluator is TCB-adjacent and should not sit in `agency/` | Move to `outer_loop/evaluator/`, bind through the `Evaluator` port | Open — Sprint 3b |
@@ -156,7 +166,7 @@ Each open item **passes its tests today**. Each is flagged because the shape wil
 | ~~**R8**~~ | ~~Port stability labels~~ | **Fixed (2026-07-30).** All 8 ports previously marked `STABILITY = "stable"` (`memory`, `governor`, `model`, `orchestrator`, `policy`, `tool_registry`, `trajectory`, `workspace`) relabeled `provisional` — none has a second adapter. `port-stability-and-versioning.md`'s tier table corrected to match (it had drifted to a fourth `draft` tier that existed in no code) | — | **Closed** |
 | ~~**R9**~~ | ~~Compaction~~ | **Closed (docs, 2026-07-30).** `prompt-architecture.md` now specifies the three numbers normatively: headroom 20%, keep-first-N=2, keep-last-M=6, plus the no-op condition and where the summary turn lands in a trajectory. Compaction remains unimplemented in `agency/run_loop.py` — that was explicitly out of scope for 3a and is not on 3b's checklist — but the algorithm an implementer reaches for is now specified, not invented per-PR | — | **Closed** |
 | **R10** | `run_command` is unsandboxed | `LocalWorkspace.run` sets `cwd` to the root but nothing confines the subprocess. Containment covers *tool paths*, not what a spawned process does | Hard product constraint: **`autonomous` autonomy stays refused until Block 5's Podman perimeter lands.** Document it as a constraint, not a footnote | Open — Block 5 |
-| **R11** | Core dependencies | `pyproject.toml` pins `mcp`, `opentelemetry-*`, `lsprotocol`, `watchfiles` while `STATUS.md` defers all of them. Dependency gravity pulls work toward the periphery | Move to optional extras (C4) | Open — Sprint 3b |
+| ~~**R11**~~ | ~~Core dependencies~~ | **Closed (2026-07-30).** `mcp` → `mcp` extra, `opentelemetry-sdk`/`opentelemetry-exporter-otlp` → `otel` extra, `lsprotocol`/`watchfiles` → `indexing` extra. None was imported anywhere in `src/sagiha` (confirmed by grep before moving), matching `STATUS.md`'s deferral of all four | — | **Closed** |
 
 ---
 

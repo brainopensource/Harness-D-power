@@ -24,9 +24,7 @@ async def test_recall_filters_below_min_provenance() -> None:
         MemoryRecord(content="external web page about the bug", kind="note", provenance=Provenance.EXTERNAL)
     )
 
-    results = await memory.recall(
-        RecallQuery(text="bug", limit=10, min_provenance=Provenance.HARNESS)
-    )
+    results = await memory.recall(RecallQuery(text="bug", limit=10, min_provenance=Provenance.HARNESS))
 
     provenances = {r.record.provenance for r in results}
     assert provenances == {Provenance.OPERATOR, Provenance.HARNESS}

@@ -41,9 +41,7 @@ class InMemoryMemory:
     async def recall(self, query: RecallQuery) -> list[Recall]:
         results: list[Recall] = []
         as_of = query.as_of or utc_now()
-        min_rank = (
-            _PROVENANCE_TRUST_RANK[query.min_provenance] if query.min_provenance is not None else None
-        )
+        min_rank = _PROVENANCE_TRUST_RANK[query.min_provenance] if query.min_provenance is not None else None
         for mem_id, rec in self._records.items():
             if rec.valid_to is not None and rec.valid_to <= as_of:
                 continue
