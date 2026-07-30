@@ -1,6 +1,6 @@
 # **Sprint FE-1: Monorepo Scaffold**
 
-> **Status**: not started
+> **Status**: done
 > **Source**: [Frontend Roadmap — Phase 0](../frontend/roadmap.md#phase-0--scaffold)
 > **Target**: an installable, lintable, typecheckable, testable monorepo with empty apps and empty
 > shared packages. No feature code. This sprint exists so every later sprint is additive.

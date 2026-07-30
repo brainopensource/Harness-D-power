@@ -1,6 +1,6 @@
 # **Sprint FE-2: Walking Skeleton — One Event, From Mock to Pixels**
 
-> **Status**: not started
+> **Status**: doing (protocol types + RunClient scaffolded; mock-engine + GUI/CLI wiring pending)
 > **Source**: [Frontend Roadmap — Phase 1](../frontend/roadmap.md#phase-1--walking-skeleton)
 > **Target**: prove the transport seam (`EventSource` → `RunClient` → both cockpits) end to end with
 > a single hardcoded event, before any real feature is built on top of it. If this seam is wrong,

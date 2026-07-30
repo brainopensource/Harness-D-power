@@ -16,6 +16,18 @@ CAR isolates responsibilities into **three** layers:
 2. **Agency Layer**: deliberation, reasoning loops, context synthesis, sub-task decomposition, delegation. Holds **no reference to Runtime objects** and emits intents only.
 3. **Runtime Layer**: sandboxed execution, worktree management, terminal capture, MCP tool drivers. Returns structured observations without touching agent memory or policy state.
 
+> [!IMPORTANT]
+> **The Runtime layer has no code yet (R5).** `src/sagiha/runtime/` is an intentionally empty
+> package reserved for the sandboxed executor — it is filled in starting Block 5, per
+> [ADR-0006](../08-decisions/0006-sandbox-is-the-perimeter.md). Today's tool execution
+> (`adapters/tools/`, `adapters/workspace/local.py`) runs an unsandboxed dev-mode subprocess
+> confined only by path containment, not a container/gVisor boundary — this is why `autonomous`
+> autonomy stays refused until Block 5 lands (**R10**). The `import-linter` `car-layering`
+> contract already forbids `agency/` from importing either `sagiha.runtime` or `sagiha.adapters`,
+> so the boundary this diagram describes is mechanically enforced against both the future
+> sandboxed path and today's dev-mode one — the empty package does not weaken that contract, it
+> just has nothing in it to violate yet.
+
 ```mermaid
 graph TD
     subgraph AgencyLayer ["Agency Layer: Deliberation & Reasoning"]

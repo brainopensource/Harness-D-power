@@ -85,6 +85,30 @@ Compaction rewrites layer 8 into a summary and resets the cache **once**, delibe
 
 Triggered at task boundaries or when remaining headroom crosses a threshold — never on a per-turn schedule, which would pay the reset cost continuously while saving nothing.
 
+### The Three Numbers (R9)
+
+Prose ("when headroom crosses a threshold") is not an algorithm — the first implementer to hit
+this invents ad-hoc truncation and breaks the stable-prefix ordering the layout above exists to
+protect. Three numbers are normative, not tunable per-call:
+
+| Name | Value | Meaning |
+| :--- | :--- | :--- |
+| **Headroom %** | `20%` | Compaction triggers when remaining context budget (model context window minus stable-prefix layers 1–7) drops below 20% of the model's total context window — checked once per step, before prompt assembly, never mid-turn. |
+| **Keep-first-N** | `2` | The first 2 turns of the append-only tail (layer 8) — the original task framing and the model's first plan/attempt — survive compaction verbatim, uncompressed. Early turns anchor intent; summarizing them away loses the "why" a later turn depended on. |
+| **Keep-last-M** | `6` | The most recent 6 turns survive verbatim. Recent tool output is the highest-value context for the model's immediate next action; compacting it forces a re-read the model just paid for. |
+
+Everything strictly between turn N and turn (total − M) is what compaction rewrites into a
+summary. If total turns ≤ N + M, compaction is a no-op — there is nothing in the middle to
+discard. The summary itself becomes a single synthetic turn inserted at the boundary, tagged
+with the compaction event so a trajectory replay can distinguish "the model said this" from "the
+compactor summarized this."
+
+These three numbers are config, not code — sourced from the same profile mechanism as
+`max_steps_per_run`, so tuning them does not require a harness release; but the default values
+above are what a fresh profile gets, and a profile that omits them inherits these defaults rather
+than failing closed, since compaction absence (not compaction misconfiguration) is the failure
+mode this guards against.
+
 ## **Sub-Agent Prompts**
 
 A sub-agent gets its own assembled prompt with the same layer structure, a **narrowed** tool set matching its reduced grants, and its own task spec. It does not inherit the parent's conversation tail — delegation exists to isolate context, and copying the tail forfeits the benefit.

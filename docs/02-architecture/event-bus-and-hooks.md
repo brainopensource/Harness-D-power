@@ -81,6 +81,12 @@ Interceptors are timeout-bounded, and a timeout is treated as **deny** — faili
 
 ## **Hook Points**
 
+> [!NOTE]
+> Only `pre_tool` fires today (`kernel/dispatch.py`). The other seven are **reserved** — specified
+> here so their name and semantics are fixed before code claims them, not because they are wired.
+> `pre_model`/`post_tool` are the natural next additions as the outer loop grows (Sprint 3b/4);
+> wiring the rest without a real emitter would be dead configuration surface.
+
 | Hook | Fires | Typical use |
 | :--- | :--- | :--- |
 | `pre_model` | Before a provider call | Prompt-size guard, cost ceiling |
