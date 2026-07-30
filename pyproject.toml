@@ -17,6 +17,7 @@ dependencies = [
   "structlog>=24.4",            # structured logging bridged to OTel
   "tree-sitter>=0.23",          # AST parsing
   "tree-sitter-language-pack>=0.7",   # bundled grammars, avoids per-language pins
+  "email-validator>=2.3.0",
 ]
 
 [project.optional-dependencies]
