@@ -14,10 +14,11 @@ forbidden_modules =
     sagiha.adapters
 ignore_imports =
     sagiha.agency.* -> sagiha.ports.*
-# agency/ is an empty stub until S3 (see docs/07-roadmap/phased-migration-matrix.md) — the
-# ignore above legitimately matches nothing yet. warn, not error, on an unmatched ignore so
-# Sprint 1's empty package skeleton doesn't fail this contract; revisit once agency/ has code.
-unmatched_ignore_imports_alerting = warn
+# agency/run_loop.py (Sprint 3a) is the first real code in this package, and it does import
+# sagiha.ports.* — the ignore above now matches, so the contract is no longer vacuous (R6,
+# 2026-07-30). Unmatched-ignore alerting is back to the tool default (error): if a future
+# refactor removes agency's last ports import, that is a signal worth CI failing on, not
+# a quiet no-op.
 
 [importlinter:contract:ports-are-pure]
 name = Ports import nothing internal

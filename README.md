@@ -6,7 +6,7 @@ SAGIHA (Super AGI Harness Agent) is a production-grade, autonomous software engi
 
 Unlike brittle prompt-wrappers or bloated agent frameworks, SAGIHA provides:
 * **Zero Framework Bloat**: Pure Python 3.13 Hexagonal Architecture (`typing.Protocol` + Pydantic + `anyio`).
-* **Capability-Gated Security**: Single dispatch choke point with unforgeable `Grant` tokens.
+* **Capability-Gated Security**: Single dispatch choke point; `Grant` never crosses a port signature and is verified at the point of effect, not merely at issuance.
 * **Declarative Logic Pipelines ("dbt for Agent Logic")**: Composable `WorkflowStep` DAGs (*Prompt → PRD → Story Board → Inner Loop → Verification*).
 * **100% Deterministic Replay**: Zero-network cassette record/replay for byte-for-byte reproducible CI testing.
 * **Empirical Measurement Moat**: Standalone evaluation harness (E0) with an A/A noise floor to prove true capability lift.
@@ -40,7 +40,7 @@ Harness Engineering builds the **deterministic physical & sensory environment** 
 #### **Level 2: Loop Engineering — The Senior Engineer Process**
 Loop Engineering codifies how a senior developer thinks, plans, and executes a complex task. It structures cognition into **decoupled, composable logic pipelines ("dbt for Agent Logic")**:
 * **Macro Planning**: *Prompt → PRDSpec → StoryBoard → TaskSpec*.
-* **Inner Loop (DMARTIC)**: *Design → Measure → Analyze → Review Gate → Test → Improve → Control → Self-Reflect*.
+* **Inner Loop (DMARTIC)**: ReAct → verify → reflect, in practice today; the full eight-stage cycle (*Design → Measure → Analyze → Review Gate → Test → Improve → Control → Self-Reflect*) is the target shape as Measure/Analyze/Review gain their own ports — see [dmartic-inner-loop.md](docs/04-workflows-and-loops/dmartic-inner-loop.md).
 * **Dual-Process Cognitive Switching**: Using System 1 (Fast ReAct) for single-file localized edits, and escalating to System 2 (Deliberate Best-of-N across isolated Git worktrees) for architectural multi-file changes.
 
 #### **Level 3: Meta-Loop Engineering — The Principal / PhD Methodology**
@@ -121,7 +121,7 @@ flowchart LR
 ### 1. **Inner Loop (DMARTIC — Operational Cycle)**
 * **System 1 (Fast)**: Direct ReAct execution for localized, single-file edits.
 * **System 2 (Deliberate)**: Parallel candidate search across isolated Git worktrees with **verifier-guided Best-of-N + sequential repair**.
-* **Cycle**: *Design → Measure → Analyze → Review Gate → Test → Improve → Control → Self-Reflect*.
+* **Cycle**: ReAct → verify → reflect today; the eight-stage *Design → Measure → Analyze → Review Gate → Test → Improve → Control → Self-Reflect* form is the target as remaining stages gain ports.
 
 ### 2. **Outer Loop (RHI — Reflexive Harness Improvement)**
 * Offline, scheduled optimization engine reading trajectory logs (`trajectories.db`).
@@ -134,7 +134,7 @@ flowchart LR
 
 1. **CAR Model Isolation**: Agency code holds **zero references** to tools or runtime objects.
 2. **Single Dispatch Choke Point**: All tool executions route through `kernel/dispatch.py`.
-3. **Unforgeable Grants**: Execution requires a scoped, expiring `Grant` token minted strictly by `PolicyEngine.authorize()`.
+3. **Grants Never Cross a Port**: Execution requires a scoped, expiring `Grant` minted strictly by `PolicyEngine.authorize()` and verified again at the point of effect (`verify_grant`) — "unforgeable" is a slogan in a language with full introspection; reachability, not cryptography, is what actually holds.
 4. **Pristine Test Gate (`tests_unmodified`)**: Evaluator runs tests injected read-only from the base commit, preventing candidates from editing their own grader.
 5. **Container Sandbox Perimeter**: Subprocess execution is wrapped in rootless Podman containers with egress allowlisting.
 
@@ -185,14 +185,16 @@ uv run lint-imports
 uv run sagiha version
 ```
 
-### Planned UX (Sprint 3 / Block 1)
+### Available Now (Sprint 3a — cassette-driven only)
 ```sh
-# Run an autonomous task end-to-end
-sagiha run --task "fix failing test in tests/test_parser.py"
+# Run a coding task end-to-end, driven by a committed cassette
+sagiha run "fix failing test in tests/test_parser.py" --cassette .sagiha/cassettes/default.json
 
-# Replay and verify cassette deterministically
-sagiha replay --run-id <run-id> --verify
+# Replay and verify cassette determinism
+sagiha replay <run-id> --verify --cassette .sagiha/cassettes/default.json
 ```
+Both commands work today, in CI, against a committed cassette. There is no live-model adapter yet
+(`model.mode=live`/`record` fail closed at composition) — see [STATUS.md](docs/STATUS.md).
 
 ---
 
@@ -210,7 +212,7 @@ src/sagiha/
 | :--- | :--- |
 | [`AGENTS.md`](AGENTS.md) | Core architectural invariants, TCB rules, and codebase conventions |
 | [`docs/STATUS.md`](docs/STATUS.md) | Real-time implementation status & defect tracking |
-| [`docs/sprints/sprint-3.md`](docs/sprints/sprint-3.md) | Active Sprint 3 execution checklist (Block 1: Close the loop) |
+| [`docs/sprints/sprint-3.md`](docs/sprints/sprint-3.md) | Sprint 3a (closed) / 3b (next) execution checklist (Block 1: Close the loop) |
 | [`docs/reviews/`](docs/reviews/) | Historical & active review log (`done/`, `doing/`, `todo/`) |
 | [`docs/02-architecture/`](docs/02-architecture/) | Normative architecture specs (CAR model, EventBus, Prompting) |
 | [`docs/03-contracts-and-models/`](docs/03-contracts-and-models/) | Normative hexagonal ports & domain schemas |

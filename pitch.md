@@ -195,21 +195,27 @@ for the next.
 Honesty is part of the pitch, because a harness that overstates itself cannot be trusted to measure
 itself.
 
-**The specification runs well ahead of the code.** The architecture is pinned, the contracts are
-written, and the CI boundaries are real — but the agent cannot yet complete an autonomous tool-using
-step. Capability grants are minted and not yet verified at the point of effect. The evaluation
-harness does not exist. The workflow layer is a decision record, not a module.
-
-That gap is tracked deliberately rather than papered over: [`docs/STATUS.md`](docs/STATUS.md) is the
-single source of implementation truth and outranks every architecture document until the current
-sprint closes. [Sprint 3](docs/sprints/sprint-3.md) exists to close exactly the first rung, and its
-definition of done is a single sentence with no room to negotiate:
+**The specification still runs ahead of the code, but the first rung is now closed.** Sprint 3a's
+exit test — a single sentence with no room to negotiate — is green in CI, not merely on a branch:
 
 > An end-to-end test in CI where the agent, driven by a committed cassette, fixes a failing test in a
 > fixture repository through the dispatch choke point, the run is gate-evaluated, and
 > `sagiha replay --verify` passes on the recording.
 
-One task. Fixed, gated, logged, replayable. Everything in this document is subordinate to that.
+One task. Fixed, gated, logged, replayable. That sentence stopped being aspirational on 2026-07-30.
+
+Two honest caveats keep this from overclaiming. First, it runs against a **committed cassette, not a
+live model** — the OpenAI-compatible provider adapter doesn't exist yet, so nothing has been fixed by
+a real frontier model end to end. Second, the evaluation harness (E0) — the "prove a change helped"
+half of the pitch — still does not exist; measurement is Block 2, deliberately sequenced after this
+rung and before anything self-improving. The workflow layer in §4 is a decision record
+([ADR-0018](docs/08-decisions/0018-native-workflow-dag.md)), not a module, and is gated on Block 2
+showing planning beats no-planning before it becomes one.
+
+That gap is tracked deliberately rather than papered over: [`docs/STATUS.md`](docs/STATUS.md) is the
+single source of implementation truth and outranks every architecture document. [Sprint 3a is
+closed](docs/sprints/sprint-3.md); Sprint 3b (hardening — resumable runs, bus resilience, deny-path
+coverage beyond grant expiry) is next, and Block 2 follows once 3b lands.
 
 ---
 
