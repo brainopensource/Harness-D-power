@@ -1,6 +1,6 @@
 ---
 status: normative
-updated: 2026-07-29
+updated: 2026-07-30
 ---
 
 # **Architecture Decision Records**
@@ -35,6 +35,7 @@ Binding decisions, each with the reasoning that produced it and the conditions t
 | [0015](./0015-benchmark-target-repository.md) | S0 benchmark target: `brainopensource/Harness-D-power` | Accepted |
 | [0016](./0016-container-runtime-podman.md) | Rootless Podman; egress allowlisted at an explicit proxy | Accepted |
 | [0017](./0017-execution-profiles.md) | Execution profiles compose ports; coding is one profile, not the only path | Accepted |
+| [0018](./0018-native-workflow-dag.md) | Macro workflow is a native `WorkflowStep` protocol in `agency/`; no LangGraph/LangChain/Temporal | Accepted |
 
 ## **Template**
 

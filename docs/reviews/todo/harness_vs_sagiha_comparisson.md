@@ -15,7 +15,8 @@ updated: 2026-07-30
 
 ## **1. Scope, Method, and the Honest Baseline**
 
-Four reference harnesses were reviewed from the overviews in this directory, cross-checked against the
+Four reference harnesses were reviewed from the overviews in
+[`docs/reference/harness_examples/`](../../reference/harness_examples/), cross-checked against the
 vendored sources in `src/claude_code/`, `src/grok_build/`, `src/hermes_agent/`, and `src/open_code/`:
 
 | Project | Vendor | Language | Scale | Status |
@@ -27,7 +28,7 @@ vendored sources in `src/claude_code/`, `src/grok_build/`, `src/hermes_agent/`, 
 
 **The baseline must be stated before any comparison is fair.** All four ship. SAGIHA does not.
 `src/sagiha/` currently holds ~2,359 lines: domain models, port Protocols, a partial kernel, and a
-composition root. The [2026-07-29 Foundation Review](../../reviews/2026-07-29-foundation-review.md)
+composition root. The [2026-07-29 Foundation Review](../doing/2026-07-29-foundation-review.md)
 records eighteen code-verified defects in that skeleton, beginning with D1 — *the ReAct loop can never
 dispatch a tool*. The rest of this document compares a **specification** against four **products**.
 
@@ -434,6 +435,58 @@ laptop lid, a killed process, and an OOM. Grok invested in three separate crates
 resumability story is currently "TaskSpec is persisted" plus a foundation review finding that says
 **D9 — run state is unresumable** in the code that exists.
 
+### 2.13 Macro-Workflow Orchestration
+
+This dimension was missing from an earlier draft of this document, and the reason it was missing is
+itself the finding: **no project reviewed here has this layer, so a comparative method could not
+surface it as a gap.** It took an internal design review to name it.
+
+Every dimension above concerns the **inner** loop — `TaskSpec` in, `GateReport` out. This one concerns
+what happens *above* it: turning a paragraph of human intent into an ordered set of verifiable tasks.
+
+| | Decomposition mechanism | Is the plan a first-class artifact? |
+| :--- | :--- | :--- |
+| Claude Code | `TodoWrite` tool — the model maintains a checklist inside the conversation | No. Plan lives in context; lost on compaction |
+| Grok Build | **Eight-actor goal system** — orchestrator, planner, tracker, strategist, classifier, evaluator, stop-detector, summarizer | Partially. Tracked in actor state, but the actors are hard-wired Rust types, not a composable contract |
+| Hermes | Conversational; skills loaded by relevance | No |
+| OpenCode | None — single-turn intent to edits | No |
+| **SAGIHA** | `parent_task_id` decomposition with disjoint file-set closures — **the schema exists, the producer does not** | Not yet. Nothing generates the decomposition |
+
+**Reading.** Grok Build is the only reference project that treats planning as machinery rather than as
+a prompt, and it is not a coincidence that Grok is also the most production-hardened of the four. But
+its goal system is eight concrete actors wired at compile time: you cannot swap the planner, you
+cannot A/B two decomposition strategies, and you certainly cannot *measure* whether the planner
+helped. Everyone else delegates decomposition to the model inside a single conversation, which is why
+none of the four can gate, replay, or measure a **plan** as an artifact. The methodology kits circling
+this space (SpecKit, BMAD, GSD) are prompt collections, not execution contracts — they make a human's
+process legible without making an agent's process measurable.
+
+SAGIHA's position is unusual and worth stating precisely: **it has the output schema and not the
+producer.** [Task & Acceptance](../../03-contracts-and-models/task-and-acceptance.md) already
+specifies `parent_task_id` decomposition with disjoint file-set closures — which is the hard half,
+because file-set disjointness is what makes parallel story execution safe. What is absent is anything
+that produces those values. A human writes every `TaskSpec` today.
+
+Where this becomes a genuine SOTA opportunity rather than a missing feature: SAGIHA is the only design
+here where a planning stage *could* be measured. Because `TrajectoryStore` persists every step and E0
+provides an A/A noise floor, a decomposition strategy is a hypothesis that can be tested against
+running the inner loop directly on the raw prompt. **Planning quality becomes a number instead of a
+matter of taste** — and that, not the pipeline itself, is the differentiator. It also makes the macro
+layer the first legitimate RHI target: the outer loop can propose a different decomposition and the
+benchmark can adjudicate.
+
+The corresponding risk is equally specific. A pipeline of LLM planning stages multiplies cost per task
+and adds a failure mode above the loop — a bad `StoryBoard` wastes every downstream step, and unlike
+a bad edit, nothing tests it. This is why the layer is specified with an unusual condition attached:
+no stage enters the tree without an E0 gate showing it beats no-planning, and if planning does not
+beat no-planning, the layer does not ship. Contract and rationale:
+[ADR-0018](../../08-decisions/0018-native-workflow-dag.md). Sequencing is not negotiable — this is a
+non-goal until Sprint 3's exit test is green, because a planner above a loop that cannot dispatch a
+tool (D1) repeats the exact sequencing error the foundation review diagnosed.
+
+**Take from Grok:** that planning deserves dedicated machinery. **Reject from Grok:** hard-wiring it,
+which is what makes it unmeasurable and unswappable.
+
 ---
 
 ## **3. Head-to-Head: SAGIHA vs. Each Project**
@@ -529,7 +582,7 @@ diagnostics, and the discipline of proportion.
 | **Grok Build** | Deepest engineering: scope graphs, non-blocking indexing, production resilience nobody else bothered with | Complexity sprawl; vendor coupling; no agent-quality measurement |
 | **Hermes** | Broadest reach and the only genuine inference-time learning loop | Two remaining monoliths; diagnostics without a code graph; discoverability |
 | **OpenCode** | Maximum clarity per line; clean event-driven boundaries | Limited ambition; archived; reactive-only intelligence |
-| **SAGIHA** | Verification-first: capability security, replay determinism, gates-vs-scores, and a measured noise floor before any self-improvement claim | **Unbuilt.** Specification density far exceeds implementation; skeleton has 18 known defects; weakest exactly where the references are strongest (production resilience, shipped ergonomics, earned learning) |
+| **SAGIHA** | Verification-first: capability security, replay determinism, gates-vs-scores, and a measured noise floor before any self-improvement claim — plus the only design here where *planning quality* could become a measured number | **Unbuilt.** Specification density far exceeds implementation; skeleton has 18 known defects; weakest exactly where the references are strongest (production resilience, shipped ergonomics, earned learning) — and has no producer for the decomposition schema it already specifies |
 
 ---
 
@@ -582,6 +635,7 @@ Each item names the source, the change, and where it lands. Nothing here is norm
 | A10 | **Schema-declared path scoping** — tools declare which schema fields are paths at registration; `authorize()` reads the declaration and enforces containment under `workspace_root` | §7.3 audit | Key-name guessing cannot reach `EditRequest.path`, so the primary mutation tool gets an empty scope. Nested-path tools make the current approach unfixable by extending the key list |
 | ~~A11~~ | ~~Generate the event catalog from `events.py` in CI~~ — **already implemented**; withdrawn | §7.5 audit | `scripts/gen_event_catalog.py --check` is wired into `ci.yml:43`. Apply the same generation pattern to the **port stability table** instead (§8.2) |
 | A12 | **`WorktreeManager.allocate() -> WorkspaceRef`**, not `-> Workspace`; write `test_port_shape.py` | §7.6 audit | The one live violation of the remoteable-ports rule, on precisely the port a container or remote runtime would replace |
+| A13 | **Put real code in `agency/` and `runtime/`** — prompt assembly into `agency/`, tool execution into `runtime/` — then flip `unmatched_ignore_imports_alerting` from `warn` back to `error` in `.importlinter` | §7.7 audit, U1 | The `car-layering` contract is currently self-documented as inert: its own comment says the ignore rule "legitimately matches nothing yet." Sprint 3 B2 and B4 already write this code; the new work is choosing the right package and flipping one setting |
 
 ### Tier B — real capability, land with S2/S3
 
@@ -594,6 +648,7 @@ Each item names the source, the change, and where it lands. Nothing here is norm
 | B5 | **Land `neighbors()` / `backlinks()` on the `Memory` port** | SAGIHA's own S2 flag | The knowledge-net design requires them; honest invalidation is impossible without backlinks |
 | B6 | **Crash, sleep/wake, and resumption handling**; close foundation-review D9 | Grok, Hermes | Long autonomous runs are the differentiator, and they are exactly the workload that meets closed laptops and OOM kills |
 | B7 | **LSP call hierarchy as a fallback** where no `CodeGraph` adapter exists for a language | Claude Code | Extends `callers_of` coverage to every language with a server, at no maintenance cost |
+| B8 | **Native macro-workflow layer** — `WorkflowStep[In, Out]` + `PipelineRunner` in `agency/`, `PRDSpec` → `StoryBoard` → `TaskSpec`, four stages, each boundary an event | Grok's goal system, §2.13 | The one capability gap no reference project exposes. Grok proves planning deserves machinery; SAGIHA already has the output schema (`parent_task_id` + disjoint file sets) and no producer. **Gated:** ships only if E0 shows it beats no-planning — [ADR-0018](../../08-decisions/0018-native-workflow-dag.md) |
 
 ### Tier C — strategic, needs a decision
 
@@ -617,14 +672,19 @@ Each item names the source, the change, and where it lands. Nothing here is norm
 | Command-string blocklisting as security | Claude Code, Hermes | Bypassed by `bash -c`, base64, `$IFS`, any interpreter in the image. Guardrail only — [ADR-0006](../../08-decisions/0006-sandbox-is-the-perimeter.md) |
 | Embedding-first retrieval | (industry default) | [ADR-0014](../../08-decisions/0014-defer-dense-retrieval.md) is right: bad chunking is the likelier cause of poor recall, and embeddings on bad chunks buy a dependency and no recall |
 | Shipping without tests | Claude Code, OpenCode | Conformance suites are the admission gate for adapters; that only works if they ship |
+| Third-party orchestration frameworks (LangGraph, LangChain, Prefect, Temporal) | (industry default) | A framework that calls our steps rather than being called by them moves the dispatch choke point outside `kernel/` — outside the TCB. LangChain assembling its own message list forfeits the prefix rule; a wrapped provider client escapes the cassette. [ADR-0018](../../08-decisions/0018-native-workflow-dag.md) |
+| Deleting `agency/` / `runtime/` to reduce folder count | (internal proposal) | They are the **A** and **R** of CAR. Deleting them voids the layer contracts that are this project's strongest implemented property. The emptiness is real — the fix is code, not amputation (A13, §7.7) |
 
 ---
 
 ## **7. Overengineering Audit — Claim Verification**
 
 An internal audit proposed five overengineering findings and a universality assessment. Each claim was
-checked against `src/sagiha/` and the normative docs at the commit this document describes. Verdicts
-below; **the findings that survive verification are folded into §6 as A9–A12.**
+checked against `src/sagiha/` and the normative docs at the commit this document describes. A later
+design review added two more claims (7 and 8). Verdicts below; **the findings that survive
+verification are folded into §6 as A9–A13 and B8.** The decisions they produced, including the answers
+to the tech-lead questions, are recorded in the
+[Sprint 0 Decision Record](./proj_plan_design_and_docs_improvs.md).
 
 | # | Claim | Verdict | Notes |
 | :--- | :--- | :--- | :--- |
@@ -634,6 +694,8 @@ below; **the findings that survive verification are folded into §6 as A9–A12.
 | 4 | "Evaluator too rigid for unstructured tasks" | **Not a finding** | Already normative policy, verbatim |
 | 5 | "32 event subclasses cause maintenance overhead" | **Count exactly right; concern already solved; fix rejected** | 1 base + **32** subclasses. Catalog is generated and CI-checked already; pruning would destroy audit resolution |
 | 6 | "Universal across MCP / gRPC / JSON / OpenAI API" | **Right about the design, wrong about the status** | A2A is deferred, not native; one port currently violates the rule |
+| 7 | "Prune the empty placeholder folders `agency/`, `aoi/`, `outer_loop/`, `runtime/`" | **Emptiness confirmed; remedy correct for two of four, destructive for the other two** | All four hold a docstring-only `__init__.py`. But `agency/` and `runtime/` are the **A** and **R** of CAR — see §7.7 |
+| 8 | "Workflow flexibility 82/100" | **Understated as a gap, and the only genuinely new finding** | Nothing exists: no `WorkflowStep`, no `PRDSpec`, no `StoryBoard`, no doc above the inner loop. Folded in as §2.13 and B8 |
 
 ### 7.1 Port and doc count — right number, wrong examples
 
@@ -768,6 +830,52 @@ it is §6 A12.
 **Honest verdict:** SAGIHA is *designed* for universality across MCP, JSON/SSE, OpenAI-compatible
 endpoints, and later gRPC, with a credible mechanism. It has not yet *demonstrated* it, one port
 contradicts it, and A2A is a shape rather than a capability.
+
+### 7.7 Empty packages — the observation is right, the remedy is half wrong
+
+Verified against the tree: `src/sagiha/agency/`, `aoi/`, `outer_loop/` (including
+`outer_loop/evaluator/`), and `runtime/` each contain exactly one file, an `__init__.py` of 109–144
+bytes holding a docstring and nothing else. `src/sagiha/prompts/` does not exist at all (G7). The
+observation is correct and it corroborates three separate foundation-review findings — V1's note that
+the CAR contract is vacuous until `agency/` has code, G3's empty `outer_loop/evaluator/`, and U1's
+suggestion to add a canary module.
+
+**Why "prune to four folders" is the wrong conclusion for two of them.** `agency/` and `runtime/` are
+the **A** and **R** of CAR. Deleting them would contradict
+[ADR-0007](../../08-decisions/0007-trusted-computing-base.md), delete the home
+[ADR-0018](../../08-decisions/0018-native-workflow-dag.md) assigns to `WorkflowStep`, and — most
+damagingly — void the `import-linter` layer contracts, which are the single strongest *implemented*
+property this project has. §2.1 rests SAGIHA's architecture argument on mechanical boundary
+enforcement in a language that gets none from its compiler. Reducing the folder count by deleting the
+layers those contracts constrain would trade the one demonstrated advantage for tidiness.
+
+**The emptiness is nonetheless a real defect, and `.importlinter` already admits it in a comment.**
+The `car-layering` contract carries this note against its own ignore rule:
+
+> `agency/` is an empty stub until S3 — the ignore above legitimately matches nothing yet. warn, not
+> error, on an unmatched ignore so Sprint 1's empty package skeleton doesn't fail this contract;
+> revisit once `agency/` has code.
+
+and sets `unmatched_ignore_imports_alerting = warn` to keep CI green. That is an honest, correctly
+annotated temporary concession — but it means the *strongest* claim in §2.1, that SAGIHA is the only
+project enforcing its boundary mechanically in a dynamic language, is presently resting on a contract
+whose subject is an empty package. **The fix is code, and Sprint 3 already writes it** — it merely has
+not assigned it a home: **prompt assembly (B2) belongs in `agency/`** (it is exactly "emits intents
+only," per §8.1's ring diagram) and **tool execution over the dev-mode subprocess `Workspace` (B4)
+belongs in `runtime/`**. Then flip `unmatched_ignore_imports_alerting` back to `error`, which is what
+makes the concession self-closing rather than permanent. That is A13.
+
+`aoi/` and `outer_loop/` are a different case and the prune is right there: both are deferred behind
+[ADR-0010](../../08-decisions/0010-defer-exotic-components.md) triggers, neither has a Sprint 3 role,
+and a package is not the deferral seam — the **port** is. This is the same distinction §8.2 draws for
+ports: freeze the promise, not the declaration. An empty `aoi/` package promises nothing that
+`ports/advisory.py` does not already promise, and `ports/advisory.py` is where the three advisory
+Protocols actually live.
+
+**One clarification the proposal gets right and this document should not obscure.** The instinct
+behind "prune the placeholders" is sound — the ratio of declared structure to running code is the
+condition every review here has diagnosed. The correction is only about *which* structure is
+load-bearing. Delete what promises nothing; fill what promises something.
 
 ---
 
@@ -919,7 +1027,9 @@ from scores, capability grants at one choke point, and replay determinism are th
 them is absent from all four references, and each is far cheaper to build in from the start than to
 retrofit. If schedule pressure forces cuts, cut features, never the spine.
 
-**2. Ship Tier A inside S0/S1 — all twelve items.** They total a few hundred lines and each closes a
+**2. Ship Tier A inside S0/S1 — all twelve live items** (A11 is withdrawn as already implemented;
+A13 was added later and is the cheapest of the set because Sprint 3 writes that code anyway). They
+total a few hundred lines and each closes a
 failure mode a shipping project already hit or an audit already confirmed. The diagnostics delta (A1)
 and the journal-mode probe (A2) are the two with the worst failure-to-cost ratio if skipped: one is a
 silently broken build, the other is a `SIGBUS` panic on an ordinary developer machine. A3 (loop
@@ -944,6 +1054,18 @@ tunes the harness, skill extraction accumulates domain procedure. Route proposed
 `MutationProposal` with TCB restrictions and human sign-off, mark them `OPERATOR` provenance only when
 the operator accepts, keep them in shadow mode until they beat the noise floor. The architecture to do
 this safely already exists — it simply has not been pointed at this use.
+
+**4a. Build the macro-workflow layer, and make it prove itself (B8).** This is the one capability gap
+the comparative method could not find, because no reference project has it — Grok's eight-actor goal
+system is the closest and it is hard-wired. SAGIHA is unusually well positioned: it already specifies
+the *output* of decomposition (`parent_task_id`, disjoint file-set closures) and has no producer, and
+it is the only design here that could *measure* whether a planner helped, because E0 supplies the
+noise floor and `TrajectoryStore` supplies the trace. Build it native, not on LangGraph — a framework
+that owns the loop owns the choke point, the prefix, and the cassette
+([ADR-0018](../../08-decisions/0018-native-workflow-dag.md)). Then hold it to the §8.5 rule without
+exception: **a planning stage that does not beat no-planning on the benchmark does not ship.** A bad
+`StoryBoard` wastes every downstream step and, unlike a bad edit, nothing tests it. This is the single
+place in the document where an unmeasured mechanism would be most tempting and most expensive.
 
 **5. Borrow ergonomics without borrowing scope.** Post-edit diagnostics from OpenCode, memory
 consolidation from Claude Code, compaction shape from Hermes, resilience concerns from Grok. Do **not**
@@ -981,5 +1103,6 @@ internal audit could reasonably mistake for overengineering.
 * [Hexagonal Ports](../../03-contracts-and-models/hexagonal-ports.md) · [Tool Catalog](../../03-contracts-and-models/tool-catalog.md) · [Task & Acceptance](../../03-contracts-and-models/task-and-acceptance.md)
 * [DMARTIC Inner Loop](../../04-workflows-and-loops/dmartic-inner-loop.md) · [RHI Outer Loop](../../04-workflows-and-loops/rhi-outer-loop.md)
 * [Phased Migration Matrix](../../07-roadmap/phased-migration-matrix.md) · [ADR Log](../../08-decisions/README.md)
-* [2026-07-29 Foundation Review](../../reviews/2026-07-29-foundation-review.md) — the code-verified defect list this document's §1 baseline rests on
-* Source overviews: [Claude Code](./claude_code_overview.md) · [Grok Build](./grok_build_overview.md) · [Hermes Agent](./hermes_agent_overview.md) · [OpenCode](./open_code_overview.md)
+* [2026-07-29 Foundation Review](../doing/2026-07-29-foundation-review.md) — the code-verified defect list this document's §1 baseline rests on
+* [Sprint 0 Decision Record](./proj_plan_design_and_docs_improvs.md) — the decisions this document's evidence produced, and the answers to the tech-lead questions
+* Source overviews: [Claude Code](../../reference/harness_examples/claude_code_overview.md) · [Grok Build](../../reference/harness_examples/grok_build_overview.md) · [Hermes Agent](../../reference/harness_examples/hermes_agent_overview.md) · [OpenCode](../../reference/harness_examples/open_code_overview.md)
