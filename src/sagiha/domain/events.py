@@ -198,6 +198,7 @@ class ToolCallDenied(Event):
 
 class ToolCallCompleted(Event):
     event: Literal["tool.call_completed"] = "tool.call_completed"
+    call_id: str
     result: ToolResult
     duration_ms: float
 
@@ -208,6 +209,7 @@ class ToolCallCompleted(Event):
 
 class ToolCallFailed(Event):
     event: Literal["tool.call_failed"] = "tool.call_failed"
+    call_id: str
     error_kind: str
     disposition: Disposition
 

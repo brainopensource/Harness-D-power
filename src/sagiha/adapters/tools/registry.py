@@ -35,21 +35,29 @@ class DefaultToolRegistry:
         self._effects[tool_name] = effect
         self._handlers[tool_name] = handler
 
-    def get_effect_class(self, tool_name: str) -> EffectClass:
+    async def get_effect_class(self, tool_name: str) -> EffectClass:
         return self._effects.get(tool_name, EffectClass.DESTRUCTIVE)
 
     async def dispatch(self, call: ToolCall) -> ToolResult:
         handler = self._handlers.get(call.tool_name)
         if handler is None:
             return ToolResult(
+                call_id=call.call_id,
                 content=[TextBlock(text=f"Unknown tool '{call.tool_name}'")],
                 truncated=False,
+                is_error=True,
             )
 
         try:
-            return await handler(call.arguments)
+            args = {**call.arguments, "_call_id": call.call_id}
+            result = await handler(args)
+            if not result.call_id:
+                return result.model_copy(update={"call_id": call.call_id})
+            return result
         except Exception as exc:
             return ToolResult(
+                call_id=call.call_id,
                 content=[TextBlock(text=f"Tool handler error: {exc}")],
                 truncated=False,
+                is_error=True,
             )

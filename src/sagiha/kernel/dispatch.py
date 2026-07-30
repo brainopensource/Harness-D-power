@@ -37,12 +37,11 @@ async def dispatch(
     """
     start_time = time.monotonic()
 
+    requested = ToolCallRequested(run_id=ctx.run_id, call=call)
     if bus is not None:
-        await bus.emit(ToolCallRequested(run_id=ctx.run_id, call=call))
+        await bus.emit(requested)
 
-        intercept_decision = await bus.intercept(
-            "pre_tool", ToolCallRequested(run_id=ctx.run_id, call=call)
-        )
+        intercept_decision = await bus.intercept("pre_tool", requested)
         if not intercept_decision.allowed:
             await bus.emit(
                 ToolCallDenied(
@@ -53,12 +52,14 @@ async def dispatch(
                 )
             )
             return ToolResult(
+                call_id=call.call_id,
                 content=[
                     TextBlock(
                         text=f"Pre-tool interceptor denial: {intercept_decision.reason}"
                     )
                 ],
                 truncated=False,
+                is_error=True,
             )
 
     decision = await policy.authorize(call, ctx)
@@ -73,14 +74,35 @@ async def dispatch(
                 )
             )
         return ToolResult(
+            call_id=call.call_id,
             content=[TextBlock(text=f"Policy denial: {decision.reason}")],
             truncated=False,
+            is_error=True,
         )
 
+    # Point-of-effect grant verification (C1 / D8) — expiry and forged ids fail closed.
+    get_grant = getattr(policy, "get_grant", None)
+    if callable(get_grant):
+        grant = get_grant(decision.grant_id)
+        if grant is None:
+            if bus is not None:
+                await bus.emit(
+                    ToolCallDenied(
+                        run_id=ctx.run_id,
+                        decision=decision,
+                        reason=f"Grant '{decision.grant_id}' missing or expired",
+                        requires_human=False,
+                    )
+                )
+            return ToolResult(
+                call_id=call.call_id,
+                content=[TextBlock(text=f"Grant '{decision.grant_id}' missing or expired")],
+                truncated=False,
+                is_error=True,
+            )
+
     if bus is not None:
-        await bus.emit(
-            ToolCallAuthorized(run_id=ctx.run_id, decision=decision)
-        )
+        await bus.emit(ToolCallAuthorized(run_id=ctx.run_id, decision=decision))
 
     lease_id = await governor.acquire(call.tool_name, ctx.run_id)
 
@@ -90,31 +112,39 @@ async def dispatch(
         except Exception as exc:
             logger.error("Error executing tool '%s': %s", call.tool_name, exc, exc_info=True)
             result = ToolResult(
+                call_id=call.call_id,
                 content=[TextBlock(text=f"Execution failure: {exc}")],
                 truncated=False,
+                is_error=True,
             )
     finally:
         await governor.release(lease_id)
+
+    # Ensure call_id is always set on results from handlers that omit it.
+    if not result.call_id:
+        result = result.model_copy(update={"call_id": call.call_id})
 
     await policy.record_outcome(decision.grant_id, result)
 
     duration_ms = (time.monotonic() - start_time) * 1000.0
 
     if bus is not None:
-        if not result.truncated:
+        if result.is_error:
             await bus.emit(
-                ToolCallCompleted(
+                ToolCallFailed(
                     run_id=ctx.run_id,
-                    result=result,
-                    duration_ms=duration_ms,
+                    call_id=call.call_id,
+                    error_kind="execution_error",
+                    disposition="SURFACE",
                 )
             )
         else:
             await bus.emit(
-                ToolCallFailed(
+                ToolCallCompleted(
                     run_id=ctx.run_id,
-                    error_kind="execution_error",
-                    disposition="SURFACE",
+                    call_id=call.call_id,
+                    result=result,
+                    duration_ms=duration_ms,
                 )
             )
 

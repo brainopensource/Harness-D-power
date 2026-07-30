@@ -214,7 +214,8 @@ def main() -> int:
 
     if check:
         current = OUTPUT_PATH.read_text() if OUTPUT_PATH.exists() else ""
-        if current != rendered:
+        # Ignore frontmatter `updated:` so calendar drift cannot fail CI (D19).
+        if _normalize_for_check(current) != _normalize_for_check(rendered):
             print(f"{OUTPUT_PATH} is stale — run scripts/gen_event_catalog.py", file=sys.stderr)
             return 1
         print(f"{OUTPUT_PATH} is up to date ({len(ALL_EVENTS)} events)")
@@ -223,6 +224,15 @@ def main() -> int:
     OUTPUT_PATH.write_text(rendered)
     print(f"wrote {OUTPUT_PATH} ({len(ALL_EVENTS)} events)")
     return 0
+
+
+def _normalize_for_check(text: str) -> str:
+    lines = []
+    for line in text.splitlines(keepends=True):
+        if line.startswith("updated:"):
+            continue
+        lines.append(line)
+    return "".join(lines)
 
 
 if __name__ == "__main__":

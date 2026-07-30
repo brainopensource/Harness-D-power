@@ -4,10 +4,48 @@ from __future__ import annotations
 
 import uuid
 from datetime import timedelta
+from typing import Any, cast
 
 from sagiha.domain.content import ToolCall, ToolResult
 from sagiha.domain.control import Decision, Grant, RunContext
 from sagiha.domain.identity import utc_now
+
+
+def _extract_paths_from_schema(schema: dict[str, Any], arguments: dict[str, Any]) -> list[str]:
+    """Walk JSON Schema for `x-sagiha-path: true` properties and collect argument values."""
+    paths: list[str] = []
+
+    def walk(node: dict[str, Any], value: object) -> None:
+        props_raw = node.get("properties")
+        if isinstance(props_raw, dict) and isinstance(value, dict):
+            props = cast(dict[str, Any], props_raw)
+            value_dict = cast(dict[str, Any], value)
+            for key, subschema_raw in props.items():
+                if not isinstance(subschema_raw, dict):
+                    continue
+                subschema = cast(dict[str, Any], subschema_raw)
+                if subschema.get("x-sagiha-path") is True:
+                    raw = value_dict.get(key)
+                    if isinstance(raw, str):
+                        paths.append(raw)
+                    elif isinstance(raw, list):
+                        for item in cast(list[object], raw):
+                            if isinstance(item, str):
+                                paths.append(item)
+                child = value_dict.get(key)
+                if isinstance(child, dict):
+                    walk(subschema, cast(dict[str, Any], child))
+                elif isinstance(child, list):
+                    walk(subschema, cast(list[object], child))
+        items_raw = node.get("items")
+        if isinstance(items_raw, dict) and isinstance(value, list):
+            items = cast(dict[str, Any], items_raw)
+            for item in cast(list[object], value):
+                if isinstance(item, dict):
+                    walk(items, cast(dict[str, Any], item))
+
+    walk(schema, arguments)
+    return paths
 
 
 class DefaultPolicyEngine:
@@ -20,6 +58,11 @@ class DefaultPolicyEngine:
     def __init__(self, always_gate: list[str] | None = None) -> None:
         self._always_gate = set(always_gate or [])
         self._active_grants: dict[str, Grant] = {}
+        self._tool_schemas: dict[str, dict[str, Any]] = {}
+
+    def register_tool_schema(self, tool_name: str, schema: dict[str, Any]) -> None:
+        """Bind JSON Schema used for path extraction at authorize time (C1)."""
+        self._tool_schemas[tool_name] = schema
 
     def get_grant(self, grant_id: str) -> Grant | None:
         """Internal kernel helper to retrieve an active capability grant."""
@@ -32,7 +75,6 @@ class DefaultPolicyEngine:
         return grant
 
     async def authorize(self, call: ToolCall, context: RunContext) -> Decision:
-        # Require human approval if tool is in always_gate list
         if call.tool_name in self._always_gate:
             return Decision(
                 allowed=False,
@@ -40,12 +82,15 @@ class DefaultPolicyEngine:
                 requires_human=True,
             )
 
-        # Scoped path extraction from arguments
-        scope_paths: list[str] = []
-        for key in ("path", "file_path", "target_file", "dir"):
-            val = call.arguments.get(key)
-            if isinstance(val, str):
-                scope_paths.append(val)
+        schema = self._tool_schemas.get(call.tool_name)
+        if schema is not None:
+            scope_paths = _extract_paths_from_schema(schema, call.arguments)
+        else:
+            scope_paths: list[str] = []
+            for key in ("path", "file_path", "target_file", "dir"):
+                val = call.arguments.get(key)
+                if isinstance(val, str):
+                    scope_paths.append(val)
 
         now = utc_now()
         grant_id = str(uuid.uuid4())
@@ -66,5 +111,4 @@ class DefaultPolicyEngine:
         )
 
     async def record_outcome(self, grant_id: str, result: ToolResult) -> None:
-        # Expire/clean up used grant
         self._active_grants.pop(grant_id, None)

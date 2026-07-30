@@ -5,6 +5,8 @@ See docs/05-tech-stack/composition-and-configuration.md.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from sagiha import Config, Kernel, build_kernel
@@ -13,12 +15,20 @@ from sagiha.domain.config import (
     GatesConfig,
     ModelConfig,
     SandboxConfig,
+    TelemetryConfig,
+    WorkspaceConfig,
 )
 
 
-def test_build_kernel_default_config() -> None:
-    config = Config()
-    kernel = build_kernel(config)
+def test_build_kernel_default_config(tmp_path: Path) -> None:
+    cassette = tmp_path / "c.json"
+    cassette.write_text("[]", encoding="utf-8")
+    config = Config(
+        model=ModelConfig(mode="replay"),
+        telemetry=TelemetryConfig(trajectory_db=str(tmp_path / "t.db")),
+        workspace=WorkspaceConfig(root=str(tmp_path)),
+    )
+    kernel = build_kernel(config, cassette_path=str(cassette))
     assert isinstance(kernel, Kernel)
     assert kernel.config == config
 

@@ -1,6 +1,6 @@
 ---
 status: normative
-updated: 2026-07-29
+updated: 2026-07-30
 ---
 
 # **Event Catalog**
@@ -79,8 +79,8 @@ streamers · **HK** user hooks · **GV** ResourceGovernor · **MI** MetaImprover
 | `tool.call_requested` | `call` | Agency | TS OT UI HK | ✅ |
 | `tool.call_authorized` | `decision` | PolicyEngine | TS OT HK | ✅ |
 | `tool.call_denied` | `decision`, `reason`, `requires_human` | PolicyEngine | TS OT UI HK | ✅ |
-| `tool.call_completed` | `result`, `duration_ms` | Dispatch | TS OT UI HK MI | ✅ |
-| `tool.call_failed` | `error_kind`, `disposition` | Dispatch | TS OT UI HK | ✅ |
+| `tool.call_completed` | `call_id`, `result`, `duration_ms` | Dispatch | TS OT UI HK MI | ✅ |
+| `tool.call_failed` | `call_id`, `error_kind`, `disposition` | Dispatch | TS OT UI HK | ✅ |
 
 The **requested / authorized** split is deliberate: it makes the policy decision independently observable, so an audit answers "what did the agent try to do" separately from "what was it allowed to do." Those are different questions and a single event cannot answer both.
 

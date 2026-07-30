@@ -2,14 +2,21 @@
 
 from __future__ import annotations
 
+import json
 import os
 import sqlite3
 from pathlib import Path
 
 from anyio.to_thread import run_sync
 
-from sagiha.domain.events import Event
+from sagiha.domain.events import ALL_EVENTS, Event
 from sagiha.domain.trajectory import TrajectoryStep
+from sagiha.domain.upcasters import upcast_event
+
+_EVENT_BY_NAME: dict[str, type[Event]] = {
+    cls.model_fields["event"].default: cls  # type: ignore[misc]
+    for cls in ALL_EVENTS
+}
 
 
 def _init_db(db_path: str) -> None:
@@ -46,6 +53,15 @@ def _init_db(db_path: str) -> None:
             """
         )
         conn.commit()
+
+
+def _deserialize_event(raw_json: str) -> Event:
+    data = upcast_event(json.loads(raw_json))
+    event_name = data.get("event")
+    cls = _EVENT_BY_NAME.get(event_name) if isinstance(event_name, str) else None
+    if cls is None:
+        return Event.model_validate(data)
+    return cls.model_validate(data)
 
 
 class SQLiteTrajectoryStore:
@@ -130,6 +146,6 @@ class SQLiteTrajectoryStore:
                     (run_id,),
                 )
                 rows = cursor.fetchall()
-                return [Event.model_validate_json(row[0]) for row in rows]
+                return [_deserialize_event(row[0]) for row in rows]
 
         return await run_sync(_sync_fetch)

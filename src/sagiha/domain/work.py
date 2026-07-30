@@ -71,15 +71,18 @@ class GateReport(BaseModel):
 
     @property
     def admitted(self) -> bool:
-        return self.acceptance_met and all(
-            g is not False
-            for g in (
-                self.no_new_suppressions,
-                self.tests_unmodified,
-                self.coverage_not_decreased,
-                self.diff_within_bounds,
-            )
+        """Admit only when every coding gate is an explicit True.
+
+        `None` means "not evaluated" — never a pass. Absence of a verdict must
+        never be representable as admission (D20).
+        """
+        gates = (
+            self.no_new_suppressions,
+            self.tests_unmodified,
+            self.coverage_not_decreased,
+            self.diff_within_bounds,
         )
+        return self.acceptance_met and all(g is True for g in gates)
 
 
 class ReviewFinding(BaseModel):

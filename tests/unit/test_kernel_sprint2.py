@@ -12,6 +12,7 @@ from sagiha import Config, build_kernel
 from sagiha.adapters.model.cassette import CassetteEntry, CassetteModelProvider
 from sagiha.adapters.tools.registry import DefaultToolRegistry
 from sagiha.adapters.trajectory.sqlite import SQLiteTrajectoryStore
+from sagiha.domain.config import ModelConfig, TelemetryConfig, WorkspaceConfig
 from sagiha.domain.content import EffectClass, Message, ModelRequest, TextBlock, ToolCall, ToolResult
 from sagiha.domain.control import Decision, RunContext
 from sagiha.domain.events import Event, ToolCallRequested
@@ -74,7 +75,9 @@ async def test_dispatch_capability_choke_point() -> None:
     registry = DefaultToolRegistry()
 
     async def dummy_handler(args: dict[str, object]) -> ToolResult:
-        return ToolResult(content=[TextBlock(text="Success")], truncated=False)
+        return ToolResult(
+            call_id="c1", content=[TextBlock(text="Success")], truncated=False
+        )
 
     registry.register_handler(
         "echo",
@@ -138,16 +141,17 @@ async def test_react_engine_execution() -> None:
 @pytest.mark.asyncio
 async def test_build_kernel_wires_day_zero_adapters() -> None:
     with tempfile.TemporaryDirectory() as tmp_dir:
-        config = Config()
-        config = config.model_copy(
-            update={
-                "telemetry": config.telemetry.model_copy(
-                    update={"trajectory_db": str(Path(tmp_dir) / "test_traj.db")}
-                )
-            }
+        cassette = Path(tmp_dir) / "c.json"
+        cassette.write_text("[]")
+        config = Config(
+            model=ModelConfig(mode="replay"),
+            telemetry=TelemetryConfig(
+                trajectory_db=str(Path(tmp_dir) / "test_traj.db")
+            ),
+            workspace=WorkspaceConfig(root=tmp_dir),
         )
 
-        kernel = build_kernel(config)
+        kernel = build_kernel(config, cassette_path=str(cassette))
         assert kernel.trajectory_store is not None
         assert kernel.policy_engine is not None
         assert kernel.resource_governor is not None

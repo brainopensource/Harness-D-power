@@ -88,8 +88,25 @@ class Message(BaseModel):
     content: list[ContentBlock]
 
 
+class ToolSchema(BaseModel):
+    """JSON-schema tool descriptor offered to the model (ModelRequest v2)."""
+
+    model_config = ConfigDict(frozen=True)
+
+    name: str
+    description: str
+    parameters: dict[str, Any]  # JSON Schema object; exempt from port dict[str, Any] ban
+
+
 class ModelRequest(BaseModel):
+    """ModelRequest v2 — system, tools, sampling, and role before any cassette is committed (D10)."""
+
     messages: list[Message]
+    system: str = ""
+    tools: list[ToolSchema] = Field(default_factory=list[ToolSchema])
+    max_tokens: int | None = None
+    temperature: float | None = None
+    role: str = "execution"
 
 
 class ToolCall(BaseModel):
@@ -106,9 +123,11 @@ class ToolCall(BaseModel):
 class ToolResult(BaseModel):
     """`content` rather than a stringified `output`; overflow is explicit, never silently dropped."""
 
+    call_id: str
     content: list[ContentBlock]
     truncated: bool = False
     full_output_uri: str | None = None
+    is_error: bool = False
 
 
 # --- Tool return payloads, referenced by docs/03-contracts-and-models/tool-catalog.md ---

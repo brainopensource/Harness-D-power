@@ -7,7 +7,14 @@ from __future__ import annotations
 
 import logging
 
-from sagiha.domain.content import Message, ModelRequest, TextBlock, ToolCall, ToolResult
+from sagiha.domain.content import (
+    Message,
+    ModelRequest,
+    TextBlock,
+    ToolCall,
+    ToolResult,
+    ToolUseBlock,
+)
 from sagiha.domain.control import RunContext
 from sagiha.domain.identity import StepId
 from sagiha.domain.trajectory import TrajectoryStep
@@ -42,6 +49,25 @@ class ReActEngine:
         self._bus = bus
         self._step_sequence: dict[str, int] = {}
 
+    async def _resolve_tool_calls(self, model_response: Message) -> list[ToolCall]:
+        """Collect ToolUseBlocks and resolve effect from the registry (D1 / D11)."""
+        tool_calls: list[ToolCall] = []
+        for block in model_response.content:
+            if isinstance(block, ToolUseBlock):
+                effect = await self._registry.get_effect_class(block.tool_name)
+                tool_calls.append(
+                    ToolCall(
+                        call_id=block.call_id,
+                        tool_name=block.tool_name,
+                        arguments=block.arguments,
+                        effect=effect,
+                    )
+                )
+            elif isinstance(block, ToolCall):
+                effect = await self._registry.get_effect_class(block.tool_name)
+                tool_calls.append(block.model_copy(update={"effect": effect}))
+        return tool_calls
+
     async def step(self, ctx: RunContext, prompt: str) -> TrajectoryStep:
         """Executes a single ReAct step: Prompt -> Model -> Parse -> Dispatch Tool -> Record."""
         seq = self._step_sequence.get(ctx.run_id, 0) + 1
@@ -59,13 +85,8 @@ class ReActEngine:
         )
 
         model_response = await self._model.complete(request)
+        tool_calls = await self._resolve_tool_calls(model_response)
 
-        tool_calls: list[ToolCall] = []
-        for block in model_response.content:
-            if isinstance(block, ToolCall):
-                tool_calls.append(block)
-
-        # Dispatch tool calls through capability choke point
         tool_results: list[ToolResult] = []
         for call in tool_calls:
             res = await dispatch(
