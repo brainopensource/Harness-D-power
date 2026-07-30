@@ -1456,17 +1456,12 @@ source = { editable = "." }
 dependencies = [
     { name = "anyio" },
     { name = "httpx" },
-    { name = "lsprotocol" },
-    { name = "mcp" },
-    { name = "opentelemetry-exporter-otlp" },
-    { name = "opentelemetry-sdk" },
     { name = "pydantic" },
     { name = "rich" },
     { name = "structlog" },
     { name = "tree-sitter" },
     { name = "tree-sitter-language-pack" },
     { name = "typer" },
-    { name = "watchfiles" },
 ]
 
 [package.optional-dependencies]
@@ -1486,8 +1481,19 @@ dev = [
 google = [
     { name = "google-genai" },
 ]
+indexing = [
+    { name = "lsprotocol" },
+    { name = "watchfiles" },
+]
+mcp = [
+    { name = "mcp" },
+]
 openai = [
     { name = "openai" },
+]
+otel = [
+    { name = "opentelemetry-exporter-otlp" },
+    { name = "opentelemetry-sdk" },
 ]
 
 [package.metadata]
@@ -1498,12 +1504,12 @@ requires-dist = [
     { name = "google-genai", marker = "extra == 'google'", specifier = ">=0.1" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "import-linter", marker = "extra == 'dev'", specifier = ">=2.0" },
-    { name = "lsprotocol", specifier = ">=2023.0" },
-    { name = "mcp", specifier = ">=1.0" },
+    { name = "lsprotocol", marker = "extra == 'indexing'", specifier = ">=2023.0" },
+    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.13" },
     { name = "openai", marker = "extra == 'openai'", specifier = ">=1.50" },
-    { name = "opentelemetry-exporter-otlp", specifier = ">=1.29" },
-    { name = "opentelemetry-sdk", specifier = ">=1.29" },
+    { name = "opentelemetry-exporter-otlp", marker = "extra == 'otel'", specifier = ">=1.29" },
+    { name = "opentelemetry-sdk", marker = "extra == 'otel'", specifier = ">=1.29" },
     { name = "pydantic", specifier = ">=2.10,<3" },
     { name = "pyright", marker = "extra == 'dev'", specifier = ">=1.1.380" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3" },
@@ -1515,9 +1521,9 @@ requires-dist = [
     { name = "tree-sitter", specifier = ">=0.23" },
     { name = "tree-sitter-language-pack", specifier = ">=0.7" },
     { name = "typer", specifier = ">=0.15" },
-    { name = "watchfiles", specifier = ">=0.24" },
+    { name = "watchfiles", marker = "extra == 'indexing'", specifier = ">=0.24" },
 ]
-provides-extras = ["anthropic", "google", "openai", "dev"]
+provides-extras = ["anthropic", "google", "openai", "indexing", "mcp", "otel", "dev"]
 
 [[package]]
 name = "shellingham"

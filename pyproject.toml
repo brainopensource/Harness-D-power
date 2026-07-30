@@ -17,17 +17,21 @@ dependencies = [
   "structlog>=24.4",            # structured logging bridged to OTel
   "tree-sitter>=0.23",          # AST parsing
   "tree-sitter-language-pack>=0.7",   # bundled grammars, avoids per-language pins
-  "watchfiles>=0.24",           # file-watch driven incremental re-index
-  "lsprotocol>=2023.0",         # typed LSP messages
-  "mcp>=1.0",                   # official MCP SDK, stdio + HTTP-SSE
-  "opentelemetry-sdk>=1.29",
-  "opentelemetry-exporter-otlp>=1.29",
 ]
 
 [project.optional-dependencies]
 anthropic = ["anthropic>=0.40"]     # cache_control prompt caching, extended thinking
 google    = ["google-genai>=0.1"]   # unified Google SDK
 openai    = ["openai>=1.50"]        # GPT-*, plus every OpenAI-compatible endpoint
+indexing  = [
+  "watchfiles>=0.24",           # file-watch driven incremental re-index (Block 4)
+  "lsprotocol>=2023.0",         # typed LSP messages (Block 4)
+]
+mcp       = ["mcp>=1.0"]            # official MCP SDK, stdio + HTTP-SSE (Block 5, explicitly deferred)
+otel      = [
+  "opentelemetry-sdk>=1.29",
+  "opentelemetry-exporter-otlp>=1.29",
+]
 dev       = [
   "pytest>=8.3",              # conformance suites; floor matches ADR-0009
   "pytest-asyncio>=0.24",     # parametrized async fixtures
