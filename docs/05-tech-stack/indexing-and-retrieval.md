@@ -61,14 +61,8 @@ Retrieval is evaluated on its own terms as **recall@k against a labelled query s
 
 ## **Retrieval Port Shape**
 
-Ensure the retrieval interface returns ranked, scored results:
-
-```python
-class RetrievalHit(BaseModel):
-    path: str
-    chunk: str
-    score: float  # normalized 0-1, backend-agnostic
-    metadata: dict[str, Any] = {}
-```
+The contract lives in **`src/sagiha/domain/graph.py`** (`RetrievalHit`: path, chunk, normalized
+0-1 score, open-shaped backend `metadata` — a documented exemption) and the port surface in
+**`src/sagiha/ports/indexer.py`**.
 
 Note: BM25/FTS5 scores normalize to 0-1; future dense (cosine) backends will use the same shape. This ensures the port is backend-agnostic without building dense retrieval now.

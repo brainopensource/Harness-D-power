@@ -11,14 +11,10 @@ updated: 2026-07-29
 ## **Overview**
 `LSPAdapter` exposes real-time language server capabilities to agents. Type errors are a dense, cheap, immediate signal — available in milliseconds, long before a test suite finishes — which makes this one of the highest-value feedback channels in the harness.
 
-```python
-class LSPAdapter(Protocol):
-    async def get_diagnostics(self, file_path: str) -> list[DiagnosticItem]: ...
-    async def get_definition(self, file_path: str, line: int, column: int) -> Symbol | None: ...
-    async def get_references(self, file_path: str, line: int, column: int) -> list[Symbol]: ...
-```
-
-Returns are typed `Symbol` and `DiagnosticItem` models rather than `Dict[str, Any]`, and `@runtime_checkable` is not applied — see the contract rules in [Hexagonal Ports](./hexagonal-ports.md).
+The contract lives in **`src/sagiha/ports/lsp.py`** (`get_diagnostics`, `get_definition`,
+`get_references`). Returns are typed `Symbol` and `DiagnosticItem` models rather than
+`Dict[str, Any]`, and `@runtime_checkable` is not applied — see the contract rules in
+[Hexagonal Ports](./hexagonal-ports.md).
 
 ## **Diagnostics Rank Candidates; They Never Admit Them**
 

@@ -6,7 +6,8 @@ updated: 2026-07-29
 # **Event Catalog**
 
 > [!NOTE]
-> **Working Proposal Disclaimer**: A working architectural proposal, refined iteratively as practical evaluation progresses.
+> **Working Proposal Disclaimer**: A working architectural proposal,
+> refined iteratively as practical evaluation progresses.
 
 > [!IMPORTANT]
 > **This file is generated** from `src/sagiha/domain/events.py` by `scripts/gen_event_catalog.py`,
@@ -135,10 +136,10 @@ optional rather than assuming every run produces them.
 | Event group | Requires | Absent under |
 | :--- | :--- | :--- |
 | `worktree.allocated` / `worktree.released` | `workspace = "worktree"` | `analysis`, `chat` |
-| `edit.applied`, `command.executed`, `checkpoint.created` | a writable `Workspace` | `analysis`, `review`, `chat` |
+| `edit.applied`, `command.executed` | a writable `Workspace` | `analysis`, `review`, `chat` |
 | `diagnostics.changed`, `index.updated` | a repository | `chat` |
 | `gate.evaluated` | `gates != "none"` | `chat` |
-| `candidate.proposed` / `candidate.selected` | candidates are meaningful — a writable workspace | `analysis`, `review`, `chat` |
+| `candidate.proposed` / `candidate.selected` | writable workspace | `analysis`, `review`, `chat` |
 | `review.completed` | a bound `Reviewer` | `chat` |
 
 **`gate.evaluated` is never emitted with an empty `GateReport`.** Under `gates = "none"` the event does

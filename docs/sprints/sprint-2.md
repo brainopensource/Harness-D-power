@@ -60,7 +60,8 @@ the [2026-07-29 Foundation Review](../reviews/2026-07-29-foundation-review.md) (
 extend the periphery while the core loop is not yet demonstrated. MCP lands in Block 5 alongside
 the sandbox; OTel is an additive EventBus observer over an event stream already persisted to SQLite.
 
-Sprint 2 is closed with **known defects** in the delivered components — see review findings D1–D6,
-D9–D11 (dead tool-dispatch branch in `react.py`, request-blind cassette replay, mode-ignoring
-composition, lossy event reads, unresumable step sequence, under-specified `ModelRequest`). These
-are the first work items of [Sprint 3](./sprint-3.md).
+Sprint 2 is closed with **known defects** in the delivered components — see review findings D1–D18
+(dead tool-dispatch branch in `react.py`, request-blind cassette replay, mode-ignoring composition,
+lossy event reads, unresumable step sequence, under-specified `ModelRequest`, unvalidated tool
+inputs, unwired short-term memory, non-conformant `stream()`, bus/doc drift). These are the first
+work items of [Sprint 3](./sprint-3.md).

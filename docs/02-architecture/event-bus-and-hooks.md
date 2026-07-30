@@ -65,10 +65,7 @@ The distinction is the load-bearing part of this design.
 
 ### Observers — cannot influence execution
 
-```python
-class Observer(Protocol):
-    async def on_event(self, event: Event) -> None: ...
-```
+Contract: `Observer` in **`src/sagiha/kernel/bus.py`** (`async def on_event(event) -> None`).
 
 Run **after** the fact, concurrently, with a hard timeout. An observer that raises is logged and disabled for the remainder of the run; it never fails the run. TUI, telemetry, trajectory persistence, and voice narration are all observers.
 
@@ -76,10 +73,7 @@ A slow or broken observer must never be able to break an agent run. That propert
 
 ### Interceptors — can deny, never mutate
 
-```python
-class Interceptor(Protocol):
-    async def before(self, event: Event) -> Decision: ...
-```
+Contract: `Interceptor` in **`src/sagiha/kernel/bus.py`** (`async def before(event) -> Decision`).
 
 Run **synchronously** on the critical path at defined hook points, and may return a denial. They may **not** rewrite the event: an interceptor that silently altered a tool call would make the audit log a work of fiction, and the trajectory would no longer reconstruct what actually happened.
 

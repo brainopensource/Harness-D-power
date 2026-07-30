@@ -55,18 +55,7 @@ Control must evaluate every agent tool request against a security policy before 
 
 ### 1. Capability Grants
 
-Every side-effecting Runtime method executes only if backed by a `Grant` — an unforgeable token minted only by `PolicyEngine.authorize()`. 
-
-```python
-class PolicyEngine(Protocol):
-    async def authorize(self, call: ToolCall, context: RunContext) -> Decision: ...
-    async def record_outcome(self, grant_id: str, result: ToolResult) -> None: ...
-
-
-class Workspace(Protocol):
-    async def write(self, path: str, content: str) -> None: ...
-    async def run(self, command: list[str]) -> CommandResult: ...
-```
+Every side-effecting Runtime method executes only if backed by a `Grant` — an unforgeable token minted only by `PolicyEngine.authorize()`. The contracts live in **`src/sagiha/ports/policy.py`** and **`src/sagiha/ports/workspace.py`**; the `Grant` model in **`src/sagiha/domain/control.py`**.
 
 Grants are scoped to specific paths and tools, and they expire. Policy becomes non-bypassable by construction rather than by review.
 
@@ -78,17 +67,12 @@ CI enforces that `agency/` cannot import `runtime/` or `adapters/`, via `import-
 
 Agency emits a `ToolCall`. The kernel resolves authorization, acquires a lease from the `ResourceGovernor`, dispatches, records the outcome, and returns an observation. There is exactly one path from intent to effect, which is also the single place where audit logging, budget accounting, effect classification, and secret redaction attach.
 
-Grants never escape this dispatch choke point. The dispatch pattern becomes:
-```python
-async def dispatch(call: ToolCall, ctx: RunContext) -> ToolResult:
-    decision = await policy.authorize(call, ctx)
-    if not decision.allowed:
-        return _denied(call, decision)
-    async with governor.lease(kind=call.tool_name) as lease:
-        result = await registry.dispatch(call, decision.grant)  # grant never escapes
-        await policy.record_outcome(decision.grant.grant_id, result)
-        return result
-```
+Grants never escape this dispatch choke point. The authoritative implementation is
+**`src/sagiha/kernel/dispatch.py`**: authorize → verify a `grant_id` was minted → acquire lease →
+`registry.dispatch(call)` → release lease → `record_outcome(grant_id, result)`. Note the registry
+**never receives the `Grant`** — only the kernel-internal choke point correlates it by id
+(supersedes the earlier `registry.dispatch(call, decision.grant)` sketch; see 2026-07-28 review
+finding D1 and `src/sagiha/ports/tool_registry.py`).
 
 ## **Admission Control**
 

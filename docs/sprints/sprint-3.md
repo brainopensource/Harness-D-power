@@ -13,7 +13,7 @@
 
 ## 📋 **Sprint 3 Implementation Checklist**
 
-### A. Kernel defect fixes (review findings D1–D6, D9–D11 — do these first)
+### A. Kernel defect fixes (review findings D1–D6, D9–D18 — do these first)
 
 - [ ] **1. Tool-call parsing (D1)** — `kernel/react.py` must collect `ToolUseBlock` from
   `Message.content` and resolve it to a `ToolCall`, with `effect` taken from
@@ -36,6 +36,18 @@
 - [ ] **7. Resumable run state (D9)** — add a `runs` table (run_id, task, status, updated_at);
   derive step `seq` from `TrajectoryStore`, not engine memory; `sagiha run --resume <run_id>`
   continues without seq collisions.
+- [ ] **8. Tool input validation (D13)** — validate `call.arguments` against the registered JSON
+  Schema at dispatch; schema violation → `is_error=True` result, handler never invoked.
+- [ ] **9. Bus correctness (D16, D17)** — construct one `ToolCallRequested` instance for both emit
+  and intercept; add observer timeout + quarantine (doc-specified behavior in
+  `event-bus-and-hooks.md`); replace raw `asyncio` primitives with `anyio` per AGENTS.md.
+- [ ] **10. Kernel required ports non-optional (D14)** — `model_provider`, `policy_engine`,
+  `resource_governor`, `tool_registry`, `trajectory_store` become mandatory; `build_kernel` fails
+  at composition when unbindable. Profile-optional ports stay `| None`.
+- [ ] **11. Honest cassette `stream()` (D15)** — raise `NotImplementedError` (streaming is a sprint
+  non-goal) rather than fabricating a non-conformant frame sequence.
+- [ ] **12. Wire or delete `ShortTermMemoryAdapter` (D12)** — if B2 prompt assembly reads history
+  through it, bind it in composition and add a `Kernel` field; otherwise delete it.
 
 ### B. Minimum closed loop (review gaps G1, G2, G7, G8, G9)
 
@@ -44,9 +56,10 @@
   (governor consulted per step — wires `record_spend`/`remaining_budget`, currently dead code),
   cancellation. Emits `RunStarted`/`StepStarted`/`StepCompleted`/`ModelCallStarted`/
   `ModelCallCompleted`/`RunCompleted|RunFailed` (G9).
-- [ ] **2. Minimal prompt assembly (G7)** — system prompt template + tool schemas + trajectory
-  history packed into `ModelRequest` v2. Stable prefix ordering per
-  `docs/02-architecture/prompt-architecture.md`; compaction and cache breakpoints are **out of scope**.
+- [ ] **2. Minimal prompt assembly (G7, D18)** — system prompt template + tool schemas + trajectory
+  history (prior steps and tool results — today each step is memoryless) packed into
+  `ModelRequest` v2. Stable prefix ordering per `docs/02-architecture/prompt-architecture.md`;
+  compaction and cache breakpoints are **out of scope**.
 - [ ] **3. OpenAI-compatible `ModelProvider` adapter (G8)** — one adapter covering Ollama/Qwen
   local (`base_url`) per `docs/06-guides-and-patterns/ollama-qwen-coder-setup.md`. Anthropic/Google
   adapters are out of scope.
@@ -86,7 +99,8 @@
 
 Stdio MCP driver and OTel exporter (moved out of Sprint 2 scope), container sandbox, worktree
 manager, LSP, retrieval/indexing, dense embeddings (ADR-0014), best-of-N with N>1, model routing
-beyond role→tier lookup, AOI, RHI, prompt caching/compaction, A2A.
+beyond role→tier lookup, AOI, RHI, prompt caching/compaction, A2A, **streaming** (D15 —
+`stream()` raises honestly this sprint; conformant streaming lands with the first UI consumer).
 
 ## 📏 **Sprint Metrics (recorded from the event log, per review §10)**
 

@@ -80,17 +80,18 @@ graph becomes exactly the laundering path the provenance model exists to close.
 
 ## **The Memory Port**
 
-```python
-class Memory(Protocol):
-    async def remember(self, record: MemoryRecord) -> str: ...
-    async def recall(self, query: RecallQuery) -> list[Recall]: ...
-    async def neighbors(self, memory_id: str, hops: int = 1) -> list[Recall]: ...
-    async def backlinks(self, memory_id: str) -> list[Recall]: ...
-    async def invalidate(self, memory_id: str, at: datetime) -> None: ...
-```
+The contract lives in **`src/sagiha/ports/memory.py`**: `remember` / `recall` / `invalidate`.
+
+> [!IMPORTANT]
+> **Proposed extension, not yet in the contract**: link traversal (`neighbors(memory_id, hops)`)
+> and reverse lookup (`backlinks(memory_id)`) are required by the knowledge-net design above but
+> are **not** on the port today. Adding them is an S2 port change (bumps `PORT_VERSION`), to be
+> made in `src/` when the first graph-capable adapter lands — not by editing this document.
+> Flagged by the [2026-07-29 Foundation Review](../reviews/2026-07-29-foundation-review.md).
 
 `Provenance`, `MemoryRecord`, `RecallQuery`, and `Recall` are defined in
-[Domain Schemas](../03-contracts-and-models/domain-schemas.md#memory).
+`src/sagiha/domain/memory.py` (navigation copy in
+[Domain Schemas](../03-contracts-and-models/domain-schemas.md#memory)).
 
 **No vector appears in the signature.** Embedding lives behind `EmbeddingProvider`, entirely inside the
 adapter — which is what lets the dense tier be deferred ([ADR-0014](../08-decisions/0014-defer-dense-retrieval.md))

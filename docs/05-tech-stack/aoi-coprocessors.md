@@ -18,13 +18,10 @@ Lightweight non-LLM models that make the harness sample-efficient. **Advisory on
 
 ## **Every Prediction Is Calibrated, Never a Bare Float**
 
-```python
-class Prediction(BaseModel):
-    value: float
-    confidence: float
-    calibrated: bool  # uncalibrated predictions may never gate
-    shadow_mode: bool = True  # predict and log; do not act
-```
+The contract lives in **`src/sagiha/domain/work.py`** (`Prediction`: `value`, `confidence`,
+`calibrated`, `shadow_mode` — all required, no defaults; the port surface is
+`src/sagiha/ports/advisory.py`). Uncalibrated predictions may never gate; shadow mode means
+predict-and-log, never act.
 
 A scalar carries no way to express uncertainty, and therefore no basis for deciding whether it may be acted upon.
 

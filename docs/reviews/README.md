@@ -15,7 +15,7 @@ Adversarial reviews of the architecture and documentation. Each is dated, scoped
 | Date | Review | Scope | Headline |
 | :--- | :--- | :--- | :--- |
 | 2026-07-28 | [Architecture & Documentation Review](./2026-07-28-architecture-and-documentation-review.md) | Full tree — 56 modular docs, 2 reference blueprints, ~5,000 lines. No code existed at review time. | 16 defects (5 critical/high in the port contracts), 10 gaps, 11 stack/architecture changes, 7 documentation changes. Verdict: the reasoning is ready, the contracts are not, and the next commit should be `src/`. |
-| 2026-07-29 | [Foundation Review](./2026-07-29-foundation-review.md) | Full tree — 74 docs, `src/` (~2,800 lines), 16 tests, CI, sprint plan. Mid–Sprint 2. | 11 code-verified defects (incl. dead tool-dispatch branch, request-blind replay), 9 gaps, 5 unproven assumptions. Verdict: coherent and disciplined but demonstration-poor; close one measured loop before growing surface. Drives [Sprint 3](../sprints/sprint-3.md). |
+| 2026-07-29 | [Foundation Review & Deep Audit](./2026-07-29-foundation-review.md) | Full tree — 74 docs, `src/` (~2,800 lines), 16 tests, CI, config, sprint plan. Mid–Sprint 2. | 18 code-verified defects (incl. dead tool-dispatch branch, request-blind replay, write-only audit trail), 10 gaps, 11 doc findings (8 fixed same day, incl. a stale generated event catalog at HEAD), 5 unproven assumptions. Verdict: coherent and disciplined but demonstration-poor; close one measured loop before growing surface. Drives [Sprint 3](../sprints/sprint-3.md). |
 
 ## **Finding ID Convention**
 

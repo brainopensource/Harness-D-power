@@ -14,24 +14,12 @@ A bare string leaves **"done" undefined**, which cascades: the Evaluator has no 
 
 ## **The Task Model**
 
-```python
-class AcceptanceCriterion(BaseModel):
-    description: str
-    check: str  # machine-checkable command or predicate
-    required: bool = True
-
-
-class TaskSpec(BaseModel):
-    task_id: str
-    revision: int = 0
-    goal: str
-    acceptance: tuple[AcceptanceCriterion, ...]
-    profile: str = "coding"  # execution profile — see below
-    parent_task_id: str | None = None
-    status: TaskStatus = "submitted"
-```
-
-Full definition in [Domain Schemas](./domain-schemas.md).
+The contract lives in **`src/sagiha/domain/work.py`** (`AcceptanceCriterion`, `TaskSpec`) — this
+document carries the rules and rationale only, per
+[Contracts to Code](../implementation/contracts-to-code.md). Key semantics: `check` is a
+machine-executable command run via `Toolchain`; non-`required` criteria rank but never admit; a
+mid-run goal change produces a **new revision**, never a mutation. Navigation copy in
+[Domain Schemas](./domain-schemas.md).
 
 ## **Acceptance Criteria Must Be Machine-Checkable**
 
