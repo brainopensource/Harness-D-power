@@ -3,12 +3,32 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated, Literal
+from typing import TYPE_CHECKING, Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from sagiha.domain.content import ContentBlock, ReasoningBlock, ToolCall, ToolResult
 from sagiha.domain.identity import StepId, utc_now
+
+if TYPE_CHECKING:
+    from sagiha.domain.control import TaskStatus
+    from sagiha.domain.work import TaskSpec
+
+
+class RunRecord(BaseModel):
+    """Resumable run state (D9) — the `runs` table row.
+
+    Deliberately minimal: `run_id`, `task`, `status`, `updated_at`. Step `seq` is derived from
+    `TrajectoryStore.steps_for_run` at resume time, never stored here — engine memory is not the
+    source of truth for where a run left off.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    run_id: str
+    task: "TaskSpec"
+    status: "TaskStatus"
+    updated_at: datetime = Field(default_factory=utc_now)
 
 
 class TrajectoryStep(BaseModel):

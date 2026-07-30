@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import sqlite3
 from pathlib import Path
@@ -13,10 +14,48 @@ from sagiha.domain.events import ALL_EVENTS, Event
 from sagiha.domain.trajectory import TrajectoryStep
 from sagiha.domain.upcasters import upcast_event
 
+logger = logging.getLogger(__name__)
+
 _EVENT_BY_NAME: dict[str, type[Event]] = {
     cls.model_fields["event"].default: cls  # type: ignore[misc]
     for cls in ALL_EVENTS
 }
+
+
+def _configure_connection(conn: sqlite3.Connection, db_path: str) -> str:
+    """Probe and configure journal mode + mmap for the connection's filesystem.
+
+    WAL relies on shared-memory (`-shm`) and, if `mmap_size` is nonzero, on memory-mapped I/O.
+    Both can SIGBUS a long unattended run on a non-local filesystem (NFS/SMB) — a crash Python
+    cannot catch or recover from. Two mitigations:
+
+    1. `mmap_size = 0` unconditionally disables memory-mapped I/O, removing that vector
+       regardless of journal mode.
+    2. SQLite does not raise when it cannot actually grant WAL on an incompatible VFS — it
+       silently falls back and `PRAGMA journal_mode` returns the mode it actually applied. This
+       probes that return value rather than trusting the request, and falls back explicitly to
+       `DELETE` + `synchronous=FULL` (durable, journal-file-based, no shared memory) when WAL was
+       not granted, so callers never believe they have WAL guarantees they don't.
+    """
+    conn.execute("PRAGMA mmap_size = 0;")
+    cursor = conn.execute("PRAGMA journal_mode = WAL;")
+    row = cursor.fetchone()
+    granted = str(row[0]).lower() if row else "unknown"
+    if granted != "wal":
+        logger.warning(
+            "SQLite could not grant WAL journal mode for %s (got %r instead) — likely a "
+            "non-local filesystem; falling back to DELETE journal mode with synchronous=FULL",
+            db_path,
+            granted,
+        )
+        conn.execute("PRAGMA journal_mode = DELETE;")
+        conn.execute("PRAGMA synchronous = FULL;")
+        granted = "delete"
+    else:
+        conn.execute("PRAGMA synchronous = NORMAL;")
+    conn.execute("PRAGMA busy_timeout = 5000;")
+    conn.execute("PRAGMA foreign_keys = ON;")
+    return granted
 
 
 def _init_db(db_path: str) -> None:
@@ -25,10 +64,7 @@ def _init_db(db_path: str) -> None:
         os.makedirs(path.parent, exist_ok=True)
 
     with sqlite3.connect(db_path) as conn:
-        conn.execute("PRAGMA journal_mode = WAL;")
-        conn.execute("PRAGMA busy_timeout = 5000;")
-        conn.execute("PRAGMA foreign_keys = ON;")
-        conn.execute("PRAGMA synchronous = NORMAL;")
+        _configure_connection(conn, db_path)
 
         conn.execute(
             """
@@ -73,10 +109,7 @@ class SQLiteTrajectoryStore:
 
     def _get_connection(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self._db_path)
-        conn.execute("PRAGMA journal_mode = WAL;")
-        conn.execute("PRAGMA busy_timeout = 5000;")
-        conn.execute("PRAGMA foreign_keys = ON;")
-        conn.execute("PRAGMA synchronous = NORMAL;")
+        _configure_connection(conn, self._db_path)
         return conn
 
     async def append_step(self, step: TrajectoryStep) -> None:
