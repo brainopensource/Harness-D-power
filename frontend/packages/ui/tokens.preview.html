@@ -1,0 +1,69 @@
+<!doctype html>
+<!-- Throwaway swatch page for eyeballing light/dark contrast. Not shipped; not built by turbo. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>@sagiha/ui tokens preview</title>
+    <link rel="stylesheet" href="./tokens.css" />
+    <style>
+      body {
+        margin: 0;
+        padding: var(--sg-space-6);
+        font-family: var(--sg-font-sans);
+        background: var(--sg-neutral-0);
+        color: var(--sg-neutral-12);
+        display: grid;
+        gap: var(--sg-space-5);
+      }
+      .row {
+        display: flex;
+        gap: var(--sg-space-3);
+        flex-wrap: wrap;
+      }
+      .swatch {
+        width: 96px;
+        height: 64px;
+        border-radius: 6px;
+        display: flex;
+        align-items: flex-end;
+        padding: var(--sg-space-2);
+        font-size: var(--sg-text-xs);
+        font-family: var(--sg-font-mono);
+        color: var(--sg-neutral-0);
+        border: 1px solid var(--sg-neutral-3);
+      }
+      h2 {
+        font-size: var(--sg-text-lg);
+        font-weight: var(--sg-font-weight-heading);
+      }
+    </style>
+  </head>
+  <body>
+    <p>Toggle OS theme or add <code>data-theme="dark"</code> to &lt;html&gt; to compare.</p>
+
+    <h2>Neutral scale</h2>
+    <div class="row" id="neutrals"></div>
+
+    <h2>Semantic</h2>
+    <div class="row">
+      <div class="swatch" style="background: var(--sg-accent)">accent</div>
+      <div class="swatch" style="background: var(--sg-success)">success</div>
+      <div class="swatch" style="background: var(--sg-warning)">warning</div>
+      <div class="swatch" style="background: var(--sg-danger)">danger</div>
+      <div class="swatch" style="background: var(--sg-info)">info</div>
+      <div class="swatch" style="background: var(--sg-pending)">pending</div>
+    </div>
+
+    <script>
+      const el = document.getElementById("neutrals");
+      for (let i = 0; i <= 12; i++) {
+        const div = document.createElement("div");
+        div.className = "swatch";
+        div.style.background = `var(--sg-neutral-${i})`;
+        div.style.color = i > 6 ? "var(--sg-neutral-0)" : "var(--sg-neutral-12)";
+        div.textContent = `neutral-${i}`;
+        el.appendChild(div);
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,141 @@
+/**
+ * @sagiha/ui design tokens — source of truth is docs/frontend/ui-ux-guidelines.md.
+ * Both themes are first-class; :root holds light values, [data-theme="dark"] (or OS
+ * prefers-color-scheme, mirrored below) overrides them. No color is introduced here
+ * without a corresponding entry in the guideline's semantic token table.
+ */
+
+@import "tailwindcss";
+
+:root {
+  /* Neutral scale — 13-step structural gray ramp, light theme: #ffffff -> #0a0a0b */
+  --sg-neutral-0: #ffffff;
+  --sg-neutral-1: #fafafa;
+  --sg-neutral-2: #f2f2f3;
+  --sg-neutral-3: #e5e5e6;
+  --sg-neutral-4: #d4d4d6;
+  --sg-neutral-5: #b0b0b3;
+  --sg-neutral-6: #8b8b8f;
+  --sg-neutral-7: #6b6b6f;
+  --sg-neutral-8: #525255;
+  --sg-neutral-9: #3d3d40;
+  --sg-neutral-10: #29292b;
+  --sg-neutral-11: #171718;
+  --sg-neutral-12: #0a0a0b;
+
+  /* Semantic colors — light */
+  --sg-accent: #4f46e5;
+  --sg-success: #16a34a;
+  --sg-warning: #d97706;
+  --sg-danger: #dc2626;
+  --sg-info: #2563eb;
+  --sg-pending: #7c3aed;
+  --sg-effect-pure: var(--sg-neutral-6);
+  --sg-effect-idempotent: var(--sg-info);
+  --sg-effect-destructive: var(--sg-danger);
+
+  /* Spacing scale — 4px base unit */
+  --sg-space-1: 4px;
+  --sg-space-2: 8px;
+  --sg-space-3: 12px;
+  --sg-space-4: 16px;
+  --sg-space-5: 24px;
+  --sg-space-6: 32px;
+  --sg-space-7: 48px;
+  --sg-space-8: 64px;
+
+  /* Type scale (GUI) */
+  --sg-text-xs: 12px;
+  --sg-text-sm: 14px;
+  --sg-text-base: 16px;
+  --sg-text-lg: 20px;
+  --sg-text-xl: 24px;
+  --sg-text-2xl: 32px;
+  --sg-font-weight-body: 400;
+  --sg-font-weight-emphasis: 500;
+  --sg-font-weight-heading: 600;
+  --sg-font-sans: Inter, -apple-system, "Segoe UI", sans-serif;
+  --sg-font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* Motion */
+  --sg-duration-micro: 100ms;
+  --sg-duration-standard: 200ms;
+  --sg-duration-emphasis: 320ms;
+  --sg-ease-entrance: cubic-bezier(0.16, 1, 0.3, 1);
+  --sg-ease-exit: ease-in;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --sg-neutral-0: #0a0a0b;
+    --sg-neutral-1: #171718;
+    --sg-neutral-2: #29292b;
+    --sg-neutral-3: #3d3d40;
+    --sg-neutral-4: #525255;
+    --sg-neutral-5: #6b6b6f;
+    --sg-neutral-6: #8b8b8f;
+    --sg-neutral-7: #b0b0b3;
+    --sg-neutral-8: #d4d4d6;
+    --sg-neutral-9: #e5e5e6;
+    --sg-neutral-10: #f2f2f3;
+    --sg-neutral-11: #fafafa;
+    --sg-neutral-12: #ffffff;
+
+    --sg-accent: #818cf8;
+    --sg-success: #4ade80;
+    --sg-warning: #fbbf24;
+    --sg-danger: #f87171;
+    --sg-info: #60a5fa;
+    --sg-pending: #a78bfa;
+    --sg-effect-pure: var(--sg-neutral-6);
+    --sg-effect-idempotent: var(--sg-info);
+    --sg-effect-destructive: var(--sg-danger);
+  }
+}
+
+/* Explicit override wins over OS preference, e.g. a manual theme toggle persisted client-side. */
+:root[data-theme="dark"] {
+  --sg-neutral-0: #0a0a0b;
+  --sg-neutral-1: #171718;
+  --sg-neutral-2: #29292b;
+  --sg-neutral-3: #3d3d40;
+  --sg-neutral-4: #525255;
+  --sg-neutral-5: #6b6b6f;
+  --sg-neutral-6: #8b8b8f;
+  --sg-neutral-7: #b0b0b3;
+  --sg-neutral-8: #d4d4d6;
+  --sg-neutral-9: #e5e5e6;
+  --sg-neutral-10: #f2f2f3;
+  --sg-neutral-11: #fafafa;
+  --sg-neutral-12: #ffffff;
+
+  --sg-accent: #818cf8;
+  --sg-success: #4ade80;
+  --sg-warning: #fbbf24;
+  --sg-danger: #f87171;
+  --sg-info: #60a5fa;
+  --sg-pending: #a78bfa;
+}
+
+:root[data-theme="light"] {
+  --sg-neutral-0: #ffffff;
+  --sg-neutral-1: #fafafa;
+  --sg-neutral-2: #f2f2f3;
+  --sg-neutral-3: #e5e5e6;
+  --sg-neutral-4: #d4d4d6;
+  --sg-neutral-5: #b0b0b3;
+  --sg-neutral-6: #8b8b8f;
+  --sg-neutral-7: #6b6b6f;
+  --sg-neutral-8: #525255;
+  --sg-neutral-9: #3d3d40;
+  --sg-neutral-10: #29292b;
+  --sg-neutral-11: #171718;
+  --sg-neutral-12: #0a0a0b;
+
+  --sg-accent: #4f46e5;
+  --sg-success: #16a34a;
+  --sg-warning: #d97706;
+  --sg-danger: #dc2626;
+  --sg-info: #2563eb;
+  --sg-pending: #7c3aed;
+}
