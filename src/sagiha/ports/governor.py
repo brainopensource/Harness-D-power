@@ -14,7 +14,7 @@ from __future__ import annotations
 from typing import Final, Protocol
 
 PORT_VERSION: Final = 1
-STABILITY: Final = "stable"
+STABILITY: Final = "provisional"
 
 
 class ResourceGovernor(Protocol):

@@ -11,7 +11,7 @@ from sagiha.domain.memory import MemoryRecord, Recall, RecallQuery
 from sagiha.domain.trajectory import TrajectoryStep
 
 PORT_VERSION: Final = 1
-STABILITY: Final = "stable"
+STABILITY: Final = "provisional"
 
 
 class ShortTermMemory(Protocol):

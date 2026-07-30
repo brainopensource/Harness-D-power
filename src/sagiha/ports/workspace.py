@@ -15,7 +15,7 @@ from sagiha.domain.content import CommandResult
 from sagiha.domain.work import EditRequest, EditResult
 
 PORT_VERSION: Final = 1
-STABILITY: Final = "stable"
+STABILITY: Final = "provisional"
 
 
 class Workspace(Protocol):

@@ -15,7 +15,7 @@ from typing import Any, Final, Protocol
 from sagiha.domain.content import EffectClass, ToolCall, ToolResult
 
 PORT_VERSION: Final = 1
-STABILITY: Final = "stable"
+STABILITY: Final = "provisional"
 
 
 class ToolRegistry(Protocol):

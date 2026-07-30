@@ -9,6 +9,58 @@ from sagiha.domain.content import EffectClass, TextBlock, ToolCall, ToolResult
 
 ToolHandler = Callable[[dict[str, Any]], Awaitable[ToolResult]]
 
+_JSON_TYPES: dict[str, type | tuple[type, ...]] = {
+    "string": str,
+    "integer": int,
+    "number": (int, float),
+    "boolean": bool,
+    "array": list,
+    "object": dict,
+}
+
+
+def validate_arguments(schema: dict[str, Any], arguments: dict[str, Any]) -> list[str]:
+    """Structural JSON-Schema-subset check (D13): required fields present, declared types match.
+
+    Deliberately not the full `jsonschema` package — the built-in tool schemas use only
+    `type`/`properties`/`required`/`items`, and pulling in a general validator for that subset
+    would be a dependency the project's own <8,000 LOC / zero-framework-bloat stance argues
+    against. Extend here if a schema starts using a keyword this does not cover; do not silently
+    let it pass.
+    """
+    errors: list[str] = []
+    for field in schema.get("required", []):
+        if field not in arguments:
+            errors.append(f"missing required field '{field}'")
+
+    properties = schema.get("properties", {})
+    for key, value in arguments.items():
+        prop_schema = properties.get(key)
+        if prop_schema is None:
+            continue
+        expected = prop_schema.get("type")
+        py_type = _JSON_TYPES.get(expected) if expected else None
+        if py_type is None:
+            continue
+        if expected == "boolean" and isinstance(value, bool):
+            continue
+        if expected == "integer" and isinstance(value, bool):
+            errors.append(f"field '{key}' must be integer, got bool")
+            continue
+        if not isinstance(value, py_type):
+            errors.append(f"field '{key}' must be {expected}, got {type(value).__name__}")
+            continue
+        if expected == "array":
+            item_schema = prop_schema.get("items")
+            item_type = _JSON_TYPES.get(item_schema.get("type")) if item_schema else None
+            if item_type is not None:
+                for i, item in enumerate(value):
+                    if not isinstance(item, item_type):
+                        errors.append(
+                            f"field '{key}[{i}]' must be {item_schema['type']}, got {type(item).__name__}"
+                        )
+    return errors
+
 
 class DefaultToolRegistry:
     """Registry managing tool classification and execution dispatch."""
@@ -42,6 +94,19 @@ class DefaultToolRegistry:
             return ToolResult(
                 call_id=call.call_id,
                 content=[TextBlock(text=f"Unknown tool '{call.tool_name}'")],
+                truncated=False,
+                is_error=True,
+            )
+
+        # D13: reject unvalidated arguments before the handler ever runs. A schema violation
+        # is always the caller's fault (the model emitted arguments the registered contract
+        # doesn't allow) — the handler must never see them.
+        schema = self._schemas.get(call.tool_name, {})
+        errors = validate_arguments(schema, call.arguments)
+        if errors:
+            return ToolResult(
+                call_id=call.call_id,
+                content=[TextBlock(text=f"Argument validation failed: {'; '.join(errors)}")],
                 truncated=False,
                 is_error=True,
             )

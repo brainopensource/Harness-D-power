@@ -18,7 +18,7 @@ from sagiha.domain.content import Message, ModelRequest
 from sagiha.domain.trajectory import StreamEvent
 
 PORT_VERSION: Final = 1
-STABILITY: Final = "stable"
+STABILITY: Final = "provisional"
 
 
 class ModelProvider(Protocol):

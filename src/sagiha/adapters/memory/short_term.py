@@ -1,43 +1,22 @@
-"""ShortTermMemory and Memory implementation.
+"""Memory implementation.
 
 See docs/03-contracts-and-models/hexagonal-ports.md#memory--retrieval.
+
+`ShortTermMemoryAdapter` was deleted here (D12/R7, 2026-07-30): `RunLoop` keeps step history in a
+local `list[Message]` (`agency/run_loop.py`) and this adapter was bound nowhere in
+`composition.py` — a live class behind a contract nothing called, which is precisely the dead
+second path D12 warned about. Short-term history has exactly one implementation now. If prompt
+assembly later needs a `ShortTermMemory` port adapter, write it against that real need rather than
+reviving this one; a buffer that pre-dates the caller it was guessing at tends to guess wrong.
 """
 
 from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING
 
 from sagiha.domain.identity import utc_now
 from sagiha.domain.memory import MemoryRecord, Recall, RecallQuery
-from sagiha.domain.trajectory import TrajectoryStep
-
-if TYPE_CHECKING:
-    from sagiha.ports.trajectory import TrajectoryStore
-
-
-class ShortTermMemoryAdapter:
-    """ShortTermMemory implementation over TrajectoryStore & in-memory buffer."""
-
-    def __init__(self, trajectory_store: TrajectoryStore | None = None) -> None:
-        self._trajectory_store = trajectory_store
-        self._buffer: dict[str, list[TrajectoryStep]] = {}
-
-    async def append(self, run_id: str, step: TrajectoryStep) -> None:
-        if run_id not in self._buffer:
-            self._buffer[run_id] = []
-        self._buffer[run_id].append(step)
-        if self._trajectory_store is not None:
-            await self._trajectory_store.append_step(step)
-
-    async def recent(self, run_id: str, limit: int = 20) -> list[TrajectoryStep]:
-        if run_id in self._buffer and self._buffer[run_id]:
-            return self._buffer[run_id][-limit:]
-        if self._trajectory_store is not None:
-            steps = await self._trajectory_store.steps_for_run(run_id)
-            return steps[-limit:]
-        return []
 
 
 class InMemoryMemory:

@@ -15,7 +15,7 @@ from sagiha.domain.content import ToolCall, ToolResult
 from sagiha.domain.control import Decision, RunContext
 
 PORT_VERSION: Final = 1
-STABILITY: Final = "stable"
+STABILITY: Final = "provisional"
 
 
 class PolicyEngine(Protocol):
