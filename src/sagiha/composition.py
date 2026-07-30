@@ -134,27 +134,34 @@ def build_kernel(
     path = cassette_path or ".sagiha/cassettes/default.json"
     mode = config.model.mode
 
+    def _create_live_model_provider() -> ModelProvider:
+        import os
+        from sagiha.adapters.model.openai import OpenAIModelAdapter
+
+        tier_name = config.model.roles.get("execution", "workhorse")
+        tier = config.model.tiers.get(tier_name) or config.model.tiers.get("local")
+        model_name = tier.model if tier else "deepseek-coder"
+        base_url = tier.base_url if tier and tier.base_url else "http://localhost:11434/v1"
+        api_key_env = tier.api_key_env if tier else ""
+        api_key = os.environ.get(api_key_env) if api_key_env else None
+
+        return OpenAIModelAdapter(
+            model_name=model_name,
+            base_url=base_url,
+            api_key=api_key,
+        )
+
     if mode == "replay":
         if not Path(path).exists():
             raise FileNotFoundError(f"model.mode=replay requires cassette at {path}")
         model_provider: ModelProvider = CassetteModelProvider(cassette_path=path, mode="replay")
     elif mode == "record":
-        # Record requires an inner live provider — Sprint 3a uses a passthrough stub
-        # only when explicitly testing; otherwise fail closed without an inner.
-        raise RuntimeError(
-            "model.mode=record requires an inner live provider; "
-            "use replay with a committed cassette or bind a live adapter"
+        live_adapter = _create_live_model_provider()
+        model_provider = CassetteModelProvider(
+            cassette_path=path, mode="record", inner_provider=live_adapter
         )
     elif mode == "live":
-        # OpenAI-compatible live adapter lands with optional extras; fail closed for now
-        # unless a cassette path is explicitly provided for offline demo.
-        if cassette_path and Path(path).exists():
-            model_provider = CassetteModelProvider(cassette_path=path, mode="replay")
-        else:
-            raise RuntimeError(
-                "model.mode=live requires a provider adapter (OpenAI-compatible) — "
-                "not bound in this build; use mode=replay with a cassette"
-            )
+        model_provider = _create_live_model_provider()
     else:
         raise RuntimeError(f"Unknown model.mode: {mode}")
 

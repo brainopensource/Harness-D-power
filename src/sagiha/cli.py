@@ -34,12 +34,14 @@ async def _run_or_resume(
     max_steps: int,
     trajectory_db: str,
     resume: str | None,
+    mode: str = "replay",
 ) -> tuple[str, RunLoopResult | str | None]:
     if resume is None and goal is None:
         return "missing_goal", None
 
+    model_mode = "live" if mode == "live" else ("record" if mode == "record" else "replay")
     config = Config(
-        model=ModelConfig(mode="replay"),
+        model=ModelConfig(mode=model_mode),
         workspace=WorkspaceConfig(root=workspace),
         telemetry=TelemetryConfig(trajectory_db=trajectory_db),
     )
@@ -93,6 +95,9 @@ def run(
     resume: str | None = typer.Option(
         None, "--resume", help="Continue an interrupted run_id instead of starting a new task"
     ),
+    mode: str = typer.Option(
+        "replay", "--mode", "-m", help="Model execution mode ('replay', 'live', 'record')"
+    ),
 ) -> None:
     """Run a coding task end-to-end (replay cassette by default in Sprint 3a)."""
     checks = acceptance if acceptance else ["true"]
@@ -106,6 +111,7 @@ def run(
             max_steps=max_steps,
             trajectory_db=trajectory_db,
             resume=resume,
+            mode=mode,
         )
     )
     if outcome == "no_such_run":

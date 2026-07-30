@@ -36,6 +36,7 @@ dev       = [
   "pytest>=8.3",              # conformance suites; floor matches ADR-0009
   "pytest-asyncio>=0.24",     # parametrized async fixtures
   "pytest-cov>=5.0",          # backs the coverage_not_decreased gate
+  "respx>=0.22.0",            # mock HTTP endpoints in unit tests
   "ruff>=0.8.0",              # lint + format
   "pyright>=1.1.380",         # blocking type gate
   "mypy>=1.13",               # advisory second opinion, non-blocking (ADR-0009)
