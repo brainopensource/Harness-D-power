@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 from typing import Protocol
+
+import anyio
 
 from sagiha.domain.control import Decision
 from sagiha.domain.events import Event
@@ -30,12 +31,21 @@ InterceptorFunc = Callable[[Event], Awaitable[Decision]]
 
 
 class EventBus:
-    """Async-first event bus supporting observers and interceptors."""
+    """Async-first event bus supporting observers and interceptors.
 
-    def __init__(self, default_timeout_s: float = 5.0) -> None:
+    Built on `anyio` structured concurrency (AGENTS.md), not raw `asyncio` primitives (D17):
+    portable across the asyncio and trio backends `anyio` supports.
+    """
+
+    def __init__(self, default_timeout_s: float = 5.0, observer_timeout_s: float = 5.0) -> None:
         self._observers: list[ObserverFunc] = []
         self._interceptors: dict[str, list[InterceptorFunc]] = {}
         self._default_timeout_s = default_timeout_s
+        self._observer_timeout_s = observer_timeout_s
+        # Observers that raised or timed out are quarantined for the remainder of the run
+        # (event-bus-and-hooks.md): a slow or broken observer must never be able to keep
+        # slowing or breaking the run it is merely watching.
+        self._quarantined: set[int] = set()
 
     def subscribe_observer(self, observer: ObserverFunc | Observer) -> None:
         """Subscribe an observer function or object to all emitted events."""
@@ -55,25 +65,41 @@ class EventBus:
             self._interceptors[hook_point].append(interceptor.before)
 
     async def emit(self, event: Event) -> None:
-        """Publish an event to all observers concurrently.
+        """Publish an event to all non-quarantined observers concurrently, with a hard timeout.
 
-        Observer exceptions are caught and logged so an observer failure never aborts the run.
+        An observer that raises or exceeds `observer_timeout_s` is logged and quarantined —
+        it is never invoked again for the lifetime of this bus — but the run itself never fails
+        because of it (D17).
         """
-        if not self._observers:
+        active = [obs for obs in self._observers if id(obs) not in self._quarantined]
+        if not active:
             return
 
         async def _safe_call(obs: ObserverFunc) -> None:
             try:
-                await obs(event)
+                with anyio.fail_after(self._observer_timeout_s):
+                    await obs(event)
+            except TimeoutError:
+                logger.error(
+                    "Observer timed out after %ss handling event %s; quarantining for the "
+                    "remainder of the run",
+                    self._observer_timeout_s,
+                    event.event,
+                )
+                self._quarantined.add(id(obs))
             except Exception as exc:
                 logger.error(
-                    "Observer error handling event %s: %s",
+                    "Observer error handling event %s: %s; quarantining for the remainder of "
+                    "the run",
                     event.event,
                     exc,
                     exc_info=True,
                 )
+                self._quarantined.add(id(obs))
 
-        await asyncio.gather(*[_safe_call(obs) for obs in self._observers])
+        async with anyio.create_task_group() as tg:
+            for obs in active:
+                tg.start_soon(_safe_call, obs)
 
     async def intercept(self, hook_point: str, event: Event, timeout_s: float | None = None) -> Decision:
         """Run interceptors synchronously for a hook point.
@@ -88,7 +114,8 @@ class EventBus:
 
         for interceptor in interceptors:
             try:
-                decision = await asyncio.wait_for(interceptor(event), timeout=effective_timeout)
+                with anyio.fail_after(effective_timeout):
+                    decision = await interceptor(event)
                 if not decision.allowed:
                     return decision
             except TimeoutError:

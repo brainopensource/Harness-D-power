@@ -56,6 +56,7 @@ def run(
         bus=kernel.bus,
         max_steps=max_steps,
         tool_schemas=list(kernel.tool_schemas),
+        evaluator=kernel.evaluator,
     )
     run_id = str(uuid.uuid4())
     ctx = RunContext(
@@ -100,6 +101,7 @@ def replay(
         trajectory_store=kernel.trajectory_store,
         bus=kernel.bus,
         tool_schemas=list(kernel.tool_schemas),
+        evaluator=kernel.evaluator,
     )
     new_run_id = str(uuid.uuid4())
     ctx = RunContext(

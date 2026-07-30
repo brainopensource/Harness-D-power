@@ -133,9 +133,12 @@ async def test_dispatch_unknown_tool_reaches_registry_and_emits_failed() -> None
     registry = DefaultToolRegistry()  # no handler registered for "ghost_tool"
     bus = EventBus()
     failed_events: list[ToolCallFailed] = []
-    bus.subscribe_observer(
-        lambda event: failed_events.append(event) if isinstance(event, ToolCallFailed) else None
-    )
+
+    async def _record(event: object) -> None:
+        if isinstance(event, ToolCallFailed):
+            failed_events.append(event)
+
+    bus.subscribe_observer(_record)
 
     ctx = RunContext(
         run_id="r1",

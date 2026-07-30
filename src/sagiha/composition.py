@@ -20,6 +20,7 @@ from sagiha.domain.content import ToolSchema
 from sagiha.kernel.bus import EventBus
 from sagiha.kernel.governor import DefaultResourceGovernor
 from sagiha.kernel.policy.engine import DefaultPolicyEngine
+from sagiha.outer_loop.evaluator import GateEvaluator
 from sagiha.ports.code_graph import CodeGraph
 from sagiha.ports.evaluator import Evaluator
 from sagiha.ports.governor import ResourceGovernor
@@ -159,6 +160,7 @@ def build_kernel(
 
     bus = EventBus()
     bus.subscribe_observer(trajectory_store.append_event)
+    evaluator = GateEvaluator(policy_engine, resource_governor, tool_registry, bus)
 
     return Kernel(
         config=config,
@@ -171,4 +173,5 @@ def build_kernel(
         workspace=workspace,
         bus=bus,
         tool_schemas=tool_schemas,
+        evaluator=evaluator,
     )

@@ -10,13 +10,20 @@ from __future__ import annotations
 
 from typing import Final, Protocol
 
+from sagiha.domain.control import RunContext
 from sagiha.domain.work import GateReport, TaskSpec
 
-PORT_VERSION: Final = 1
+PORT_VERSION: Final = 2
 STABILITY: Final = "provisional"
 
 
 class Evaluator(Protocol):
-    """Optional — unbound under profiles with `gates = "none"`."""
+    """Optional — unbound under profiles with `gates = "none"`.
 
-    async def evaluate(self, task: TaskSpec, branch_id: str) -> GateReport: ...
+    Takes a `RunContext`, not a bare branch id (v2, R4): acceptance criteria run through the
+    same dispatch choke point as every other tool call, which requires `run_id`,
+    `workspace_root`, `autonomy_level`, and remaining budget — a branch identifier alone
+    cannot authorize or lease anything.
+    """
+
+    async def evaluate(self, task: TaskSpec, ctx: RunContext) -> GateReport: ...

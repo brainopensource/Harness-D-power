@@ -34,12 +34,13 @@ from sagiha.domain.trajectory import TokenUsage, TrajectoryStep
 from sagiha.domain.work import (
     AcceptanceCriterion,
     CostSummary,
-    CriterionResult,
     GateReport,
     TaskSpec,
 )
 from sagiha.kernel.bus import EventBus
 from sagiha.kernel.dispatch import dispatch
+from sagiha.outer_loop.evaluator import GateEvaluator
+from sagiha.ports.evaluator import Evaluator
 from sagiha.ports.governor import ResourceGovernor
 from sagiha.ports.model import ModelProvider
 from sagiha.ports.policy import PolicyEngine
@@ -74,6 +75,7 @@ class RunLoop:
         max_steps: int = 20,
         system_prompt: str = "You are a careful coding agent. Use tools to fix the failing test.",
         tool_schemas: list[ToolSchema] | None = None,
+        evaluator: Evaluator | None = None,
     ) -> None:
         self._model = model_provider
         self._policy = policy_engine
@@ -84,6 +86,9 @@ class RunLoop:
         self._max_steps = max_steps
         self._system_prompt = system_prompt
         self._tool_schemas = tool_schemas or []
+        self._evaluator: Evaluator = evaluator or GateEvaluator(
+            policy_engine, resource_governor, tool_registry, bus
+        )
 
     def _tool_signature(self, name: str, arguments: dict[str, object]) -> str:
         payload = json.dumps({"tool": name, "args": arguments}, sort_keys=True)
@@ -226,7 +231,7 @@ class RunLoop:
                 )
                 break
 
-        gate_report = await self._evaluate(task, ctx)
+        gate_report = await self._evaluator.evaluate(task, ctx)
         await self._bus.emit(GateEvaluated(run_id=ctx.run_id, gate_report=gate_report))
         await self._bus.emit(
             RunCompleted(
@@ -242,47 +247,6 @@ class RunLoop:
             )
         )
         return RunLoopResult(task=task, gate_report=gate_report, steps=steps, run_id=ctx.run_id)
-
-    async def _evaluate(self, task: TaskSpec, ctx: RunContext) -> GateReport:
-        """Minimal evaluator: run each acceptance check via run_command tool path."""
-        criteria: list[CriterionResult] = []
-        for criterion in task.acceptance:
-            call = ToolCall(
-                call_id=str(uuid.uuid4()),
-                tool_name="run_command",
-                arguments={"command": ["bash", "-lc", criterion.check]},
-                effect=await self._registry.get_effect_class("run_command"),
-            )
-            result = await dispatch(
-                call=call,
-                ctx=ctx,
-                policy=self._policy,
-                governor=self._governor,
-                registry=self._registry,
-                bus=self._bus,
-            )
-            passed = not result.is_error
-            output = ""
-            if result.content and isinstance(result.content[0], TextBlock):
-                output = result.content[0].text
-            criteria.append(
-                CriterionResult(
-                    description=criterion.description,
-                    check=criterion.check,
-                    passed=passed,
-                    required=criterion.required,
-                    output=output,
-                )
-            )
-
-        # Coding profile: set all gates explicitly (D20).
-        return GateReport(
-            criteria=tuple(criteria),
-            no_new_suppressions=True,
-            tests_unmodified=True,
-            coverage_not_decreased=True,
-            diff_within_bounds=True,
-        )
 
 
 def make_task(goal: str, checks: list[str], task_id: str | None = None) -> TaskSpec:

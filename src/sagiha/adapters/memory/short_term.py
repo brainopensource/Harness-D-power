@@ -16,7 +16,15 @@ import uuid
 from datetime import datetime
 
 from sagiha.domain.identity import utc_now
-from sagiha.domain.memory import MemoryRecord, Recall, RecallQuery
+from sagiha.domain.memory import MemoryRecord, Provenance, Recall, RecallQuery
+
+# Trust ordering, most to least trusted (docstring order in domain/memory.py). Higher rank wins.
+_PROVENANCE_TRUST_RANK: dict[Provenance, int] = {
+    Provenance.OPERATOR: 3,
+    Provenance.HARNESS: 2,
+    Provenance.MODEL: 1,
+    Provenance.EXTERNAL: 0,
+}
 
 
 class InMemoryMemory:
@@ -33,10 +41,15 @@ class InMemoryMemory:
     async def recall(self, query: RecallQuery) -> list[Recall]:
         results: list[Recall] = []
         as_of = query.as_of or utc_now()
+        min_rank = (
+            _PROVENANCE_TRUST_RANK[query.min_provenance] if query.min_provenance is not None else None
+        )
         for mem_id, rec in self._records.items():
             if rec.valid_to is not None and rec.valid_to <= as_of:
                 continue
             if query.kinds and rec.kind not in query.kinds:
+                continue
+            if min_rank is not None and _PROVENANCE_TRUST_RANK[rec.provenance] < min_rank:
                 continue
             score = 1.0 if query.text.lower() in rec.content.lower() else 0.5
             results.append(Recall(memory_id=mem_id, record=rec, score=score))

@@ -3,24 +3,24 @@
 from __future__ import annotations
 
 import tempfile
+from collections.abc import AsyncIterator
 from pathlib import Path
 
-import anyio
 import pytest
 
 from sagiha import Config, build_kernel
-from sagiha.adapters.model.cassette import CassetteEntry, CassetteModelProvider
 from sagiha.adapters.tools.registry import DefaultToolRegistry
 from sagiha.adapters.trajectory.sqlite import SQLiteTrajectoryStore
+from sagiha.agency.run_loop import RunLoop, make_task
 from sagiha.domain.config import ModelConfig, TelemetryConfig, WorkspaceConfig
 from sagiha.domain.content import EffectClass, Message, ModelRequest, TextBlock, ToolCall, ToolResult
 from sagiha.domain.control import Decision, RunContext
 from sagiha.domain.events import Event, ToolCallRequested
+from sagiha.domain.trajectory import StreamEvent
 from sagiha.kernel.bus import EventBus
 from sagiha.kernel.dispatch import dispatch
 from sagiha.kernel.governor import DefaultResourceGovernor
 from sagiha.kernel.policy.engine import DefaultPolicyEngine
-from sagiha.kernel.react import ReActEngine
 
 
 @pytest.mark.asyncio
@@ -106,21 +106,28 @@ async def test_dispatch_capability_choke_point() -> None:
 
 
 @pytest.mark.asyncio
-async def test_react_engine_execution() -> None:
+async def test_run_loop_single_step_ends_turn_with_no_tool_calls() -> None:
+    """RunLoop supersedes kernel/react.py (R1): a step that ends the turn with no
+    tool calls records exactly one step and stops without dispatching anything."""
+
+    class EndTurnProvider:
+        async def complete(self, request: ModelRequest) -> Message:
+            return Message(role="assistant", content=[TextBlock(text="Hello back!")])
+
+        async def stream(self, request: ModelRequest) -> AsyncIterator[StreamEvent]:
+            raise NotImplementedError
+            yield  # pragma: no cover
+
     with tempfile.TemporaryDirectory() as tmp_dir:
-        cassette_path = str(Path(tmp_dir) / "cassette.json")
-        entry = CassetteEntry(
-            request=ModelRequest(messages=[Message(role="user", content=[TextBlock(text="hello")])]),
-            response=Message(role="assistant", content=[TextBlock(text="Hello back!")]),
+        store = SQLiteTrajectoryStore(db_path=str(Path(tmp_dir) / "traj.db"))
+        loop = RunLoop(
+            model_provider=EndTurnProvider(),
+            policy_engine=DefaultPolicyEngine(),
+            resource_governor=DefaultResourceGovernor(),
+            tool_registry=DefaultToolRegistry(),
+            trajectory_store=store,
+            bus=EventBus(),
         )
-        await anyio.Path(cassette_path).write_text(f"[{entry.model_dump_json()}]")
-
-        model = CassetteModelProvider(cassette_path=cassette_path, mode="replay")
-        policy = DefaultPolicyEngine()
-        governor = DefaultResourceGovernor()
-        registry = DefaultToolRegistry()
-
-        engine = ReActEngine(model, policy, governor, registry)
         ctx = RunContext(
             run_id="r-react",
             autonomy_level="interactive",
@@ -128,9 +135,9 @@ async def test_react_engine_execution() -> None:
             budget_remaining_usd=5.0,
         )
 
-        step_result = await engine.step(ctx, "hello")
-        assert step_result.step_id.seq == 1
-        assert step_result.step_id.run_id == "r-react"
+        result = await loop.run(make_task("hello", checks=[]), ctx)
+        assert result.steps == []
+        assert result.run_id == "r-react"
 
 
 @pytest.mark.asyncio
@@ -150,3 +157,37 @@ async def test_build_kernel_wires_day_zero_adapters() -> None:
         assert kernel.resource_governor is not None
         assert kernel.tool_registry is not None
         assert kernel.memory is not None
+        assert kernel.evaluator is not None
+
+
+def test_kernel_mandatory_ports_are_not_optional() -> None:
+    """D14: model_provider, policy_engine, resource_governor, tool_registry, and
+    trajectory_store are non-optional constructor arguments — a partially wired Kernel is not
+    representable. Profile-optional ports (evaluator, indexer, code_graph, lsp_adapter,
+    worktree_manager) may still default to None."""
+    import dataclasses
+
+    from sagiha.composition import Kernel
+
+    mandatory_no_default = {
+        "config",
+        "model_provider",
+        "policy_engine",
+        "resource_governor",
+        "tool_registry",
+        "trajectory_store",
+        "memory",
+        "workspace",
+    }
+    profile_optional = {"indexer", "code_graph", "lsp_adapter", "worktree_manager", "evaluator"}
+
+    for f in dataclasses.fields(Kernel):
+        if f.name in mandatory_no_default:
+            assert f.default is dataclasses.MISSING and f.default_factory is dataclasses.MISSING, (
+                f"{f.name} must have no default — a partially wired Kernel must fail at composition"
+            )
+        elif f.name in profile_optional:
+            assert f.default is None, f"{f.name} is expected to default to None"
+
+    with pytest.raises(TypeError):
+        Kernel(config=None)  # type: ignore[call-arg,arg-type]

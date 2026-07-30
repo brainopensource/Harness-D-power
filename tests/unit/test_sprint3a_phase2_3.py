@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from datetime import timedelta
 from pathlib import Path
 
-import anyio
 import pytest
 
-from sagiha.adapters.model.cassette import CassetteEntry, CassetteModelProvider
 from sagiha.adapters.tools.registry import DefaultToolRegistry
 from sagiha.adapters.trajectory.sqlite import SQLiteTrajectoryStore
+from sagiha.agency.run_loop import RunLoop, make_task
 from sagiha.domain.content import (
     EffectClass,
     Message,
@@ -23,10 +23,11 @@ from sagiha.domain.content import (
 from sagiha.domain.control import Grant, RunContext
 from sagiha.domain.events import ToolCallCompleted, ToolCallRequested
 from sagiha.domain.identity import utc_now
+from sagiha.domain.trajectory import StreamEvent
+from sagiha.kernel.bus import EventBus
 from sagiha.kernel.dispatch import dispatch
 from sagiha.kernel.governor import DefaultResourceGovernor
 from sagiha.kernel.policy.engine import DefaultPolicyEngine
-from sagiha.kernel.react import ReActEngine
 
 
 @pytest.mark.asyncio
@@ -111,25 +112,27 @@ async def test_policy_extracts_nested_edit_request_path() -> None:
 
 @pytest.mark.asyncio
 async def test_react_parses_tool_use_block(tmp_path: Path) -> None:
-    cassette_path = tmp_path / "c.json"
-    entry = CassetteEntry(
-        request=ModelRequest(
-            messages=[Message(role="user", content=[TextBlock(text="edit")])],
-        ),
-        response=Message(
-            role="assistant",
-            content=[
-                ToolUseBlock(
-                    call_id="tu-1",
-                    tool_name="echo",
-                    arguments={"msg": "hi"},
-                )
-            ],
-        ),
-    )
-    await anyio.Path(cassette_path).write_text(f"[{entry.model_dump_json()}]")
+    """ToolUseBlock -> ToolCall resolution + dispatch now lives in RunLoop (R1
+    superseded kernel/react.py's ReActEngine, which duplicated this path)."""
 
-    model = CassetteModelProvider(cassette_path=str(cassette_path), mode="replay")
+    class ScriptedProvider:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        async def complete(self, request: ModelRequest) -> Message:
+            self.calls += 1
+            if self.calls == 1:
+                return Message(
+                    role="assistant",
+                    content=[ToolUseBlock(call_id="tu-1", tool_name="echo", arguments={"msg": "hi"})],
+                )
+            return Message(role="assistant", content=[TextBlock(text="done")])
+
+        async def stream(self, request: ModelRequest) -> AsyncIterator[StreamEvent]:
+            raise NotImplementedError
+            yield  # pragma: no cover
+
+    model = ScriptedProvider()
     policy = DefaultPolicyEngine()
     governor = DefaultResourceGovernor()
     registry = DefaultToolRegistry()
@@ -140,14 +143,24 @@ async def test_react_parses_tool_use_block(tmp_path: Path) -> None:
     registry.register_handler("echo", {"type": "object"}, EffectClass.PURE, handler)
     policy.register_tool_schema("echo", {"type": "object"})
 
-    engine = ReActEngine(model, policy, governor, registry)
+    store = SQLiteTrajectoryStore(db_path=str(tmp_path / "traj.db"))
+    loop = RunLoop(
+        model_provider=model,  # type: ignore[arg-type]
+        policy_engine=policy,
+        resource_governor=governor,
+        tool_registry=registry,
+        trajectory_store=store,
+        bus=EventBus(),
+    )
     ctx = RunContext(
         run_id="r-react",
         autonomy_level="interactive",
         workspace_root="/tmp",
         budget_remaining_usd=5.0,
     )
-    step = await engine.step(ctx, "edit")
+    result = await loop.run(make_task("edit", checks=[]), ctx)
+    assert len(result.steps) == 1
+    step = result.steps[0]
     assert len(step.tool_calls) == 1
     assert step.tool_calls[0].tool_name == "echo"
     assert step.tool_calls[0].effect == EffectClass.PURE
