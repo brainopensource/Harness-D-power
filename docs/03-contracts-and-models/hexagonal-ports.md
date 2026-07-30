@@ -11,12 +11,14 @@ updated: 2026-07-29
 All kernel components interact exclusively via stable `typing.Protocol` interfaces.
 
 > [!IMPORTANT]
-> **This file and [Domain Schemas](./domain-schemas.md) are the contract.** There is no second copy —
-> a contract stated in two places is a contradiction with a delay fuse, and the copy that retrieval
-> surfaces is not reliably the correct one. `reference/` carries derivation and rationale only.
+> **`src/sagiha/ports/` and `src/sagiha/domain/` are the contract. `src/` is the single source of
+> truth — code wins.** This file is navigation and rationale over that code, not a second
+> definition — a contract stated in two places is a contradiction with a delay fuse, and the copy
+> that retrieval surfaces is not reliably the correct one. `reference/` carries derivation and
+> rationale only.
 >
-> When `src/sagiha/ports/` exists it supersedes this file, and these signatures are **deleted, not
-> synced** — see [Contracts to Code](../implementation/contracts-to-code.md).
+> `src/sagiha/ports/` supersedes this file wherever they disagree; keep this page a pointer, not a
+> restatement — see [Contracts to Code](../implementation/contracts-to-code.md).
 
 ## **Five Contract Rules**
 

@@ -78,3 +78,40 @@ submitted → working → { input-required | auth-required } → working → { c
 ```
 
 `input-required` and `auth-required` are **first-class resting states**, not errors. A task parked on an approval request is healthy, and the system reports it as such rather than as a stall.
+
+## **`PRDSpec` and `StoryBoard` (Macro Layer)**
+
+> [!IMPORTANT]
+> These models belong to the [workflow orchestration layer](../04-workflows-and-loops/workflow-orchestration-and-dags.md)
+> defined by [ADR-0018](../08-decisions/0018-native-workflow-dag.md), which is a **non-goal until
+> the inner loop closes** (Sprint 3's exit test). They are specified here now, ahead of
+> implementation, so `TaskSpec`'s decomposition rules above have a documented upstream producer —
+> they do not exist in `src/` yet and carry no runtime behavior today.
+
+`PRDGeneratorStep` turns a free-text prompt into a `PRDSpec`: scope, explicit non-goals, and
+constraints, structured enough that `StoryDecomposerStep` can act on it without re-interpreting the
+original prompt. A `PRDSpec` is not itself executable — it has no `check` and admits nothing.
+
+`StoryDecomposerStep` turns a `PRDSpec` into a `StoryBoard`: an ordered collection of `StorySpec`
+values. Each `StorySpec` carries a `parent_task_id`-equivalent link back to the `PRDSpec` and a
+disjoint file-set closure, computed the same way `TaskSpec` decomposition already requires above —
+this is the same rule, applied one layer higher, not a new one. A `StorySpec` is converted to a
+`TaskSpec` (with machine-checkable `acceptance`) only when `CodingStep` picks it off the board; the
+board itself holds no acceptance criteria of its own.
+
+**Lifecycle:**
+
+```
+PRDSpec:    drafted → decomposed → superseded (on prompt revision, never mutated)
+StoryBoard: open → story-in-progress → story-verified → board-complete
+StorySpec:  queued → active → { done | returned-to-board }
+```
+
+A `StorySpec` returned by `VerifierStep` goes back to `queued` with the `GateReport` attached as
+context for re-scoping — the same non-mutation discipline `TaskSpec` revisions already follow: a
+returned story is a new attempt, not an edited one.
+
+Once implementation begins, `PRDSpec`, `StoryBoard`, and `StorySpec` are defined in
+`src/sagiha/domain/work.py` beside `TaskSpec` and `AcceptanceCriterion`, per
+[Contracts to Code](../implementation/contracts-to-code.md). This document carries rules and
+rationale only.

@@ -57,10 +57,10 @@ These are **trusted** because they are derived deterministically by the harness 
 
 | Tool | Signature | Effect | Grant | Trust |
 | :--- | :--- | :--- | :--- | :--- |
-| `edit_file` | `(request: EditRequest) -> EditResult` | D | write-scope | trusted |
+| `apply_edit` | `(request: EditRequest) -> EditResult` | D | write-scope | trusted |
 | `write_file` | `(path, content) -> EditResult` | D | write-scope | trusted |
 
-`edit_file` is the **primary** mutation path and takes an `EditRequest` (containing `path` and `edits: tuple[Edit, ...]`). Edit uses search/replace anchors with `expected_occurrences` for disambiguation; unified-diff is reserved for a separate `apply_patch` method if ever needed. `write_file` is reserved for new files and full rewrites; the description says so, because models otherwise default to whole-file rewrites that burn output tokens and clobber concurrent changes.
+`apply_edit` is the **primary** mutation path and takes an `EditRequest` (containing `path` and `edits: tuple[Edit, ...]`), matching `Workspace.apply_edit`. Edit uses search/replace anchors with `expected_occurrences` for disambiguation; unified-diff is reserved for a separate `apply_patch` method if ever needed. `write_file` is reserved for new files and full rewrites; the description says so, because models otherwise default to whole-file rewrites that burn output tokens and clobber concurrent changes.
 
 Both return `EditResult` with per-hunk `HunkResult` outcomes and a Tree-sitter `syntax_valid` check, so a structurally broken edit is rejected before the language server sees it and the model gets the specific failing hunk back rather than a bare `false`.
 
@@ -132,7 +132,7 @@ The system prompt establishes that content inside such an envelope is **informat
 
 ```python
 registry.register(
-    name="edit_file",
+    name="apply_edit",
     schema=EDIT_FILE_SCHEMA,  # JSON Schema, validated at dispatch
     effect=EffectClass.DESTRUCTIVE,
     grant_scope="write",

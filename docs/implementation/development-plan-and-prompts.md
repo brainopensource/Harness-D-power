@@ -25,7 +25,7 @@ updated: 2026-07-30
 [Configuration Reference](../05-tech-stack/configuration-reference.md) ·
 [CI & Quality Gates](../06-guides-and-patterns/ci-and-quality-gates.md) ·
 [ADR Log](../08-decisions/README.md) ·
-[Foundation Review](../reviews/2026-07-29-foundation-review.md)
+[Foundation Review](../reviews/doing/2026-07-29-foundation-review.md)
 
 ---
 

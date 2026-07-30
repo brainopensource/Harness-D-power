@@ -13,7 +13,7 @@ This repository houses the architecture, specification, and implementation of **
    - `sagiha.domain` models are pure Pydantic models with zero I/O dependencies.
    - `sagiha.ports` define typed `Protocol` boundaries with zero internal dependencies.
    - All port implementations (`adapters/`) must pass their respective port conformance test suites.
-   - **Contracts live in `src/`. A `Protocol` or `BaseModel` defined in a `.md` file is a bug.** Documentation carries rules and rationale; the definition has exactly one home. Until `src/` exists, that home is `docs/03-contracts-and-models/` — see `docs/implementation/contracts-to-code.md`.
+   - **Contracts live in `src/sagiha/ports/` and `src/sagiha/domain/`. `src/` is the single source of truth — code wins.** A `Protocol` or `BaseModel` defined in a `.md` file is a bug. Documentation carries rules and rationale; the definition has exactly one home — see `docs/implementation/contracts-to-code.md`.
    - **Every port must be implementable over a wire**: payloads are Pydantic-serializable, every method is `async`, and no `Path`, file handle, callable, generator, or live object crosses a boundary. See `docs/02-architecture/remoteable-ports.md`.
 
 3. **Verification & Gates**:

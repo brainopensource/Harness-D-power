@@ -59,7 +59,7 @@
 ## ⏳ **Scope Change — 2026-07-29**
 
 The two remaining items (stdio MCP client driver, OTel telemetry subscriber) are **deferred** per
-the [2026-07-29 Foundation Review](../reviews/2026-07-29-foundation-review.md) (§6, §11): both
+the [2026-07-29 Foundation Review](../reviews/doing/2026-07-29-foundation-review.md) (§6, §11): both
 extend the periphery while the core loop is not yet demonstrated. MCP lands in Block 5 alongside
 the sandbox; OTel is an additive EventBus observer over an event stream already persisted to SQLite.
 

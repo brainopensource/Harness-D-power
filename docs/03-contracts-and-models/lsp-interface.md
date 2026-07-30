@@ -47,7 +47,7 @@ per-candidate container, which raises a question the warm-pool design does not a
    container's filesystem to analyze candidate source.
 3. **The LSP adapter is a reader, not an effectful runtime.** It executes no model-authored commands
    and writes nothing. Keeping it outside the sandbox does not weaken the perimeter, because the
-   perimeter exists to contain *effects* — and `run_command`, `edit_file`, and the toolchain all remain
+   perimeter exists to contain *effects* — and `run_command`, `apply_edit`, and the toolchain all remain
    inside it.
 
 **The trade-off, stated plainly**: a host-side server analyses source that may reference dependencies

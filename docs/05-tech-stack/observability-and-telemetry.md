@@ -121,7 +121,7 @@ Note: the first change to any event model without this will orphan every cassett
 ```bash
 sagiha trajectory show <run-id>              # steps, tools, diagnostics, scores
 sagiha trajectory diff <id-a> <id-b>         # where two runs diverged
-sagiha trajectory grep <run-id> --tool edit_file
+sagiha trajectory grep <run-id> --tool apply_edit
 sagiha trajectory cost <run-id>              # spend breakdown by step
 sagiha replay --run-id <id>                  # deterministic, zero API calls
 ```

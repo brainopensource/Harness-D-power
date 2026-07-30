@@ -90,7 +90,7 @@ model calls.
 
 The *policy* below is the ADR-0012 target. The CLI gate that enforces it —
 `sagiha replay --verify-all` — is **Planned — Sprint 3** ([STATUS.md](../STATUS.md)); graded
-fidelity (L0/L1/L2) is defined in the [foundation review](../reviews/2026-07-29-foundation-review.md#11-measurement-plan).
+fidelity (L0/L1/L2) is defined in the [foundation review](../reviews/doing/2026-07-29-foundation-review.md#11-measurement-plan).
 
 `sagiha replay --verify-all` asserts byte-for-byte step-sequence equality against recorded cassettes
 at fidelity L2 for `replay_relevant` events; earlier Sprint 3 work targets L1 digest matching first.
@@ -113,15 +113,22 @@ pickled objects, and why upcasting is a first-class module instead of a migratio
 
 Not every port is equally settled, and pretending otherwise is how a 1.0 becomes a lie.
 
+**Every port in this suite is `draft` today.** A stability label is evidence about adapters that
+exist, not aspiration about a design that is believed correct — and as of this writing every port
+has at most one first-party implementation (often only a cassette or in-memory stub). Marking
+`ModelProvider` or `Workspace` `stable` while `ModelRequest` cannot yet describe a real request
+(see the foundation review) is a lying label, not an optimistic one.
+
 | Tier | Meaning | Ports |
 | :--- | :--- | :--- |
-| **Stable** | Full policy above | `ModelProvider`, `Workspace`, `Memory`, `ToolRegistry`, `TrajectoryStore` |
-| **Provisional** | May change at any minor, with a changelog entry | `Toolchain`, `CodeGraph`, `Indexer`, `Reviewer`, `Evaluator` |
+| **Draft** | At most one implementation; signature may change at any minor without a deprecation cycle | `ModelProvider`, `Workspace`, `Memory`, `ToolRegistry`, `TrajectoryStore`, `Toolchain`, `CodeGraph`, `Indexer`, `Reviewer`, `Evaluator` |
 | **Experimental** | No guarantee; may be removed | AOI ports (`RewardPredictor`, `FailurePredictor`, `CostPerformanceEstimator`), `MetaImprover` |
 
-Each port module states its tier next to `PORT_VERSION`. Ports graduate from Provisional to Stable
-when at least two adapters implement them and the conformance suite has been stable for one minor
-release — evidence, not calendar.
+Each port module states its tier next to `PORT_VERSION`. A port graduates from **Draft** to
+**Stable** — and only then does the full deprecation policy above apply — when at least two
+independent adapters implement it and the conformance suite has been stable for one minor release:
+evidence, not calendar. Until that graduation, treat every signature in this suite as subject to
+change without notice.
 
 ## **Pre-1.0**
 
