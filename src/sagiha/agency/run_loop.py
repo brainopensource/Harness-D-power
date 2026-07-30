@@ -73,7 +73,12 @@ class RunLoop:
         bus: EventBus,
         *,
         max_steps: int = 20,
-        system_prompt: str = "You are a careful coding agent. Use tools to fix the failing test.",
+        system_prompt: str = (
+            "You are an autonomous software developer agent. "
+            "To solve the task, you MUST use the provided tools (such as apply_edit, run_command, read_file). "
+            "When asked to create or edit a file, call the apply_edit tool directly instead of replying with conversational text."
+        ),
+
         tool_schemas: list[ToolSchema] | None = None,
         evaluator: Evaluator | None = None,
     ) -> None:

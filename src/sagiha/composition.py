@@ -55,10 +55,29 @@ class Kernel:
     tool_schemas: tuple[ToolSchema, ...] = ()
 
 
+def load_env_file(path: str | Path = ".env") -> dict[str, str]:
+    """Parse key-value environment variables from a .env file if present."""
+    env_vars: dict[str, str] = {}
+    p = Path(path)
+    if not p.is_file():
+        return env_vars
+    for line in p.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        key = key.strip()
+        val = val.strip().strip("'\"")
+        if key:
+            env_vars[key] = val
+    return env_vars
+
+
 def build_kernel(
     config: Config,
     *,
     cassette_path: str | None = None,
+    tier: str | None = None,
 ) -> Kernel:
     """Builds and wires the Sprint 3a kernel from configuration.
 
@@ -137,20 +156,35 @@ def build_kernel(
     def _create_live_model_provider() -> ModelProvider:
         import os
 
+        from sagiha.adapters.model.fallback import FallbackModelAdapter
         from sagiha.adapters.model.openai import OpenAIModelAdapter
 
-        tier_name = config.model.roles.get("execution", "workhorse")
-        tier = config.model.tiers.get(tier_name) or config.model.tiers.get("local")
-        model_name = tier.model if tier else "deepseek-coder"
-        base_url = tier.base_url if tier and tier.base_url else "http://localhost:11434/v1"
-        api_key_env = tier.api_key_env if tier else ""
-        api_key = os.environ.get(api_key_env) if api_key_env else None
+        tier_name = tier or config.model.roles.get("execution") or config.model.active_tier
+        tier_cfg = config.model.tiers.get(tier_name) or config.model.tiers.get("tier0") or config.model.tiers.get("local")
+        
+        models = [tier_cfg.model] + tier_cfg.fallbacks if tier_cfg else ["deepseek-coder"]
+        base_url = tier_cfg.base_url if tier_cfg and tier_cfg.base_url else "http://localhost:11434/v1"
+        api_key_env = tier_cfg.api_key_env if tier_cfg else ""
 
-        return OpenAIModelAdapter(
-            model_name=model_name,
-            base_url=base_url,
-            api_key=api_key,
-        )
+        api_key = os.environ.get(api_key_env) if api_key_env else None
+        if not api_key and api_key_env:
+            env_vars = load_env_file(Path(config.workspace.root) / ".env")
+            if not env_vars:
+                env_vars = load_env_file(".env")
+            api_key = env_vars.get(api_key_env)
+
+        providers: list[ModelProvider] = [
+            OpenAIModelAdapter(
+                model_name=m,
+                base_url=base_url,
+                api_key=api_key,
+            )
+            for m in models
+        ]
+
+        if len(providers) == 1:
+            return providers[0]
+        return FallbackModelAdapter(providers)
 
     if mode == "replay":
         if not Path(path).exists():

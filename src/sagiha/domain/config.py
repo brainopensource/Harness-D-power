@@ -19,6 +19,7 @@ class ModelTierConfig(BaseModel):
 
     provider: str = "anthropic"
     model: str = "claude-3-5-sonnet-20241022"
+    fallbacks: list[str] = Field(default_factory=list)
     max_tokens: int = 8192
     api_key_env: str = "ANTHROPIC_API_KEY"
     base_url: str | None = None
@@ -29,9 +30,11 @@ class ModelConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     mode: Literal["live", "replay", "record"] = "live"
+    active_tier: str = "tier0"
     fallback: str | None = "workhorse"
     tiers: dict[str, ModelTierConfig] = Field(
         default_factory=lambda: {
+            # ─── Standard Role Tiers ───────────────────────────────────────────
             "frontier": ModelTierConfig(
                 provider="anthropic",
                 model="claude-3-5-sonnet-20241022",
@@ -59,6 +62,79 @@ class ModelConfig(BaseModel):
                 max_tokens=8192,
                 base_url="http://localhost:11434/v1",
                 api_key_env="",
+            ),
+            # ─── Config-Driven Fallback Tiers (Tier 0 / Tier 1 / Tier 2) ──────
+            #
+            # Tier 0 (Free / Local): Primary local server or OpenRouter free model,
+            # falling back to free OpenRouter models in order.
+            "tier0": ModelTierConfig(
+                provider="openai-compatible",
+                model="cohere/north-mini-code:free",
+                base_url="https://openrouter.ai/api/v1",
+                api_key_env="OPENROUTER_API_KEY",
+                max_tokens=8192,
+                fallbacks=[
+                    "inclusionai/ling-3.0-flash:free",
+                    "poolside/laguna-s-2.1:free",
+                    "poolside/laguna-xs-2.1:free",
+                    "nvidia/nemotron-3-ultra-550b-a55b:free",
+                ],
+            ),
+            # Tier 1 (Cheap / Medium Paid): High-speed, low-cost paid models.
+            "tier1": ModelTierConfig(
+                provider="openai-compatible",
+                model="qwen/qwen3.7-flash",
+                base_url="https://openrouter.ai/api/v1",
+                api_key_env="OPENROUTER_API_KEY",
+                max_tokens=8192,
+                fallbacks=[
+                    "xiaomi/mimo-v2.5",
+                    "deepseek/deepseek-v4-flash",
+                    "tencent/hy3",
+                ],
+            ),
+            # Tier 2 (Good / Premium Paid): High-capability frontier models.
+            "tier2": ModelTierConfig(
+                provider="openai-compatible",
+                model="anthropic/claude-sonnet-5",
+                base_url="https://openrouter.ai/api/v1",
+                api_key_env="OPENROUTER_API_KEY",
+                max_tokens=8192,
+                fallbacks=[
+                    "deepseek/deepseek-v4-pro",
+                    "z-ai/glm-5.2",
+                    "minimax/minimax-m3",
+                    "moonshotai/kimi-k3",
+                ],
+            ),
+            # ─── Individual OpenRouter Catalog Items ─────────────────────────
+            "openrouter_free": ModelTierConfig(
+                provider="openai-compatible",
+                model="google/gemma-4-31b-it:free",
+                max_tokens=8192,
+                base_url="https://openrouter.ai/api/v1",
+                api_key_env="OPENROUTER_API_KEY",
+            ),
+            "openrouter_code": ModelTierConfig(
+                provider="openai-compatible",
+                model="cohere/north-mini-code:free",
+                max_tokens=8192,
+                base_url="https://openrouter.ai/api/v1",
+                api_key_env="OPENROUTER_API_KEY",
+            ),
+            "openrouter_gpt": ModelTierConfig(
+                provider="openai-compatible",
+                model="openai/gpt-oss-20b:free",
+                max_tokens=8192,
+                base_url="https://openrouter.ai/api/v1",
+                api_key_env="OPENROUTER_API_KEY",
+            ),
+            "openrouter_ling": ModelTierConfig(
+                provider="openai-compatible",
+                model="inclusionai/ling-3.0-flash:free",
+                max_tokens=8192,
+                base_url="https://openrouter.ai/api/v1",
+                api_key_env="OPENROUTER_API_KEY",
             ),
         }
     )

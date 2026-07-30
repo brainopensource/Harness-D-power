@@ -152,10 +152,29 @@ SAGIHA decouples code facts from learned experience to prevent hallucinated edge
 ## 🌐 **Wire-Safe Protocol Universality**
 
 Every method on every port is `async def` with pure Pydantic payloads (JSON-serializable). This guarantees out-of-the-box compatibility with:
-* **OpenAI API**: Standard OpenAI-compatible `base_url` adapter (Anthropic, OpenAI, Ollama, vLLM, OpenRouter).
+* **OpenAI API & OpenRouter**: Standard OpenAI-compatible `base_url` adapter (Anthropic, OpenAI, Ollama, vLLM, OpenRouter).
 * **MCP (Model Context Protocol)**: Consumes external MCP tools and exposes internal tools as an MCP server.
 * **REST / A2A (Agent-to-Agent)**: Remote agent delegation via JSON-Schema triggers.
 * **gRPC / Protobuf**: Seamless gRPC service wrapping with zero microkernel changes.
+
+### 🤖 **OpenRouter Model Catalog & Fallback Chains**
+
+SAGIHA includes out-of-the-box support for OpenRouter models with automated failover via `FallbackModelAdapter`. If a model returns HTTP 404 (unavailable), 429 (rate-limited), or 5xx, calls automatically fail over to the next candidate model in order:
+
+| Tier | Purpose & Primary Model | Fallback Chain Sequence |
+| :--- | :--- | :--- |
+| **Tier 0** (Free / Local) | Local Ollama (`http://localhost:11434/v1`) or `cohere/north-mini-code:free` | `inclusionai/ling-3.0-flash:free` → `poolside/laguna-s-2.1:free` → `poolside/laguna-xs-2.1:free` → `nvidia/nemotron-3-ultra-550b-a55b:free` |
+| **Tier 1** (Cheap Paid) | `qwen/qwen3.7-flash` | `xiaomi/mimo-v2.5` → `deepseek/deepseek-v4-flash` → `tencent/hy3` |
+| **Tier 2** (Good Paid) | `anthropic/claude-sonnet-5` | `deepseek/deepseek-v4-pro` → `z-ai/glm-5.2` → `minimax/minimax-m3` → `moonshotai/kimi-k3` |
+
+Configure tier selection via `.env` / `config.toml`:
+```env
+OPENROUTER_API_KEY=sk-or-v1-your-api-key-here
+```
+Or pass the tier directly in python composition:
+```python
+kernel = build_kernel(config, tier="tier0")  # tier0 | tier1 | tier2
+```
 
 ---
 

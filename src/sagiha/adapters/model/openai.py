@@ -61,6 +61,7 @@ class OpenAIModelAdapter(ModelProvider):
         timeout_s: float = 60.0,
         max_retries: int = 3,
         http_client: httpx.AsyncClient | None = None,
+        extra_headers: dict[str, str] | None = None,
     ) -> None:
         if not check_openai_extra_available():
             raise OpenAIExtraMissingError(
@@ -74,6 +75,14 @@ class OpenAIModelAdapter(ModelProvider):
         self._timeout_s = timeout_s
         self._max_retries = max_retries
         self._custom_client = http_client
+
+        headers: dict[str, str] = {}
+        if "openrouter.ai" in self._base_url:
+            headers["HTTP-Referer"] = "https://github.com/brainopensource/Harness"
+            headers["X-Title"] = "SAGIHA Harness"
+        if extra_headers:
+            headers.update(extra_headers)
+        self._extra_headers = headers
 
     def _build_messages_payload(self, request: ModelRequest) -> list[dict[str, Any]]:
         payload_messages: list[dict[str, Any]] = []
@@ -162,6 +171,7 @@ class OpenAIModelAdapter(ModelProvider):
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self._api_key}",
+            **self._extra_headers,
         }
 
         client = self._custom_client

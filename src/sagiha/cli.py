@@ -36,13 +36,30 @@ async def _run_or_resume(
     trajectory_db: str,
     resume: str | None,
     mode: str = "replay",
+    model_name: str = "qwen2.5-coder:7b",
+    base_url: str = "http://localhost:11434/v1",
 ) -> tuple[str, RunLoopResult | str | None]:
     if resume is None and goal is None:
         return "missing_goal", None
 
     model_mode = "live" if mode == "live" else ("record" if mode == "record" else "replay")
+    from sagiha.domain.config import ModelTierConfig
+
+    local_tier = ModelTierConfig(
+        provider="openai-compatible",
+        model=model_name,
+        base_url=base_url,
+        api_key_env="",
+    )
     config = Config(
-        model=ModelConfig(mode=model_mode),
+        model=ModelConfig(
+            mode=model_mode,
+            tiers={
+                "local": local_tier,
+                "workhorse": local_tier,
+            },
+            roles={"execution": "local"},
+        ),
         workspace=WorkspaceConfig(root=workspace),
         telemetry=TelemetryConfig(trajectory_db=trajectory_db),
     )
@@ -99,6 +116,10 @@ def run(
     mode: str = typer.Option(
         "replay", "--mode", "-m", help="Model execution mode ('replay', 'live', 'record')"
     ),
+    model_name: str = typer.Option("qwen2.5-coder:7b", "--model-name", help="Model name for live mode"),
+    base_url: str = typer.Option(
+        "http://localhost:11434/v1", "--base-url", help="OpenAI-compatible endpoint URL"
+    ),
 ) -> None:
     """Run a coding task end-to-end (replay cassette by default in Sprint 3a)."""
     checks = acceptance if acceptance else ["true"]
@@ -113,8 +134,11 @@ def run(
             trajectory_db=trajectory_db,
             resume=resume,
             mode=mode,
+            model_name=model_name,
+            base_url=base_url,
         )
     )
+
     if outcome == "no_such_run":
         typer.echo(f"No run found for run_id={payload} in {trajectory_db}")
         raise SystemExit(1)
