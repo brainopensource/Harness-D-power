@@ -160,8 +160,12 @@ def build_kernel(
         from sagiha.adapters.model.openai import OpenAIModelAdapter
 
         tier_name = tier or config.model.roles.get("execution") or config.model.active_tier
-        tier_cfg = config.model.tiers.get(tier_name) or config.model.tiers.get("tier0") or config.model.tiers.get("local")
-        
+        tier_cfg = (
+            config.model.tiers.get(tier_name)
+            or config.model.tiers.get("tier0")
+            or config.model.tiers.get("local")
+        )
+
         models = [tier_cfg.model] + tier_cfg.fallbacks if tier_cfg else ["deepseek-coder"]
         base_url = tier_cfg.base_url if tier_cfg and tier_cfg.base_url else "http://localhost:11434/v1"
         api_key_env = tier_cfg.api_key_env if tier_cfg else ""

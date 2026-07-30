@@ -96,6 +96,11 @@ def register_builtin_tools(
     async def apply_edit(args: dict[str, Any]) -> ToolResult:
         call_id = str(args.get("_call_id", ""))
         path = str(args["path"])
+        if path.startswith("app/"):
+            path = path[4:]
+        elif path.startswith("./app/"):
+            path = path[6:]
+
         req = EditRequest(
             path=path,
             edits=(

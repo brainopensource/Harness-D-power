@@ -148,6 +148,41 @@ class OpenAIModelAdapter(ModelProvider):
             for tool in tools
         ]
 
+    def _parse_embedded_tool_block(self, text: str) -> ToolUseBlock | None:
+        import re
+
+        match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
+        raw_json = match.group(1) if match else None
+        if not raw_json:
+            match_obj = re.search(r"(\{[\s\S]*\"arguments\"[\s\S]*\})", text)
+            if match_obj:
+                raw_json = match_obj.group(1)
+
+        if not raw_json:
+            return None
+
+        try:
+            parsed: Any = json.loads(raw_json)
+            if isinstance(parsed, dict):
+                data: dict[str, Any] = cast("dict[str, Any]", parsed)
+                raw_name = data.get("name") or data.get("tool_name") or data.get("tool") or ""
+                name = str(raw_name).lower()
+                raw_args: Any = data.get("arguments") or data.get("args") or {}
+
+                if name and isinstance(raw_args, dict):
+                    args_dict: dict[str, Any] = {}
+                    args_map: dict[str, Any] = cast("dict[str, Any]", raw_args)
+                    for k, v in args_map.items():
+                        args_dict[str(k)] = v
+                    return ToolUseBlock(
+                        call_id=f"call_{uuid.uuid4().hex[:8]}",
+                        tool_name=name,
+                        arguments=args_dict,
+                    )
+        except Exception:
+            pass
+        return None
+
     def _endpoint_url(self) -> str:
         if self._base_url.endswith("/chat/completions"):
             return self._base_url
@@ -237,6 +272,11 @@ class OpenAIModelAdapter(ModelProvider):
         if text_content:
             blocks.append(TextBlock(text=text_content))
 
+        if not raw_tool_calls and text_content:
+            embedded_block = self._parse_embedded_tool_block(text_content)
+            if embedded_block:
+                blocks.append(embedded_block)
+
         for tc in raw_tool_calls:
             call_id = tc.get("id") or f"call_{uuid.uuid4().hex[:8]}"
             func_data = tc.get("function", {})
@@ -263,7 +303,7 @@ class OpenAIModelAdapter(ModelProvider):
             blocks.append(
                 ToolUseBlock(
                     call_id=call_id,
-                    tool_name=tool_name,
+                    tool_name=tool_name.lower(),
                     arguments=args_dict,
                 )
             )

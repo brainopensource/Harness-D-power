@@ -58,7 +58,7 @@ class ModelConfig(BaseModel):
             ),
             "local": ModelTierConfig(
                 provider="openai-compatible",
-                model="deepseek-coder",
+                model="qwen2.5-coder:7b",
                 max_tokens=8192,
                 base_url="http://localhost:11434/v1",
                 api_key_env="",

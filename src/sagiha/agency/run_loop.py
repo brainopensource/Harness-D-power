@@ -75,10 +75,9 @@ class RunLoop:
         max_steps: int = 20,
         system_prompt: str = (
             "You are an autonomous software developer agent. "
-            "To solve the task, you MUST use the provided tools (such as apply_edit, run_command, read_file). "
-            "When asked to create or edit a file, call the apply_edit tool directly instead of replying with conversational text."
+            "To solve the task, you MUST use the provided tools (apply_edit, run_command). "
+            "When creating or editing a file, call apply_edit directly instead of conversational text."
         ),
-
         tool_schemas: list[ToolSchema] | None = None,
         evaluator: Evaluator | None = None,
     ) -> None:
