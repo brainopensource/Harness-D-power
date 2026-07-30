@@ -99,9 +99,7 @@ class RunLoop:
             )
         )
 
-        history: list[Message] = [
-            Message(role="user", content=[TextBlock(text=task.goal)])
-        ]
+        history: list[Message] = [Message(role="user", content=[TextBlock(text=task.goal)])]
         steps: list[TrajectoryStep] = []
         signature_counts: dict[str, int] = {}
         stuck = False
@@ -133,9 +131,7 @@ class RunLoop:
                 tools=list(self._tool_schemas),
                 role="execution",
             )
-            digest = hashlib.sha256(
-                request.model_dump_json().encode()
-            ).hexdigest()
+            digest = hashlib.sha256(request.model_dump_json().encode()).hexdigest()
             await self._bus.emit(
                 ModelCallStarted(
                     run_id=ctx.run_id,
@@ -231,9 +227,7 @@ class RunLoop:
                 break
 
         gate_report = await self._evaluate(task, ctx)
-        await self._bus.emit(
-            GateEvaluated(run_id=ctx.run_id, gate_report=gate_report)
-        )
+        await self._bus.emit(GateEvaluated(run_id=ctx.run_id, gate_report=gate_report))
         await self._bus.emit(
             RunCompleted(
                 run_id=ctx.run_id,
@@ -247,9 +241,7 @@ class RunLoop:
                 ),
             )
         )
-        return RunLoopResult(
-            task=task, gate_report=gate_report, steps=steps, run_id=ctx.run_id
-        )
+        return RunLoopResult(task=task, gate_report=gate_report, steps=steps, run_id=ctx.run_id)
 
     async def _evaluate(self, task: TaskSpec, ctx: RunContext) -> GateReport:
         """Minimal evaluator: run each acceptance check via run_command tool path."""
@@ -297,8 +289,6 @@ def make_task(goal: str, checks: list[str], task_id: str | None = None) -> TaskS
     return TaskSpec(
         task_id=task_id or str(uuid.uuid4()),
         goal=goal,
-        acceptance=tuple(
-            AcceptanceCriterion(description=c, check=c, required=True) for c in checks
-        ),
+        acceptance=tuple(AcceptanceCriterion(description=c, check=c, required=True) for c in checks),
         profile="coding",
     )

@@ -36,9 +36,7 @@ def run(
     workspace: str = typer.Option(".", "--workspace", "-w"),
     cassette: str | None = typer.Option(None, "--cassette", "-c"),
     max_steps: int = typer.Option(20, "--max-steps"),
-    trajectory_db: str = typer.Option(
-        ".sagiha/trajectories.db", "--trajectory-db"
-    ),
+    trajectory_db: str = typer.Option(".sagiha/trajectories.db", "--trajectory-db"),
 ) -> None:
     """Run a coding task end-to-end (replay cassette by default in Sprint 3a)."""
     checks = acceptance if acceptance else ["true"]
@@ -78,13 +76,9 @@ def run(
 def replay(
     run_id: str = typer.Argument(..., help="Run id or 'verify' sentinel"),
     verify: bool = typer.Option(False, "--verify"),
-    cassette: str = typer.Option(
-        ".sagiha/cassettes/default.json", "--cassette", "-c"
-    ),
+    cassette: str = typer.Option(".sagiha/cassettes/default.json", "--cassette", "-c"),
     workspace: str = typer.Option(".", "--workspace", "-w"),
-    trajectory_db: str = typer.Option(
-        ".sagiha/trajectories.db", "--trajectory-db"
-    ),
+    trajectory_db: str = typer.Option(".sagiha/trajectories.db", "--trajectory-db"),
 ) -> None:
     """Replay a cassette-driven run and optionally verify gate admission."""
     if not verify and run_id != "verify":

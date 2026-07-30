@@ -20,9 +20,7 @@ STABILITY: Final = "stable"
 
 class ToolRegistry(Protocol):
     # `schema` is exempt from contract rule 1 — JSON Schema is externally defined.
-    async def register(
-        self, tool_name: str, schema: dict[str, Any], effect: EffectClass
-    ) -> None: ...
+    async def register(self, tool_name: str, schema: dict[str, Any], effect: EffectClass) -> None: ...
 
     async def dispatch(self, call: ToolCall) -> ToolResult: ...
 

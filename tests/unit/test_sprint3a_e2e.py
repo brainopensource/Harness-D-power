@@ -122,7 +122,7 @@ async def test_e2e_cassette_fixes_failing_check(tmp_path: Path) -> None:
     )
     task = make_task(
         goal,
-        checks=["python -c \"from mod import VALUE; assert VALUE == 2\""],
+        checks=['python -c "from mod import VALUE; assert VALUE == 2"'],
         task_id="e2e-1",
     )
     result = await loop.run(task, ctx)
@@ -131,9 +131,7 @@ async def test_e2e_cassette_fixes_failing_check(tmp_path: Path) -> None:
 
     # Persist cassette from recorded requests for digest replay.
     entries = [
-        CassetteEntry(
-            request=req, response=resp, digest=request_digest(req)
-        ).model_dump(mode="json")
+        CassetteEntry(request=req, response=resp, digest=request_digest(req)).model_dump(mode="json")
         for req, resp in scripted.recorded
     ]
     cassette_path.write_text(json.dumps(entries, indent=2), encoding="utf-8")

@@ -44,9 +44,7 @@ class EventBus:
         else:
             self._observers.append(observer.on_event)
 
-    def subscribe_interceptor(
-        self, hook_point: str, interceptor: InterceptorFunc | Interceptor
-    ) -> None:
+    def subscribe_interceptor(self, hook_point: str, interceptor: InterceptorFunc | Interceptor) -> None:
         """Subscribe an interceptor function or object to a specific hook point."""
         if hook_point not in self._interceptors:
             self._interceptors[hook_point] = []
@@ -77,9 +75,7 @@ class EventBus:
 
         await asyncio.gather(*[_safe_call(obs) for obs in self._observers])
 
-    async def intercept(
-        self, hook_point: str, event: Event, timeout_s: float | None = None
-    ) -> Decision:
+    async def intercept(self, hook_point: str, event: Event, timeout_s: float | None = None) -> Decision:
         """Run interceptors synchronously for a hook point.
 
         Fails closed (denies) if any interceptor returns a denial or times out.
@@ -88,15 +84,11 @@ class EventBus:
         if not interceptors:
             return Decision(allowed=True, reason="No interceptors configured")
 
-        effective_timeout = (
-            timeout_s if timeout_s is not None else self._default_timeout_s
-        )
+        effective_timeout = timeout_s if timeout_s is not None else self._default_timeout_s
 
         for interceptor in interceptors:
             try:
-                decision = await asyncio.wait_for(
-                    interceptor(event), timeout=effective_timeout
-                )
+                decision = await asyncio.wait_for(interceptor(event), timeout=effective_timeout)
                 if not decision.allowed:
                     return decision
             except TimeoutError:
@@ -105,14 +97,10 @@ class EventBus:
                     reason=f"Interceptor timed out after {effective_timeout}s on hook '{hook_point}'",
                 )
             except Exception as exc:
-                logger.error(
-                    "Interceptor raised error on hook '%s': %s", hook_point, exc
-                )
+                logger.error("Interceptor raised error on hook '%s': %s", hook_point, exc)
                 return Decision(
                     allowed=False,
                     reason=f"Interceptor error on hook '{hook_point}': {exc}",
                 )
 
-        return Decision(
-            allowed=True, reason=f"Passed {len(interceptors)} interceptors"
-        )
+        return Decision(allowed=True, reason=f"Passed {len(interceptors)} interceptors")

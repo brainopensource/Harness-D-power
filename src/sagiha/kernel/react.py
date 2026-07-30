@@ -80,9 +80,7 @@ class ReActEngine:
             parent=str(seq - 1) if seq > 1 else None,
         )
 
-        request = ModelRequest(
-            messages=[Message(role="user", content=[TextBlock(text=prompt)])]
-        )
+        request = ModelRequest(messages=[Message(role="user", content=[TextBlock(text=prompt)])])
 
         model_response = await self._model.complete(request)
         tool_calls = await self._resolve_tool_calls(model_response)

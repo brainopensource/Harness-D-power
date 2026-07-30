@@ -90,9 +90,7 @@ class WorkspaceConfig(BaseModel):
     root: str = "."
     worktree_dir: str = ".sagiha/worktrees"
     state_dir: str = ".sagiha"
-    materialize: list[str] = Field(
-        default_factory=lambda: [".env", ".venv", "node_modules"]
-    )
+    materialize: list[str] = Field(default_factory=lambda: [".env", ".venv", "node_modules"])
 
 
 class AutonomyConfig(BaseModel):
@@ -283,35 +281,24 @@ class Config(BaseModel):
     gates: GatesConfig = Field(default_factory=GatesConfig)
     telemetry: TelemetryConfig = Field(default_factory=TelemetryConfig)
     aoi: AOIConfig = Field(default_factory=AOIConfig)
-    mcp_servers: list[MCPServerConfig] = Field(
-        default_factory=lambda: list[MCPServerConfig]()
-    )
+    mcp_servers: list[MCPServerConfig] = Field(default_factory=lambda: list[MCPServerConfig]())
     hooks: list[HookConfig] = Field(default_factory=lambda: list[HookConfig]())
 
     @model_validator(mode="after")
     def validate_security_invariants(self) -> Config:
-        if (
-            self.sandbox.runtime == "subprocess"
-            and self.autonomy.level in ("autonomous", "scheduled")
-        ):
+        if self.sandbox.runtime == "subprocess" and self.autonomy.level in ("autonomous", "scheduled"):
             raise ValueError(
                 f"sandbox.runtime='subprocess' is refused when autonomy.level is '{self.autonomy.level}'"
             )
 
         if self.sandbox.network == "host" and not self.sandbox.allow_unsafe:
-            raise ValueError(
-                "sandbox.network='host' is refused without allow_unsafe=True"
-            )
+            raise ValueError("sandbox.network='host' is refused without allow_unsafe=True")
 
         if not self.gates.require_tests_unmodified:
-            raise ValueError(
-                "gates.require_tests_unmodified=False is refused outright"
-            )
+            raise ValueError("gates.require_tests_unmodified=False is refused outright")
 
         for role_name, tier_name in self.model.roles.items():
             if tier_name not in self.model.tiers:
-                raise ValueError(
-                    f"Model role '{role_name}' references undefined tier '{tier_name}'"
-                )
+                raise ValueError(f"Model role '{role_name}' references undefined tier '{tier_name}'")
 
         return self

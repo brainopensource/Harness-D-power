@@ -135,12 +135,8 @@ def build_kernel(
 
     if mode == "replay":
         if not Path(path).exists():
-            raise FileNotFoundError(
-                f"model.mode=replay requires cassette at {path}"
-            )
-        model_provider: ModelProvider = CassetteModelProvider(
-            cassette_path=path, mode="replay"
-        )
+            raise FileNotFoundError(f"model.mode=replay requires cassette at {path}")
+        model_provider: ModelProvider = CassetteModelProvider(cassette_path=path, mode="replay")
     elif mode == "record":
         # Record requires an inner live provider — Sprint 3a uses a passthrough stub
         # only when explicitly testing; otherwise fail closed without an inner.

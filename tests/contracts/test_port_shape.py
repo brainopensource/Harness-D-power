@@ -89,9 +89,7 @@ def _is_permitted_payload(tp: object) -> bool:
         return len(args) == 2 and all(_is_permitted_payload(a) for a in args)
     if origin in (typing.Union, UnionType):
         return all(_is_permitted_payload(a) for a in args)
-    if origin is typing.AsyncIterator or (
-        isinstance(origin, type) and origin.__name__ == "AsyncIterator"
-    ):
+    if origin is typing.AsyncIterator or (isinstance(origin, type) and origin.__name__ == "AsyncIterator"):
         return all(_is_permitted_payload(a) for a in args)
     return False
 
@@ -112,9 +110,7 @@ def test_no_untyped_dict_crosses_a_port() -> None:
             if (protocol.__name__, method_name, param_name) in EXEMPT_DICT_ANY:
                 continue
             violations.append(f"{protocol.__name__}.{method_name}({param_name}: {tp!r})")
-    assert not violations, (
-        f"dict[str, Any] crossing a port without a documented exemption: {violations}"
-    )
+    assert not violations, f"dict[str, Any] crossing a port without a documented exemption: {violations}"
 
 
 def test_every_port_method_is_async() -> None:
@@ -123,9 +119,7 @@ def test_every_port_method_is_async() -> None:
         for protocol, method_name, func in _iter_port_methods()
         if not inspect.iscoroutinefunction(func)
     ]
-    assert not violations, (
-        f"synchronous port methods (every port method must be async): {violations}"
-    )
+    assert not violations, f"synchronous port methods (every port method must be async): {violations}"
 
 
 def test_all_port_payloads_are_serializable() -> None:

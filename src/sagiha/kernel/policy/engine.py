@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os.path
 import uuid
 from datetime import timedelta
 from typing import Any, cast
@@ -48,6 +49,23 @@ def _extract_paths_from_schema(schema: dict[str, Any], arguments: dict[str, Any]
     return paths
 
 
+def escapes_root(root: str, candidate: str) -> bool:
+    """Return True when `candidate` resolves outside `root`.
+
+    Purely lexical — `os.path.normpath` collapses `..` without touching the
+    filesystem, so the kernel performs no I/O while authorizing. The adapter
+    repeats the check against a resolved path to also catch symlink escapes
+    (see `adapters/workspace/local.resolve_within`); this is defence in depth,
+    with the authoritative refusal at the choke point.
+    """
+    if not root:
+        return False
+    root_norm = os.path.normpath(root)
+    joined = candidate if os.path.isabs(candidate) else os.path.join(root_norm, candidate)
+    target = os.path.normpath(joined)
+    return target != root_norm and not target.startswith(root_norm + os.sep)
+
+
 class DefaultPolicyEngine:
     """Trusted capability authorization engine.
 
@@ -65,7 +83,12 @@ class DefaultPolicyEngine:
         self._tool_schemas[tool_name] = schema
 
     def get_grant(self, grant_id: str) -> Grant | None:
-        """Internal kernel helper to retrieve an active capability grant."""
+        """Internal kernel helper to retrieve an active capability grant.
+
+        Not part of the `PolicyEngine` Protocol — `Grant` may never cross a port signature
+        (test_no_grant_in_any_public_signature). Direct callers must hold a reference to this
+        concrete class, not the Protocol; `dispatch.py` uses `verify_grant` instead.
+        """
         grant = self._active_grants.get(grant_id)
         if grant is None:
             return None
@@ -73,6 +96,10 @@ class DefaultPolicyEngine:
             del self._active_grants[grant_id]
             return None
         return grant
+
+    async def verify_grant(self, grant_id: str) -> bool:
+        """Point-of-effect check (C1 / D8): True iff `grant_id` is active and unexpired."""
+        return self.get_grant(grant_id) is not None
 
     async def authorize(self, call: ToolCall, context: RunContext) -> Decision:
         if call.tool_name in self._always_gate:
@@ -83,14 +110,28 @@ class DefaultPolicyEngine:
             )
 
         schema = self._tool_schemas.get(call.tool_name)
-        if schema is not None:
-            scope_paths = _extract_paths_from_schema(schema, call.arguments)
-        else:
-            scope_paths: list[str] = []
-            for key in ("path", "file_path", "target_file", "dir"):
-                val = call.arguments.get(key)
-                if isinstance(val, str):
-                    scope_paths.append(val)
+        if schema is None:
+            # R3: a tool with no registered schema has no declared path parameters to scope,
+            # so it cannot be granted a path-bearing capability — fail closed rather than
+            # guess at argument key names (the guess could miss a real path argument and
+            # mint an unscoped grant for a mutating tool).
+            return Decision(
+                allowed=False,
+                reason=f"No registered schema for tool '{call.tool_name}' — cannot scope grant",
+                requires_human=False,
+            )
+        scope_paths = _extract_paths_from_schema(schema, call.arguments)
+
+        # Containment is enforced here, at the choke point, so the grant's
+        # scope is load-bearing rather than advisory. Relying on each adapter
+        # to re-check means one forgetful adapter silently loses the property.
+        for scoped in scope_paths:
+            if escapes_root(context.workspace_root, scoped):
+                return Decision(
+                    allowed=False,
+                    reason=(f"Path '{scoped}' escapes workspace root for tool '{call.tool_name}'"),
+                    requires_human=False,
+                )
 
         now = utc_now()
         grant_id = str(uuid.uuid4())

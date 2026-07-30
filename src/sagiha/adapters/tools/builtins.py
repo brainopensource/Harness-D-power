@@ -77,9 +77,7 @@ def register_builtin_tools(
         path = str(args["path"])
         offset = int(args.get("offset", 0))
         limit = args.get("limit")
-        text = await workspace.read(
-            path, offset=offset, limit=int(limit) if limit is not None else None
-        )
+        text = await workspace.read(path, offset=offset, limit=int(limit) if limit is not None else None)
         return ToolResult(call_id=call_id, content=[TextBlock(text=text)])
 
     async def list_dir(args: dict[str, Any]) -> ToolResult:

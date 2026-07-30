@@ -34,9 +34,7 @@ def test_build_kernel_default_config(tmp_path: Path) -> None:
 
 
 def test_refuse_subprocess_in_autonomous_mode() -> None:
-    with pytest.raises(
-        ValueError, match="sandbox.runtime='subprocess' is refused"
-    ):
+    with pytest.raises(ValueError, match="sandbox.runtime='subprocess' is refused"):
         Config(
             sandbox=SandboxConfig(runtime="subprocess"),
             autonomy=AutonomyConfig(level="autonomous"),
@@ -44,18 +42,14 @@ def test_refuse_subprocess_in_autonomous_mode() -> None:
 
 
 def test_refuse_host_network_without_allow_unsafe() -> None:
-    with pytest.raises(
-        ValueError, match="sandbox.network='host' is refused"
-    ):
+    with pytest.raises(ValueError, match="sandbox.network='host' is refused"):
         Config(
             sandbox=SandboxConfig(network="host", allow_unsafe=False),
         )
 
 
 def test_refuse_disabling_require_tests_unmodified() -> None:
-    with pytest.raises(
-        ValueError, match="gates.require_tests_unmodified=False is refused"
-    ):
+    with pytest.raises(ValueError, match="gates.require_tests_unmodified=False is refused"):
         Config(
             gates=GatesConfig(require_tests_unmodified=False),
         )

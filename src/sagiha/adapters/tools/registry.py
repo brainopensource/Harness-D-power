@@ -18,9 +18,7 @@ class DefaultToolRegistry:
         self._effects: dict[str, EffectClass] = {}
         self._handlers: dict[str, ToolHandler] = {}
 
-    async def register(
-        self, tool_name: str, schema: dict[str, Any], effect: EffectClass
-    ) -> None:
+    async def register(self, tool_name: str, schema: dict[str, Any], effect: EffectClass) -> None:
         self._schemas[tool_name] = schema
         self._effects[tool_name] = effect
 

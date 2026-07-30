@@ -78,23 +78,17 @@ class CassetteModelProvider:
 
         if self._mode == "replay":
             if not self._entries:
-                raise CassetteMismatchError(
-                    f"Cassette at {self._cassette_path} is empty or missing"
-                )
+                raise CassetteMismatchError(f"Cassette at {self._cassette_path} is empty or missing")
             bucket = self._by_digest.get(digest, [])
             cursor = self._digest_cursors.get(digest, 0)
             if cursor >= len(bucket):
-                raise CassetteMismatchError(
-                    f"Cassette exhausted or mismatch for digest {digest[:12]}…"
-                )
+                raise CassetteMismatchError(f"Cassette exhausted or mismatch for digest {digest[:12]}…")
             entry = bucket[cursor]
             self._digest_cursors[digest] = cursor + 1
             return entry.response
 
         if self._inner_provider is None:
-            raise RuntimeError(
-                "CassetteModelProvider in record mode requires an inner_provider"
-            )
+            raise RuntimeError("CassetteModelProvider in record mode requires an inner_provider")
 
         response = await self._inner_provider.complete(request)
         entry = CassetteEntry(request=request, response=response, digest=digest)
@@ -104,6 +98,4 @@ class CassetteModelProvider:
         return response
 
     async def stream(self, request: ModelRequest) -> AsyncIterator[StreamEvent]:
-        raise NotImplementedError(
-            "Cassette streaming is deferred; use complete() (D15)"
-        )
+        raise NotImplementedError("Cassette streaming is deferred; use complete() (D15)")

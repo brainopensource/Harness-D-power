@@ -55,7 +55,10 @@ addopts = "--strict-markers"
 # strict passes on src/sagiha/domain/ and src/sagiha/ports/ with zero suppressions." tests/ is
 # exercised by pytest, not gated on strict typing — dynamic introspection code (walking
 # Protocols via inspect/typing) is inherently hard to type strictly and that is not a defect.
-include = ["src"]
+# Scoped to src/sagiha, not src/: the vendored reference harnesses
+# (src/claude_code, src/grok_build, src/hermes_agent, src/open_code) are
+# third-party trees and produce ~400k strict errors that drown the signal.
+include = ["src/sagiha"]
 typeCheckingMode = "strict"
 pythonVersion = "3.13"
 venvPath = "."

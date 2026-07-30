@@ -11,6 +11,20 @@ from sagiha.domain.content import CommandResult
 from sagiha.domain.work import EditRequest, EditResult, HunkResult
 
 
+def resolve_within(root: Path, path: str) -> Path:
+    """Resolve `path` under `root`, refusing anything that escapes it.
+
+    Uses `Path.is_relative_to` rather than string prefixing: a `startswith`
+    comparison admits sibling directories that merely share a name prefix
+    (root `/w/proj` would accept `/w/proj-evil/secrets`). Resolving first also
+    closes the symlink escape that a purely lexical check cannot see.
+    """
+    candidate = (root / path).resolve()
+    if not candidate.is_relative_to(root):
+        raise PermissionError(f"Path escapes workspace root: {path}")
+    return candidate
+
+
 class LocalWorkspace:
     """Filesystem workspace for interactive/dev autonomy (no container)."""
 
@@ -22,10 +36,7 @@ class LocalWorkspace:
         return self._root
 
     def _resolve(self, path: str) -> Path:
-        candidate = (self._root / path).resolve()
-        if not str(candidate).startswith(str(self._root)):
-            raise PermissionError(f"Path escapes workspace root: {path}")
-        return candidate
+        return resolve_within(self._root, path)
 
     async def read(self, path: str, offset: int = 0, limit: int | None = None) -> str:
         target = self._resolve(path)
@@ -51,14 +62,10 @@ class LocalWorkspace:
                 continue
             count = text.count(edit.old_string)
             if count == 0:
-                hunks.append(
-                    HunkResult(applied=False, index=index, reason="anchor_not_found")
-                )
+                hunks.append(HunkResult(applied=False, index=index, reason="anchor_not_found"))
                 break
             if count != edit.expected_occurrences:
-                hunks.append(
-                    HunkResult(applied=False, index=index, reason="ambiguous_anchor")
-                )
+                hunks.append(HunkResult(applied=False, index=index, reason="ambiguous_anchor"))
                 break
             text = text.replace(edit.old_string, edit.new_string, edit.expected_occurrences)
             hunks.append(HunkResult(applied=True, index=index, reason="ok"))
@@ -103,9 +110,7 @@ class LocalWorkspace:
 
 
 def list_dir_entries(root: Path, path: str = ".") -> list[dict[str, str | int | None]]:
-    base = (root / path).resolve()
-    if not str(base).startswith(str(root.resolve())):
-        raise PermissionError(f"Path escapes workspace root: {path}")
+    base = resolve_within(root.resolve(), path)
     entries: list[dict[str, str | int | None]] = []
     for child in sorted(base.iterdir(), key=lambda p: p.name):
         kind = "dir" if child.is_dir() else "file"
@@ -125,9 +130,7 @@ def list_dir_entries(root: Path, path: str = ".") -> list[dict[str, str | int | 
 def grep_workspace(root: Path, pattern: str, path: str = ".") -> list[dict[str, str | int]]:
     import re
 
-    base = (root / path).resolve()
-    if not str(base).startswith(str(root.resolve())):
-        raise PermissionError(f"Path escapes workspace root: {path}")
+    base = resolve_within(root.resolve(), path)
     rx = re.compile(pattern)
     matches: list[dict[str, str | int]] = []
     files = [base] if base.is_file() else list(base.rglob("*"))

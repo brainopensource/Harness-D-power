@@ -95,3 +95,11 @@ logs/
 # Node (if ever used alongside)
 node_modules/
 .sagiha/trajectories.db
+
+# Vendored reference harnesses — analysed under docs/reference/harness_examples/,
+# never packaged or type-checked. Committing them would add ~400k pyright errors
+# and 3.6k unformatted files to CI.
+/src/claude_code/
+/src/grok_build/
+/src/hermes_agent/
+/src/open_code/

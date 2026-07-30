@@ -75,9 +75,7 @@ async def test_dispatch_capability_choke_point() -> None:
     registry = DefaultToolRegistry()
 
     async def dummy_handler(args: dict[str, object]) -> ToolResult:
-        return ToolResult(
-            call_id="c1", content=[TextBlock(text="Success")], truncated=False
-        )
+        return ToolResult(call_id="c1", content=[TextBlock(text="Success")], truncated=False)
 
     registry.register_handler(
         "echo",
@@ -85,6 +83,7 @@ async def test_dispatch_capability_choke_point() -> None:
         EffectClass.PURE,
         dummy_handler,
     )
+    policy.register_tool_schema("echo", {"type": "object"})
 
     ctx = RunContext(
         run_id="r-1",
@@ -111,12 +110,8 @@ async def test_react_engine_execution() -> None:
     with tempfile.TemporaryDirectory() as tmp_dir:
         cassette_path = str(Path(tmp_dir) / "cassette.json")
         entry = CassetteEntry(
-            request=ModelRequest(
-                messages=[Message(role="user", content=[TextBlock(text="hello")])]
-            ),
-            response=Message(
-                role="assistant", content=[TextBlock(text="Hello back!")]
-            ),
+            request=ModelRequest(messages=[Message(role="user", content=[TextBlock(text="hello")])]),
+            response=Message(role="assistant", content=[TextBlock(text="Hello back!")]),
         )
         await anyio.Path(cassette_path).write_text(f"[{entry.model_dump_json()}]")
 
@@ -145,9 +140,7 @@ async def test_build_kernel_wires_day_zero_adapters() -> None:
         cassette.write_text("[]")
         config = Config(
             model=ModelConfig(mode="replay"),
-            telemetry=TelemetryConfig(
-                trajectory_db=str(Path(tmp_dir) / "test_traj.db")
-            ),
+            telemetry=TelemetryConfig(trajectory_db=str(Path(tmp_dir) / "test_traj.db")),
             workspace=WorkspaceConfig(root=tmp_dir),
         )
 

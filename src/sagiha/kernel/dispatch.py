@@ -53,11 +53,7 @@ async def dispatch(
             )
             return ToolResult(
                 call_id=call.call_id,
-                content=[
-                    TextBlock(
-                        text=f"Pre-tool interceptor denial: {intercept_decision.reason}"
-                    )
-                ],
+                content=[TextBlock(text=f"Pre-tool interceptor denial: {intercept_decision.reason}")],
                 truncated=False,
                 is_error=True,
             )
@@ -81,25 +77,24 @@ async def dispatch(
         )
 
     # Point-of-effect grant verification (C1 / D8) — expiry and forged ids fail closed.
-    get_grant = getattr(policy, "get_grant", None)
-    if callable(get_grant):
-        grant = get_grant(decision.grant_id)
-        if grant is None:
-            if bus is not None:
-                await bus.emit(
-                    ToolCallDenied(
-                        run_id=ctx.run_id,
-                        decision=decision,
-                        reason=f"Grant '{decision.grant_id}' missing or expired",
-                        requires_human=False,
-                    )
+    # Unconditional: every PolicyEngine must implement verify_grant (R2). A duck-typed
+    # getattr here would let a non-conforming engine skip verification silently.
+    if not await policy.verify_grant(decision.grant_id):
+        if bus is not None:
+            await bus.emit(
+                ToolCallDenied(
+                    run_id=ctx.run_id,
+                    decision=decision,
+                    reason=f"Grant '{decision.grant_id}' missing or expired",
+                    requires_human=False,
                 )
-            return ToolResult(
-                call_id=call.call_id,
-                content=[TextBlock(text=f"Grant '{decision.grant_id}' missing or expired")],
-                truncated=False,
-                is_error=True,
             )
+        return ToolResult(
+            call_id=call.call_id,
+            content=[TextBlock(text=f"Grant '{decision.grant_id}' missing or expired")],
+            truncated=False,
+            is_error=True,
+        )
 
     if bus is not None:
         await bus.emit(ToolCallAuthorized(run_id=ctx.run_id, decision=decision))
