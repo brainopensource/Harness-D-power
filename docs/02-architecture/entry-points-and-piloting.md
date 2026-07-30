@@ -45,13 +45,15 @@ The architectural claim worth stating plainly: **adding a channel requires zero 
 
 `typer` for commands, `rich` for rendering. The TUI is an `Observer` on the event bus with no privileged access whatsoever — it sees exactly what a remote pilot sees.
 
-> **Planned — Sprint 3** ([STATUS.md](../STATUS.md)). Today only `sagiha version` is available. The commands below are the target UX for the closed loop.
+> **Sprint 3a closed (2026-07-30)** ([STATUS.md](../STATUS.md)). `sagiha run <goal>` and
+> `sagiha replay <run_id> --verify` are available now, cassette-driven only. `--spec`/`--autonomy`
+> flags and `trajectory show` below remain **target UX**, not yet implemented.
 
 ```bash
-sagiha run --task "fix the failing test in tests/test_parser.py"
-sagiha run --spec task.yaml --autonomy hybrid
-sagiha replay --run-id <id>
-sagiha trajectory show <id>
+sagiha run "fix the failing test in tests/test_parser.py" --cassette .sagiha/cassettes/default.json
+sagiha run --spec task.yaml --autonomy hybrid    # planned — not yet implemented
+sagiha replay <run-id> --verify --cassette .sagiha/cassettes/default.json
+sagiha trajectory show <id>                      # planned — not yet implemented
 ```
 
 Interactive approval prompts are the CLI's rendering of `ApprovalRequested`; they are not a kernel feature. Under `--autonomy scheduled` the same event routes to a notifier instead.

@@ -121,7 +121,7 @@ The port exists so gates never hardcode `pytest` and `pyright`. `ToolchainInfo`,
 
 ## **Control**
 
-* **`Grant`** (`domain/control.py`) — unforgeable capability token, scoped to tool and paths, with expiry. Minted only by `PolicyEngine`.
+* **`Grant`** (`domain/control.py`) — capability token scoped to tool and paths, with expiry. Minted only by `PolicyEngine.authorize()`, never crosses a port signature, and is re-verified at the point of effect (`verify_grant`) rather than trusted at issuance.
   **It never crosses a public signature** — it is held only inside `kernel/dispatch.py`. Possession
   confers nothing; reachability is the control, and reachability is enforced by module structure plus
   `import-linter`. See [CAR Model](../02-architecture/car-model.md).

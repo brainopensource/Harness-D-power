@@ -11,9 +11,9 @@ updated: 2026-07-30
 > [!IMPORTANT]
 > Phases here map onto the vertical slices in [`07-roadmap/phased-migration-matrix.md`](../07-roadmap/phased-migration-matrix.md), which is normative for scope and gates. Where this document and the roadmap disagree, the roadmap wins.
 >
-> **Current work:** [Sprint 3](../sprints/sprint-3.md) (Block 1 — close the loop). Sprint 1–2 scaffolding/kernel are done with known defects. Do **not** start Phase 2's MCP/OTel items — deferred per the foundation review. Implementation truth: [STATUS.md](../STATUS.md).
+> **Current work:** [Sprint 3a is closed](../sprints/sprint-3.md) (Block 1 — close the loop); Sprint 3b (hardening) is next. Sprint 1–2 scaffolding/kernel are done with known defects. Do **not** start Phase 2's MCP/OTel items — deferred per the foundation review. Implementation truth: [STATUS.md](../STATUS.md).
 >
-> **Sequencing:** Block 1 (Sprint 3) → Block 2 (E0-lite measurement) → later phases. A measured loop needs a loop to measure.
+> **Sequencing:** Block 1 (Sprint 3a closed, 3b next) → Block 2 (E0-lite measurement) → later phases. A measured loop needs a loop to measure.
 
 **Before continuing development, read these:**
 [STATUS.md](../STATUS.md) ·

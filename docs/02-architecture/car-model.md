@@ -55,7 +55,7 @@ Control must evaluate every agent tool request against a security policy before 
 
 ### 1. Capability Grants
 
-Every side-effecting Runtime method executes only if backed by a `Grant` — an unforgeable token minted only by `PolicyEngine.authorize()`. The contracts live in **`src/sagiha/ports/policy.py`** and **`src/sagiha/ports/workspace.py`**; the `Grant` model in **`src/sagiha/domain/control.py`**.
+Every side-effecting Runtime method executes only if backed by a `Grant` — minted only by `PolicyEngine.authorize()` and re-checked at the point of effect via `verify_grant`, never passed across a port signature. The contracts live in **`src/sagiha/ports/policy.py`** and **`src/sagiha/ports/workspace.py`**; the `Grant` model in **`src/sagiha/domain/control.py`**.
 
 Grants are scoped to specific paths and tools, and they expire. Policy becomes non-bypassable by construction rather than by review.
 

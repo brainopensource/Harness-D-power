@@ -24,7 +24,7 @@ Terms carry these meanings throughout the suite. Where a term is commonly used l
 
 **Dispatch choke point** — the one path from intent to effect, where authorization, budget, audit, and redaction attach.
 
-**Grant** — an unforgeable capability token minted only by `PolicyEngine`, required by every side-effecting Runtime method. Makes policy non-bypassable by construction.
+**Grant** — a scoped, expiring capability token minted only by `PolicyEngine.authorize()` and re-verified at the point of effect (`verify_grant`); never crosses a port signature. "Unforgeable" overclaims in a language with full introspection — the actual property is reachability, enforced by module boundaries and `import-linter`, not cryptography.
 
 **TCB (Trusted Computing Base)** — policy engine, evaluator, gate definitions, benchmark definitions, deployment gate, secret handling, sandbox boundary. Never writable by the agent.
 

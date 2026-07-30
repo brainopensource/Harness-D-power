@@ -65,12 +65,13 @@ A few hundred tasks × several dollars × k repetitions × many candidates puts 
 
 ## **Trajectory Analysis**
 
-> **Planned — Sprint 3** for `replay`; trajectory CLIs with or after the run loop ([STATUS.md](../STATUS.md)).
+> **`sagiha replay` is available now (Sprint 3a closed)**; `trajectory show`/`diff` remain **Planned**
+> ([STATUS.md](../STATUS.md)).
 
 ```bash
-sagiha trajectory show <run-id>       # steps, tool calls, diagnostics, scores
-sagiha trajectory diff <id-a> <id-b>  # where two runs diverged
-sagiha replay --run-id <id>           # deterministic re-execution, zero API calls
+sagiha trajectory show <run-id>       # steps, tool calls, diagnostics, scores — planned
+sagiha trajectory diff <id-a> <id-b>  # where two runs diverged — planned
+sagiha replay <run-id> --verify       # deterministic re-execution, zero API calls — available now
 ```
 
 Trajectories are stored append-only in SQLite-WAL and instrumented with OTel GenAI semantic conventions, so standard tracing tooling works on them directly.

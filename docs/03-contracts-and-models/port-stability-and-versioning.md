@@ -113,22 +113,31 @@ pickled objects, and why upcasting is a first-class module instead of a migratio
 
 Not every port is equally settled, and pretending otherwise is how a 1.0 becomes a lie.
 
-**Every port in this suite is `draft` today.** A stability label is evidence about adapters that
+**No port in this suite is `stable` today.** A stability label is evidence about adapters that
 exist, not aspiration about a design that is believed correct — and as of this writing every port
 has at most one first-party implementation (often only a cassette or in-memory stub). Marking
 `ModelProvider` or `Workspace` `stable` while `ModelRequest` cannot yet describe a real request
-(see the foundation review) is a lying label, not an optimistic one.
+(see the foundation review) was a lying label, not an optimistic one — corrected 2026-07-30.
+
+This project uses three tiers, not four. An earlier draft of this page introduced a fourth name,
+`Draft`, for what is really `Provisional` pre-graduation; that was reverted to keep one vocabulary
+with the comparative analysis and the port stability discussion in the Sprint 0 decision record.
 
 | Tier | Meaning | Ports |
 | :--- | :--- | :--- |
-| **Draft** | At most one implementation; signature may change at any minor without a deprecation cycle | `ModelProvider`, `Workspace`, `Memory`, `ToolRegistry`, `TrajectoryStore`, `Toolchain`, `CodeGraph`, `Indexer`, `Reviewer`, `Evaluator` |
-| **Experimental** | No guarantee; may be removed | AOI ports (`RewardPredictor`, `FailurePredictor`, `CostPerformanceEstimator`), `MetaImprover` |
+| **Provisional** | At most one implementation; signature may change at any minor without a deprecation cycle | `ModelProvider`, `Workspace`, `ShortTermMemory`, `ToolRegistry`, `TrajectoryStore`, `PolicyEngine`, `ResourceGovernor`, `Orchestrator`, `Toolchain`, `CodeGraph`, `Indexer`, `LSPAdapter`, `CandidateSearch`, `Reviewer`, `Evaluator` |
+| **Experimental** | No guarantee; may be removed | AOI ports (`RewardPredictor`, `FailurePredictor`, `CostPerformanceEstimator`), `MetaImprover`, `EmbeddingProvider` |
 
-Each port module states its tier next to `PORT_VERSION`. A port graduates from **Draft** to
-**Stable** — and only then does the full deprecation policy above apply — when at least two
-independent adapters implement it and the conformance suite has been stable for one minor release:
-evidence, not calendar. Until that graduation, treat every signature in this suite as subject to
-change without notice.
+Each port module states its tier next to `PORT_VERSION` as the literal `STABILITY` string —
+`"provisional"` or `"experimental"` (`"stable"` is reserved for a port that has actually graduated;
+none has). This table is hand-maintained today; generating it from the `STABILITY` declarations and
+`--check`-ing it in CI, the same pattern `scripts/gen_event_catalog.py` already uses for events, is
+tracked as Sprint 3b hygiene rather than done here.
+
+A port graduates from **Provisional** to **Stable** — and only then does the full deprecation policy
+above apply — when at least two independent adapters implement it and the conformance suite has been
+stable for one minor release: evidence, not calendar. Until that graduation, treat every signature in
+this suite as subject to change without notice.
 
 ## **Pre-1.0**
 
