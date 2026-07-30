@@ -3,16 +3,14 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Annotated, Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from sagiha.domain.content import ContentBlock, ReasoningBlock, ToolCall, ToolResult
+from sagiha.domain.control import TaskStatus
 from sagiha.domain.identity import StepId, utc_now
-
-if TYPE_CHECKING:
-    from sagiha.domain.control import TaskStatus
-    from sagiha.domain.work import TaskSpec
+from sagiha.domain.work import TaskSpec
 
 
 class RunRecord(BaseModel):
@@ -26,8 +24,8 @@ class RunRecord(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     run_id: str
-    task: "TaskSpec"
-    status: "TaskStatus"
+    task: TaskSpec
+    status: TaskStatus
     updated_at: datetime = Field(default_factory=utc_now)
 
 

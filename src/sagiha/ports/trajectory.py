@@ -10,9 +10,9 @@ from __future__ import annotations
 from typing import Final, Protocol
 
 from sagiha.domain.events import Event
-from sagiha.domain.trajectory import TrajectoryStep
+from sagiha.domain.trajectory import RunRecord, TrajectoryStep
 
-PORT_VERSION: Final = 1
+PORT_VERSION: Final = 2
 STABILITY: Final = "provisional"
 
 
@@ -24,3 +24,13 @@ class TrajectoryStore(Protocol):
     async def steps_for_run(self, run_id: str) -> list[TrajectoryStep]: ...
 
     async def events_for_run(self, run_id: str) -> list[Event]: ...
+
+    async def upsert_run(self, record: RunRecord) -> None:
+        """Insert or update the `runs` table row for `record.run_id` (D9).
+
+        The engine's in-memory step counter is never the source of truth for where a run left
+        off — `steps_for_run` is. This is only the task/status side of resumability.
+        """
+        ...
+
+    async def get_run(self, run_id: str) -> RunRecord | None: ...

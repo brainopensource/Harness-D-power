@@ -30,7 +30,7 @@ from sagiha.domain.events import (
     StepStarted,
 )
 from sagiha.domain.identity import StepId
-from sagiha.domain.trajectory import TokenUsage, TrajectoryStep
+from sagiha.domain.trajectory import RunRecord, TokenUsage, TrajectoryStep
 from sagiha.domain.work import (
     AcceptanceCriterion,
     CostSummary,
@@ -94,7 +94,52 @@ class RunLoop:
         payload = json.dumps({"tool": name, "args": arguments}, sort_keys=True)
         return hashlib.sha256(payload.encode()).hexdigest()
 
-    async def run(self, task: TaskSpec, ctx: RunContext) -> RunLoopResult:
+    def _reconstruct_history(self, task: TaskSpec, existing_steps: list[TrajectoryStep]) -> list[Message]:
+        """Rebuild the prompt history a resumed run would have accumulated in-process.
+
+        Read straight from `TrajectoryStore`, not engine memory (D9) — the store is the source
+        of truth for what actually happened, an in-memory list is not durable across a restart.
+        """
+        history: list[Message] = [Message(role="user", content=[TextBlock(text=task.goal)])]
+        for step in existing_steps:
+            if not step.tool_calls:
+                continue
+            history.append(
+                Message(
+                    role="assistant",
+                    content=[
+                        ToolUseBlock(call_id=c.call_id, tool_name=c.tool_name, arguments=c.arguments)
+                        for c in step.tool_calls
+                    ],
+                )
+            )
+            for call, result in zip(step.tool_calls, step.tool_results, strict=False):
+                history.append(
+                    Message(
+                        role="user",
+                        content=[
+                            ToolResultBlock(
+                                call_id=call.call_id,
+                                content=list(result.content),
+                                is_error=result.is_error,
+                            )
+                        ],
+                    )
+                )
+        return history
+
+    async def run(self, task: TaskSpec, ctx: RunContext, *, resume: bool = False) -> RunLoopResult:
+        """Run `task` to completion (or a stop condition).
+
+        `resume=True` continues an interrupted `ctx.run_id`: `seq` picks up from
+        `TrajectoryStore.steps_for_run`'s high-water mark (D9) — never from engine memory, which
+        does not survive a restart — and prior steps are folded back into `history` and the
+        returned `steps` list.
+        """
+        existing_steps = await self._trajectory.steps_for_run(ctx.run_id) if resume else []
+        start_seq = existing_steps[-1].step_id.seq + 1 if existing_steps else 1
+
+        await self._trajectory.upsert_run(RunRecord(run_id=ctx.run_id, task=task, status="working"))
         await self._bus.emit(
             RunStarted(
                 run_id=ctx.run_id,
@@ -104,14 +149,16 @@ class RunLoop:
             )
         )
 
-        history: list[Message] = [Message(role="user", content=[TextBlock(text=task.goal)])]
-        steps: list[TrajectoryStep] = []
+        history: list[Message] = self._reconstruct_history(task, existing_steps)
+        steps: list[TrajectoryStep] = list(existing_steps)
         signature_counts: dict[str, int] = {}
         stuck = False
+        failed = False
 
-        for seq in range(1, self._max_steps + 1):
+        for seq in range(start_seq, start_seq + self._max_steps):
             remaining = await self._governor.remaining_budget(ctx.run_id)
             if remaining <= 0:
+                failed = True
                 await self._bus.emit(
                     RunFailed(
                         run_id=ctx.run_id,
@@ -221,6 +268,7 @@ class RunLoop:
             steps.append(step)
 
             if stuck:
+                failed = True
                 await self._bus.emit(
                     RunFailed(
                         run_id=ctx.run_id,
@@ -232,6 +280,9 @@ class RunLoop:
                 break
 
         gate_report = await self._evaluator.evaluate(task, ctx)
+        await self._trajectory.upsert_run(
+            RunRecord(run_id=ctx.run_id, task=task, status="failed" if failed else "completed")
+        )
         await self._bus.emit(GateEvaluated(run_id=ctx.run_id, gate_report=gate_report))
         await self._bus.emit(
             RunCompleted(

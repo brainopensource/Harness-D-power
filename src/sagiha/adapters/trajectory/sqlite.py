@@ -11,7 +11,7 @@ from pathlib import Path
 from anyio.to_thread import run_sync
 
 from sagiha.domain.events import ALL_EVENTS, Event
-from sagiha.domain.trajectory import TrajectoryStep
+from sagiha.domain.trajectory import RunRecord, TrajectoryStep
 from sagiha.domain.upcasters import upcast_event
 
 logger = logging.getLogger(__name__)
@@ -85,6 +85,16 @@ def _init_db(db_path: str) -> None:
                 event_type TEXT NOT NULL,
                 timestamp TEXT NOT NULL,
                 event_json TEXT NOT NULL
+            );
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS runs (
+                run_id TEXT PRIMARY KEY,
+                task_json TEXT NOT NULL,
+                status TEXT NOT NULL,
+                updated_at TEXT NOT NULL
             );
             """
         )
@@ -180,5 +190,50 @@ class SQLiteTrajectoryStore:
                 )
                 rows = cursor.fetchall()
                 return [_deserialize_event(row[0]) for row in rows]
+
+        return await run_sync(_sync_fetch)
+
+    async def upsert_run(self, record: RunRecord) -> None:
+        def _sync_upsert() -> None:
+            with self._get_connection() as conn:
+                conn.execute(
+                    """
+                    INSERT INTO runs (run_id, task_json, status, updated_at)
+                    VALUES (?, ?, ?, ?)
+                    ON CONFLICT(run_id) DO UPDATE SET
+                        task_json = excluded.task_json,
+                        status = excluded.status,
+                        updated_at = excluded.updated_at
+                    """,
+                    (
+                        record.run_id,
+                        record.task.model_dump_json(),
+                        record.status,
+                        record.updated_at.isoformat(),
+                    ),
+                )
+                conn.commit()
+
+        await run_sync(_sync_upsert)
+
+    async def get_run(self, run_id: str) -> RunRecord | None:
+        def _sync_fetch() -> RunRecord | None:
+            with self._get_connection() as conn:
+                cursor = conn.execute(
+                    "SELECT task_json, status, updated_at FROM runs WHERE run_id = ?",
+                    (run_id,),
+                )
+                row = cursor.fetchone()
+                if row is None:
+                    return None
+                task_json, status, updated_at = row
+                return RunRecord.model_validate(
+                    {
+                        "run_id": run_id,
+                        "task": json.loads(task_json),
+                        "status": status,
+                        "updated_at": updated_at,
+                    }
+                )
 
         return await run_sync(_sync_fetch)
