@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import uuid
 from pathlib import Path
+from typing import Literal
 
 import anyio
 import typer
@@ -174,6 +175,93 @@ def replay(
         raise SystemExit(2) from exc
     typer.echo(f"replay_ok run_id={result.run_id} admitted={result.gate_report.admitted}")
     raise SystemExit(0)
+
+
+@app.command()
+def harvest(
+    repo: str = typer.Option(".", "--repo", "-r", help="Path to repository to harvest"),
+    output: str = typer.Option(
+        ".sagiha/benchmark/suite.json", "--output", "-o", help="Output path for BenchmarkSuite JSON"
+    ),
+    max_commits: int = typer.Option(200, "--max-commits", help="Maximum commits to inspect"),
+    test_cmd: str = typer.Option("pytest", "--test-cmd", help="Test command to run for tasks"),
+    suite_id: str = typer.Option("s0-baseline", "--suite-id", help="Suite identifier"),
+) -> None:
+    """Harvest commit-replay evaluation tasks from git repository history (E0)."""
+    from sagiha.e0.harvester import Harvester
+
+    typer.echo(f"Harvesting tasks from {repo} (max {max_commits} commits)...")
+    harvester = Harvester(repo, test_cmd=test_cmd, max_commits=max_commits)
+    suite = asyncio.run(harvester.harvest_suite(suite_id=suite_id))
+
+    harvester.save_suite(suite, output)
+    typer.echo(f"Harvested {len(suite.tasks)} tasks -> {output}")
+
+
+@app.command()
+def bench(
+    suite_path: str = typer.Option(
+        ".sagiha/benchmark/suite.json", "--suite", "-s", help="Path to BenchmarkSuite JSON"
+    ),
+    mode: str = typer.Option(
+        "replay", "--mode", "-m", help="Model execution mode ('replay', 'live', 'record')"
+    ),
+    cassette: str = typer.Option(".sagiha/cassettes/default.json", "--cassette", "-c", help="Cassette path"),
+    output: str = typer.Option(
+        ".sagiha/benchmark/report.md", "--output", "-o", help="Output report path (.md or .json)"
+    ),
+    aa: bool = typer.Option(False, "--aa", help="Run A/A noise floor calibration (2 passes)"),
+) -> None:
+    """Run E0 evaluation benchmark over a harvested task suite."""
+
+    from sagiha.domain.benchmark import ComparisonResult, NoiseFloor
+    from sagiha.e0.harvester import Harvester
+    from sagiha.e0.reporter import BenchmarkReporter
+    from sagiha.e0.runner import BenchmarkRunner
+    from sagiha.e0.statistics import StatisticalAnalyzer
+
+    suite_file = Path(suite_path)
+    if not suite_file.exists():
+        typer.echo(f"Benchmark suite file not found: {suite_path}")
+        raise SystemExit(1)
+
+    suite = Harvester.load_suite(suite_file)
+    typer.echo(f"Running benchmark suite '{suite.suite_id}' ({len(suite.tasks)} tasks, mode={mode})...")
+
+    mode_val: Literal["live", "replay", "record"] = (
+        "live" if mode == "live" else ("record" if mode == "record" else "replay")
+    )
+    runner = BenchmarkRunner(
+        suite=suite,
+        model_mode=mode_val,
+        cassette_path=cassette,
+        workspace_root=suite.repo,
+    )
+
+    run_a = asyncio.run(runner.run_suite(run_id="run-pass-1"))
+    nf: NoiseFloor | None = None
+    comp: ComparisonResult | None = None
+
+    if aa:
+        typer.echo("Running second pass for A/A noise floor calibration...")
+        run_b = asyncio.run(runner.run_suite(run_id="run-pass-2"))
+        nf = StatisticalAnalyzer.compute_noise_floor(run_a, run_b)
+        comp = StatisticalAnalyzer.compare_runs(run_a, run_b)
+        typer.echo(
+            f"A/A Calibration mean_delta: {nf.mean_delta:.3f}, beats_noise_floor: {comp.beats_noise_floor}"
+        )
+
+    if output.endswith(".json"):
+        report_content = BenchmarkReporter.render_json(run_a, noise_floor=nf, comparison=comp)
+    else:
+        report_content = BenchmarkReporter.render_markdown(run_a, noise_floor=nf, comparison=comp)
+
+    out_file = Path(output)
+    out_file.parent.mkdir(parents=True, exist_ok=True)
+    out_file.write_text(report_content)
+
+    pass_rate = StatisticalAnalyzer.compute_pass_rate(run_a)
+    typer.echo(f"Benchmark complete! Pass rate: {pass_rate:.1%}. Report written to {output}")
 
 
 if __name__ == "__main__":

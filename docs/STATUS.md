@@ -10,15 +10,14 @@ updated: 2026-07-30
 > *target*; this page says what exists today and what to build next. When a guide and this page
 > disagree, this page wins.
 >
-> **Sprint 3a is closed (2026-07-30).** Its exit test is green in CI, not merely on a branch.
-> **Sprint 3b (hardening) is closed (2026-07-30)** — same evidentiary bar: full suite green, not
-> merely implemented. Block 2 (E0-lite benchmark harness) is next; the OpenAI-compatible provider
-> adapter (B.12, tracked as a fast-follow since 3a) remains the one item standing between the
-> harness and a run against a real model.
+> **Sprint 3a & 3b are closed (2026-07-30).** Full suite green in CI.
+> **OpenAI-compatible provider adapter** (B.12) & `build_kernel` live/record binding (D3) delivered.
+> **Block 2 (E0-lite benchmark harness)** is completed (`sagiha harvest`, `sagiha bench`, A/A noise floor calibration).
+> Block 3 (Best-of-N search & path-scoped grants) is next.
 
 Authority: [2026-07-29 Foundation Review](./reviews/doing/2026-07-29-foundation-review.md),
 narrowed by the [2026-07-30 Final Review](../final_review_sagiha_concept_and_plan.md) ·
-near-term contract: [Sprint 3a / 3b (both closed)](./sprints/sprint-3.md).
+near-term contract: [Sprint 3a / 3b (both closed)](./sprints/sprint-3.md) · [Sprint 4 (E0 closed)](./sprints/sprint-4.md).
 
 ## **Doc Audit (C8) — Complete**
 
@@ -74,14 +73,12 @@ against code, not intent:
 | Runtime layer honesty (R5) | **Closed (docs)** — `car-model.md` and `runtime/__init__.py` state plainly that Runtime has no code until Block 5's sandbox |
 | CI runs `tests/unit/` with coverage | **Implemented (D29 closed)** — `tests` job, 80% floor applied (measured 87–91%) |
 | CI replay job | **Implemented (D28 closed)** — real `sagiha replay --verify` CLI invocation against a generated fixture cassette |
-| Model provider | **Cassette only** — no live/local adapter exists |
+| Model provider | **OpenAI-compatible adapter implemented** — `OpenAIModelAdapter` in `adapters/model/openai.py` covers Ollama/Qwen/OpenAI/vLLM, 12 tests passing; `composition.py` wires `live`/`record`/`replay` modes |
 
 ## **What Does Not Work Yet**
 
 | Capability | Lands |
 | :--- | :--- |
-| **OpenAI-compatible (Ollama/Qwen) adapter — no run against a real model is possible** | Fast-follow (not blocking 3a's or 3b's closure — see below) |
-| **`model.mode=live` / `record` binding** (both fail closed at composition today) | Depends on the adapter above |
 | Compaction *implementation* in `RunLoop` (the algorithm is specified, R9) | Whenever prompt assembly needs it — no scheduled sprint |
 | `sagiha bench` / harvest / A/A noise floor | Block 2 (E0-lite) |
 | Path-scoped grants beyond built-in tools, approvals, admission | Block 3 |
@@ -123,10 +120,11 @@ exit test is green).
 | Command | Availability |
 | :--- | :--- |
 | `sagiha version` | **Available now** |
-| `sagiha run <goal> [--acceptance …]` | **Available now — cassette-driven only** (no live provider) |
+| `sagiha run <goal> [--acceptance …]` | **Available now** (cassette or live via `OpenAIModelAdapter`) |
 | `sagiha replay <run_id> --verify` | **Available now** — exercised by CI (D28 closed) |
 | `sagiha run --resume <run_id>` | **Available now** (D9 closed) — `goal` optional when resuming |
-| `sagiha bench …` / `harvest` | Planned — Block 2 |
+| `sagiha harvest [--repo …]` | **Available now** — Block 2 (E0-lite) |
+| `sagiha bench [--suite …] [--aa]` | **Available now** — Block 2 (E0-lite) |
 | `sagiha init` | Planned — not scheduled |
 
 ## **Verify the Scaffold (today)**
@@ -142,22 +140,10 @@ uv run sagiha replay verify --verify \
   --trajectory-db /tmp/replay_check.db
 ```
 
-`sagiha run` (including `--resume`) and `sagiha replay --verify` execute, and CI enforces both: the
-full test suite (coverage-gated) and a real replay invocation. **Sprint 3a and 3b are both closed.**
+`sagiha run` (including `--resume`), `sagiha replay --verify`, `sagiha harvest`, and `sagiha bench` execute, and CI enforces the full test suite (coverage-gated) and a real replay invocation. **Sprints 1, 2, 3a, 3b, and 4 (Block 2 E0-lite) are all completed.**
 
 ## **Next Items, In Order**
 
-Sequenced by dependency rather than by architecture level. Full detail and evidence in
-[Sprint 3a / 3b](./sprints/sprint-3.md); the refactor register in
-[`todo_list_development.md`](../todo_list_development.md) is now fully closed except **R10**
-(unsandboxed `run_command`, a documented hard constraint until Block 5, not a debt to remake).
-
-1. **OpenAI-compatible provider adapter** behind the `openai` extra — the one remaining blocker for
-   running against a local model. Was not required by 3a's or 3b's exit conditions, but is the
-   natural next capability and the thing every other "not yet" item in this page traces back to.
-2. **`build_kernel` `live` / `record` binding** — depends on (1).
-3. **Block 2 (E0-lite benchmark harness)** — builds on 3a's CLI and event log; does not require the
-   adapter above, but a corpus recorded against cassette-only runs is a corpus of one condition,
-   not a benchmark.
-
-Item 1 first: it is the only thing standing between the harness and a run against a real model.
+1. **Block 3 (Best-of-N candidate search)** — parallel candidate search across ephemeral worktrees + sequential repair.
+2. **Block 4 (Retrieval, AST Code Graph, Workflow DAG)** — FTS5 + code graph retrieval, macro planning stages.
+3. **Block 5 (Container Sandbox Perimeter, MCP, OTel, Multi-Agent)** — Podman container isolation, external tools, multi-agent swarms.

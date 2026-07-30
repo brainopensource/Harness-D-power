@@ -160,4 +160,4 @@ def test_all_datetimes_are_aware() -> None:
 def test_at_least_every_port_module_was_discovered() -> None:
     """Guards against the walker silently finding zero ports (e.g. a broken pkgutil path)."""
     protocols = _iter_port_protocols()
-    assert len(protocols) >= 18, f"expected at least 18 ports, found {len(protocols)}: {protocols}"
+    assert len(protocols) >= 20, f"expected at least 20 ports, found {len(protocols)}: {protocols}"

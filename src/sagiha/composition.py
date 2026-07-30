@@ -136,6 +136,7 @@ def build_kernel(
 
     def _create_live_model_provider() -> ModelProvider:
         import os
+
         from sagiha.adapters.model.openai import OpenAIModelAdapter
 
         tier_name = config.model.roles.get("execution", "workhorse")
@@ -157,9 +158,7 @@ def build_kernel(
         model_provider: ModelProvider = CassetteModelProvider(cassette_path=path, mode="replay")
     elif mode == "record":
         live_adapter = _create_live_model_provider()
-        model_provider = CassetteModelProvider(
-            cassette_path=path, mode="record", inner_provider=live_adapter
-        )
+        model_provider = CassetteModelProvider(cassette_path=path, mode="record", inner_provider=live_adapter)
     elif mode == "live":
         model_provider = _create_live_model_provider()
     else:

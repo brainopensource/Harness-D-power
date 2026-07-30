@@ -40,8 +40,8 @@ recording.
 >
 > | Open, not blocking | Item | Where it goes |
 > | :--- | :--- | :--- |
-> | OpenAI-compatible provider adapter | B.12 | Fast-follow — `model.mode=live` still fails closed; no local-LLM run is possible yet |
-> | `build_kernel` `live`/`record` binding | A.4 | Depends on the adapter above |
+> | ~~OpenAI-compatible provider adapter~~ | B.12 | **Closed** — `OpenAIModelAdapter` in `adapters/model/openai.py`, 12 tests passing, `composition.py` wires live/record |
+> | ~~`build_kernel` `live`/`record` binding~~ | A.4 | **Closed** — depends on B.12 above, both modes bind |
 >
 > Everything else 3a surfaced is tracked as **R1, R4, R5, R9, R11** in the
 > [Refactor Register](../../todo_list_development.md#-refactor-register--must-be-remade) — shape
@@ -64,12 +64,11 @@ recording.
   **Must land before any cassette fixture is committed** — cassettes embed this shape.
 - [x] **3. Digest cassette matching (D2)** — key replay on a canonical request digest; raise
   `CassetteMismatchError` on mismatch or exhaustion (no silent repeat of the last entry).
-- [ ] **4. `build_kernel` mode binding (D3)** — `live` binds the OpenAI-compatible adapter (A.5
-  below), `record` wraps it in the cassette recorder, `replay` requires a cassette path;
-  misconfiguration fails at composition, not at first call.
-  **Partial (`composition.py:136-155`).** `replay` binds and validates the cassette path correctly.
-  `record` and `live` both raise at composition because no live provider exists to wrap — correct
-  fail-closed behaviour, but the item does not close until **B.12** lands and both modes bind.
+- [x] **4. `build_kernel` mode binding (D3)** — `live` binds the `OpenAIModelAdapter` via
+  `_create_live_model_provider()`, `record` wraps it in the cassette recorder, `replay` requires
+  a cassette path; misconfiguration fails at composition, not at first call.
+  **Closed.** `composition.py` wires all three modes correctly. Tested in
+  `test_openai_adapter.py::test_composition_live_mode` and `::test_composition_record_mode`.
 - [x] **5. Typed event read path + `upcasters.py` stub (D6, C7)** — deserialize stored events
   through the `ALL_EVENTS` discriminated union so `events_for_run` returns concrete event types
   with payloads intact; create `sagiha/domain/upcasters.py` (identity-only upcasters are
@@ -110,13 +109,12 @@ recording.
   history (prior steps and tool results — today each step is memoryless) packed into
   `ModelRequest` v2. Stable prefix ordering per `docs/02-architecture/prompt-architecture.md`;
   compaction and cache breakpoints are **out of scope**.
-- [ ] **12. OpenAI-compatible `ModelProvider` adapter (G8)** — one adapter covering Ollama/Qwen
-  local (`base_url`) per `docs/06-guides-and-patterns/ollama-qwen-coder-setup.md`. Anthropic/Google
-  adapters are out of scope.
-  **Not started — this is the only thing standing between the harness and a local-LLM run.**
-  `adapters/model/` contains `cassette.py` and nothing else. The `openai` extra is already declared
-  in `pyproject.toml`; the adapter belongs behind it so the default install stays lean (C4). Until
-  it lands, every claim about running against Qwen/Ollama is unexercised.
+- [x] **12. OpenAI-compatible `ModelProvider` adapter (G8)** — `OpenAIModelAdapter` in
+  `adapters/model/openai.py` covers Ollama/Qwen local (`base_url`), OpenAI, vLLM, and any endpoint
+  exposing the `/v1/chat/completions` route. Uses `httpx.AsyncClient` with retry. The `openai`
+  extra is declared in `pyproject.toml`; the adapter checks for it at construction and raises
+  `OpenAIExtraMissingError` if missing. 12 tests in `test_openai_adapter.py`, all passing.
+  Anthropic/Google adapters remain out of scope.
 - [x] **13. Five built-in tools with schema path scoping and grant verification (C1, G2, G12)** —
   exactly five tools, registered at composition from the profile's tool list: `read_file`,
   `list_dir`, `grep`, `apply_edit` (uses `EditRequest`/`EditResult`), `run_command`. Implemented

@@ -404,6 +404,27 @@ class TaskRevised(Event):
     consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI", "MI")
 
 
+class BenchmarkTaskHarvested(Event):
+    event: Literal["benchmark.task_harvested"] = "benchmark.task_harvested"
+    task_id: str
+    repo: str
+
+    group: ClassVar[str] = "Evaluation & Control"
+    emitted_by: ClassVar[str] = "Harvester"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI")
+
+
+class BenchmarkTaskCompleted(Event):
+    event: Literal["benchmark.task_completed"] = "benchmark.task_completed"
+    task_id: str
+    agent_id: str
+    resolved: bool
+
+    group: ClassVar[str] = "Evaluation & Control"
+    emitted_by: ClassVar[str] = "TaskRunner"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI", "MI")
+
+
 ALL_EVENTS: tuple[type[Event], ...] = (
     RunStarted,
     RunCompleted,
@@ -437,5 +458,7 @@ ALL_EVENTS: tuple[type[Event], ...] = (
     BudgetExhausted,
     UserMessageReceived,
     TaskRevised,
+    BenchmarkTaskHarvested,
+    BenchmarkTaskCompleted,
 )
 """Source of truth for docs/04-workflows-and-loops/event-catalog.md — see scripts/gen_event_catalog.py."""
