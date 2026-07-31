@@ -2,7 +2,7 @@
 
 > **Status**: **3a closed (2026-07-30, exit test green in CI)** · **3b closed (2026-07-30)**
 > **Source**: [2026-07-29 Foundation Review](../reviews/doing/2026-07-29-foundation-review.md) — Block 1,
-> narrowed by the [2026-07-30 Final Review](../../final_review_sagiha_concept_and_plan.md) §5.6/§11 (**C3**).
+> narrowed by the [2026-07-30 Final Review](../reviews/done/final_review_sagiha_concept_and_plan.md) §5.6/§11 (**C3**).
 > **Target**: `sagiha run` completes a small coding task end-to-end on a cassette in CI; `sagiha
 > replay` verifies the recording. No new ports, no new subsystems. (Against local Ollama manually —
 > the OpenAI-compatible adapter — is tracked separately below; it is not part of 3a's exit test.)
@@ -15,7 +15,7 @@
 > coverage that must land before the loop is trusted with longer or riskier runs. 3a's exit test is
 > green in CI; **3b's six items and the five remaining refactor debts (R1/R4/R5/R9/R11) are closed
 > as of 2026-07-30** — see the 3b section below for evidence per item, and
-> [`todo_list_development.md`](../../todo_list_development.md#-refactor-register--must-be-remade)
+> [`todo_list_development.md`](../implementation/_archive/todo_list_development.md#-refactor-register--must-be-remade)
 > for the refactor register.
 
 ---
@@ -44,7 +44,7 @@ recording.
 > | ~~`build_kernel` `live`/`record` binding~~ | A.4 | **Closed** — depends on B.12 above, both modes bind |
 >
 > Everything else 3a surfaced is tracked as **R1, R4, R5, R9, R11** in the
-> [Refactor Register](../../todo_list_development.md#-refactor-register--must-be-remade) — shape
+> [Refactor Register](../implementation/_archive/todo_list_development.md#-refactor-register--must-be-remade) — shape
 > debt rather than missing function. **R2, R3, R6, R7, and R8 closed alongside this sprint** (grant
 > verification is now mandatory on the `PolicyEngine` Protocol, the path-scope fallback is deleted,
 > the `import-linter` agency contract is enforced rather than warned, `ShortTermMemoryAdapter` is
@@ -199,7 +199,7 @@ path-containment pass. Continuing the series:
 
 Shape debts this sprint surfaced — duck-typed grant verification, the surviving path key-guessing
 fallback, the evaluator's location, and the unwired `ShortTermMemoryAdapter` — were **R2 / R3 / R4 /
-R7** in the [Refactor Register](../../todo_list_development.md#-refactor-register--must-be-remade).
+R7** in the [Refactor Register](../implementation/_archive/todo_list_development.md#-refactor-register--must-be-remade).
 **R2, R3, and R7 closed alongside D28/D29** (mandatory `verify_grant`, deleted fallback, deleted
 adapter); **R4** (evaluator location) remains open, tracked for Sprint 3b.
 
@@ -276,7 +276,7 @@ that the Runtime layer has no code until Block 5's sandbox, rather than leaving 
 unexplained), **R9** (compaction's three numbers — headroom 20%, keep-first-N=2, keep-last-M=6 —
 specified in `prompt-architecture.md`), **R11** (`mcp`/`opentelemetry-*`/`lsprotocol`/`watchfiles`
 moved to optional extras; none was imported anywhere in `src/sagiha`). Full detail in
-[`todo_list_development.md`](../../todo_list_development.md#-refactor-register--must-be-remade).
+[`todo_list_development.md`](../implementation/_archive/todo_list_development.md#-refactor-register--must-be-remade).
 All 11 refactor debts are now closed; **R10** (unsandboxed `run_command`) is not a debt — it is a
 documented hard constraint that stays open until Block 5.
 

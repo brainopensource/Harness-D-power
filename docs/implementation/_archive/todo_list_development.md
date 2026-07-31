@@ -1,6 +1,6 @@
 # ⚡ SAGIHA — Development TODO List & Status Roadmap
 
-> **Source of Truth Alignment:** Based on [`pitch.md`](pitch.md), [`README.md`](README.md), [`docs/STATUS.md`](docs/STATUS.md), [`docs/sprints/`](docs/sprints/), and [`docs/07-roadmap/phased-migration-matrix.md`](docs/07-roadmap/phased-migration-matrix.md).
+> **Source of Truth Alignment:** Based on [`pitch.md`](../../01-executive/pitch.md), [`README.md`](../../../README.md), [`docs/STATUS.md`](../../STATUS.md), [`docs/sprints/`](../../sprints/), and [`docs/07-roadmap/phased-migration-matrix.md`](../../07-roadmap/phased-migration-matrix.md).
 >
 > **Last verified:** 2026-07-30 against `HEAD` — 120 tests pass · 89.37% coverage · `pyright` 0 errors · `import-linter` 5/5 contracts kept (agency contract now enforced, not warned) · `ruff` + `ruff format --check` clean · event catalog `--check` green · `sagiha replay --verify` green.
 >
@@ -105,7 +105,7 @@
 - [ ] **Resumable Run State (`--resume`)** (`Sprint 3b`) — `runs` table; derive `seq` from `TrajectoryStore`, not engine memory (D9)
 - [ ] **Concrete Compaction Algorithm** (`Sprint 3b`) — three numbers: headroom %, keep-first-N, keep-last-M. See R9
 - [ ] **Mid-Turn Interjection / Steering Semantics** (`Block 2+`) — merge rules for messages arriving during a turn
-- [ ] **Workflow DAG & Protocol** (`Block 4`) — `WorkflowStep[In, Out]` per [ADR-0018](docs/08-decisions/0018-native-workflow-dag.md). **Gated**: ships only if E0 shows planning beats no-planning
+- [ ] **Workflow DAG & Protocol** (`Block 4`) — `WorkflowStep[In, Out]` per [ADR-0018](../../08-decisions/0018-native-workflow-dag.md). **Gated**: ships only if E0 shows planning beats no-planning
 - [ ] **Macro Planning Stages** (`Block 4`) — `PRDGeneratorStep` → `StoryDecomposerStep` → `CodingStep` → `VerifierStep`
 - [ ] **System 2 Deliberate Best-of-N Search** (`Block 3/4`) — parallel candidates across ephemeral worktrees + sequential repair
 
@@ -122,7 +122,7 @@
 - [ ] **`TrajectoryStore` as a Recall Source** (`Block 4`) — FTS5 over past runs: *"have I hit this failure before?"*
 - [ ] **AST Code Graph Integration** (`Block 4`) — Tree-sitter `callers_of` / `impacted_by`
 - [ ] **Obsidian-Style Knowledge Net** (`Block 4`) — `neighbors()` / `backlinks()` on the `Memory` port
-- [ ] **Dense Vector Embeddings** (`Deferred`) — per [ADR-0014](docs/08-decisions/0014-defer-dense-retrieval.md), until FTS5 recall@10 is missed
+- [ ] **Dense Vector Embeddings** (`Deferred`) — per [ADR-0014](../../08-decisions/0014-defer-dense-retrieval.md), until FTS5 recall@10 is missed
 
 ---
 

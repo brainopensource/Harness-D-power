@@ -66,12 +66,12 @@ updated: 2026-07-29
 | C9 | ✅ Done | `dev` dependency group added to `pyproject.toml` (pytest, pytest-cov, ruff, pyright, import-linter, detect-secrets); embedding provider deferred per ADR-0014; `watchfiles` and a container SDK land with their features |
 | C10 | ✅ Done | Storage layout and concurrency specified in `control-plane-python.md`: three named stores under `.sagiha/` at the repo root (never inside a worktree), WAL + `busy_timeout` as a connection-factory invariant, one writer per database, parallel worktrees are readers |
 | C11 | 🔶 Deprecated | 'Dumb harness' reframing deferred |
-| X1 | ✅ Done | Dual source of truth removed: the blueprint's ~500-line interface section **deleted** (not synced); `03-contracts-and-models/` is now the sole normative home; [Contracts to Code](../implementation/contracts-to-code.md) specifies the day-1 move into `src/` |
+| X1 | ✅ Done | Dual source of truth removed: the blueprint's ~500-line interface section **deleted** (not synced); `03-contracts-and-models/` is now the sole normative home; [Contracts to Code](../../implementation/contracts-to-code.md) specifies the day-1 move into `src/` |
 | X2 | ✅ Done | Revision autobiography moved to ADR `Context` sections |
 | X3 | ✅ Done | Superseded passages in `reference/` marked or removed; file renamed `design-derivation.md` and marked non-normative |
 | X4 | ✅ Done | metrics-analytics doc rewritten as proposed analyses |
 | X5 | ✅ Done | `pyproject.toml`, `.importlinter`, `.pre-commit-config.yaml`, `config.example.toml`, `AGENTS.md` all committed at repo root |
-| X6 | ✅ Done | [`01-executive/v0.1-user-guide.md`](../01-executive/v0.1-user-guide.md) |
+| X6 | ✅ Done | [`01-executive/v0.1-user-guide.md`](../../01-executive/v0.1-user-guide.md) |
 | X7 | ✅ Done | Mechanical consistency pass completed |
 
 ---

@@ -9,23 +9,23 @@ updated: 2026-07-30
 > **Working Proposal Disclaimer**: This document represents a structured implementation guideline for SAGIHA. Prompts are parameterized and modularized to remain valid even as specific adapter implementations or stack choices evolve.
 
 > [!IMPORTANT]
-> Phases here map onto the vertical slices in [`07-roadmap/phased-migration-matrix.md`](../07-roadmap/phased-migration-matrix.md), which is normative for scope and gates. Where this document and the roadmap disagree, the roadmap wins.
+> Phases here map onto the vertical slices in [`07-roadmap/phased-migration-matrix.md`](../../07-roadmap/phased-migration-matrix.md), which is normative for scope and gates. Where this document and the roadmap disagree, the roadmap wins.
 >
-> **Current work:** [Sprint 3a is closed](../sprints/sprint-3.md) (Block 1 — close the loop); Sprint 3b (hardening) is next. Sprint 1–2 scaffolding/kernel are done with known defects. Do **not** start Phase 2's MCP/OTel items — deferred per the foundation review. Implementation truth: [STATUS.md](../STATUS.md).
+> **Current work:** [Sprint 3a is closed](../../sprints/sprint-3.md) (Block 1 — close the loop); Sprint 3b (hardening) is next. Sprint 1–2 scaffolding/kernel are done with known defects. Do **not** start Phase 2's MCP/OTel items — deferred per the foundation review. Implementation truth: [STATUS.md](../../STATUS.md).
 >
 > **Sequencing:** Block 1 (Sprint 3a closed, 3b next) → Block 2 (E0-lite measurement) → later phases. A measured loop needs a loop to measure.
 
 **Before continuing development, read these:**
-[STATUS.md](../STATUS.md) ·
-[Sprint 3](../sprints/sprint-3.md) ·
-[Dependencies & Versions](../05-tech-stack/dependencies-and-versions.md) ·
-[Tool Catalog](../03-contracts-and-models/tool-catalog.md) ·
-[Prompt Architecture](../02-architecture/prompt-architecture.md) ·
-[Error Taxonomy](../03-contracts-and-models/error-taxonomy.md) ·
-[Configuration Reference](../05-tech-stack/configuration-reference.md) ·
-[CI & Quality Gates](../06-guides-and-patterns/ci-and-quality-gates.md) ·
-[ADR Log](../08-decisions/README.md) ·
-[Foundation Review](../reviews/doing/2026-07-29-foundation-review.md)
+[STATUS.md](../../STATUS.md) ·
+[Sprint 3](../../sprints/sprint-3.md) ·
+[Dependencies & Versions](../../05-tech-stack/dependencies-and-versions.md) ·
+[Tool Catalog](../../03-contracts-and-models/tool-catalog.md) ·
+[Prompt Architecture](../../02-architecture/prompt-architecture.md) ·
+[Error Taxonomy](../../03-contracts-and-models/error-taxonomy.md) ·
+[Configuration Reference](../../05-tech-stack/configuration-reference.md) ·
+[CI & Quality Gates](../../06-guides-and-patterns/ci-and-quality-gates.md) ·
+[ADR Log](../../08-decisions/README.md) ·
+[Foundation Review](../../reviews/doing/2026-07-29-foundation-review.md)
 
 ---
 
@@ -38,12 +38,12 @@ updated: 2026-07-30
 | **Phase 2b** | Block 1 / Sprint 3 | Close the loop | ToolUseBlock→ToolCall, ModelRequest v2, digest cassette, 5 tools, evaluator, `run`/`replay` | E2E cassette + replay verify in CI | **Current** |
 | **Phase 2c** | Block 2 / E0-lite | Measure | Harvester, A/A noise floor, bench report | Committed baseline; cassette re-run within floor | Next |
 | **Phase 3** | S1 / Block 5 | Isolation, Sandbox & LSP | Worktrees, container + egress, warm LSP, pristine injection | No grantless out-of-tree writes; no credentials in sandbox | Later |
-| **Phase 4** | S2 / Block 4 | Memory & AST Chunking | Tree-sitter skeletonizer, lexical (FTS5) + code-graph retrieval — dense deferred [ADR-0014](../08-decisions/0014-defer-dense-retrieval.md) | recall@10; retrieval beats no-retrieval | Later |
+| **Phase 4** | S2 / Block 4 | Memory & AST Chunking | Tree-sitter skeletonizer, lexical (FTS5) + code-graph retrieval — dense deferred [ADR-0014](../../08-decisions/0014-defer-dense-retrieval.md) | recall@10; retrieval beats no-retrieval | Later |
 | **Phase 5** | S3–S4 | System 2 & Self-Improvement | Best-of-N, hard gates, full E0, AOI shadow, Meta-Improver | Beats A/A floor; CI rejects TCB diffs | Later |
 
 **Note on gates.** "0% crash rate" and "100% passing" are not measurable for a stochastic system without a defined workload; every gate above names a suite, a threshold, and a budget.
 
-**Note on Phase 2 historical prompts below.** Sprint/phase prompts that still mention “stdio MCP” or “OTel” as Phase 2 deliverables are **superseded** — those land in Block 5. Prefer [Sprint 3](../sprints/sprint-3.md) as the executable checklist.
+**Note on Phase 2 historical prompts below.** Sprint/phase prompts that still mention “stdio MCP” or “OTel” as Phase 2 deliverables are **superseded** — those land in Block 5. Prefer [Sprint 3](../../sprints/sprint-3.md) as the executable checklist.
 
 ---
 

@@ -45,6 +45,28 @@ jobs:
       - run: mypy src/
         continue-on-error: true
 
+  docs-budget:
+    name: Docs Budget & Link Integrity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      # Both scripts are stdlib-only by design — no `uv pip install` step, so this job
+      # cannot be broken by a dependency resolution failure unrelated to docs.
+      #
+      # `--max` is a RATCHET. It is set to the measured normative total at the moment the
+      # gate lands (47,494 — PR-0b) so the gate is green on merge; a gate that lands red is
+      # a gate that gets disabled. PR-0c's demotion program lowers it toward the ceiling
+      # settled in guidelines §11 Q1. It never goes up: a PR adding N normative words
+      # deletes N elsewhere. ADRs (docs/08-decisions/) are exempt.
+      - run: python scripts/docs_budget.py --max 47494
+      # PR-0a repaired seven dead links by hand and found 44 more. docs/STATUS.md was
+      # deleted out from under four inbound references before anyone noticed; this is the
+      # mechanical replacement for noticing.
+      - run: python scripts/check_links.py
+
   conformance:
     name: Port Conformance
     runs-on: ubuntu-latest
