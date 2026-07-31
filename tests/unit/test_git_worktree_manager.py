@@ -7,10 +7,10 @@ exactly the kind of thing that looks right against a mock and breaks against rea
 
 from __future__ import annotations
 
-import os
 import subprocess
 from pathlib import Path
 
+import anyio
 import pytest
 
 from sagiha.adapters.workspace.worktree import GitWorktreeManager, WorktreeError
@@ -76,10 +76,10 @@ async def test_release_removes_worktree_directory(tmp_path: Path) -> None:
     repo = _init_repo(tmp_path)
     manager = GitWorktreeManager(str(repo))
     await manager.allocate("HEAD", "branch-c")
-    path = manager.path_for("branch-c")
-    assert os.path.exists(path)
+    path = anyio.Path(manager.path_for("branch-c"))
+    assert await path.exists()
     await manager.release("branch-c")
-    assert not os.path.exists(path)
+    assert not await path.exists()
 
 
 @pytest.mark.asyncio
