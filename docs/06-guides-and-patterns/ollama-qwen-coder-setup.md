@@ -1,8 +1,8 @@
 ---
-status: normative
+status: rationale
+retrieval: excluded
 updated: 2026-07-29
 ---
-
 # **Ollama & Qwen2.5-Coder Setup Guide for Linux**
 
 > [!NOTE]

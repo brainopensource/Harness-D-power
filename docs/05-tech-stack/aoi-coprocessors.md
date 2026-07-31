@@ -1,8 +1,7 @@
 ---
-status: normative
+status: rationale
 updated: 2026-07-29
 ---
-
 # **Auxiliary Optimization Intelligence (AOI) Co-processors**
 
 > [!NOTE]

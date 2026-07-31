@@ -1,3 +1,6 @@
+---
+status: rationale
+---
 # SPRINT PLANNING — SAGIHA v0.3.0 Re-Baseline
 
 **Status:** normative — this file supersedes the sprint sequence implied by `docs/sprints/` and re-baselines the block plan under the accepted v2 review corpus.

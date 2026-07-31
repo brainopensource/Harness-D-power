@@ -56,12 +56,20 @@ jobs:
       # Both scripts are stdlib-only by design — no `uv pip install` step, so this job
       # cannot be broken by a dependency resolution failure unrelated to docs.
       #
-      # `--max` is a RATCHET. It is set to the measured normative total at the moment the
-      # gate lands (47,494 — PR-0b) so the gate is green on merge; a gate that lands red is
-      # a gate that gets disabled. PR-0c's demotion program lowers it toward the ceiling
-      # settled in guidelines §11 Q1. It never goes up: a PR adding N normative words
-      # deletes N elsewhere. ADRs (docs/08-decisions/) are exempt.
-      - run: python scripts/docs_budget.py --max 47494
+      # `--max` is a RATCHET — it goes down, never up. Landed at the measured 47,494 in
+      # PR-0b so the gate was green on merge (a gate that lands red is a gate that gets
+      # disabled); PR-0c's demotion program took it to 27,021.
+      #
+      # 27,021 is a MEASURED number, not the 15,000 the corpus asserts. Guidelines §11 Q1
+      # flagged 15,000 as "an assertion, not a derivation", and the arithmetic bears that
+      # out: reaching it requires demoting ~two-thirds of the 01-08 SSOT, including the
+      # 02-architecture and 04-workflows docs PR-0d amends as normative. What remains
+      # normative is exactly the contract surface, the loop specs, the architecture docs
+      # under active amendment, and STATUS.md — a defensible boundary rather than a
+      # word count reverse-engineered to hit a target.
+      #
+      # A PR adding N normative words deletes N elsewhere. ADRs (docs/08-decisions/) are exempt.
+      - run: python scripts/docs_budget.py --max 27021
       # PR-0a repaired seven dead links by hand and found 44 more. docs/STATUS.md was
       # deleted out from under four inbound references before anyone noticed; this is the
       # mechanical replacement for noticing.

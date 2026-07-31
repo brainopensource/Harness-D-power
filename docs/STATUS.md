@@ -16,7 +16,7 @@ updated: 2026-07-31
 > of this page reported capability that a line-level read of the code does not support.
 
 Authority: [`refactor_sagiha_v2_guidelines.md`](../refactor_sagiha_v2_guidelines.md) §2 (verified
-baseline) · [ADR log](./08-decisions/README.md) · historical audits under [`reviews/`](./reviews/README.md).
+baseline) · [ADR log](./08-decisions/README.md) · historical audits under [`reviews/`](./rationale/reviews/README.md).
 
 ## **Sprint Numbering**
 
