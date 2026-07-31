@@ -103,7 +103,24 @@ class LocalWorkspace:
         )
 
     async def checkpoint(self, label: str) -> str:
-        return label
+        """Return the current HEAD sha — the ref the coding gates diff against.
+
+        This returned `label` before PR-1a, i.e. it claimed to be a commit sha and was
+        not one. `RunContext.base_commit` is derived from this, and a gate diffing
+        against a made-up ref reports nothing useful, so the lie propagated straight
+        into the evaluator.
+
+        Raises `RuntimeError` when the workspace is not a git repository. Callers must
+        not treat that as "no changes" — `RunLoop` leaves `base_commit` unset and the
+        gates fail closed.
+        """
+        result = await self.run(["git", "rev-parse", "HEAD"])
+        if result.exit_code != 0:
+            raise RuntimeError(
+                f"checkpoint({label!r}) failed: workspace at {self.root} is not a git "
+                f"repository or has no commits — {result.stderr.strip()}"
+            )
+        return result.stdout.strip()
 
     async def restore(self, commit_sha: str) -> None:
         return None

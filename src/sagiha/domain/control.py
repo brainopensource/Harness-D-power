@@ -52,3 +52,8 @@ class RunContext(BaseModel):
     autonomy_level: Literal["interactive", "hybrid", "autonomous", "scheduled"]
     workspace_root: str  # opaque identifier, not a Path
     budget_remaining_usd: float
+    #: Git sha captured before step 1, and the ref every coding gate diffs against.
+    #: Optional so existing callers and recorded contexts stay valid; the gates fail
+    #: closed when it is absent, because "no base ref" means "cannot evaluate", never
+    #: "passed" (H1).
+    base_commit: str | None = None

@@ -254,7 +254,15 @@ class GatesConfig(BaseModel):
     require_tests_pass: bool = True
     require_tests_unmodified: bool = True
     require_no_new_suppressions: bool = True
-    require_coverage_not_decreased: bool = True
+    #: Defaults to False as of PR-1a, and the change is a correction, not a relaxation.
+    #: This gate previously "passed" because `GateEvaluator` returned a hardcoded `True`
+    #: (H1) — it was never evaluated. It now reports an honest `None`, because there is
+    #: no `Toolchain` adapter and no coverage baseline to compare against. Leaving the
+    #: default at True would mean every run fails closed on a gate nothing can compute,
+    #: which teaches operators to disable gates. Admission behaviour is unchanged; the
+    #: label is now true. Set it to True once a Toolchain adapter lands and the gate can
+    #: answer — at which point `None` correctly fails closed.
+    require_coverage_not_decreased: bool = False
     max_diff_lines: int = 1000
 
 

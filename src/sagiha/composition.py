@@ -204,7 +204,14 @@ def build_kernel(
 
     bus = EventBus()
     bus.subscribe_observer(trajectory_store.append_event)
-    evaluator = GateEvaluator(policy_engine, resource_governor, tool_registry, bus)
+    evaluator = GateEvaluator(
+        policy_engine,
+        resource_governor,
+        tool_registry,
+        bus,
+        max_diff_lines=config.gates.max_diff_lines,
+        require_coverage_not_decreased=config.gates.require_coverage_not_decreased,
+    )
 
     return Kernel(
         config=config,

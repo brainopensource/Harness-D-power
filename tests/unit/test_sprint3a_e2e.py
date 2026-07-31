@@ -21,6 +21,20 @@ from sagiha.domain.content import (
 from sagiha.domain.control import RunContext
 
 
+def _git_init(repo: Path) -> None:
+    """Make `repo` a git repository with one commit, so the gates have a base ref."""
+    import subprocess
+
+    def run(*args: str) -> None:
+        subprocess.run(["git", *args], cwd=repo, capture_output=True, check=True)
+
+    run("init", "-q")
+    run("config", "user.email", "test@example.com")
+    run("config", "user.name", "Test")
+    run("add", "-A")
+    run("commit", "-q", "-m", "base")
+
+
 def _tool_schemas() -> list[ToolSchema]:
     return [
         ToolSchema(
@@ -45,6 +59,10 @@ async def test_e2e_cassette_fixes_failing_check(tmp_path: Path) -> None:
     ws = tmp_path / "fixture"
     ws.mkdir()
     (ws / "mod.py").write_text("VALUE = 1\n", encoding="utf-8")
+    # The coding gates diff against a base commit (H1 fix, PR-1a). Before that fix they
+    # were hardcoded True and this fixture never needed to be a real repo; now an
+    # ungitted workspace correctly yields None gates and refuses to admit.
+    _git_init(ws)
 
     system = "You are a careful coding agent. Use tools to fix the failing test."
     goal = "Change VALUE to 2 in mod.py"
@@ -113,6 +131,7 @@ async def test_e2e_cassette_fixes_failing_check(tmp_path: Path) -> None:
         max_steps=5,
         system_prompt=system,
         tool_schemas=schemas,
+        workspace=kernel.workspace,
     )
     ctx = RunContext(
         run_id="e2e-1",
@@ -149,6 +168,7 @@ async def test_e2e_cassette_fixes_failing_check(tmp_path: Path) -> None:
         max_steps=5,
         system_prompt=system,
         tool_schemas=schemas,
+        workspace=kernel.workspace,
     )
     ctx2 = RunContext(
         run_id="e2e-2",

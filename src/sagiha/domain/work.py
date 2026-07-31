@@ -58,12 +58,23 @@ class GateReport(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     criteria: tuple[CriterionResult, ...]
-    # Code-specific gates. None means "not applicable under this profile" —
+    # Code-specific gates. None means "not evaluated" —
     # never defaulted to True, which would read as "passed".
     no_new_suppressions: bool | None = None
     tests_unmodified: bool | None = None
     coverage_not_decreased: bool | None = None
     diff_within_bounds: bool | None = None
+    #: Which gates must be an explicit True for admission. `admitted` computes over
+    #: this set rather than over hardcoded field names, so a gate that genuinely
+    #: cannot be evaluated yet can report an honest `None` without either lying
+    #: (returning True) or blocking every run (being permanently required).
+    #:
+    #: `coverage_not_decreased` is absent from the default set: there is no
+    #: `Toolchain` adapter and no baseline, so it has no honest answer. Config's
+    #: `require_coverage_not_decreased` puts it back, and then `None` fails closed.
+    required_gates: frozenset[str] = frozenset(
+        {"no_new_suppressions", "tests_unmodified", "diff_within_bounds"}
+    )
 
     @property
     def acceptance_met(self) -> bool:
@@ -71,18 +82,12 @@ class GateReport(BaseModel):
 
     @property
     def admitted(self) -> bool:
-        """Admit only when every coding gate is an explicit True.
+        """Admit only when every *required* coding gate is an explicit True.
 
         `None` means "not evaluated" — never a pass. Absence of a verdict must
         never be representable as admission (D20).
         """
-        gates = (
-            self.no_new_suppressions,
-            self.tests_unmodified,
-            self.coverage_not_decreased,
-            self.diff_within_bounds,
-        )
-        return self.acceptance_met and all(g is True for g in gates)
+        return self.acceptance_met and all(getattr(self, name, None) is True for name in self.required_gates)
 
 
 class ReviewFinding(BaseModel):

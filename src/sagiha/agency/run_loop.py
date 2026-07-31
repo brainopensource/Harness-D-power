@@ -46,6 +46,7 @@ from sagiha.ports.model import ModelProvider
 from sagiha.ports.policy import PolicyEngine
 from sagiha.ports.tool_registry import ToolRegistry
 from sagiha.ports.trajectory import TrajectoryStore
+from sagiha.ports.workspace import Workspace
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +81,7 @@ class RunLoop:
         ),
         tool_schemas: list[ToolSchema] | None = None,
         evaluator: Evaluator | None = None,
+        workspace: Workspace | None = None,
     ) -> None:
         self._model = model_provider
         self._policy = policy_engine
@@ -90,6 +92,7 @@ class RunLoop:
         self._max_steps = max_steps
         self._system_prompt = system_prompt
         self._tool_schemas = tool_schemas or []
+        self._workspace = workspace
         self._evaluator: Evaluator = evaluator or GateEvaluator(
             policy_engine, resource_governor, tool_registry, bus
         )
@@ -142,6 +145,17 @@ class RunLoop:
         """
         existing_steps = await self._trajectory.steps_for_run(ctx.run_id) if resume else []
         start_seq = existing_steps[-1].step_id.seq + 1 if existing_steps else 1
+
+        # Capture the base ref before step 1 — every coding gate diffs against it.
+        # A resumed run keeps the sha it started from; re-checkpointing here would
+        # measure the diff against the agent's own prior work and gate nothing.
+        if ctx.base_commit is None and self._workspace is not None:
+            try:
+                ctx = ctx.model_copy(update={"base_commit": await self._workspace.checkpoint("run-start")})
+            except RuntimeError:
+                # Not a git workspace. Leave base_commit unset; the gates report None
+                # and the run fails closed rather than claiming a pass it cannot check.
+                pass
 
         await self._trajectory.upsert_run(RunRecord(run_id=ctx.run_id, task=task, status="working"))
         await self._bus.emit(
