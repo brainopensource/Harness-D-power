@@ -149,3 +149,11 @@ uv run sagiha bench --suite benchmarks/definitions/s0-core.json --runs 3 --aa \
 `--compare` refuses to run without `--aa` or `--noise-floor`: a delta with no floor to beat
 reports `beats_noise_floor=None`, and publishing that as a result is the defect this sprint
 removed.
+
+---
+
+## 5. Closeout (2026-07-31)
+
+`SearchConfig.enabled` defaults to `false`; prune/repair knobs are split (`prune` default
+false, `escalate_after_failures=3`). `s4_bon_delta.md` is intentionally unpublished. Live
+`--compare` remains the highest-risk untested path until a suite exists (pre-S6).
