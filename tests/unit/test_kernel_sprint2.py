@@ -140,7 +140,9 @@ async def test_run_loop_single_step_ends_turn_with_no_tool_calls() -> None:
         )
 
         result = await loop.run(make_task("hello", checks=[]), ctx)
-        assert result.steps == []
+        # RC-4: a text-only end_turn is persisted — it is part of what happened.
+        assert len(result.steps) == 1
+        assert result.steps[0].message is not None
         assert result.run_id == "r-react"
 
 

@@ -5,7 +5,6 @@ from __future__ import annotations
 import inspect
 import typing
 
-import anyio
 import pytest
 
 from sagiha.agency.context.assembler import ContextAssembler, result_message
@@ -166,9 +165,7 @@ def test_from_trajectory_reconstructs_tool_exchange() -> None:
                     effect=EffectClass.PURE,
                 ),
             ),
-            tool_results=(
-                ToolResult(call_id="c1", content=[TextBlock(text="x = 1")], trusted=False),
-            ),
+            tool_results=(ToolResult(call_id="c1", content=[TextBlock(text="x = 1")], trusted=False),),
         )
     ]
     assembler = ContextAssembler.from_trajectory(

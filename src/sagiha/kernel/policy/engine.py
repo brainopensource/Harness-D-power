@@ -12,6 +12,15 @@ from sagiha.domain.control import Decision, Grant, RunContext
 from sagiha.domain.identity import utc_now
 from sagiha.kernel.policy.effects import MUTATION_TOOLS
 
+#: Tools the TaintGate refuses after an untrusted observation. Narrower than
+#: `MUTATION_TOOLS`: `run_command` stays there for effect classification, but blocking it
+#: on taint also blocks `GateEvaluator`'s `git diff` / `git add --intent-to-add` path and
+#: silently turns every coding gate back into `None` (re-breaking H1). Shell after taint is
+#: the sandbox's job (v2-S5); the write path is closed here.
+_TAINT_BLOCKED_TOOLS: frozenset[str] = frozenset({"apply_edit", "write_file"})
+# MUTATION_TOOLS retained for callers/docs that mean "effectful tools" broadly.
+assert _TAINT_BLOCKED_TOOLS <= MUTATION_TOOLS
+
 
 def _extract_paths_from_schema(schema: dict[str, Any], arguments: dict[str, Any]) -> list[str]:
     """Walk JSON Schema for `x-sagiha-path: true` properties and collect argument values."""
@@ -138,7 +147,13 @@ class DefaultPolicyEngine:
         # mutation attempted from a tainted context. At *every* autonomy level: a run that
         # has read attacker-controlled text has no autonomy level at which an unreviewed
         # write is acceptable.
-        if call.tool_name in MUTATION_TOOLS and self.is_tainted(context.run_id):
+        #
+        # Only `apply_edit` / `write_file` are blocked here. `run_command` remains in
+        # `MUTATION_TOOLS` for effect classification, but gating it on taint also refused
+        # `GateEvaluator`'s PURE and index-staging git calls after the first untrusted
+        # observation (including the evaluator's own criterion stdout), which turned every
+        # coding gate into `None` and re-broke H1. Shell after taint is the sandbox's job.
+        if call.tool_name in _TAINT_BLOCKED_TOOLS and self.is_tainted(context.run_id):
             return Decision(
                 allowed=False,
                 reason=(

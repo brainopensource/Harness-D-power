@@ -256,6 +256,12 @@ class ContextAssembler:
     def set_plan(self, plan: tuple[str, ...]) -> None:
         self._plan = tuple(plan)
 
+    def seed_open_files(self, paths: tuple[str, ...]) -> None:
+        """Seed the open-file set on thaw without wiping paths already derived from the transcript."""
+        for path in paths:
+            if path and path not in self._open_files:
+                self._open_files.append(path)
+
     def set_diagnostics(self, diagnostics: tuple[DiagnosticItem, ...]) -> None:
         """Replace the unresolved-diagnostic set. Resolved ones are dropped by the caller;
         carrying a resolved diagnostic forward is how a run ends up chasing a fixed bug."""

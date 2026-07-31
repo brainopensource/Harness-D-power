@@ -182,7 +182,6 @@ def build_kernel(
         return FallbackModelAdapter(
             [p for _, p in labeled],
             labels=[name for name, _ in labeled],
-            bus=bus,
         )
 
     if mode == "replay":

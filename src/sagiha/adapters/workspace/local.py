@@ -157,9 +157,7 @@ class LocalWorkspace:
         """Re-materialize the workspace at `commit_sha` (thaw path)."""
         result = await self.run(["git", "reset", "--hard", commit_sha])
         if result.exit_code != 0:
-            raise RuntimeError(
-                f"restore({commit_sha!r}) failed at {self.root}: {result.stderr.strip()}"
-            )
+            raise RuntimeError(f"restore({commit_sha!r}) failed at {self.root}: {result.stderr.strip()}")
 
 
 def list_dir_entries(root: Path, path: str = ".") -> list[DirEntry]:

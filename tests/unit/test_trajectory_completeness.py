@@ -102,6 +102,8 @@ async def test_freeze_kill_resume_replay_preserves_text_alongside_tool_call(tmp_
     # --- Phase 2: what the resumed request looks like, reconstructed from the reloaded
     # (not in-memory) steps. If reconstruction dropped the TextBlock, this digest would
     # not match a recording made from the real prior turn.
+    from sagiha.agency.context.assembler import ContextAssembler
+
     loop2 = RunLoop(
         model_provider=scripted1,  # unused for digest computation
         policy_engine=kernel1.policy_engine,
@@ -111,18 +113,21 @@ async def test_freeze_kill_resume_replay_preserves_text_alongside_tool_call(tmp_
         bus=kernel1.bus,
         tool_schemas=list(kernel1.tool_schemas),
         evaluator=kernel1.evaluator,
+        context=kernel1.config.context,
     )
-    reconstructed = loop2._reconstruct_history(task, reloaded_steps)
-    assistant_messages = [m for m in reconstructed if m.role == "assistant"]
+    assembler = ContextAssembler.from_trajectory(
+        system_prompt=loop2._system_prompt,
+        tool_schemas=tuple(kernel1.tool_schemas),
+        task=task,
+        steps=reloaded_steps,
+        config=kernel1.config.context,
+    )
+    assembled = await assembler.assemble(role="execution")
+    assistant_messages = [m for m in assembled.request.messages if m.role == "assistant"]
     assert len(assistant_messages) == 1
     assert assistant_messages[0] == turn_with_text_and_tool_call
 
-    resumed_request = ModelRequest(
-        system=loop2._system_prompt,
-        messages=reconstructed,
-        tools=list(kernel1.tool_schemas),
-        role="execution",
-    )
+    resumed_request = assembled.request
     end_turn = Message(role="assistant", content=[TextBlock(text="All done.")])
     entries = [
         CassetteEntry(
@@ -152,7 +157,8 @@ async def test_freeze_kill_resume_replay_preserves_text_alongside_tool_call(tmp_
         pytest.fail(f"replay verify FAILED — resumed history lost the text-turn: {exc}")
 
     assert resumed_result.gate_report is not None
-    assert len(resumed_result.steps) == 1  # step 1 folded back in; step 2 ended the turn
+    # step 1 folded back in; step 2 is the RC-4-persisted text-only end_turn
+    assert len(resumed_result.steps) == 2
 
     final_record = await store.get_run(run_id)
     assert final_record is not None

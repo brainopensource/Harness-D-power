@@ -18,7 +18,6 @@ from __future__ import annotations
 from sagiha.domain.content import (
     ContentBlock,
     DiagnosticBlock,
-    ImageBlock,
     Message,
     ReasoningBlock,
     ResourceBlock,
@@ -60,9 +59,8 @@ def block_tokens(block: ContentBlock) -> int:
         return sum(estimate_tokens(str(d)) for d in block.diagnostics)
     if isinstance(block, ResourceBlock):
         return estimate_tokens(block.text or "") or _OPAQUE_BLOCK_TOKENS
-    if isinstance(block, ImageBlock):
-        return _OPAQUE_BLOCK_TOKENS
-    return _OPAQUE_BLOCK_TOKENS  # pragma: no cover — exhaustive over the union today
+    # ImageBlock (and any future opaque media): fixed cost.
+    return _OPAQUE_BLOCK_TOKENS
 
 
 def message_tokens(message: Message) -> int:

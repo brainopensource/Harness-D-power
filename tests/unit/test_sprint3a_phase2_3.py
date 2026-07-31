@@ -167,13 +167,16 @@ async def test_react_parses_tool_use_block(tmp_path: Path) -> None:
         budget_remaining_usd=5.0,
     )
     result = await loop.run(make_task("edit", checks=[]), ctx)
-    assert len(result.steps) == 1
+    # Tool-use step + RC-4 text-only end_turn.
+    assert len(result.steps) == 2
     step = result.steps[0]
     assert len(step.tool_calls) == 1
     assert step.tool_calls[0].tool_name == "echo"
     assert step.tool_calls[0].effect == EffectClass.PURE
     assert len(step.tool_results) == 1
     assert not step.tool_results[0].is_error
+    assert result.steps[1].message is not None
+    assert not result.steps[1].tool_calls
 
 
 @pytest.mark.asyncio

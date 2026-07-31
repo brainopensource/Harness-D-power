@@ -116,7 +116,7 @@ Every PR holds or improves all of these. The test count is **monotonic** — it 
 
 | Signal | Baseline (2026-07-31) | Command |
 | :--- | :--- | :--- |
-| Tests | **174 passed** (158 at `v2-S1` close, 127 at the v2 baseline) | `uv run pytest -q` |
+| Tests | **192 passed** (174 at prior baseline, 158 at `v2-S1` close) | `uv run pytest -q` |
 | Port count | **19 Protocols / 17 files** (ADR-0019; target stated "16", off by one) | `grep -rn "(Protocol)" src/sagiha/ports/ \| wc -l` |
 | Type check | 0 errors, strict | `uv run pyright src/sagiha` |
 | Lint | clean | `uv run ruff check && uv run ruff format --check` |

@@ -11,9 +11,7 @@ from sagiha.adapters.model.openai import OpenAIModelError
 from sagiha.composition import build_kernel
 from sagiha.domain.config import Config, ModelConfig
 from sagiha.domain.content import Message, ModelRequest, ReasoningBlock, TextBlock
-from sagiha.domain.events import ProviderFailover
 from sagiha.domain.trajectory import Completion, TokenUsage
-from sagiha.kernel.bus import EventBus
 from sagiha.ports.model import ModelProvider
 
 
@@ -60,19 +58,10 @@ async def test_fallback_success_on_primary() -> None:
 async def test_fallback_failover_to_secondary_with_backoff_on_rate_limit() -> None:
     p1 = MockModelProvider("primary", should_fail=True, fail_message="HTTP 429 Rate Limit")
     p2 = MockModelProvider("fallback1", should_fail=False)
-    bus = EventBus()
-    events: list[ProviderFailover] = []
-
-    async def _cap(e: object) -> None:
-        if isinstance(e, ProviderFailover):
-            events.append(e)
-
-    bus.subscribe_observer(_cap)
 
     adapter = FallbackModelAdapter(
         [p1, p2],
         labels=["primary", "fallback1"],
-        bus=bus,
         backoff_retries=2,
         backoff_base_s=0.001,
     )
@@ -84,9 +73,10 @@ async def test_fallback_failover_to_secondary_with_backoff_on_rate_limit() -> No
     # Primary is retried with backoff before hop.
     assert p1.call_count == 3
     assert p2.call_count == 1
-    assert events and events[0].from_provider == "primary"
-    assert events[0].to_provider == "fallback1"
-    assert events[0].reasoning_dropped is True
+    assert adapter.last_failover is not None
+    assert adapter.last_failover.from_provider == "primary"
+    assert adapter.last_failover.to_provider == "fallback1"
+    assert adapter.last_failover.reasoning_dropped is True
 
 
 @pytest.mark.asyncio

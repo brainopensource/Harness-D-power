@@ -40,7 +40,6 @@ def _exchange(
     content: list = []
     if with_reasoning:
         content.append(ReasoningBlock(provider="test", opaque={"t": n}, summary=f"thinking {n}"))
-    body = ("x" * 4000) if big else f"read file {n}"
     content.append(ToolUseBlock(call_id=call_id, tool_name="read_file", arguments={"path": f"f{n}.py"}))
     assistant = Message(role="assistant", content=content)
     result = ToolResult(
@@ -75,9 +74,7 @@ def _tool_use_ids(exchanges: tuple[Exchange, ...]) -> set[str]:
 async def test_compact_is_noop_when_within_budget() -> None:
     exchanges = tuple(_exchange(i) for i in range(3))
     total = sum(ex.tokens for ex in exchanges)
-    out = await TruncatingCompactor().compact(
-        exchanges, keep_first=2, keep_last_tokens=total + 1000
-    )
+    out = await TruncatingCompactor().compact(exchanges, keep_first=2, keep_last_tokens=total + 1000)
     assert out == exchanges
 
 

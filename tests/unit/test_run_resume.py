@@ -111,10 +111,11 @@ async def test_resume_continues_seq_without_collision(tmp_path: Path) -> None:
     # No collision: append_step would have raised sqlite3.IntegrityError on a duplicate
     # (run_id, branch_id, seq) primary key, which it did not.
     all_steps = await store.steps_for_run(ctx.run_id)
-    assert [s.step_id.seq for s in all_steps] == [1, 2]  # step 3 ended the turn with no tool call
+    # Steps 1–2 from phase 1; step 3 is the text-only end_turn on resume (RC-4 persisted).
+    assert [s.step_id.seq for s in all_steps] == [1, 2, 3]
 
-    # Prior steps are folded back into the result.
-    assert len(resumed_result.steps) == 2
+    # Prior steps are folded back into the result, plus the new end turn.
+    assert len(resumed_result.steps) == 3
     assert resumed_result.steps[0].step_id.seq == 1
 
     # The model on resume saw the reconstructed history (goal + 2 prior tool round-trips), not

@@ -112,7 +112,7 @@ async def _run_freeze_thaw_cycle(tmp_path: Path, cycle: int) -> GateReport:
     assert len(phase1.steps) == 1
 
     # base_commit lives on the RunLoop's in-run ctx copy; recover HEAD for gate continuity.
-    sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=workspace, text=True).strip()
+    sha = await kernel1.workspace.checkpoint("freeze") if kernel1.workspace is not None else ""
     frozen = loop1.freeze(ctx.model_copy(update={"base_commit": sha}), reason="checkpoint")
     remaining = await kernel1.resource_governor.remaining_budget(run_id)
     frozen = frozen.model_copy(update={"budget_remaining_usd": remaining})

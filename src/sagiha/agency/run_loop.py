@@ -28,6 +28,7 @@ from sagiha.domain.events import (
     GateEvaluated,
     ModelCallCompleted,
     ModelCallStarted,
+    ProviderFailover,
     RunCompleted,
     RunFailed,
     RunStarted,
@@ -263,9 +264,7 @@ class RunLoop:
             assembler.set_plan(self._pending_thaw_plan)
             self._pending_thaw_plan = None
         if self._pending_thaw_open_files is not None:
-            for path in self._pending_thaw_open_files:
-                if path not in assembler._open_files:  # noqa: SLF001
-                    assembler._open_files.append(path)  # noqa: SLF001
+            assembler.seed_open_files(self._pending_thaw_open_files)
             self._pending_thaw_open_files = None
         self._assembler = assembler
         steps: list[TrajectoryStep] = list(existing_steps)
@@ -287,17 +286,19 @@ class RunLoop:
             # model calls without ever touching a pooled resource, and a limit that only
             # trips on tool use does not bound a run that is stuck talking to itself.
             remaining_wall = getattr(self._governor, "remaining_wall_clock_s", None)
-            if callable(remaining_wall) and remaining_wall(ctx.run_id) <= 0:
-                failed = True
-                await self._bus.emit(
-                    RunFailed(
-                        run_id=ctx.run_id,
-                        error_kind="wall_clock_exhausted",
-                        disposition="ABORT",
-                        message="Wall-clock limit exceeded",
+            if callable(remaining_wall):
+                remaining_s = remaining_wall(ctx.run_id)
+                if isinstance(remaining_s, (int, float)) and float(remaining_s) <= 0.0:
+                    failed = True
+                    await self._bus.emit(
+                        RunFailed(
+                            run_id=ctx.run_id,
+                            error_kind="wall_clock_exhausted",
+                            disposition="ABORT",
+                            message="Wall-clock limit exceeded",
+                        )
                     )
-                )
-                break
+                    break
 
             remaining = await self._governor.remaining_budget(ctx.run_id)
             if remaining <= 0:
@@ -357,10 +358,14 @@ class RunLoop:
             completion = await self._model.complete(request)
             call_seconds = time.monotonic() - call_started
 
-            # Failover-as-checkpoint: if the model adapter hopped providers, persist a
-            # freeze snapshot so a kill mid-failover still resumes with grants absent.
+            # Failover-as-checkpoint: if the model adapter hopped providers, emit the
+            # event (adapters cannot import kernel.bus) and persist a freeze snapshot.
             last_failover = getattr(self._model, "last_failover", None)
-            if last_failover is not None:
+            if isinstance(last_failover, ProviderFailover):
+                event = last_failover
+                if not event.run_id:
+                    event = event.model_copy(update={"run_id": ctx.run_id})
+                await self._bus.emit(event)
                 frozen_snap = self.freeze(ctx, reason="failover")
                 persist_freeze(frozen_snap)
 
@@ -403,9 +408,7 @@ class RunLoop:
                 # see it assembles a different prompt than the one that was recorded
                 # (the other half of RC-4 — `from_trajectory` now reads these back).
                 assembler.append_exchange(response, ())
-                final_step = TrajectoryStep(
-                    step_id=step_id, message=response, usage=usage, cost=step_cost
-                )
+                final_step = TrajectoryStep(step_id=step_id, message=response, usage=usage, cost=step_cost)
                 await self._trajectory.append_step(final_step)
                 await self._bus.emit(StepCompleted(run_id=ctx.run_id, step_id=step_id, step=final_step))
                 steps.append(final_step)
