@@ -28,7 +28,30 @@ Context is assembled in strict order of decreasing stability, so that growth is 
 | **Semi-stable** | Retrieved repository context for the current task | Only when retrieval genuinely changes |
 | **Append-only tail** | Conversation, tool calls, observations | Every turn, appended |
 
-A cache breakpoint closes the stable prefix. Retrieved context is inserted as messages *after* that prefix, never interleaved into it. Crucially, retrieval is refreshed when the task changes — not because a budget percentage was recomputed.
+A cache breakpoint closes the stable prefix. Retrieved context is inserted as messages *after* that prefix, never interleaved into it.
+
+### Layer 6 retrieval is seed-only
+
+**Pre-assembled retrieval is computed once, at task start, and is never refreshed mid-task.** All
+subsequent retrieval is **agentic** — the model calls `grep`/`find_symbols`/`get_skeleton` and the
+results land in the append-only tail like any other tool output.
+
+The earlier rule ("retrieval is refreshed when the task changes") left a mid-task refresh path
+open. Any such refresh rewrites a semi-stable layer that the entire tail is cached behind, which
+invalidates every token after it. The saving from fresher context never pays for a full prefix
+re-encode, and the cost is paid on a schedule the model does not control.
+
+Making this a *ruling* rather than a guideline buys two things downstream:
+
+* **It is enforced by shape, not discipline.** `ContextAssembler` accepts `retrieval_seed` **only
+  at construction**, and exposes no public method that takes a `RetrievalHit` afterwards. A
+  contract test asserts this. You cannot violate the rule without changing the constructor.
+* **It is what makes interrupt-and-steer possible** (`v2-S7`). Steering becomes a pure tail
+  append, so layers 1–7 stay byte-identical and the cache survives the interruption. That
+  affordance only exists because nothing rewrites Layer 6 mid-run.
+
+*Implements: `docs/rationale/reviews/next_gen_architecture_specs.md`. Ruling recorded as
+ADR-0021; lands `v2-S3` (PR-3.1).*
 
 ## **Compaction Is a Checkpoint, Not a Background Process**
 
