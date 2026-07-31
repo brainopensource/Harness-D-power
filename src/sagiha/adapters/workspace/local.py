@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import asyncio
 import os
 import time
@@ -70,7 +71,34 @@ class LocalWorkspace:
             text = text.replace(edit.old_string, edit.new_string, edit.expected_occurrences)
             hunks.append(HunkResult(applied=True, index=index, reason="ok"))
         else:
+            # Structural check BEFORE the write, which is what the tool catalog
+            # normatively promises and what `syntax_valid=True` claimed without ever
+            # doing (H4). stdlib `ast` deliberately — Tree-sitter is the Block-4
+            # multi-language upgrade, not a prerequisite for telling the truth here.
+            if target.suffix == ".py":
+                try:
+                    ast.parse(text)
+                except SyntaxError as exc:
+                    # Do not write. A rejected edit that still landed would be worse
+                    # than no check at all.
+                    return EditResult(
+                        hunks=tuple(
+                            HunkResult(
+                                applied=False,
+                                index=h.index,
+                                reason="syntax_invalid",
+                                # The model needs to know *where*, not just that it
+                                # broke — a bare failure is not actionable.
+                                nearest_match=f"line {exc.lineno}: {exc.msg}",
+                            )
+                            for h in hunks
+                        ),
+                        syntax_valid=False,
+                    )
             await asyncio.to_thread(target.write_text, text, encoding="utf-8")
+            # Non-Python files are written unchecked and make no claim either way;
+            # `True` here means "nothing structural was violated", and for a file we
+            # cannot parse that is the most that can be said.
             return EditResult(hunks=tuple(hunks), syntax_valid=True)
 
         # Failures after first miss: mark remaining skipped
@@ -82,7 +110,9 @@ class LocalWorkspace:
                     reason="skipped_after_failure",
                 )
             )
-        return EditResult(hunks=tuple(hunks), syntax_valid=True)
+        # Nothing was written, so there is no edited text whose syntax could be valid.
+        # This path also hardcoded True (H4) — on a branch where no parse ever ran.
+        return EditResult(hunks=tuple(hunks), syntax_valid=False)
 
     async def run(self, command: list[str]) -> CommandResult:
         start = time.monotonic()
