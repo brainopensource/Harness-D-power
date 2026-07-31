@@ -33,9 +33,10 @@ touching `kernel/policy/**`. Putting the allowlist there makes it **agent-unwrit
 no new gate, no new CI job, no new concept.
 
 ```python
-PURE_ARGV: Final[frozenset[str]]      = frozenset({"ls","cat","head","tail","wc","git"})
-PURE_GIT_OPS: Final[frozenset[str]]   = frozenset({"status","diff","log","show","blame"})
-MUTATION_TOOLS: Final[frozenset[str]] = frozenset({"apply_edit","write_file","run_command"})
+PURE_ARGV: Final[frozenset[str]] = frozenset({"ls", "cat", "head", "tail", "wc", "git"})
+PURE_GIT_OPS: Final[frozenset[str]] = frozenset({"status", "diff", "log", "show", "blame"})
+MUTATION_TOOLS: Final[frozenset[str]] = frozenset({"apply_edit", "write_file", "run_command"})
+
 
 def classify_command(argv: Sequence[str], declared: EffectClass) -> EffectClass:
     """Narrow a declared DESTRUCTIVE to PURE for allowlisted read-only argv."""

@@ -26,26 +26,24 @@ class ContainerSandbox:
 
     async def read(self, path: str, offset: int = 0, limit: int | None = None) -> str:
         """Read file inside the container volume."""
-        return ""
+        raise NotImplementedError("v2-S5 — see docs/STATUS.md")
 
     async def write(self, path: str, content: str) -> None:
         """Write file inside the container volume."""
-        pass
+        raise NotImplementedError("v2-S5 — see docs/STATUS.md")
 
     async def apply_edit(self, request: EditRequest) -> EditResult:
         """Apply edit inside the container volume."""
-        from sagiha.domain.work import HunkResult
-
-        return EditResult(hunks=(HunkResult(applied=True, index=0, reason="ok"),), syntax_valid=True)
+        raise NotImplementedError("v2-S5 — see docs/STATUS.md")
 
     async def run(self, command: list[str]) -> CommandResult:
-        """Run command inside the container container perimeter using `podman exec`."""
-        return CommandResult(exit_code=0, stdout="", stderr="", duration_ms=0.0)
+        """Run command inside the container perimeter using `podman exec`."""
+        raise NotImplementedError("v2-S5 — see docs/STATUS.md")
 
     async def checkpoint(self, label: str) -> str:
         """Create container volume commit checkpoint."""
-        return "container-checkpoint-sha"
+        raise NotImplementedError("v2-S5 — see docs/STATUS.md")
 
     async def restore(self, commit_sha: str) -> None:
         """Restore container volume to commit_sha."""
-        pass
+        raise NotImplementedError("v2-S5 — see docs/STATUS.md")

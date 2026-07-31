@@ -10,10 +10,9 @@ updated: 2026-07-31
 > *target*; this page says what exists today and what to build next. When a guide and this page
 > disagree, this page wins.
 >
-> **Re-baselined 2026-07-31 for the v2 series.** This page was deleted in `2b80840` and restored in
-> PR-0a. The capability table below was rewritten against a line-level audit of `src/sagiha`, not
-> against sprint intent. **Several rows moved backwards.** That is the point: the previous version
-> of this page reported capability that a line-level read of the code does not support.
+> **Re-baselined 2026-07-31 for the v2 series.** Deleted in `2b80840`, restored in PR-0a and
+> rewritten against a line-level audit of `src/sagiha` rather than sprint intent. **Several rows
+> moved backwards** — the previous version reported capability the code did not support.
 
 Authority: [`refactor_sagiha_v2_guidelines.md`](../refactor_sagiha_v2_guidelines.md) §2 (verified
 baseline) · [ADR log](./08-decisions/README.md) · historical audits under [`reviews/`](./rationale/reviews/README.md).
@@ -23,29 +22,35 @@ baseline) · [ADR log](./08-decisions/README.md) · historical audits under [`re
 Sprints 1–3b and 4 are **closed under the old numbering** and are not reopened. The v2 re-baseline
 runs as a fresh series, **`v2-S0` … `v2-S7`**, mapping to the phases in the v2 guidelines:
 
-| Series | Phase | Objective |
-| :--- | :--- | :--- |
-| `v2-S0` | Phase 0 | Docs, governance, SSOT — normative word budget, link gate, ADRs 0019–0023 |
-| `v2-S1` | Phase 1 | **Instrument honesty** — H1–H4. Every number the system reports becomes true |
-| `v2-S2` | Phase 2 | Port consolidation & kernel corrections |
-| `v2-S3` | Phase 3 | Context engine (`ContextAssembler`, `ExchangeCompactor`) + TaintGate v1 |
-| `v2-S4` | Phase 4 | Measurement re-baseline + Best-of-N |
-| `v2-S5` | Phase 5 | Container perimeter (rootless Podman), egress allowlist |
-| `v2-S6` | Phase 6 | Retrieval, code graph, cold-start |
-| `v2-S7` | Phase 7 | Story-DAG, MCP, interactive surface |
+| Series | Objective |
+| :--- | :--- |
+| `v2-S0` | Docs, governance, SSOT — **closed** |
+| `v2-S1` | **Instrument honesty** — H1–H4. Code fixed; re-measure outstanding |
+| `v2-S2` | Port consolidation & kernel corrections |
+| `v2-S3` | Context engine (`ContextAssembler`, `ExchangeCompactor`) + TaintGate v1 |
+| `v2-S4` | Measurement re-baseline + Best-of-N |
+| `v2-S5` | Container perimeter, egress allowlist |
+| `v2-S6` | Retrieval, code graph, cold-start |
+| `v2-S7` | Story-DAG, MCP, interactive surface |
 
 ## **The Honesty Caveat — read before citing any number from this repo**
 
-Four defects mean that measurements taken before `v2-S1` closes are **uninterpretable**. They are
-not "known issues"; they invalidate the instruments.
+**H1–H4 are FIXED as of 2026-07-31** (`v2-S1`, PR-1a…PR-1d). This section is kept because it is
+the reason every number recorded *before* that date must not be cited — not because the defects
+are open.
 
-| ID | Defect | Verified at | Fixed in |
+> **Expect pass-rates to fall.** The Sprint 3a e2e test began failing on admission the moment the
+> gates became real: its fixture workspace was never a git repository, so the gates correctly
+> reported `None` where they had reported a fabricated `True`. That fall is the deliverable, not a
+> regression. Any benchmark taken before `v2-S1` is uninterpretable and must be re-measured.
+
+| ID | Defect (all fixed 2026-07-31) | Was at | Fixed by |
 | :-- | :--- | :--- | :--- |
-| **H1** | Three of four coding gates are hardcoded `True`. `no_new_suppressions`, `tests_unmodified`, `coverage_not_decreased`, and `diff_within_bounds` are literals — including `tests_unmodified`, the gate the T3 evaluation-capture threat model rests on and the one `Config` refuses to let you disable. | `outer_loop/evaluator/gate_evaluator.py:74-81` | `v2-S1` (PR-1a) |
-| **H2** | `record_spend()` is correct but **called from nowhere** in `src/`. `remaining_budget()` therefore always returns the full budget, and the loop's budget break is unreachable. The loop emits `TokenUsage(0,0)` / `CostSummary(usd=0.0)` every step. | `kernel/governor.py:30-36` (no callers) · `agency/run_loop.py` | `v2-S1` (PR-1b) |
-| **H2b** | `DefaultResourceGovernor.acquire()` mints a lease and enforces neither `max_concurrent_sandboxes` nor the spend limit. Both constructor args are stored and never read. | `kernel/governor.py:21-25` | `v2-S1` (PR-1b) |
-| **H3** | `ContainerSandbox.apply_edit()` returns a success-shaped `EditResult` without touching anything; `write()` is `pass`; `MCPClientDriver.invoke_tool()` returns `""`. A stub that lies is worse than an absent adapter. | `adapters/sandbox/container.py` · `adapters/mcp/driver.py` | `v2-S1` (PR-1d) |
-| **H4** | `LocalWorkspace.apply_edit` hardcodes `syntax_valid=True` on **both** the success and failure paths, while the tool catalog normatively promises a structural check before write. | `adapters/workspace/local.py` | `v2-S1` (PR-1c) |
+| **H1** | Three of four coding gates hardcoded `True` — including `tests_unmodified`, the gate T3 rests on | `outer_loop/evaluator/gate_evaluator.py` | PR-1a |
+| **H2** | `record_spend()` called from nowhere; budget break unreachable; every step reported `TokenUsage(0,0)` / `$0.00` | `kernel/governor.py` · `agency/run_loop.py` | PR-1b |
+| **H2b** | `acquire()` enforced neither `max_concurrent_sandboxes` nor the spend limit — both args stored, never read | `kernel/governor.py` | PR-1b |
+| **H3** | `ContainerSandbox.apply_edit()` reported a landed edit for a file it never opened; `MCPClientDriver.invoke_tool()` returned `""` | `adapters/sandbox/` · `adapters/mcp/` | PR-1d |
+| **H4** | `syntax_valid=True` hardcoded on **both** the success and failure paths | `adapters/workspace/local.py` | PR-1c |
 
 **Consequence for readers:** any bench pass-rate, cost figure, or "gated" claim recorded before
 `v2-S1` closes must not be cited. Pass-rates are **expected to fall** when the gates stop lying;
@@ -65,9 +70,9 @@ Marked against code, not intent. "Implemented" means a line-level read supports 
 | Digest-keyed cassette replay + `CassetteMismatchError` | Implemented |
 | `ToolUseBlock` → `ToolCall` resolution, effect from registry | Implemented |
 | `call_id` + `is_error` on `ToolResult` and completion events | Implemented |
-| `GateReport.admitted` refuses to admit on a `None` coding gate | Implemented — but see **H1**: the gates it reads are literals |
+| Coding gates (`tests_unmodified`, `diff_within_bounds`, `no_new_suppressions`) | **Implemented (PR-1a)** — real `git diff` checks against `RunContext.base_commit`, routed through the dispatch choke point. `coverage_not_decreased` reports an honest `None`: no `Toolchain` adapter, no baseline |
 | Typed event reads through `ALL_EVENTS` + `upcasters.py` | Implemented |
-| `RunLoop` — max steps, `end_turn`, stuck signature | Implemented — the **budget** break is unreachable (**H2**) |
+| `RunLoop` — max steps, `end_turn`, stuck signature, **budget** | Implemented — the budget break is reachable as of PR-1b |
 | Prompt + history assembly into `ModelRequest` v2 | Implemented, inline in the loop body; no `agency/context/` package |
 | Five built-in tools over a root-confined local workspace adapter | Implemented |
 | Schema-declared path scoping | Implemented |
@@ -76,9 +81,11 @@ Marked against code, not intent. "Implemented" means a line-level read supports 
 | Capability dispatch choke point | Implemented — grant verified at the point of effect, unconditionally |
 | SQLite-WAL trajectory store | Implemented (typed round-trip, NFS journal probe with fallback) |
 | Resumable run state | Implemented — `runs` table, `RunLoop.run(resume=True)`, `sagiha run --resume` |
-| OpenAI-compatible provider adapter | Implemented — covers Ollama/Qwen/OpenAI/vLLM. Drops `response.usage` on the floor (**H2**) |
+| OpenAI-compatible provider adapter | Implemented — covers Ollama/Qwen/OpenAI/vLLM. Reports real `usage` as of PR-1b |
+| Cost & token telemetry | **Implemented (PR-1b)** — `ModelProvider` v2 returns `Completion(message, usage, model)`; `PricingConfig` converts usage to dollars; `record_spend()` is called after every completion |
+| `syntax_valid` on edits | **Implemented (PR-1c)** — stdlib `ast.parse` before write; a syntax-breaking edit is not written |
 | `sagiha run` / `replay --verify` / `harvest` / `bench` | Implemented and CLI-wired |
-| E0-lite harness (`e0/`: harvester, runner, statistics, reporter) | Implemented — but every number it produces is taken over **H1**/**H2** instruments |
+| E0-lite harness (`e0/`: harvester, runner, statistics, reporter) | Implemented — numbers taken **before** 2026-07-31 are over fabricated instruments and must be re-measured |
 
 ## **Scaffolding Present — Capability Pending**
 
@@ -87,26 +94,22 @@ reported as block-level progress; they are re-stated here honestly.
 
 | Area | Reality | Lands |
 | :--- | :--- | :--- |
-| Coding gates (`tests_unmodified`, `diff_within_bounds`, `no_new_suppressions`) | **Fabricated** — hardcoded `True` (**H1**) | `v2-S1` |
-| Cost & token telemetry | **Fictional** — always `TokenUsage(0,0)` / `$0.00` (**H2**) | `v2-S1` |
-| `syntax_valid` on edits | **Constant `True`** on both branches (**H4**) | `v2-S1` |
+
 | Block 2 — E0 benchmark | Real harness in `e0/`; a **parallel stub** implementation also exists under `adapters/benchmark/`. Duplication unresolved | `v2-S4` |
 | Block 3 — Best-of-N search | Port + `GitWorktreeManager` stub with open SENIOR TODOs. `N>1` never executed | `v2-S4` |
 | Block 4 — retrieval / code graph | Ports only. No indexer, no FTS5, no Tree-sitter | `v2-S6` |
 | Block 4 — Workflow DAG (ADR-0018) | Protocol only; gated on an E0 ablation that cannot be trusted until `v2-S1` | `v2-S7` |
-| Block 5 — container sandbox | **Lying stub** (**H3**) — returns fabricated success | `v2-S5` |
-| Block 5 — MCP driver | **Lying stub** (**H3**) — `invoke_tool()` returns `""` | `v2-S7` |
-| Block 5 — OTel exporter | Stub | `v2-S7` |
+| Block 5 — container sandbox | Stub — every method raises `NotImplementedError` (PR-1d) | `v2-S5` |
+| Block 5 — MCP driver | Stub — `invoke_tool()` raises; `list_tools()` returns `[]`, a truthful null (PR-1d) | `v2-S7` |
+| Block 5 — OTel exporter | Stub — `on_event()` raises (PR-1d) | `v2-S7` |
 | Context compaction | Algorithm specified (R9, superseded by exchange-granular in `v2-S3`); **zero implementation**. Runs past the window die | `v2-S3` |
 | TaintGate / untrusted-data envelope | Documented only; no `ToolResult.trusted`, no envelope at dispatch | `v2-S3` |
 
 ## **Explicitly Deferred**
 
 Dense retrieval ([ADR-0014](./08-decisions/0014-defer-dense-retrieval.md)), AOI acting mode,
-RHI Tier C (mutation search — dormant behind a funding trigger), A2A remote pilots, performance
-sidecars, warm LSP, and the Conductor (`C0`) phase — the last of which is out of scope until
-Phase 7 closes, because a Conductor scheduling against fictional zero-cost telemetry would be a
-random-walk allocator.
+RHI Tier C ([ADR-0022](./08-decisions/0022-rhi-economic-refounding.md)), A2A remote pilots,
+performance sidecars, warm LSP, and the Conductor — out of scope until Phase 7 closes.
 
 ## **Frozen Regression Signals**
 
@@ -114,7 +117,7 @@ Every PR holds or improves all of these. The test count is **monotonic** — it 
 
 | Signal | Baseline (2026-07-31) | Command |
 | :--- | :--- | :--- |
-| Tests | **127 passed** | `PYTHONPATH=src .venv/bin/python -m pytest tests/ -q` |
+| Tests | **158 passed** (127 at the v2 baseline) | `PYTHONPATH=src .venv/bin/python -m pytest tests/ -q` |
 | Type check | 0 errors, strict | `uv run pyright src/sagiha` |
 | Lint | clean | `uv run ruff check && uv run ruff format --check` |
 | Import contracts | **5/5** | `uv run lint-imports` |
@@ -127,21 +130,31 @@ Every PR holds or improves all of these. The test count is **monotonic** — it 
 | Command | Availability |
 | :--- | :--- |
 | `sagiha version` | **Available now** |
-| `sagiha run <goal> [--acceptance …]` | **Available now** (cassette or live) — reports `$0.00` until `v2-S1` |
+| `sagiha run <goal> [--acceptance …]` | **Available now** (cassette or live) — reports real cost when `pricing` is configured |
 | `sagiha replay <run_id> --verify` | **Available now** |
 | `sagiha run --resume <run_id>` | **Available now** |
-| `sagiha harvest [--repo …]` | **Available now** — numbers uninterpretable until `v2-S1` |
-| `sagiha bench [--suite …] [--aa]` | **Available now** — numbers uninterpretable until `v2-S1` |
+| `sagiha harvest [--repo …]` | **Available now** |
+| `sagiha bench [--suite …] [--aa]` | **Available now** — re-baseline required (PR-1.5) |
 | `sagiha export --format sft\|dpo` | Planned — `v2-S4` |
 | `sagiha init` | Planned — `v2-S6` |
 
 ## **Next Items, In Order**
 
-1. **`v2-S0` (Phase 0)** — restore and re-baseline this page, ship the docs budget and link gates,
-   demote rationale mass, fold the v2 corpus into `01`–`08`, record ADRs 0019–0023.
-2. **`v2-S1` (Phase 1)** — H1–H4. Nothing downstream is measurable until this closes.
+1. ~~**`v2-S0` (Phase 0)**~~ — **closed 2026-07-31.** STATUS restored and re-baselined, docs budget
+   and link gates in CI, 47.5k → 27.0k normative words, v2 corpus folded into `01`–`08`,
+   ADRs 0019–0023 recorded.
+2. **`v2-S1` (Phase 1)** — H1–H4 **fixed** (PR-1a…PR-1d). **Not yet closed:** PR-1.5 (honest
+   re-measure) is outstanding — `harvest` + `bench --aa` must be re-run on the honest gates and
+   the before/after committed to `docs/rationale/benchmarks/`.
 3. **`v2-S2` (Phase 2)** — port consolidation while every affected port still has ≤1 stub adapter.
 4. **`v2-S3` (Phase 3)** — context engine and TaintGate, shipped together.
+
+### Known open item
+
+`sagiha replay verify` against the committed fixture **fails**, and did so before the v2 work
+began (verified against the un-changed tree). `tests/fixtures/replay_smoke/workspace` is untracked
+— `git ls-files` shows only `cassette.json` — so CI's replay job references a path that does not
+exist in CI. That answers guidelines §11 Q6 empirically: **the job is not gating what it claims.**
 
 > **Standing rule.** This page is updated **the day a gate closes**, in the `v2-S` series, and it
 > never makes a claim the delta audit contradicts. That is the review criterion for any edit here.

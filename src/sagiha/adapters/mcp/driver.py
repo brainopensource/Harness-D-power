@@ -24,9 +24,14 @@ class MCPClientDriver:
         self._configs = server_configs
 
     async def list_tools(self) -> list[ToolSchema]:
-        """Discover tools available across configured MCP servers."""
+        """Discover tools available across configured MCP servers.
+
+        Permitted to keep its shape: with no servers connected, no tools exist, so an
+        empty list is a TRUTHFUL null — unlike `invoke_tool` returning "" for a call
+        that never happened.
+        """
         return []
 
     async def invoke_tool(self, server_name: str, tool_name: str, arguments: dict[str, Any]) -> str:
         """Invoke a tool on a specific MCP server with untrusted output handling."""
-        return ""
+        raise NotImplementedError("v2-S7 — see docs/STATUS.md")
