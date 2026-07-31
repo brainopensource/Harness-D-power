@@ -10,7 +10,7 @@ import pytest
 from sagiha.adapters.model.cassette import CassetteEntry, request_digest
 from sagiha.agency.run_loop import RunLoop, make_task
 from sagiha.composition import build_kernel
-from sagiha.domain.config import Config, ModelConfig, TelemetryConfig, WorkspaceConfig
+from sagiha.domain.config import SandboxConfig, Config, ModelConfig, TelemetryConfig, WorkspaceConfig
 from sagiha.domain.content import (
     Message,
     ModelRequest,
@@ -120,6 +120,7 @@ async def test_e2e_cassette_fixes_failing_check(tmp_path: Path) -> None:
         model=ModelConfig(mode="replay"),
         workspace=WorkspaceConfig(root=str(ws)),
         telemetry=TelemetryConfig(trajectory_db=str(traj)),
+        sandbox=SandboxConfig(runtime="subprocess"),
     )
     # Build kernel pieces manually with scripted provider, then write cassette from recording.
     kernel = build_kernel(config, cassette_path=str(cassette_path))
@@ -222,6 +223,7 @@ async def test_e2e_editing_tests_fails_unmodified_gate(tmp_path: Path) -> None:
         model=ModelConfig(mode="replay"),
         workspace=WorkspaceConfig(root=str(ws)),
         telemetry=TelemetryConfig(trajectory_db=str(traj)),
+        sandbox=SandboxConfig(runtime="subprocess"),
     )
     kernel = build_kernel(config, cassette_path=str(cassette_path))
     loop = RunLoop(
@@ -283,6 +285,7 @@ async def test_e2e_oversized_diff_fails_bounds_gate(tmp_path: Path) -> None:
         model=ModelConfig(mode="replay"),
         workspace=WorkspaceConfig(root=str(ws)),
         telemetry=TelemetryConfig(trajectory_db=str(traj)),
+        sandbox=SandboxConfig(runtime="subprocess"),
     )
     kernel = build_kernel(config, cassette_path=str(cassette_path))
     loop = RunLoop(
@@ -343,6 +346,7 @@ async def test_e2e_adding_suppression_fails_suppressions_gate(tmp_path: Path) ->
         model=ModelConfig(mode="replay"),
         workspace=WorkspaceConfig(root=str(ws)),
         telemetry=TelemetryConfig(trajectory_db=str(traj)),
+        sandbox=SandboxConfig(runtime="subprocess"),
     )
     kernel = build_kernel(config, cassette_path=str(cassette_path))
     loop = RunLoop(

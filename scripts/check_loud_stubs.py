@@ -27,8 +27,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 #: Scaffolding modules: placement is correct, bodies are pending. Every public async
 #: method here must raise, with the documented exceptions below.
+#: `adapters/sandbox/container.py` left this list in v2-S5 when ContainerSandbox became real.
 STUB_MODULES = (
-    "src/sagiha/adapters/sandbox/container.py",
     "src/sagiha/adapters/mcp/driver.py",
     "src/sagiha/adapters/telemetry/otel.py",
 )

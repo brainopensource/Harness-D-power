@@ -1,6 +1,6 @@
 """Sandboxed execution — the Runtime layer of CAR (docs/02-architecture/car-model.md).
 
-Intentionally empty until Block 5's container/gVisor perimeter lands (R5, ADR-0006). Today's
-tool execution runs unsandboxed through adapters/tools/ and adapters/workspace/local.py, which
-is why autonomous autonomy stays refused until this package has code (R10).
+v2-S5 landed the rootless Podman perimeter in `sagiha.adapters.sandbox`. This package
+remains the CAR Runtime layer home for future in-process runtime helpers; the Workspace
+adapter (`ContainerSandbox`) is the security boundary agents execute inside.
 """

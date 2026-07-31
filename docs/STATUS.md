@@ -27,8 +27,8 @@ runs as a fresh series, **`v2-S0` … `v2-S7`**, mapping to the phases in the v2
 | `v2-S1` | **Instrument honesty** — H1–H4 fixed, post-honesty baseline re-measured — **closed** |
 | `v2-S2` | Port consolidation & kernel corrections — **closed** |
 | `v2-S3` | Context engine (`ContextAssembler`, `ExchangeCompactor`) + TaintGate v1 + FrozenRunState — **closed** |
-| `v2-S4` | Measurement re-baseline + Best-of-N |
-| `v2-S5` | Container perimeter, egress allowlist |
+| `v2-S4` | Measurement re-baseline + Best-of-N — **closed** (honest-negative empirical half) |
+| `v2-S5` | Container perimeter, egress allowlist — **closed** |
 | `v2-S6` | Retrieval, code graph, cold-start |
 | `v2-S7` | Story-DAG, MCP, interactive surface |
 
@@ -63,7 +63,7 @@ Marked against code, not intent. "Implemented" means a line-level read supports 
 | Domain models & typed ports in `src/` | Implemented |
 | Port-shape meta-conformance (`tests/contracts/`) | Implemented |
 | Import-linter CAR layering (5/5 contracts) | Implemented |
-| Config security refusals (subprocess+autonomous, host network, `tests_unmodified`) | Implemented |
+| Config security refusals (subprocess+autonomous, host network + interactive-only, `tests_unmodified`) | Implemented |
 | `ModelRequest` v2 (system, tools, sampling, role) | Implemented |
 | Digest-keyed cassette replay + `CassetteMismatchError` | Implemented |
 | `ToolUseBlock` → `ToolCall` resolution, effect from registry | Implemented |
@@ -97,7 +97,7 @@ reported as block-level progress; they are re-stated here honestly.
 | Block 3 — Best-of-N search | **Mechanism complete; shipped off by default** (`search.enabled=false`). `BestOfNSearch` over real worktrees; sequential + parallel; `diversity_ratio`; rank-never-admit `select()`; `bench --compare single_shot,bon` with cost-per-resolved-task and machine-checked verdict. **Never measured against a real suite** — 0/23 tasks validate ([findings](./rationale/benchmarks/s4-harvest-findings.md)). Protocol and adapter retained; suite + any default-on flip are explicit **pre-S6** hard dependencies for ablation gates | `v2-S4` (closed) |
 | Block 4 — retrieval / code graph | Ports only. No indexer, no FTS5, no Tree-sitter | `v2-S6` |
 | Block 4 — Workflow DAG (ADR-0018) | Protocol only; gated on an E0 ablation that cannot be trusted until `v2-S1` | `v2-S7` |
-| Block 5 — container sandbox | Stub — every method raises `NotImplementedError` (PR-1d) | `v2-S5` |
+| Block 5 — container sandbox | **Real** — rootless Podman `ContainerSandbox`; Workspace conformance ×2; egress allowlist proxy; `sagiha run --autonomy autonomous` legal with container | `v2-S5` (closed) |
 | Block 5 — MCP driver | Stub — `invoke_tool()` raises; `list_tools()` returns `[]`, a truthful null (PR-1d) | `v2-S7` |
 | Block 5 — OTel exporter | Stub — `on_event()` raises (PR-1d) | `v2-S7` |
 | Context compaction | `ExchangeCompactor` (`TruncatingCompactor` default + `ModelCompactor`); 200-step under 128k green | — |
@@ -116,7 +116,7 @@ Every PR holds or improves all of these. The test count is **monotonic** — it 
 
 | Signal | Baseline (2026-07-31) | Command |
 | :--- | :--- | :--- |
-| Tests | **287 passed** (266 at prior closeout; 253, 192, 174 at earlier baselines; 158 at `v2-S1` close) | `uv run pytest -q` |
+| Tests | **303 passed** (292 without Podman + 11 `@pytest.mark.podman`; 287 at prior closeout) | `uv run pytest -q` |
 | Port count | **17 Protocols / 16 files** (ADR-0019 restated count; `CommitReplayHarvester`/`TaskRunner` deleted per [ADR-0024](./08-decisions/0024-e0-is-a-tool-not-a-port.md)) | `grep -rn "(Protocol)" src/sagiha/ports/ \| wc -l` |
 | Type check | 0 errors, strict | `uv run pyright src/sagiha` |
 | Lint | clean | `uv run ruff check && uv run ruff format --check` |
@@ -152,8 +152,13 @@ Every PR holds or improves all of these. The test count is **monotonic** — it 
    remains the highest-risk untested path until a suite exists. Closeout write-up:
    [s4-harvest-findings.md](./rationale/benchmarks/s4-harvest-findings.md). Pinned ≥30-task suite +
    populated noise floor + measured delta are **pre-S6** hard dependencies (ablation gates).
-6. **`v2-S5` (Phase 5)** — Perimeter & Isolation (Podman sandbox, egress, autonomy unlock).
-   Dependencies met: TaintGate (S3) + worktrees (S4).
+6. ~~**`v2-S5` (Phase 5)**~~ — **closed 2026-07-31.** Rootless Podman `ContainerSandbox`;
+   Workspace conformance parametrized over LocalWorkspace + ContainerSandbox; hostname
+   CONNECT egress proxy with `--network=none` (direct outbound dropped); credential exclusion;
+   `sagiha run --autonomy autonomous` legal with `sandbox.runtime=container`. CI Podman job
+   is TCB — propose `podman-perimeter` job for human authorship (see `docs/implementation/ci-podman-perimeter.md`).
+7. **`v2-S6` (Phase 6)** — Retrieval, Code Graph & Cold-Start.
+   Dependencies: seed-only assembler (S3) + E0 to ablate against (S4).
 ### Known open item (Resolved in v2-S1)
 
 `sagiha replay verify` against the committed fixture is **passing** post-cassette-migration (`scripts/migrate_cassettes_v2.py`) and workspace git initialization (`scripts/gen_replay_fixture.py`).

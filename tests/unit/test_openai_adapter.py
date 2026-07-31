@@ -17,7 +17,7 @@ from sagiha.adapters.model.openai import (
     OpenAIModelError,
 )
 from sagiha.composition import build_kernel
-from sagiha.domain.config import Config, ModelConfig
+from sagiha.domain.config import SandboxConfig, Config, ModelConfig
 from sagiha.domain.content import (
     Message,
     ModelRequest,
@@ -310,7 +310,7 @@ async def test_stream_deferred() -> None:
 
 @pytest.mark.asyncio
 async def test_composition_live_mode() -> None:
-    config = Config(model=ModelConfig(mode="live"))
+    config = Config(model=ModelConfig(mode="live"), sandbox=SandboxConfig(runtime="subprocess"))
     kernel = build_kernel(config)
     assert isinstance(kernel.model_provider, OpenAIModelAdapter)
 
@@ -318,6 +318,6 @@ async def test_composition_live_mode() -> None:
 @pytest.mark.asyncio
 async def test_composition_record_mode(tmp_path: Path) -> None:
     cassette_file = tmp_path / "cassette.json"
-    config = Config(model=ModelConfig(mode="record"))
+    config = Config(model=ModelConfig(mode="record"), sandbox=SandboxConfig(runtime="subprocess"))
     kernel = build_kernel(config, cassette_path=str(cassette_file))
     assert isinstance(kernel.model_provider, CassetteModelProvider)

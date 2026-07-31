@@ -13,7 +13,7 @@ from sagiha import Config, build_kernel
 from sagiha.adapters.tools.registry import DefaultToolRegistry
 from sagiha.adapters.trajectory.sqlite import SQLiteTrajectoryStore
 from sagiha.agency.run_loop import RunLoop, make_task
-from sagiha.domain.config import ModelConfig, TelemetryConfig, WorkspaceConfig
+from sagiha.domain.config import SandboxConfig, ModelConfig, TelemetryConfig, WorkspaceConfig
 from sagiha.domain.content import EffectClass, Message, ModelRequest, TextBlock, ToolCall, ToolResult
 from sagiha.domain.control import Decision, RunContext
 from sagiha.domain.events import Event, ToolCallRequested
@@ -160,6 +160,7 @@ async def test_build_kernel_wires_day_zero_adapters() -> None:
             model=ModelConfig(mode="replay"),
             telemetry=TelemetryConfig(trajectory_db=str(Path(tmp_dir) / "test_traj.db")),
             workspace=WorkspaceConfig(root=tmp_dir),
+            sandbox=SandboxConfig(runtime="subprocess"),
         )
 
         kernel = build_kernel(config, cassette_path=str(cassette))

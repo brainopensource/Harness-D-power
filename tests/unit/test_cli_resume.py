@@ -46,7 +46,7 @@ async def test_run_or_resume_round_trip(tmp_path: Path) -> None:
     scripts/gen_replay_fixture.py uses to generate the committed replay fixture."""
     from sagiha.adapters.model.cassette import CassetteEntry, request_digest
     from sagiha.composition import build_kernel
-    from sagiha.domain.config import Config, ModelConfig, TelemetryConfig, WorkspaceConfig
+    from sagiha.domain.config import SandboxConfig, Config, ModelConfig, TelemetryConfig, WorkspaceConfig
     from sagiha.domain.content import Message, ModelRequest, TextBlock, ToolUseBlock
     from sagiha.domain.trajectory import Completion, StreamEvent, TokenUsage
 
@@ -76,6 +76,7 @@ async def test_run_or_resume_round_trip(tmp_path: Path) -> None:
         model=ModelConfig(mode="replay"),
         workspace=WorkspaceConfig(root=str(workspace)),
         telemetry=TelemetryConfig(trajectory_db=str(trajectory_db)),
+        sandbox=SandboxConfig(runtime="subprocess"),
     )
 
     # Phase 1: interrupted after one tool_use step (max_steps=1 caps it mid-flight).

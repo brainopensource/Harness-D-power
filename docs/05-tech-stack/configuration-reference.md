@@ -30,7 +30,7 @@ Precedence: CLI flags → environment (`SAGIHA_*`) → `config.toml` → default
 | `governor.max_spend_usd_per_run` | Yes | Wired into governor ctor | Spend recording Sprint 3 |
 | `governor.max_concurrent_sandboxes` | Yes | Stored; admission not enforced | Block 3 |
 | Other `governor.*` | Yes | No | Later |
-| `sandbox.*` | Yes (host/subprocess refuses) | No runtime adapter | Block 5 |
+| `sandbox.*` | Yes (host/subprocess refuses; container required for autonomous/scheduled) | Yes — rootless Podman `ContainerSandbox` + egress proxy (v2-S5) | — |
 | `retrieval.*` / `context.*` / `search.*` | Yes | No | Blocks 4 / later |
 | `gates.*` | Yes (`require_tests_unmodified` refuse) | No evaluator | Sprint 3 (acceptance); later for code gates |
 | `telemetry.trajectory_db` | Yes | Yes | — |

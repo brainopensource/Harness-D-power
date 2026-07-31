@@ -11,7 +11,7 @@ import pytest
 from sagiha.agency.freeze import load_freeze, persist_freeze
 from sagiha.agency.run_loop import RunLoop, make_task
 from sagiha.composition import build_kernel
-from sagiha.domain.config import Config, ModelConfig, TelemetryConfig, WorkspaceConfig
+from sagiha.domain.config import SandboxConfig, Config, ModelConfig, TelemetryConfig, WorkspaceConfig
 from sagiha.domain.content import Message, ModelRequest, TextBlock, ToolUseBlock
 from sagiha.domain.control import RunContext
 from sagiha.domain.trajectory import Completion, StreamEvent, TokenUsage
@@ -81,6 +81,7 @@ async def _run_freeze_thaw_cycle(tmp_path: Path, cycle: int) -> GateReport:
         model=ModelConfig(mode="replay"),
         workspace=WorkspaceConfig(root=str(workspace)),
         telemetry=TelemetryConfig(trajectory_db=str(traj)),
+        sandbox=SandboxConfig(runtime="subprocess"),
     )
 
     # --- Phase 1: start run, take one step, freeze, "kill" the process ---
@@ -173,6 +174,7 @@ async def test_budget_park_persists_freeze(tmp_path: Path) -> None:
         workspace=WorkspaceConfig(root=str(workspace)),
         telemetry=TelemetryConfig(trajectory_db=str(traj)),
         governor=GovernorConfig(max_spend_usd_per_run=0.0),
+        sandbox=SandboxConfig(runtime="subprocess"),
     )
     kernel = build_kernel(config, cassette_path=str(cassette))
     scripted = _Scripted(_responses())

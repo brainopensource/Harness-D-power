@@ -20,7 +20,7 @@ from sagiha.adapters.model.cassette import CassetteEntry, CassetteMismatchError,
 from sagiha.adapters.trajectory.sqlite import SQLiteTrajectoryStore
 from sagiha.agency.run_loop import RunLoop, make_task
 from sagiha.composition import build_kernel
-from sagiha.domain.config import Config, ModelConfig, TelemetryConfig, WorkspaceConfig
+from sagiha.domain.config import SandboxConfig, Config, ModelConfig, TelemetryConfig, WorkspaceConfig
 from sagiha.domain.content import Message, ModelRequest, TextBlock, ToolUseBlock
 from sagiha.domain.control import RunContext
 from sagiha.domain.trajectory import Completion, StreamEvent, TokenUsage
@@ -53,6 +53,7 @@ async def test_freeze_kill_resume_replay_preserves_text_alongside_tool_call(tmp_
         model=ModelConfig(mode="replay"),
         workspace=WorkspaceConfig(root=str(workspace)),
         telemetry=TelemetryConfig(trajectory_db=str(trajectory_db)),
+        sandbox=SandboxConfig(runtime="subprocess"),
     )
 
     # --- Phase 1: "freeze" — a text-turn-bearing step (prose + a tool call together),

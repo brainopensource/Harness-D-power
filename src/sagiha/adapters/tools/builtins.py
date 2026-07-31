@@ -3,12 +3,30 @@
 from __future__ import annotations
 
 import json
-from typing import Any, cast
+from pathlib import Path
+from typing import Any, Protocol, cast
 
 from sagiha.adapters.tools.registry import DefaultToolRegistry
-from sagiha.adapters.workspace.local import LocalWorkspace, grep_workspace, list_dir_entries
+from sagiha.adapters.workspace.local import grep_workspace, list_dir_entries
 from sagiha.domain.content import EffectClass, TextBlock, ToolResult
 from sagiha.domain.work import Edit, EditRequest
+from sagiha.ports.workspace import Workspace
+
+
+class _WorkspaceWithRoot(Protocol):
+    """Concrete adapters expose `.root` for list_dir/grep helpers (not on the Workspace port)."""
+
+    @property
+    def root(self) -> Path: ...
+
+    async def read(self, path: str, offset: int = 0, limit: int | None = None) -> str: ...
+
+    async def write(self, path: str, content: str) -> None: ...
+
+    async def apply_edit(self, request: EditRequest) -> object: ...
+
+    async def run(self, command: list[str]) -> object: ...
+
 
 READ_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -88,9 +106,11 @@ BUILTIN_SCHEMAS: dict[str, dict[str, Any]] = {
 
 def register_builtin_tools(
     registry: DefaultToolRegistry,
-    workspace: LocalWorkspace,
+    workspace: Workspace,
 ) -> dict[str, dict[str, Any]]:
     """Register the five Sprint 3a tools. Returns schemas for policy path binding."""
+    # list_dir / grep need a host path; both LocalWorkspace and ContainerSandbox expose `.root`.
+    rooted: _WorkspaceWithRoot = workspace  # type: ignore[assignment]
 
     async def read_file(args: dict[str, Any]) -> ToolResult:
         call_id = str(args.get("_call_id", ""))
@@ -103,7 +123,7 @@ def register_builtin_tools(
     async def list_dir(args: dict[str, Any]) -> ToolResult:
         call_id = str(args.get("_call_id", ""))
         path = str(args.get("path", "."))
-        entries = list_dir_entries(workspace.root, path)
+        entries = list_dir_entries(rooted.root, path)
         payload = json.dumps([e.model_dump() for e in entries])
         return ToolResult(call_id=call_id, content=[TextBlock(text=payload)])
 
@@ -111,7 +131,7 @@ def register_builtin_tools(
         call_id = str(args.get("_call_id", ""))
         pattern = str(args["pattern"])
         path = str(args.get("path", "."))
-        matches = grep_workspace(workspace.root, pattern, path)
+        matches = grep_workspace(rooted.root, pattern, path)
         payload = json.dumps([m.model_dump() for m in matches])
         return ToolResult(call_id=call_id, content=[TextBlock(text=payload)])
 

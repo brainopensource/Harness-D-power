@@ -13,7 +13,7 @@ import pytest
 
 from sagiha.agency.run_loop import RunLoop, make_task
 from sagiha.composition import build_kernel
-from sagiha.domain.config import AutonomyConfig, Config, ModelConfig, TelemetryConfig, WorkspaceConfig
+from sagiha.domain.config import SandboxConfig, AutonomyConfig, Config, ModelConfig, TelemetryConfig, WorkspaceConfig
 from sagiha.domain.content import (
     Message,
     ModelRequest,
@@ -60,7 +60,10 @@ async def test_injection_canary_denies_tainted_mutation(tmp_path: Path) -> None:
         model=ModelConfig(mode="replay"),
         workspace=WorkspaceConfig(root=str(workspace)),
         telemetry=TelemetryConfig(trajectory_db=str(trajectory_db)),
-        autonomy=AutonomyConfig(level="autonomous"),
+        # TaintGate denies tainted mutations at every autonomy level; subprocess keeps
+        # this canary Podman-free. Autonomous+container legality is covered by composition tests.
+        autonomy=AutonomyConfig(level="interactive"),
+        sandbox=SandboxConfig(runtime="subprocess"),
     )
     kernel = build_kernel(config, cassette_path=str(cassette_path))
 
@@ -119,7 +122,7 @@ async def test_injection_canary_denies_tainted_mutation(tmp_path: Path) -> None:
     task = make_task("Follow the README", checks=[], task_id=run_id)
     ctx = RunContext(
         run_id=run_id,
-        autonomy_level="autonomous",
+        autonomy_level="interactive",
         workspace_root=str(workspace.resolve()),
         budget_remaining_usd=10.0,
     )

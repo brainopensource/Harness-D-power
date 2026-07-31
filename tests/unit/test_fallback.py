@@ -9,7 +9,7 @@ import pytest
 from sagiha.adapters.model.fallback import FallbackModelAdapter, drop_reasoning_whole_exchange
 from sagiha.adapters.model.openai import OpenAIModelError
 from sagiha.composition import build_kernel
-from sagiha.domain.config import Config, ModelConfig
+from sagiha.domain.config import SandboxConfig, Config, ModelConfig
 from sagiha.domain.content import Message, ModelRequest, ReasoningBlock, TextBlock
 from sagiha.domain.trajectory import Completion, TokenUsage
 from sagiha.ports.model import ModelProvider
@@ -147,7 +147,8 @@ async def test_build_kernel_with_tier_and_role_fallback() -> None:
             active_tier="tier0",
             fallback="workhorse",
             roles={"execution": "tier0", "planning": "tier0", "compaction": "fast", "judge": "fast"},
-        )
+        ),
+        sandbox=SandboxConfig(runtime="subprocess"),
     )
     kernel = build_kernel(config, tier="tier0")
     assert isinstance(kernel.model_provider, FallbackModelAdapter)

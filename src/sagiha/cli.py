@@ -14,7 +14,7 @@ import typer
 
 from sagiha.agency.run_loop import RunLoop, RunLoopResult, make_task
 from sagiha.composition import build_kernel
-from sagiha.domain.config import Config, ModelConfig, TelemetryConfig, WorkspaceConfig
+from sagiha.domain.config import Config, ModelConfig, SandboxConfig, TelemetryConfig, WorkspaceConfig
 from sagiha.domain.control import RunContext
 from sagiha.domain.events import ReplayVerified
 
@@ -44,18 +44,26 @@ async def _run_or_resume(
     mode: str = "replay",
     model_name: str = "qwen2.5-coder:7b",
     base_url: str = "http://localhost:11434/v1",
+    autonomy: Literal["interactive", "hybrid", "autonomous", "scheduled"] = "interactive",
 ) -> tuple[str, RunLoopResult | str | None]:
     if resume is None and goal is None:
         return "missing_goal", None
 
     model_mode = "live" if mode == "live" else ("record" if mode == "record" else "replay")
-    from sagiha.domain.config import ModelTierConfig
+    from sagiha.domain.config import AutonomyConfig, ModelTierConfig, SandboxConfig
 
     local_tier = ModelTierConfig(
         provider="openai-compatible",
         model=model_name,
         base_url=base_url,
         api_key_env="",
+    )
+    # Autonomous/scheduled require the container perimeter (config validation). Interactive
+    # CLI defaults to subprocess so local cassette/replay work without Podman.
+    sandbox = (
+        SandboxConfig(runtime="container")
+        if autonomy in ("autonomous", "scheduled")
+        else SandboxConfig(runtime="subprocess")
     )
     config = Config(
         model=ModelConfig(
@@ -68,6 +76,8 @@ async def _run_or_resume(
         ),
         workspace=WorkspaceConfig(root=workspace),
         telemetry=TelemetryConfig(trajectory_db=trajectory_db),
+        autonomy=AutonomyConfig(level=autonomy),
+        sandbox=sandbox,
     )
     kernel = build_kernel(config, cassette_path=cassette_path)
     loop = RunLoop(
@@ -129,8 +139,18 @@ def run(
     base_url: str = typer.Option(
         "http://localhost:11434/v1", "--base-url", help="OpenAI-compatible endpoint URL"
     ),
+    autonomy: str = typer.Option(
+        "interactive",
+        "--autonomy",
+        help="Autonomy level: interactive|hybrid|autonomous|scheduled "
+        "(autonomous/scheduled require rootless Podman container perimeter)",
+    ),
 ) -> None:
     """Run a coding task end-to-end (replay cassette by default in Sprint 3a)."""
+    level = cast(Literal["interactive", "hybrid", "autonomous", "scheduled"], autonomy)
+    if level not in ("interactive", "hybrid", "autonomous", "scheduled"):
+        typer.echo(f"invalid --autonomy={autonomy!r}")
+        raise SystemExit(2)
     checks = acceptance if acceptance else ["true"]
     cassette_path = cassette or ".sagiha/cassettes/default.json"
     outcome, payload = asyncio.run(
@@ -145,6 +165,7 @@ def run(
             mode=mode,
             model_name=model_name,
             base_url=base_url,
+            autonomy=level,
         )
     )
 
@@ -186,6 +207,7 @@ async def _do_replay(
         model=ModelConfig(mode="replay"),
         workspace=WorkspaceConfig(root=workspace),
         telemetry=TelemetryConfig(trajectory_db=trajectory_db),
+        sandbox=SandboxConfig(runtime="subprocess"),
     )
     kernel = build_kernel(config, cassette_path=cassette)
 

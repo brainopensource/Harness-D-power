@@ -164,13 +164,13 @@ retrieval: excluded
 **Objective:** the sandbox the threat model has called "the perimeter" since ADR-0006 finally exists; `autonomous` autonomy unlocks.
 **Dependencies:** v2-S3 (TaintGate — autonomy without it is refused), v2-S4 (worktrees to materialize).
 
-- [ ] **Epic S5.1 — Rootless Podman `ContainerSandbox`** — `adapters/sandbox/container.py` (stub → real)
-  - [ ] Subtask: lifecycle mgmt; worktree bind-mounts; `Workspace` conformance suite parametrized over `LocalWorkspace` + `ContainerSandbox` (the hexagon's payoff test); resource limits from `SandboxConfig`.
-- [ ] **Epic S5.2 — Egress proxy + namespace firewall** — hostname allowlist at explicit proxy, direct outbound dropped; credential exclusion (no host secret reachable inside; per-grant short-lived injection).
-- [ ] **Epic S5.3 — Config gating** — `subprocess`+`autonomous` refusal retained; container required from this sprint for `autonomous`/`scheduled`; `sagiha run --autonomy autonomous` legal for the first time.
-  - [ ] Verification (sprint-wide): injection canary suite (hostile README / issue / fixture) across the pinned suite → **zero out-of-worktree effects, zero credential reads, zero non-allowlisted egress**; parallel sandboxed runs interference-free.
+- [x] **Epic S5.1 — Rootless Podman `ContainerSandbox`** — `adapters/sandbox/container.py` (stub → real)
+  - [x] Subtask: lifecycle mgmt; worktree bind-mounts; `Workspace` conformance suite parametrized over `LocalWorkspace` + `ContainerSandbox` (the hexagon's payoff test); resource limits from `SandboxConfig`.
+- [x] **Epic S5.2 — Egress proxy + namespace firewall** — hostname allowlist at explicit proxy, direct outbound dropped; credential exclusion (no host secret reachable inside; per-grant short-lived injection).
+- [x] **Epic S5.3 — Config gating** — `subprocess`+`autonomous` refusal retained; container required from this sprint for `autonomous`/`scheduled`; `sagiha run --autonomy autonomous` legal for the first time.
+  - [x] Verification (sprint-wide): injection canary suite (hostile README / issue / fixture) across the pinned suite → **zero out-of-worktree effects, zero credential reads, zero non-allowlisted egress**; parallel sandboxed runs interference-free.
 
-**Exit gate:** the S1-slice gate from the roadmap matrix, verbatim, now measurable — plus `autonomous` unlocked in config.
+**Exit gate:** the S1-slice gate from the roadmap matrix, verbatim, now measurable — plus `autonomous` unlocked in config. **CLOSED 2026-07-31.**
 
 ## Sprint v2-S6 — Retrieval, Code Graph & Cold-Start (Block 4)
 

@@ -23,6 +23,7 @@ from sagiha.domain.config import (
     Config,
     ModelConfig,
     PricingConfig,
+    SandboxConfig,
     TelemetryConfig,
     WorkspaceConfig,
 )
@@ -146,6 +147,7 @@ def _loop(tmp_path: Path, provider: object, gov: DefaultResourceGovernor) -> tup
         workspace=WorkspaceConfig(root=str(ws)),
         telemetry=TelemetryConfig(trajectory_db=str(tmp_path / "t.db")),
         pricing=PricingConfig(usd_per_1m_input=1000.0, usd_per_1m_output=1000.0),
+        sandbox=SandboxConfig(runtime="subprocess"),
     )
     kernel = build_kernel(config, cassette_path=str(cassette))
     loop = RunLoop(

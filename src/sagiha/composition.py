@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 
 from sagiha.adapters.memory.short_term import InMemoryMemory
 from sagiha.adapters.model.cassette import CassetteModelProvider
+from sagiha.adapters.sandbox.container import ContainerSandbox, secret_materialize_paths
 from sagiha.adapters.tools.builtins import BUILTIN_SCHEMAS, TOOL_DESCRIPTIONS, register_builtin_tools
 from sagiha.adapters.tools.registry import DefaultToolRegistry
 from sagiha.adapters.trajectory.sqlite import SQLiteTrajectoryStore
@@ -89,6 +90,26 @@ def load_env_file(path: str | Path = ".env") -> dict[str, str]:
     return env_vars
 
 
+def make_workspace(config: Config, *, root: str | None = None) -> Workspace:
+    """Select the Workspace adapter from `config.sandbox.runtime` (fail closed)."""
+    worktree_root = root if root is not None else config.workspace.root
+    runtime = config.sandbox.runtime
+    if runtime == "subprocess":
+        return LocalWorkspace(worktree_root)
+    if runtime == "gvisor":
+        raise RuntimeError(
+            "sandbox.runtime='gvisor' is not implemented — use 'container' (rootless Podman) "
+            "or 'subprocess' for interactive local development only"
+        )
+    if runtime == "container":
+        return ContainerSandbox(
+            worktree_root,
+            config.sandbox,
+            state_dir=str(Path("/tmp") / "sagiha-sandbox"),
+        )
+    raise RuntimeError(f"unknown sandbox.runtime={runtime!r}")
+
+
 def build_kernel(
     config: Config,
     *,
@@ -119,7 +140,7 @@ def build_kernel(
     default_registry = DefaultToolRegistry()
     tool_registry: ToolRegistry = default_registry
     memory = InMemoryMemory()
-    workspace = LocalWorkspace(config.workspace.root)
+    workspace = make_workspace(config)
     schemas = register_builtin_tools(default_registry, workspace)
     for tool_name, schema in schemas.items():
         policy_engine.register_tool_schema(tool_name, schema)
@@ -232,10 +253,14 @@ def build_kernel(
 
     from sagiha.adapters.workspace.worktree import GitWorktreeManager
 
+    materialize = config.workspace.materialize
+    if config.sandbox.runtime == "container":
+        materialize = secret_materialize_paths(materialize)
+
     worktree_manager = GitWorktreeManager(
         config.workspace.root,
         config.workspace.worktree_dir,
-        materialize_paths=config.workspace.materialize,
+        materialize_paths=materialize,
         bus=bus,
     )
 
@@ -387,10 +412,13 @@ def build_candidate_search(
     from sagiha.adapters.workspace.worktree import GitWorktreeManager
 
     path = cassette_path or ".sagiha/cassettes/default.json"
+    materialize = config.workspace.materialize
+    if config.sandbox.runtime == "container":
+        materialize = secret_materialize_paths(materialize)
     worktree_manager = GitWorktreeManager(
         config.workspace.root,
         config.workspace.worktree_dir,
-        materialize_paths=config.workspace.materialize,
+        materialize_paths=materialize,
         bus=bus,
     )
     executor = KernelCandidateExecutor(

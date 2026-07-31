@@ -29,6 +29,7 @@ def test_build_kernel_default_config(tmp_path: Path) -> None:
         model=ModelConfig(mode="replay"),
         telemetry=TelemetryConfig(trajectory_db=str(tmp_path / "t.db")),
         workspace=WorkspaceConfig(root=str(tmp_path)),
+        sandbox=SandboxConfig(runtime="subprocess"),
     )
     kernel = build_kernel(config, cassette_path=str(cassette))
     assert isinstance(kernel, Kernel)
@@ -50,10 +51,26 @@ def test_refuse_host_network_without_allow_unsafe() -> None:
         )
 
 
+def test_refuse_host_network_outside_interactive() -> None:
+    with pytest.raises(ValueError, match="autonomy.level='interactive'"):
+        Config(
+            sandbox=SandboxConfig(network="host", allow_unsafe=True),
+            autonomy=AutonomyConfig(level="autonomous"),
+        )
+
+
+def test_autonomous_requires_container_runtime() -> None:
+    # Default runtime is container — autonomous is legal.
+    cfg = Config(autonomy=AutonomyConfig(level="autonomous"))
+    assert cfg.sandbox.runtime == "container"
+    assert cfg.autonomy.level == "autonomous"
+
+
 def test_refuse_disabling_require_tests_unmodified() -> None:
     with pytest.raises(ValueError, match="gates.require_tests_unmodified=False is refused"):
         Config(
             gates=GatesConfig(require_tests_unmodified=False),
+            sandbox=SandboxConfig(runtime="subprocess"),
         )
 
 
@@ -62,7 +79,8 @@ def test_refuse_undefined_model_tier_in_roles() -> None:
         Config(
             model=ModelConfig(
                 roles={"planning": "non_existent_tier"},
-            )
+            ),
+            sandbox=SandboxConfig(runtime="subprocess"),
         )
 
 
@@ -74,6 +92,7 @@ def test_refuse_search_enabled_when_judge_and_execution_share_a_model() -> None:
                 roles={"judge": "same", "execution": "same"},
             ),
             search=SearchConfig(enabled=True),
+            sandbox=SandboxConfig(runtime="subprocess"),
         )
 
 
@@ -87,6 +106,7 @@ def test_search_enabled_allowed_when_judge_and_execution_differ() -> None:
             roles={"judge": "judge_tier", "execution": "exec_tier"},
         ),
         search=SearchConfig(enabled=True),
+        sandbox=SandboxConfig(runtime="subprocess"),
     )
     assert config.search.enabled
 

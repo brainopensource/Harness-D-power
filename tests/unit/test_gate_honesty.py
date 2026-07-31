@@ -17,7 +17,7 @@ from pathlib import Path
 import pytest
 
 from sagiha.composition import build_kernel
-from sagiha.domain.config import Config, GatesConfig, ModelConfig, TelemetryConfig, WorkspaceConfig
+from sagiha.domain.config import SandboxConfig, Config, GatesConfig, ModelConfig, TelemetryConfig, WorkspaceConfig
 from sagiha.domain.control import RunContext
 from sagiha.domain.work import GateReport
 from sagiha.outer_loop.evaluator.gate_evaluator import GateEvaluator
@@ -50,6 +50,7 @@ def _evaluator(repo: Path, gates: GatesConfig | None = None) -> GateEvaluator:
         workspace=WorkspaceConfig(root=str(repo)),
         telemetry=TelemetryConfig(trajectory_db=str(repo / ".traj.db")),
         gates=gates,
+        sandbox=SandboxConfig(runtime="subprocess"),
     )
     # The gates never call the model; replay mode just needs a cassette to exist.
     cassette = repo / "cassette.json"

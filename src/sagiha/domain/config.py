@@ -488,8 +488,26 @@ class Config(BaseModel):
                 f"sandbox.runtime='subprocess' is refused when autonomy.level is '{self.autonomy.level}'"
             )
 
+        if self.autonomy.level in ("autonomous", "scheduled") and self.sandbox.runtime not in (
+            "container",
+            "gvisor",
+        ):
+            raise ValueError(
+                f"autonomy.level='{self.autonomy.level}' requires sandbox.runtime "
+                f"in ('container', 'gvisor'); got {self.sandbox.runtime!r}"
+            )
+
         if self.sandbox.network == "host" and not self.sandbox.allow_unsafe:
             raise ValueError("sandbox.network='host' is refused without allow_unsafe=True")
+
+        if (
+            self.sandbox.network == "host"
+            and self.sandbox.allow_unsafe
+            and self.autonomy.level != "interactive"
+        ):
+            raise ValueError(
+                "sandbox.network='host' with allow_unsafe=True is refused unless autonomy.level='interactive'"
+            )
 
         if not self.gates.require_tests_unmodified:
             raise ValueError("gates.require_tests_unmodified=False is refused outright")

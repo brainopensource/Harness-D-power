@@ -8,7 +8,7 @@ from pathlib import Path
 
 from sagiha.adapters.search.best_of_n import BestOfNSearch
 from sagiha.composition import build_candidate_search, build_kernel
-from sagiha.domain.config import Config, ModelConfig, SearchConfig, WorkspaceConfig
+from sagiha.domain.config import SandboxConfig, Config, ModelConfig, SearchConfig, WorkspaceConfig
 
 
 def _init_repo(tmp_path: Path) -> Path:
@@ -28,6 +28,7 @@ def test_build_candidate_search_returns_none_when_search_disabled(tmp_path: Path
         model=ModelConfig(mode="replay"),
         workspace=WorkspaceConfig(root=str(tmp_path)),
         search=SearchConfig(enabled=False),
+        sandbox=SandboxConfig(runtime="subprocess"),
     )
     assert build_candidate_search(config) is None
 
@@ -38,6 +39,7 @@ def test_build_candidate_search_returns_best_of_n_when_enabled(tmp_path: Path) -
         model=ModelConfig(mode="replay"),
         workspace=WorkspaceConfig(root=str(repo)),
         search=SearchConfig(enabled=True),
+        sandbox=SandboxConfig(runtime="subprocess"),
     )
     search = build_candidate_search(config)
     assert isinstance(search, BestOfNSearch)
@@ -52,6 +54,7 @@ def test_build_candidate_search_max_concurrent_bounded_by_tier_capacity(tmp_path
         model=ModelConfig(mode="replay"),
         workspace=WorkspaceConfig(root=str(repo)),
         search=SearchConfig(enabled=True, launch_mode="parallel"),
+        sandbox=SandboxConfig(runtime="subprocess"),
     )
     search = build_candidate_search(config)
     assert isinstance(search, BestOfNSearch)
@@ -70,6 +73,7 @@ def test_build_kernel_wires_candidate_search_when_enabled(tmp_path: Path) -> Non
         model=ModelConfig(mode="replay"),
         workspace=WorkspaceConfig(root=str(repo)),
         search=SearchConfig(enabled=True),
+        sandbox=SandboxConfig(runtime="subprocess"),
     )
     kernel = build_kernel(config, cassette_path=_empty_cassette(tmp_path))
     assert kernel.candidate_search is not None
@@ -82,6 +86,7 @@ def test_build_kernel_candidate_search_none_when_search_disabled(tmp_path: Path)
         model=ModelConfig(mode="replay"),
         workspace=WorkspaceConfig(root=str(repo)),
         search=SearchConfig(enabled=False),
+        sandbox=SandboxConfig(runtime="subprocess"),
     )
     kernel = build_kernel(config, cassette_path=_empty_cassette(tmp_path))
     assert kernel.candidate_search is None
@@ -99,6 +104,7 @@ def test_build_kernel_include_search_false_skips_candidate_search_even_when_enab
         model=ModelConfig(mode="replay"),
         workspace=WorkspaceConfig(root=str(repo)),
         search=SearchConfig(enabled=True),
+        sandbox=SandboxConfig(runtime="subprocess"),
     )
     kernel = build_kernel(config, cassette_path=_empty_cassette(tmp_path), include_search=False)
     assert kernel.candidate_search is None
