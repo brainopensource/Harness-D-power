@@ -5,6 +5,6 @@ import { App } from "./App.js";
 describe("App shell", () => {
   it("renders SAGIHA", () => {
     render(<App />);
-    expect(screen.getByText(/SAGIHA/)).toBeInTheDocument();
+    expect(screen.getAllByText(/SAGIHA/)[0]).toBeInTheDocument();
   });
 });

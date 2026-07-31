@@ -45,6 +45,7 @@ async def _run_or_resume(
     model_name: str = "qwen2.5-coder:7b",
     base_url: str = "http://localhost:11434/v1",
     autonomy: Literal["interactive", "hybrid", "autonomous", "scheduled"] = "interactive",
+    stream_json: bool = False,
 ) -> tuple[str, RunLoopResult | str | None]:
     if resume is None and goal is None:
         return "missing_goal", None
@@ -80,6 +81,21 @@ async def _run_or_resume(
         sandbox=sandbox,
     )
     kernel = build_kernel(config, cassette_path=cassette_path)
+
+    if stream_json:
+        import sys
+        from sagiha.domain.events import Event
+
+        async def _stream_event(ev: Event) -> None:
+            try:
+                line = json.dumps({"type": "EVENT", "event": ev.event, "data": json.loads(ev.model_dump_json())})
+                sys.stdout.write(line + "\n")
+                sys.stdout.flush()
+            except Exception:
+                pass
+
+        kernel.bus.subscribe_observer(_stream_event)
+
     loop = RunLoop(
         model_provider=kernel.model_provider,
         policy_engine=kernel.policy_engine,
@@ -145,6 +161,9 @@ def run(
         help="Autonomy level: interactive|hybrid|autonomous|scheduled "
         "(autonomous/scheduled require rootless Podman container perimeter)",
     ),
+    stream_json: bool = typer.Option(
+        False, "--stream-json", help="Stream NDJSON event objects to stdout for frontend IPC integration"
+    ),
 ) -> None:
     """Run a coding task end-to-end (replay cassette by default in Sprint 3a)."""
     level = cast(Literal["interactive", "hybrid", "autonomous", "scheduled"], autonomy)
@@ -166,6 +185,7 @@ def run(
             model_name=model_name,
             base_url=base_url,
             autonomy=level,
+            stream_json=stream_json,
         )
     )
 

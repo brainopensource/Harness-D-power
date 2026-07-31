@@ -2,6 +2,7 @@ import type { GateReport, TokenUsage, TrajectoryStep } from "@sagiha/protocol";
 
 export type HarnessEventType =
   | "StepCompleted"
+  | "TelemetryTick"
   | "CompactionApplied"
   | "TaintIntroduced"
   | "GateEvaluated"
@@ -64,7 +65,9 @@ export class MockEventSimulator {
     const now = new Date().toISOString();
     const eventTypes: HarnessEventType[] = [
       "StepCompleted",
+      "TelemetryTick",
       "StepCompleted",
+      "TelemetryTick",
       "CompactionApplied",
       "TaintIntroduced",
       "GateEvaluated",
@@ -74,14 +77,22 @@ export class MockEventSimulator {
 
     let payload: Record<string, unknown> = {};
 
-    if (type === "StepCompleted") {
+    if (type === "TelemetryTick") {
+      payload = {
+        cpuUsagePct: Math.floor(18 + Math.random() * 40),
+        memoryMb: Math.floor(180 + Math.random() * 60),
+      };
+    } else if (type === "StepCompleted") {
       const step: TrajectoryStep = {
         step_id: { run_id: this.runId, branch_id: "main", seq: this.stepSeq },
         kind: "tool_execution",
         timestamp: now,
-        tool_name: "run_command",
-        arguments: { command: "cargo build --release" },
-        output: "Finished release target(s)",
+        tool_name: this.stepSeq % 2 === 0 ? "apply_edit" : "run_command",
+        arguments:
+          this.stepSeq % 2 === 0
+            ? { target_file: "src/sagiha/agency/run_loop.py", count: 1 }
+            : { command: "cargo test --quiet" },
+        output: "Finished execution cleanly.",
         token_usage: {
           prompt_tokens: 1200,
           completion_tokens: 150,
