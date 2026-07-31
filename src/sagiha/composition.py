@@ -6,8 +6,12 @@ Constructs adapters, binds ports, and returns an immutable kernel.
 
 from __future__ import annotations
 
+import hashlib
+import time
+import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from sagiha.adapters.memory.short_term import InMemoryMemory
 from sagiha.adapters.model.cassette import CassetteModelProvider
@@ -17,6 +21,8 @@ from sagiha.adapters.trajectory.sqlite import SQLiteTrajectoryStore
 from sagiha.adapters.workspace.local import LocalWorkspace
 from sagiha.domain.config import Config
 from sagiha.domain.content import ToolSchema
+from sagiha.domain.control import RunContext
+from sagiha.domain.work import TaskSpec
 from sagiha.kernel.bus import EventBus
 from sagiha.kernel.governor import DefaultResourceGovernor
 from sagiha.kernel.policy.engine import DefaultPolicyEngine
@@ -29,9 +35,14 @@ from sagiha.ports.lsp import LSPAdapter
 from sagiha.ports.memory import Memory
 from sagiha.ports.model import ModelProvider
 from sagiha.ports.policy import PolicyEngine
+from sagiha.ports.search import CandidateSearch
 from sagiha.ports.tool_registry import ToolRegistry
 from sagiha.ports.trajectory import TrajectoryStore
 from sagiha.ports.workspace import Workspace, WorktreeManager
+
+if TYPE_CHECKING:
+    from sagiha.adapters.search.protocols import CandidateOutcome
+    from sagiha.adapters.workspace.worktree import GitWorktreeManager
 
 
 @dataclass(frozen=True)
@@ -52,6 +63,7 @@ class Kernel:
     lsp_adapter: LSPAdapter | None = None
     worktree_manager: WorktreeManager | None = None
     evaluator: Evaluator | None = None
+    candidate_search: CandidateSearch | None = None
     tool_schemas: tuple[ToolSchema, ...] = ()
 
 
@@ -206,6 +218,17 @@ def build_kernel(
         require_coverage_not_decreased=config.gates.require_coverage_not_decreased,
     )
 
+    from sagiha.adapters.workspace.worktree import GitWorktreeManager
+
+    worktree_manager = GitWorktreeManager(
+        config.workspace.root,
+        config.workspace.worktree_dir,
+        materialize_paths=config.workspace.materialize,
+        bus=bus,
+    )
+
+    candidate_search = build_candidate_search(config, cassette_path=path, bus=bus)
+
     return Kernel(
         config=config,
         model_provider=model_provider,
@@ -218,4 +241,165 @@ def build_kernel(
         bus=bus,
         tool_schemas=tool_schemas,
         evaluator=evaluator,
+        worktree_manager=worktree_manager,
+        candidate_search=candidate_search,
+    )
+
+
+def _parse_numstat(numstat_output: str) -> tuple[int, int]:
+    """`(files_changed, total_lines)` from `git diff --numstat` output — mirrors
+    `GateEvaluator._diff_within_bounds`'s parsing, duplicated rather than imported because that
+    method is TCB-owned (`sagiha.outer_loop.evaluator`) and composition-root code must not
+    depend on it (nor may the TCB depend on composition — the `tcb-isolation` contract runs
+    both directions in spirit even where it is not mechanically enforced)."""
+    files = 0
+    total = 0
+    for line in numstat_output.splitlines():
+        fields = line.split("\t")
+        if len(fields) < 2:
+            continue
+        files += 1
+        for count in fields[:2]:
+            if count.isdigit():
+                total += int(count)
+    return files, total
+
+
+@dataclass
+class KernelCandidateExecutor:
+    """`CandidateExecutor` implementation — the composition root's own class, since running a
+    Best-of-N candidate means building a fresh `Kernel` and `RunLoop` bound to its worktree, and
+    only composition-root code may reach both `build_kernel` and the concrete adapters at once.
+    """
+
+    parent_config: Config
+    cassette_path: str
+    worktree_manager: GitWorktreeManager
+
+    async def execute(
+        self,
+        task: TaskSpec,
+        context: RunContext,
+        *,
+        branch_id: str,
+        base_commit: str,
+        temperature: float | None = None,
+        repair_round: int = 0,
+    ) -> CandidateOutcome:
+        from sagiha.adapters.search.protocols import CandidateOutcome
+        from sagiha.agency.run_loop import RunLoop
+
+        manager = self.worktree_manager
+        if repair_round == 0:
+            await manager.allocate(base_commit, branch_id, run_id=context.run_id)
+            await manager.materialize(branch_id)
+
+        worktree_path = manager.path_for(branch_id)
+        roles = self.parent_config.model.roles
+        candidate_tier = roles.get("candidates") or roles.get("execution")
+
+        candidate_workspace_cfg = self.parent_config.workspace.model_copy(update={"root": worktree_path})
+        candidate_config = self.parent_config.model_copy(update={"workspace": candidate_workspace_cfg})
+
+        kernel = build_kernel(candidate_config, cassette_path=self.cassette_path, tier=candidate_tier)
+        run_id = str(uuid.uuid4())
+
+        loop = RunLoop(
+            model_provider=kernel.model_provider,
+            policy_engine=kernel.policy_engine,
+            resource_governor=kernel.resource_governor,
+            tool_registry=kernel.tool_registry,
+            trajectory_store=kernel.trajectory_store,
+            bus=kernel.bus,
+            tool_schemas=list(kernel.tool_schemas),
+            evaluator=kernel.evaluator,
+            workspace=kernel.workspace,
+            pricing=kernel.config.pricing,
+            context=kernel.config.context,
+            branch_id=branch_id,
+            temperature=temperature,
+        )
+
+        candidate_task = task.model_copy(update={"parent_task_id": task.task_id})
+        ctx = RunContext(
+            run_id=run_id,
+            autonomy_level=candidate_config.autonomy.level,
+            workspace_root=worktree_path,
+            budget_remaining_usd=candidate_config.governor.max_spend_usd_per_run,
+            base_commit=base_commit,
+        )
+
+        start = time.monotonic()
+        result = await loop.run(candidate_task, ctx)
+        elapsed = time.monotonic() - start
+
+        diff_result = await kernel.workspace.run(["git", "diff", base_commit])
+        numstat_result = await kernel.workspace.run(["git", "diff", "--numstat", base_commit])
+        files_changed, diff_lines = _parse_numstat(numstat_result.stdout)
+
+        return CandidateOutcome(
+            branch_id=branch_id,
+            run_id=run_id,
+            worktree_ref=branch_id,
+            gate_report=result.gate_report,
+            cost=result.cost,
+            steps=len(result.steps),
+            wall_clock_s=elapsed,
+            diff_digest=hashlib.sha256(diff_result.stdout.encode()).hexdigest(),
+            files_changed=files_changed,
+            diff_lines=diff_lines,
+            temperature=temperature or 0.0,
+            repair_round=repair_round,
+        )
+
+
+def build_candidate_search(
+    config: Config,
+    *,
+    cassette_path: str | None = None,
+    bus: EventBus | None = None,
+) -> CandidateSearch | None:
+    """Wires the Best-of-N adapter, gated on `config.search.enabled`.
+
+    Returns `None` when search is disabled — callers must not construct an always-on stub just
+    to have something to call; absence of search is absence of a `CandidateSearch`, not a
+    single-candidate degenerate case of one.
+    """
+    if not config.search.enabled:
+        return None
+
+    from sagiha.adapters.search.best_of_n import BestOfNSearch
+    from sagiha.adapters.search.scoring import build_scorer
+    from sagiha.adapters.workspace.worktree import GitWorktreeManager
+
+    path = cassette_path or ".sagiha/cassettes/default.json"
+    worktree_manager = GitWorktreeManager(
+        config.workspace.root,
+        config.workspace.worktree_dir,
+        materialize_paths=config.workspace.materialize,
+        bus=bus,
+    )
+    executor = KernelCandidateExecutor(
+        parent_config=config,
+        cassette_path=path,
+        worktree_manager=worktree_manager,
+    )
+    scorer = build_scorer(config.search.scoring)
+
+    # Bounded by inference capacity, not just sandbox capacity: launching more parallel
+    # candidates than the model tier can actually serve concurrently gets one candidate,
+    # repeated, plus context thrashing — not more candidates. See `sagiha.cpu.toml` /
+    # `sagiha.gpu.toml` for the two committed profiles this is meant to be driven from.
+    candidates_tier_name = config.model.roles.get("candidates") or config.model.roles.get("execution")
+    candidates_tier = config.model.tiers.get(candidates_tier_name) if candidates_tier_name else None
+    tier_capacity = candidates_tier.max_concurrent_requests if candidates_tier is not None else 1
+    max_concurrent = min(config.governor.max_concurrent_sandboxes, tier_capacity)
+
+    return BestOfNSearch(
+        worktree_manager=worktree_manager,
+        executor=executor,
+        scorer=scorer,
+        config=config.search,
+        bus=bus,
+        max_concurrent=max_concurrent,
     )

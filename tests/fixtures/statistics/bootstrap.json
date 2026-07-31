@@ -1,0 +1,19 @@
+{
+  "description": "Fixed-seed bootstrap CI — recorded from the shipped implementation, not an independent derivation. Regression-pins reproducibility: same deltas/seed/iterations must always yield this interval, or the function's determinism guarantee is broken.",
+  "cases": [
+    {
+      "deltas": [1.0, 0.0, -1.0, 1.0, 0.0, 1.0, -1.0, 0.0, 1.0, 1.0],
+      "alpha": 0.05,
+      "iterations": 2000,
+      "seed": 42,
+      "expected_ci": [-0.2, 0.7]
+    },
+    {
+      "deltas": [],
+      "alpha": 0.05,
+      "iterations": 2000,
+      "seed": 0,
+      "expected_ci": [0.0, 0.0]
+    }
+  ]
+}

@@ -26,6 +26,15 @@ class ModelTierConfig(BaseModel):
     api_key_env: str = "ANTHROPIC_API_KEY"
     base_url: str | None = None
     thinking: ThinkingConfig = Field(default_factory=ThinkingConfig)
+    #: How many concurrent requests this tier's endpoint can actually serve. `1` (the safe
+    #: default) for a single-threaded local Ollama — launching N parallel Best-of-N candidates
+    #: against `max_concurrent_requests=1` gets one candidate, N times, plus context thrashing,
+    #: not N candidates. `SearchConfig.launch_mode="parallel"` limiters are bounded by this, not
+    #: just by sandbox concurrency.
+    max_concurrent_requests: int = 1
+    #: Local tiers may opt in to exporting reasoning blocks for distillation (S4.4); cloud
+    #: tiers default to excluded because provider terms often prohibit distillation export.
+    allow_reasoning_export: bool = False
 
 
 class ModelConfig(BaseModel):
@@ -277,6 +286,24 @@ class ContextConfig(BaseModel):
     keep_last_tokens: int = 24_000
 
 
+class ScoringConfig(BaseModel):
+    """S-0 deterministic composite weights, plus the backend selector for the scoring ladder
+    (`docs/implementation/sprint_v2_s4_options.md` §3). Ranks only — see `CandidateScorer`."""
+
+    model_config = ConfigDict(frozen=True)
+
+    backend: Literal["composite", "null", "judge", "learned"] = "composite"
+    w_pass: float = 1.0
+    #: Δcoverage placeholder until a `Toolchain` adapter lands (v2-S6). Zero by default so an
+    #: unmeasurable delta cannot silently move a ranking.
+    w_coverage: float = 0.0
+    w_diff: float = 0.2
+    #: `no_new_suppressions` is already a hard gate — a candidate that fails it is never
+    #: admitted, so scoring it here would double-count a decision admission already made.
+    #: Zero by default; kept configurable for a future profile that gates differently.
+    w_suppression: float = 0.0
+
+
 class SearchConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -290,6 +317,24 @@ class SearchConfig(BaseModel):
     #: through the remaining repair rounds — cheaper, and a branch that fails gate 1 of N
     #: rarely recovers by round 2.
     prune_on_first_gate_fail: bool = True
+    #: `sequential` (default, CPU-inference safe) runs candidates one at a time in their own
+    #: worktree; `parallel` launches concurrently, bounded by inference capacity — see
+    #: `ModelTierConfig.max_concurrent_requests`. Config-driven rather than hardware-sniffed so
+    #: a run stays deterministic and replayable regardless of the host it executes on.
+    launch_mode: Literal["sequential", "parallel"] = "sequential"
+    #: Delay between candidate launches in `parallel` mode. `0.0` under `sequential` (unused).
+    stagger_s: float = 0.0
+    #: In `parallel` mode, cancel remaining launches once one candidate admits cleanly.
+    cancel_on_clean_admit: bool = True
+    #: `escalating` (default) widens the repair ladder per `escalate_*` thresholds;
+    #: `fixed` always runs exactly `max_repair_rounds`. `"bandit"` is deliberately absent — no
+    #: learned router until label volume exists (ADR-0005 cold-start doctrine).
+    n_policy: Literal["fixed", "escalating"] = "escalating"
+    #: Per-candidate sampling temperature, cycled by candidate index (`i % len(...)`). Without
+    #: this, N candidates from one local model at one temperature are near-identical diffs and
+    #: Best-of-N degenerates into single-shot at N× cost — see `diversity_ratio` (S4.2d).
+    candidate_temperatures: tuple[float, ...] = (0.0, 0.6, 0.9)
+    scoring: ScoringConfig = Field(default_factory=ScoringConfig)
 
 
 class GatesConfig(BaseModel):
@@ -354,6 +399,20 @@ class HookConfig(BaseModel):
     timeout_ms: int = 5000
 
 
+class ExportConfig(BaseModel):
+    """`sagiha export` hygiene defaults — see `docs/04-workflows-and-loops/trace-distillation.md`."""
+
+    model_config = ConfigDict(frozen=True)
+
+    #: Reasoning blocks are excluded by default: provider terms often prohibit
+    #: distillation-bearing export of extended-thinking content. Local-tier traces carry no
+    #: such restriction and may opt in explicitly (also gated per-tier by
+    #: `ModelTierConfig.allow_reasoning_export`).
+    include_reasoning: bool = False
+    #: The exported repo's SPDX identifier — `None` fails closed (`export/license.py`).
+    spdx_license: str | None = None
+
+
 class Config(BaseModel):
     """Normalized, validated system configuration — see docs/05-tech-stack/configuration-reference.md."""
 
@@ -412,6 +471,7 @@ class Config(BaseModel):
     aoi: AOIConfig = Field(default_factory=AOIConfig)
     mcp_servers: list[MCPServerConfig] = Field(default_factory=lambda: list[MCPServerConfig]())
     hooks: list[HookConfig] = Field(default_factory=lambda: list[HookConfig]())
+    export: ExportConfig = Field(default_factory=ExportConfig)
 
     @model_validator(mode="after")
     def validate_security_invariants(self) -> Config:

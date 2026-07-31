@@ -5,12 +5,19 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import shlex
+import uuid
 from pathlib import Path
 from typing import Any
 
 import anyio
 
-from sagiha.domain.benchmark import BenchmarkSuite, HarvestedTask
+from sagiha.domain.benchmark import (
+    BenchmarkSuite,
+    HarvestedTask,
+    SuiteValidation,
+    TaskValidation,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +99,95 @@ class Harvester:
             diff_summary=info["subject"],
             failing_test_cmd=f"{self._test_cmd} {' '.join(info['test_files'])}",
             files_changed=info["all_files"],
+            test_files=tuple(info["test_files"]),
+            source_files=tuple(info["source_files"]),
         )
+
+    async def validate_task(self, task: HarvestedTask, *, k_determinism: int = 3) -> TaskValidation:
+        """The harvester's own honesty gate (`docs/06-guides-and-patterns/benchmark-curation.md`).
+
+        A task is valid iff, in a scratch worktree at `base_commit`:
+
+        1. Applying the fix commit's test-file changes (retaining the new/changed tests, not
+           the source fix) makes `failing_test_cmd` reproduce the failure.
+        2. That failure is deterministic — rerun `k_determinism` times; any pass among the
+           reruns rejects the task as flaky. *Verify flakiness before inclusion, not after.*
+        3. Applying the fix commit's source-file changes on top makes `failing_test_cmd` pass —
+           the revert is clean and the recorded fix actually resolves what it claims to.
+        """
+        from sagiha.adapters.workspace.worktree import GitWorktreeManager
+
+        if not task.test_files or not task.source_files:
+            return TaskValidation(task_id=task.task_id, passed=False, reason="missing_file_split")
+
+        manager = GitWorktreeManager(str(self._repo_dir))
+        branch_id = f"validate-{task.task_id}-{uuid.uuid4().hex[:8]}"
+        try:
+            workspace = await manager.allocate(task.base_commit, branch_id, run_id=task.task_id)
+        except Exception as exc:  # noqa: BLE001 - reported as an honest validation failure, not raised
+            return TaskValidation(task_id=task.task_id, passed=False, reason=f"allocate_failed:{exc}")
+
+        try:
+            checkout_tests = await workspace.run(
+                ["git", "checkout", task.target_commit, "--", *task.test_files]
+            )
+            if checkout_tests.exit_code != 0:
+                return TaskValidation(task_id=task.task_id, passed=False, reason="test_checkout_failed")
+
+            test_argv = shlex.split(task.failing_test_cmd)
+            determinism_failures = 0
+            for _ in range(max(1, k_determinism)):
+                result = await workspace.run(test_argv)
+                if result.exit_code != 0:
+                    determinism_failures += 1
+
+            if determinism_failures == 0:
+                return TaskValidation(
+                    task_id=task.task_id,
+                    passed=False,
+                    reason="failure_did_not_reproduce",
+                    determinism_runs=k_determinism,
+                    determinism_failures=determinism_failures,
+                )
+            if determinism_failures != k_determinism:
+                return TaskValidation(
+                    task_id=task.task_id,
+                    passed=False,
+                    reason="flaky_failure",
+                    determinism_runs=k_determinism,
+                    determinism_failures=determinism_failures,
+                )
+
+            checkout_source = await workspace.run(
+                ["git", "checkout", task.target_commit, "--", *task.source_files]
+            )
+            if checkout_source.exit_code != 0:
+                return TaskValidation(
+                    task_id=task.task_id,
+                    passed=False,
+                    reason="source_checkout_failed",
+                    determinism_runs=k_determinism,
+                    determinism_failures=determinism_failures,
+                )
+
+            fixed_result = await workspace.run(test_argv)
+            if fixed_result.exit_code != 0:
+                return TaskValidation(
+                    task_id=task.task_id,
+                    passed=False,
+                    reason="fix_did_not_resolve",
+                    determinism_runs=k_determinism,
+                    determinism_failures=determinism_failures,
+                )
+
+            return TaskValidation(
+                task_id=task.task_id,
+                passed=True,
+                determinism_runs=k_determinism,
+                determinism_failures=determinism_failures,
+            )
+        finally:
+            await manager.release(branch_id, run_id=task.task_id)
 
     async def harvest_suite(self, suite_id: str = "s0-baseline") -> BenchmarkSuite:
         commits = await self.list_recent_commits()
@@ -111,6 +206,38 @@ class Harvester:
             repo=str(self._repo_dir),
             tasks=tuple(tasks),
         )
+
+    async def validate_suite(
+        self,
+        suite: BenchmarkSuite,
+        *,
+        min_tasks: int = 30,
+        k_determinism: int = 3,
+    ) -> tuple[BenchmarkSuite, SuiteValidation]:
+        """Validate every task in `suite`, returning a suite containing only the valid ones.
+
+        The E0 slice gate (`docs/07-roadmap/phased-migration-matrix.md`): "harvester produces
+        ≥30 valid tasks; zero tasks whose base commit fails to revert cleanly." `SuiteValidation.passed`
+        checks the count; every individual `TaskValidation` in the result records why a task was
+        dropped, so a suite that fails the gate is a diagnosable failure, not a silent shrink.
+        """
+        results: list[TaskValidation] = []
+        valid_tasks: list[HarvestedTask] = []
+        for task in suite.tasks:
+            validation = await self.validate_task(task, k_determinism=k_determinism)
+            results.append(validation)
+            if validation.passed:
+                valid_tasks.append(task.model_copy(update={"validated": True, "validation_reason": None}))
+
+        validated_suite = suite.model_copy(update={"tasks": tuple(valid_tasks)})
+        suite_validation = SuiteValidation(
+            suite_id=suite.suite_id,
+            total_tasks=len(suite.tasks),
+            valid_tasks=len(valid_tasks),
+            min_tasks_required=min_tasks,
+            task_results=tuple(results),
+        )
+        return validated_suite, suite_validation
 
     @staticmethod
     def save_suite(suite: BenchmarkSuite, dest_path: str | Path) -> None:

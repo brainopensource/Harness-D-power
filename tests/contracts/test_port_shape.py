@@ -178,6 +178,10 @@ def test_all_datetimes_are_aware() -> None:
 
 
 def test_at_least_every_port_module_was_discovered() -> None:
-    """Guards against the walker silently finding zero ports (e.g. a broken pkgutil path)."""
+    """Guards against the walker silently finding zero ports (e.g. a broken pkgutil path).
+
+    17, not 19: ADR-0024 deleted `CommitReplayHarvester`/`TaskRunner` (`ports/benchmark.py`) —
+    the `layers` import contract forbids the adapter that port would have needed.
+    """
     protocols = _iter_port_protocols()
-    assert len(protocols) == 19, f"expected exactly 19 ports (ADR-0019), found {len(protocols)}: {protocols}"
+    assert len(protocols) == 17, f"expected exactly 17 ports (ADR-0024), found {len(protocols)}: {protocols}"

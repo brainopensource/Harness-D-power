@@ -99,20 +99,20 @@ Execute the following development plan sequentially. Mark tasks as done (`- [x]`
 
 ### Sprint FE-1 — Shared Design System & Protocol Primitives (`@sagiha/ui` & `@sagiha/protocol`)
 
-- [ ] **Task FE-1.1 — Design Tokens & HSL Theme System**
+- [x] **Task FE-1.1 — Design Tokens & HSL Theme System**
   - Path: `frontend/packages/ui/src/tokens/`
   - Implement color tokens (Cyber Dark `#0A0D14`, Neon Violet `#8B5CF6`, Taint Emerald `#10B981`, Warning Amber `#F59E0B`, Danger Crimson `#EF4444`).
   - Configure Tailwind CSS v4 in `@sagiha/ui`.
 
-- [ ] **Task FE-1.2 — Domain Protocol Schemas & TypeScript Types**
+- [x] **Task FE-1.2 — Domain Protocol Schemas & TypeScript Types**
   - Path: `frontend/packages/protocol/src/schemas/`
   - Re-export Pydantic domain models from `src/sagiha/domain/`: `RunContext`, `GateReport`, `TokenUsage`, `CostSummary`, `FrozenRunState`, `TrajectoryStep`, `TaskSpec`, `StoryBoard`.
 
-- [ ] **Task FE-1.3 — Core UI Atomic Components**
+- [x] **Task FE-1.3 — Core UI Atomic Components**
   - Path: `frontend/packages/ui/src/components/atoms/`
   - Build `StatusBadge` (Idle/Running/Frozen/Tainted), `TokenGauge`, `MetricCard`, `CodeSnippet`, `Button`, `IconButton`.
 
-- [ ] **Task FE-1.4 — Unit Test Suite for Shared Components**
+- [x] **Task FE-1.4 — Unit Test Suite for Shared Components**
   - Path: `frontend/packages/ui/src/__tests__/`
   - Verify rendering and props using `@testing-library/react` and `vitest`.
 
@@ -120,16 +120,16 @@ Execute the following development plan sequentially. Mark tasks as done (`- [x]`
 
 ### Sprint FE-2 — `@sagiha/mock-engine` & WebSocket Transport
 
-- [ ] **Task FE-2.1 — Mock Event Stream Generator**
+- [x] **Task FE-2.1 — Mock Event Stream Generator**
   - Path: `frontend/packages/mock-engine/src/simulator.ts`
   - Simulate real-time backend WebSocket events (`StepCompleted`, `CompactionApplied`, `TaintIntroduced`, `GateEvaluated`, `ProviderFailover`).
 
-- [ ] **Task FE-2.2 — Unified Client & Zustand State Store**
+- [x] **Task FE-2.2 — Unified Client & Zustand State Store**
   - Path: `frontend/packages/protocol/src/client/` & `frontend/packages/protocol/src/store/`
   - Build `SagihaClient` supporting WebSocket streaming and REST fallback.
   - Implement Zustand store (`useHarnessStore`) for run control, step history, memory inspection, and gate status.
 
-- [ ] **Task FE-2.3 — Integration Tests for Protocol Store**
+- [x] **Task FE-2.3 — Integration Tests for Protocol Store**
   - Path: `frontend/packages/protocol/src/__tests__/`
   - Verify state updates under high-throughput simulated event streams.
 
@@ -137,19 +137,19 @@ Execute the following development plan sequentially. Mark tasks as done (`- [x]`
 
 ### Sprint FE-3 — Terminal TUI Cockpit (`@sagiha/cli` with React Ink)
 
-- [ ] **Task FE-3.1 — TUI Primitives Adapter**
+- [x] **Task FE-3.1 — TUI Primitives Adapter**
   - Path: `frontend/apps/cli/src/components/`
   - Wrap Ink components (`<Box>`, `<Text>`, `<Spinner>`) to consume `@sagiha/ui` design tokens and state models.
 
-- [ ] **Task FE-3.2 — Interactive Agent Cockpit TUI**
+- [x] **Task FE-3.2 — Interactive Agent Cockpit TUI**
   - Path: `frontend/apps/cli/src/views/CockpitView.tsx`
   - Display live execution step log, token spend counter, active tools, and gate status.
 
-- [ ] **Task FE-3.3 — Keyboard Navigation & Steering Input**
+- [x] **Task FE-3.3 — Keyboard Navigation & Steering Input**
   - Path: `frontend/apps/cli/src/views/SteerInput.tsx`
   - Implement keyboard shortcuts (`[P]` Pause/Freeze, `[R]` Resume, `[S]` Steer/Interrupt, `[A]` Approve Taint Mutation, `[Q]` Quit).
 
-- [ ] **Task FE-3.4 — CLI Build & Smoke Tests**
+- [x] **Task FE-3.4 — CLI Build & Smoke Tests**
   - Path: `frontend/apps/cli/src/__tests__/`
   - Verify CLI build (`pnpm --filter @sagiha/cli build`) and execution under `ink-testing-library`.
 
@@ -157,19 +157,19 @@ Execute the following development plan sequentially. Mark tasks as done (`- [x]`
 
 ### Sprint FE-4 — Linux Desktop GUI Shell (`@sagiha/gui` with Tauri v2 + React)
 
-- [ ] **Task FE-4.1 — Tauri v2 Shell Configuration**
+- [x] **Task FE-4.1 — Tauri v2 Shell Configuration**
   - Path: `frontend/apps/gui/src-tauri/`
   - Configure native Linux window settings, titlebar styling, system tray, and Rust IPC handlers.
 
-- [ ] **Task FE-4.2 — Main Navigation Layout & Sidebar**
+- [x] **Task FE-4.2 — Main Navigation Layout & Sidebar**
   - Path: `frontend/apps/gui/src/layouts/MainLayout.tsx`
   - Build collapsible sidebar with navigation: Cockpit, Story-DAG, Context & Memory, Code Intelligence, Governor & Benchmarks, AETHER Swarm.
 
-- [ ] **Task FE-4.3 — Real-Time Agent Control Dashboard**
+- [x] **Task FE-4.3 — Real-Time Agent Control Dashboard**
   - Path: `frontend/apps/gui/src/views/CockpitDashboard.tsx`
   - Implement control panel: Run/Pause/Resume buttons, live event stream feed, spend ledger, step timeline, and tool call breakdown.
 
-- [ ] **Task FE-4.4 — GUI Build & Vitest Verification**
+- [x] **Task FE-4.4 — GUI Build & Vitest Verification**
   - Path: `frontend/apps/gui/src/__tests__/`
   - Run `pnpm --filter @sagiha/gui build` and verify green build output.
 
@@ -177,23 +177,23 @@ Execute the following development plan sequentially. Mark tasks as done (`- [x]`
 
 ### Sprint FE-5 — Advanced Cockpit Visualizers
 
-- [ ] **Task FE-5.1 — Story-DAG & Workflow Node Editor**
+- [x] **Task FE-5.1 — Story-DAG & Workflow Node Editor**
   - Path: `frontend/apps/gui/src/views/DagVisualizer.tsx`
   - Render interactive node-graph of stories, subtasks, disjoint code closures, and gate checkpoints using TanStack Flow / SVG graph engine.
 
-- [ ] **Task FE-5.2 — Prompt Layer & Exchange Compactor Inspector**
+- [x] **Task FE-5.2 — Prompt Layer & Exchange Compactor Inspector**
   - Path: `frontend/apps/gui/src/views/ContextInspector.tsx`
   - Visual breakdown of Layers 1–7, token headroom gauge (20%), prefix digest cache hits, and summary turns.
 
-- [ ] **Task FE-5.3 — Safety & Monotonic Taint Approval UI**
+- [x] **Task FE-5.3 — Safety & Monotonic Taint Approval UI**
   - Path: `frontend/apps/gui/src/views/TaintApprovalModal.tsx`
   - Display untrusted data source envelope (`<untrusted-data>`) and pending mutation requests (`apply_edit`, `write_file`) requiring human approval.
 
-- [ ] **Task FE-5.4 — Code Intelligence & Tree-Sitter Viewer**
+- [x] **Task FE-5.4 — Code Intelligence & Tree-Sitter Viewer**
   - Path: `frontend/apps/gui/src/views/CodeIntelView.tsx`
   - Render symbol tree, file skeletons, and AST call/import edges with search filter.
 
-- [ ] **Task FE-5.5 — Benchmark & Dataset Exporter View**
+- [x] **Task FE-5.5 — Benchmark & Dataset Exporter View**
   - Path: `frontend/apps/gui/src/views/ExporterView.tsx`
   - Display A/A floor metrics, BoN pass rates, cassette player, and export options for SFT/DPO JSONL datasets.
 
@@ -201,14 +201,14 @@ Execute the following development plan sequentially. Mark tasks as done (`- [x]`
 
 ### Sprint FE-6 — AETHER Swarm Orchestrator & Final Polish
 
-- [ ] **Task FE-6.1 — AETHER Swarm & Self-Improvement Overview**
+- [x] **Task FE-6.1 — AETHER Swarm & Self-Improvement Overview**
   - Path: `frontend/apps/gui/src/views/AetherSwarmView.tsx`
   - Multi-agent swarm topology monitor, memory exchange graph, and Conductor self-evolution stats.
 
-- [ ] **Task FE-6.2 — Performance Tuning & Bundle Optimization**
+- [x] **Task FE-6.2 — Performance Tuning & Bundle Optimization**
   - Code splitting, dynamic imports for heavy visualizers, asset optimization, zero-lag WebSocket rendering.
 
-- [ ] **Task FE-6.3 — Comprehensive Monorepo Verification**
+- [x] **Task FE-6.3 — Comprehensive Monorepo Verification**
   - Run `pnpm typecheck && pnpm lint && pnpm test` across all packages (`@sagiha/ui`, `@sagiha/protocol`, `@sagiha/mock-engine`, `@sagiha/cli`, `@sagiha/gui`).
 
 ---

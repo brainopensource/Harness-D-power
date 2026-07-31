@@ -98,6 +98,36 @@ jobs:
       # ran in CI; `fail_under = 80` in pyproject.toml was configured and never applied (D29).
       - run: pytest tests/ -v --cov=src/sagiha --cov-report=term-missing
 
+  bench-aa:
+    name: E0 A/A Noise Floor (v2-S4)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install uv && uv pip install --system -e ".[dev]"
+      # `benchmarks/definitions/s0-core.json` does not exist yet — populating it requires a
+      # real harvest+validate pass and a recorded cassette, which is an operational step, not
+      # a CI-authorable one (see docs/rationale/benchmarks/noise-floor.md). This job is a
+      # no-op until that suite is committed, so it does not block on work nobody has done yet;
+      # once the suite lands, drop the existence guard so the job runs unconditionally.
+      - name: Run A/A calibration against the pinned suite, if committed
+        run: |
+          SUITE=benchmarks/definitions/s0-core.json
+          if [ ! -f "$SUITE" ]; then
+            echo "::notice::$SUITE not committed yet — skipping bench-aa (see noise-floor.md)"
+            exit 0
+          fi
+          uv run sagiha bench --suite "$SUITE" --mode replay --aa --runs 2 \
+            --output docs/rationale/benchmarks/noise-floor.md
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bench-aa-report
+          path: docs/rationale/benchmarks/noise-floor.md
+          if-no-files-found: ignore
+
   replay:
     name: Replay Determinism Verification
     runs-on: ubuntu-latest

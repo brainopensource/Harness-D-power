@@ -1,0 +1,10 @@
+{
+  "description": "Known-answer exact two-sided McNemar test cases, hand-verified via the exact binomial formula (math.comb), not scipy.",
+  "cases": [
+    {"b": 10, "c": 3, "expected_p": 0.09228515625},
+    {"b": 0, "c": 0, "expected_p": 1.0},
+    {"b": 5, "c": 5, "expected_p": 1.0},
+    {"b": 1, "c": 0, "expected_p": 1.0},
+    {"b": 8, "c": 0, "expected_p": 0.0078125}
+  ]
+}

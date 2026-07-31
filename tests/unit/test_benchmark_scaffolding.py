@@ -1,11 +1,13 @@
-"""Unit tests for Block 2 scaffolding — benchmark domain models and adapter placeholders."""
+"""Unit tests for benchmark domain models.
+
+`adapters/benchmark/` and `ports/benchmark.py` were deleted (ADR-0024) — `e0/` is the sole
+implementation and its own tests live in `test_harvester.py`, `test_benchmark_runner.py`, and
+`test_e0_statistics.py`. This file keeps only the domain-model round-trip coverage that has nothing
+to do with the deleted stub adapters.
+"""
 
 from __future__ import annotations
 
-import pytest
-
-from sagiha.adapters.benchmark.harvester import GitCommitHarvester
-from sagiha.adapters.benchmark.runner import LocalTaskRunner
 from sagiha.domain.benchmark import (
     BenchmarkResult,
     BenchmarkSuite,
@@ -32,6 +34,7 @@ def test_harvested_task_model_round_trip() -> None:
     assert restored.task_id == task.task_id
     assert restored.base_commit == task.base_commit
     assert restored.files_changed == ("src/x.py",)
+    assert restored.validated is False
 
 
 def test_benchmark_result_model_round_trip() -> None:
@@ -59,42 +62,3 @@ def test_benchmark_suite_model_round_trip() -> None:
     restored = BenchmarkSuite.model_validate_json(serialized)
     assert len(restored.tasks) == 1
     assert restored.tasks[0].task_id == "task-001"
-
-
-@pytest.mark.asyncio
-async def test_harvester_returns_empty_list() -> None:
-    harvester = GitCommitHarvester()
-    tasks = await harvester.harvest("/tmp/fake-repo")
-    assert tasks == []
-
-
-@pytest.mark.asyncio
-async def test_harvester_validate_returns_false() -> None:
-    harvester = GitCommitHarvester()
-    task = _make_task()
-    valid = await harvester.validate_task(task, "/tmp/fake-repo")
-    assert valid is False
-
-
-@pytest.mark.asyncio
-async def test_runner_returns_not_implemented() -> None:
-    runner = LocalTaskRunner()
-    task = _make_task()
-    result = await runner.run_task(task, "test-agent")
-    assert result.resolved is False
-    assert result.error is not None
-    assert "Not implemented" in result.error
-
-
-@pytest.mark.asyncio
-async def test_runner_suite_completes() -> None:
-    runner = LocalTaskRunner()
-    task = _make_task()
-    suite = BenchmarkSuite(
-        suite_id="suite-001",
-        repo="test",
-        tasks=(task,),
-    )
-    run = await runner.run_suite(suite, "test-agent")
-    assert run.status == "completed"
-    assert len(run.results) == 1

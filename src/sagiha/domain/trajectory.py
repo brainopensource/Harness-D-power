@@ -64,6 +64,12 @@ class TrajectoryStep(BaseModel):
             usd=0.0, input_tokens=0, output_tokens=0, wall_clock_s=0.0, model_calls=0
         )
     )
+    #: `AssembledPrompt.stable_prefix_digest` (layers 1-6) at the moment this step's request was
+    #: assembled — the machine-checkable form of "identical prefixes" the v2-S4 trace exporter
+    #: needs to group Best-of-N siblings into DPO pairs (`trace-distillation.md`). Empty for
+    #: steps recorded before this field existed; an empty digest never matches another empty
+    #: digest for pairing purposes (the exporter treats `""` as "no digest", not as a group).
+    prefix_digest: str = ""
     timestamp: datetime = Field(default_factory=utc_now)
 
 

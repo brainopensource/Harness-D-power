@@ -123,6 +123,7 @@ The **requested / authorized** split is deliberate: it makes the policy decision
 | `budget.exhausted` | `spent_usd`, `limit_usd`, `limit_kind` | ResourceGovernor | TS UI HK | ✅ |
 | `benchmark.task_harvested` | `task_id`, `repo` | Harvester | TS OT UI | ✅ |
 | `benchmark.task_completed` | `task_id`, `agent_id`, `resolved` | TaskRunner | TS OT UI MI | ✅ |
+| `replay.verified` | `replay_run_id` | CLI | TS OT | ✅ |
 
 `approval.requested` is the only event whose delivery blocks the run — it is a question, and the run cannot proceed without the answer. Every other event is fire-and-observe.
 

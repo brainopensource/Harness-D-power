@@ -59,6 +59,16 @@ logger = logging.getLogger(__name__)
 
 _STUCK_REPEAT_THRESHOLD = 3
 
+#: The default system prompt every `RunLoop` uses unless a caller overrides it — no caller in
+#: this tree does. Named so the v2-S4 trace exporter (`outer_loop/export/sft.py`) can reconstruct
+#: a step's assembled request with the same prompt the live run actually saw, rather than a
+#: duplicated copy that could silently drift from this one.
+DEFAULT_SYSTEM_PROMPT = (
+    "You are an autonomous software developer agent. "
+    "To solve the task, you MUST use the provided tools (apply_edit, run_command). "
+    "When creating or editing a file, call apply_edit directly instead of conversational text."
+)
+
 
 @dataclass
 class RunLoopResult:
@@ -92,17 +102,15 @@ class RunLoop:
         bus: EventBus,
         *,
         max_steps: int = 20,
-        system_prompt: str = (
-            "You are an autonomous software developer agent. "
-            "To solve the task, you MUST use the provided tools (apply_edit, run_command). "
-            "When creating or editing a file, call apply_edit directly instead of conversational text."
-        ),
+        system_prompt: str = DEFAULT_SYSTEM_PROMPT,
         tool_schemas: list[ToolSchema] | None = None,
         evaluator: Evaluator | None = None,
         workspace: Workspace | None = None,
         pricing: PricingConfig | None = None,
         context: ContextConfig | None = None,
         compactor: ExchangeCompactor | None = None,
+        branch_id: str = "main",
+        temperature: float | None = None,
     ) -> None:
         self._model = model_provider
         self._policy = policy_engine
@@ -114,6 +122,17 @@ class RunLoop:
         self._system_prompt = system_prompt
         self._tool_schemas = tool_schemas or []
         self._workspace = workspace
+        #: Candidate identity within a Best-of-N `run_id` (StepId's DAG shape already supports
+        #: sibling branches — see `domain/identity.py::StepId`). Single-shot callers never set
+        #: this and get the same `"main"` every prior run used.
+        self._branch_id = branch_id
+        #: Sampling temperature applied to every model call this loop makes. `None` (the
+        #: default) leaves `ModelRequest.temperature` at whatever the assembler set (unset,
+        #: today) — single-shot callers never set this. Best-of-N sets a distinct value per
+        #: candidate (`SearchConfig.candidate_temperatures`) so siblings are not near-identical
+        #: samples of one deterministic model call, which would make Best-of-N cost N× for the
+        #: diversity of single-shot (`diversity_ratio`, v2-S4 Epic S4.2d).
+        self._temperature = temperature
         self._pricing = pricing or PricingConfig()
         self._context_config = context or ContextConfig()
         self._compactor = compactor
@@ -319,7 +338,7 @@ class RunLoop:
 
             step_id = StepId(
                 run_id=ctx.run_id,
-                branch_id="main",
+                branch_id=self._branch_id,
                 seq=seq,
                 parent=str(seq - 1) if seq > 1 else None,
             )
@@ -344,6 +363,8 @@ class RunLoop:
                     )
                 )
             request = assembled.request
+            if self._temperature is not None:
+                request = request.model_copy(update={"temperature": self._temperature})
             digest = hashlib.sha256(request.model_dump_json().encode()).hexdigest()
             await self._bus.emit(
                 ModelCallStarted(
@@ -408,7 +429,13 @@ class RunLoop:
                 # see it assembles a different prompt than the one that was recorded
                 # (the other half of RC-4 — `from_trajectory` now reads these back).
                 assembler.append_exchange(response, ())
-                final_step = TrajectoryStep(step_id=step_id, message=response, usage=usage, cost=step_cost)
+                final_step = TrajectoryStep(
+                    step_id=step_id,
+                    message=response,
+                    usage=usage,
+                    cost=step_cost,
+                    prefix_digest=assembled.stable_prefix_digest,
+                )
                 await self._trajectory.append_step(final_step)
                 await self._bus.emit(StepCompleted(run_id=ctx.run_id, step_id=step_id, step=final_step))
                 steps.append(final_step)
@@ -484,6 +511,7 @@ class RunLoop:
                 message=response,
                 usage=usage,
                 cost=step_cost,
+                prefix_digest=assembled.stable_prefix_digest,
             )
             await self._trajectory.append_step(step)
             await self._bus.emit(StepCompleted(run_id=ctx.run_id, step_id=step_id, step=step))

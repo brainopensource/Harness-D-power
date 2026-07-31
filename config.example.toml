@@ -38,6 +38,10 @@ provider    = "openai-compatible"
 model       = "qwen2.5-coder-32b"
 base_url    = "http://localhost:11434/v1"
 max_tokens  = 8192
+# How many concurrent requests this endpoint can actually serve — bounds
+# [search] launch_mode="parallel" concurrency so N candidates against a
+# single-threaded Ollama get one candidate served N times, not N at once.
+max_concurrent_requests = 1
 
 # Role → call-site defaults. Override per profile with `model_role`.
 [model.roles]
@@ -154,6 +158,22 @@ max_repair_rounds  = 2
 escalate_after_failures = 2         # System 1 → System 2 trigger
 escalate_on_files  = 3
 escalate_on_diff_lines = 150
+# sequential (default) runs candidates one at a time in their own worktree — safe on a
+# single-threaded local model. parallel launches concurrently, bounded by
+# min(governor.max_concurrent_sandboxes, model.tiers.<candidates-role>.max_concurrent_requests).
+# See sagiha.cpu.example.toml / sagiha.gpu.example.toml for the two committed profiles.
+launch_mode        = "sequential"   # sequential | parallel
+stagger_s          = 0.0            # delay between launches under parallel mode
+cancel_on_clean_admit = true        # cancel remaining launches once one candidate admits cleanly
+n_policy           = "escalating"   # escalating | fixed
+candidate_temperatures = [0.0, 0.6, 0.9]  # per-candidate sampling temperature, cycled by index
+
+[search.scoring]
+backend      = "composite"          # composite | null | judge | learned
+w_pass       = 1.0
+w_coverage   = 0.0                   # placeholder until a Toolchain adapter ships (v2-S6)
+w_diff       = 0.2
+w_suppression = 0.0                  # no_new_suppressions is already a hard gate
 
 # ─── Gates ───────────────────────────────────────────────────────────────────
 [gates]

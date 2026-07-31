@@ -486,6 +486,23 @@ class BenchmarkTaskCompleted(Event):
     consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI", "MI")
 
 
+class ReplayVerified(Event):
+    """The cassette-recorded requests of `run_id` reproduce exactly under digest-checked replay.
+
+    Emitted against the ORIGINAL run's `run_id` (the base `Event.run_id`), not the fresh
+    ephemeral run `sagiha replay --verify` mints to perform the check — `replay_run_id` carries
+    that one, for audit trail. Without this event, "replay-verified" (one of the exporter's four
+    eligibility criteria, v2-S4 Epic S4.4) has no durable signal to check for a real run.
+    """
+
+    event: Literal["replay.verified"] = "replay.verified"
+    replay_run_id: str
+
+    group: ClassVar[str] = "Evaluation & Control"
+    emitted_by: ClassVar[str] = "CLI"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "OT")
+
+
 ALL_EVENTS: tuple[type[Event], ...] = (
     RunStarted,
     RunCompleted,
@@ -524,5 +541,6 @@ ALL_EVENTS: tuple[type[Event], ...] = (
     TaskRevised,
     BenchmarkTaskHarvested,
     BenchmarkTaskCompleted,
+    ReplayVerified,
 )
 """Source of truth for docs/04-workflows-and-loops/event-catalog.md — see scripts/gen_event_catalog.py."""

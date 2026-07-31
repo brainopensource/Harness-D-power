@@ -1,0 +1,17 @@
+{
+  "description": "Holm-Bonferroni step-down correction, hand-computed against the standard algorithm (sort ascending, multiply by (m-rank), enforce monotonicity by running max).",
+  "cases": [
+    {
+      "pvalues": [0.01, 0.04, 0.03, 0.005, 0.02],
+      "expected_adjusted": [0.04, 0.06, 0.06, 0.025, 0.06]
+    },
+    {
+      "pvalues": [0.05],
+      "expected_adjusted": [0.05]
+    },
+    {
+      "pvalues": [],
+      "expected_adjusted": []
+    }
+  ]
+}
