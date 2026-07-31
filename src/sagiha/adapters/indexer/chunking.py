@@ -149,7 +149,7 @@ def _walk(
         )
 
 
-def chunk_python_source(
+def analyze_python_source(
     path: str,
     source: bytes,
     *,
@@ -170,6 +170,17 @@ def chunk_python_source(
         symbols=symbols,
     )
     return chunks, symbols
+
+
+def chunk_python_source(
+    path: str,
+    source: bytes,
+    *,
+    max_chunk_tokens: int = 1024,
+) -> list[Chunk]:
+    """AST-bounded chunks only (task interface). Prefer `analyze_python_source` when symbols needed."""
+    chunks, _ = analyze_python_source(path, source, max_chunk_tokens=max_chunk_tokens)
+    return chunks
 
 
 def skeleton_from_symbols(signatures: list[str]) -> str:

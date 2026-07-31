@@ -13,7 +13,7 @@ from pathlib import Path
 
 from anyio.to_thread import run_sync
 
-from sagiha.adapters.indexer.chunking import chunk_python_source, skeleton_from_symbols
+from sagiha.adapters.indexer.chunking import analyze_python_source, skeleton_from_symbols
 from sagiha.adapters.indexer.frontmatter import is_retrieval_excluded
 from sagiha.domain.content import Symbol
 from sagiha.domain.graph import RetrievalHit, SymbolRef
@@ -124,7 +124,7 @@ class FTS5Indexer:
         self, conn: sqlite3.Connection, path: str, source: bytes, *, max_chunk_tokens: int
     ) -> None:
         self._clear_path(conn, path)
-        chunks, symbols = chunk_python_source(path, source, max_chunk_tokens=max_chunk_tokens)
+        chunks, symbols = analyze_python_source(path, source, max_chunk_tokens=max_chunk_tokens)
         for ch in chunks:
             self._insert_chunk(
                 conn,
