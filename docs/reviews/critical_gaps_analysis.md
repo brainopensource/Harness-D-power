@@ -1,171 +1,282 @@
-# CRITICAL GAP ANALYSIS & AUDIT — SAGIHA (`Harness-D-power`)
+# NEXT-GEN HARNESS ARCHITECTURE SPEC — SAGIHA v2 Blueprint
 
-**Auditor role:** Senior Tech Lead, external adversarial review
-**Scope:** Full `docs/` tree (~100 files, ~147k words), `src/sagiha` (~5.7k LOC, 84 files), ADR log (18), sprint records, internal reviews (2026-07-28 architecture review, 2026-07-29 foundation review, 2026-07-30 final review)
-**Method:** Docs read against code, code read against claims, claims read against the competitive frontier (Claude Code, Grok Build, Cursor, Aider, Devin, OpenHands). Every verdict below is falsifiable against a file path or a measurement.
+**Status:** Proposed evolution of the audited `Harness-D-power` architecture. This spec *retains* the validated core (CAR layering, capability grants, hexagonal ports, record/replay, E0 statistics) and *rewrites* what the audit found broken, missing, or mis-sequenced. Section references `(→ Audit Wx / R-x)` point at the companion `CRITICAL_GAP_ANALYSIS_AND_AUDIT.md`.
 
----
-
-## 1. Executive Architectural Audit
-
-### 1.1 Verdict in one paragraph
-
-SAGIHA is the best-documented pre-product agent harness this reviewer has audited, and that is both its distinction and its pathology. The epistemics are genuinely superior to most shipped competitors: A/A noise-floor gating, multiple-comparison correction, commit-replay benchmark harvesting, capability grants verified at a single dispatch choke point, a Trusted Computing Base excluded from the self-improvement surface, cache-stability-ordered prompt layout, and record/replay determinism with `EffectClass`-aware safety. These are correct, SOTA-adjacent decisions that Claude Code and Grok Build do not publicly formalize. But the ratio is inverted: **~26 words of specification per line of code**, a Runtime layer that is an empty package, 21 ports backed by a handful of adapters, LSP/MCP/sandbox/retrieval/System-2/RHI all deferred, and a loop that first closed against a live model on 2026-07-30 — the day before this audit. The system's dominant risk is not any architectural flaw; it is **spec-mass outrunning empirical contact**, a failure mode the project's own foundation review named ("under-demonstrated at the core, over-specified at the periphery") and then partially repeated (seven frontend sprint documents exist; the sandbox does not).
-
-### 1.2 What is architecturally sound (validated, keep)
-
-| Decision | Assessment |
-| :--- | :--- |
-| **CAR layering + capability grants + single dispatch choke point** | Correct and mechanically enforced (`import-linter` contracts, `verify_grant` mandatory at point of effect, grants never crossing port signatures). This is stronger than the ambient-authority model of every mainstream CLI agent, where the loop process holds full user privileges and "permissions" are UX prompts. |
-| **Best-of-N + sequential repair, not MCTS (ADR-0005)** | Correct cost analysis. One expansion = full agent run + test suite; UCT's guarantees assume cheap rollouts. Verifier-guided BoN dominates shallow tree search at this cost profile. The PRM-as-prerequisite gating is the right dependency ordering. |
-| **Cache-stability-ordered context layout** | The rejection of percentage-based per-turn allocators is exactly right; byte-identical prefix economics dominate token-count economics by up to ~10× on input price. Few competitors document this; Claude Code's harness observably behaves this way, Aider's does not. |
-| **Record/replay determinism (ADR-0012) with digest-keyed cassettes + `EffectClass`** | The honest determinism claim (replay, not reproducible generation) plus DESTRUCTIVE-never-re-executed is the only sound way to make an agent kernel CI-testable at zero API cost. D2 (silent cassette index replay) was found and fixed internally — good immune system. |
-| **Evaluation architecture (E0)** | Pristine injected read-only tests, `tests_unmodified` as a hard gate, gates-admit/scores-rank separation, A/A noise floor before any accept/reject, commit-replay private split. This is more rigorous than the published evaluation practice of any competitor and is the project's genuine moat. |
-| **Split code-graph / episodic-graph (ADR-0011)** | Correct epistemics: deterministic facts from Tree-sitter/git must not pass through LLM extraction; bi-temporality only where facts actually age. "Git is already a bi-temporal store" is the sharpest sentence in the tree. |
-| **Threat model (T1–T6)** | Sandbox-is-the-perimeter, command-blocklisting-is-not-security, provenance tracking against memory laundering with a conformance test, deny-by-default durable approval gates. Above industry median. |
-| **Error taxonomy** | Typed errors, four dispositions, `EditRejected` as ordinary-not-exceptional. Most harnesses never specify this and abort runs one retry from success. |
-
-### 1.3 Structural weaknesses & anti-patterns
-
-#### W1 — Documentation as a load-bearing anti-pattern (severity: high, systemic)
-
-147k words of normative prose maintained against 5.7k LOC. The tree is explicitly designed to be read by retrieval ("a status note in a README does not survive chunking"), i.e., the docs are themselves the primary context payload for the LLM maintainer. Consequences:
-
-- **Context-rot exposure is self-inflicted.** The agent maintaining this repo must retrieve from a corpus 25× larger than the code it edits. Every doc is an attention tax and a drift surface. The SSOT discipline (contracts live only in `src/`) mitigates contract drift but not rationale drift — and rationale is 90% of the mass.
-- **The review culture recurses.** Reviews of reviews (`reviews/todo/`, `reviews/doing/`, `reviews/done/`, a review of the review naming conventions) consume the same finite build effort the reviews correctly diagnose as misallocated. The 2026-07-29 review's sharpest finding — "sequencing, not architecture" — applies to the review process itself.
-- **Recommendation:** hard cap normative doc mass (e.g., ≤15k words normative; everything else moves to `rationale/` and is excluded from agent retrieval by default), and adopt a *docs-shrink gate*: a sprint that adds N normative words must delete N elsewhere. The ADR log is the exception; it is cheap and high-value.
-
-#### W2 — The differentiating capabilities are all in the deferred set (severity: critical)
-
-The features that would distinguish SAGIHA from a naive tool loop — LSP diagnostics (`get_diagnostics`, `find_references`), the code graph (`impacted_by`), FTS5 retrieval, worktree-parallel System 2, container sandbox, MCP, sub-agents, compaction — are **uniformly Planned (Blocks 3–5)**. What exists today is: five built-in tools over a path-confined local workspace, a single-threaded ReAct loop, cassette replay, and one OpenAI-compatible provider adapter. That is approximately Aider circa 2023 minus the repo map, with vastly better plumbing. The architecture guarantees the deferrals are *cheap to reverse* (ports pre-shaped, conformance suites waiting) — that part is real — but the competitive matrix in §2 must be read with this in mind: **SAGIHA currently competes on evaluation honesty and security architecture, not on agent capability.**
-
-#### W3 — The context-layout model contradicts the agentic-retrieval reality (severity: high, design flaw)
-
-`prompt-architecture.md` places "Retrieved repository context" as semi-stable Layer 6, refreshed "when retrieval genuinely changes." But in the ReAct loop the harness actually runs, retrieval arrives as *tool results in the append-only tail* (`grep`, `read_file`, `find_symbols`) — the model pulls context agentically, exactly as Claude Code does and exactly as the tool catalog steers it to. Two problems follow:
-
-1. **Layer 6 is vestigial at runtime.** Pre-assembled retrieval competes with agentic retrieval for the same job; if both operate, tokens are paid twice and the model receives near-duplicate context with different freshness. The doc never specifies which mechanism is authoritative when.
-2. **Refreshing Layer 6 mid-task invalidates the cache for Layers 6–8** — the entire conversation tail — which is the single most expensive cache event possible, worse than compaction (which at least reclaims window). The doc's own logic ("order by stability") argues for demoting pre-assembled retrieval to *initial seeding only*, with all subsequent retrieval agentic and tail-resident. This should be made normative.
-
-#### W4 — Compaction spec is numerically concrete but structurally naive (severity: medium-high)
-
-The R9 numbers (20% headroom, keep-first-2, keep-last-6) are a welcome escape from prose, but:
-
-- **Turns are not token-uniform.** Keep-last-6 verbatim can be 60k tokens of test logs or 600 tokens of chat; a turn-count policy has unbounded variance in what it preserves. The keep policy must be token-budgeted (e.g., keep-last up to X tokens, whole-turn granularity), or the 20% headroom trigger will fire immediately after its own compaction.
-- **Provider block-pairing constraints are unaddressed.** Anthropic- and OpenAI-class APIs reject a `tool_result` whose paired `tool_use` was summarized away (and signed reasoning blocks, which the tree elsewhere correctly says must round-trip verbatim, cannot survive a summarization boundary mid-sequence). The compaction boundary must fall only on *complete* assistant→tool_result exchange units. The doc that gets reasoning-block transport exactly right (`context-and-cache-engineering.md`) does not connect that constraint to the compactor.
-- **No anchored-artifact model.** SOTA compaction (observable in Claude Code) preserves *typed artifacts* — the plan, the file-set under edit, unresolved diagnostics — as structured state outside the summarized transcript. Layer 7 (plan state) does this for plans only; open-file set and diagnostic state should be lifted to the same status rather than hoping the summary retains them.
-
-#### W5 — `EffectClass` granularity is per-tool, and it is wrong for the most-used tool (severity: medium)
-
-`run_command` is statically DESTRUCTIVE, so `ls`, `cat`, `pytest --collect-only` are never re-executed on replay. This is *safe* but degrades replay from "re-verify" to "re-read" for the majority of real steps, weakening the strongest verification asset the system has. Effect classification should be per-invocation where cheaply decidable (argv[0] allowlist for PURE re-execution: `ls`, `cat`, `git status`, read-only test collection), with DESTRUCTIVE as the undecidable default. The audit log already captures argv as a list — the input needed for this is free.
-
-#### W6 — RHI outer loop is economically dead at this project's scale (severity: high, strategic)
-
-The tree itself computes the cost: hundreds of tasks × dollars × k≥3 × many candidates = **thousands of dollars per outer-loop iteration**. For a single-maintainer OSS project this is not "scheduled, not continuous" — it is *never*. The mutation-search framing (Meta-Improver proposes, four-tier gauntlet verifies, human signs off) is a research program wearing a feature's clothes. The salvageable 90%-of-value at 1%-of-cost:
-
-- **Prompt regression testing** (prompts are already versioned artifacts): every prompt PR runs the pinned 30-task suite once, paired against baseline, reported against the A/A floor. Cheap, continuous, catches regressions — no mutation search.
-- **Trace mining, not trace mutation:** harvest successful trajectories into (a) few-shot exemplars injected per-task-class and (b) SFT/DPO export (see W7). Both are one-directional pipelines with no gradient-hacking surface, so the TCB machinery guarding the Meta-Improver becomes mostly unnecessary.
-- Keep the RHI *spec* as a rationale document with a trigger condition ("when a funded eval budget ≥ $X/month exists"), consistent with the tree's own trigger-not-calendar doctrine.
-
-#### W7 — The trace→fine-tuning pipeline does not exist, even as a spec (severity: high vs. stated vision)
-
-The task brief's Focus Area 5 — converting high-performing execution traces into fine-tuning datasets for open-weight models — has **no owner anywhere in the tree**. The ingredients are all present (append-only `TrajectoryStore` with typed steps, `GateReport` ground-truth labels, `StepScored` events, prompt versioning, Tier-4 local model slot, Qwen setup guide) and no document composes them. This is the highest-leverage missing spec in the repository: gate-admitted trajectories are *verified* training data — the scarcest commodity in code-model post-training — and SAGIHA's evaluation rigor makes its traces more valuable than a typical harness's. Specified in Deliverable 2, §6.
-
-#### W8 — Injection defense has no output-side taint control (severity: medium, security)
-
-T1 mitigations are input-side (envelopes, provenance, egress allowlist, credential exclusion). But the canonical modern attack is *write-through*: untrusted content (issue text, web page, dependency README) instructing the model to embed a payload **in the diff itself** — a weakened validator, a malicious URL in a lockfile, an exfiltrating test. The gates check tests-pass/tests-unmodified/coverage/diff-size; none inspects diff *content* against provenance. At `interactive` autonomy the human is the control; at `autonomous` (the design target) nothing is. Minimum viable mitigation: taint annotation on `EditRequest`s produced within N steps of EXTERNAL-provenance context, forcing those diffs through `request_approval` regardless of autonomy level; plus a diff-content lint gate (new network endpoints, new deps, disabled checks) as a *hard gate*, not a score.
-
-#### W9 — Remoteable-ports purity taxes the hot path (severity: low-medium, tension to manage)
-
-"Every port implementable over a wire" (all-async, Pydantic-serializable, no `Path`/handles) is elegant and buys future sidecars — but `read_file`/`grep`/`get_skeleton` are the highest-frequency calls in the system, and mandatory model-validation + async dispatch on a local FS read is measurable overhead in a tight tool loop. Not a reversal recommendation — the discipline has already paid for itself in the conformance suite — but the spec should permit adapter-internal fast paths (zero-copy within the adapter, validation at the boundary only) and the benchmark suite should report tool-dispatch latency so the tax stays measured rather than assumed.
-
-#### W10 — The "DAG" is a linear pipeline; parallel story execution is unspecified (severity: medium vs. brief)
-
-`workflow-orchestration-and-dags.md` specifies Prompt→PRD→StoryBoard→CodingStep→Verifier with a return edge — a cycle-bearing *chain*, not a DAG. `StorySpec`s carry "disjoint file-set closure," which is precisely the precondition for parallel execution across worktrees, and nothing exploits it: no dependency edges between stories, no concurrent `CodingStep` scheduling under the `ResourceGovernor`, no merge/rebase policy when closures were computed against a base that a sibling story just moved. ADR-0018's gate (planning must beat no-planning in an E0 ablation before the layer ships) is exemplary epistemics — keep it — but the spec that would ship should be a genuine story-DAG (Deliverable 2, §5).
-
-#### W11 — Episodic knowledge-net will be empty in practice (severity: medium)
-
-Links are written "by whoever creates the record" and automatic link inference is deliberately not built. Manual-write knowledge systems have a universal fate: unwritten. The neighbor/backlink queries the design celebrates are only as good as edge density, and edge density under manual writes rounds to zero. Cheap fix that respects the "wrong links are worse than absent" principle: *deterministic* auto-links only (record→files-touched from the trajectory, record→task, record→superseding-record on invalidation) — derivable without LLM extraction, hence not hallucination-bearing — with LLM-inferred links remaining out.
-
-#### W12 — No first-run repo onboarding (severity: medium, competitive)
-
-`sagiha init` is "Planned — not scheduled." Claude Code's `/init` (generating CLAUDE.md), Cursor's indexing pass, and Aider's repo map all solve the cold-start problem in the first minute of use. SAGIHA's prompt Layer 4 *consumes* AGENTS.md verbatim but nothing *produces* one, and the code graph that would seed it is Block 4. For a harness whose thesis is "context quality is the intelligence," shipping without the context bootstrapper is shipping without the thesis.
+**Design invariants carried forward unchanged (non-negotiable):**
+1. Sandbox is the security perimeter; blocklists are UX.
+2. Repository/web content is data, never instruction; provenance survives storage round-trips.
+3. A candidate never scores itself; `tests_unmodified` is a hard gate; gates admit, scores rank.
+4. No `dict[str, Any]` crosses a port; ports speak domain language; contracts live in `src/` only.
+5. No claim without a benchmark, no accept/reject without an A/A noise floor.
 
 ---
 
-## 2. Competitive Capabilities Gap Matrix
+## 1. Refined System Architecture
 
-Legend: ✅ shipped/working · 🟡 partial or spec-only · ❌ absent · **[Sx/Bx]** SAGIHA's planned block. SAGIHA column reflects **implementation truth per STATUS.md 2026-07-30**, not the docs' target state — that distinction is the point of the matrix.
+### 1.1 Layer model (CAR, amended)
 
-| Capability | Claude Code | Grok Build | Cursor (agent) | Aider | Devin | OpenHands | **SAGIHA (today)** |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| Closed agentic tool loop (live model) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (closed 07-30) |
-| Streaming token/step UX, mid-run steering & interrupt | ✅ | ✅ | ✅ | 🟡 | ✅ | ✅ | ❌ [B5] |
-| Plan mode / approval-gated planning | ✅ | 🟡 | ✅ | 🟡 | ✅ | 🟡 | 🟡 spec'd (durable async gates — stronger design, unbuilt) |
-| Search/replace or diff edit format w/ syntax validation | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (`apply_edit`, Tree-sitter `syntax_valid`) |
-| LSP / code-intelligence tools (refs, diagnostics) | 🟡 (via tools/MCP) | 🟡 | ✅ | ❌ | 🟡 | 🟡 | ❌ [B4/B5] — spec is best-in-class, code absent |
-| Repo map / structural retrieval | 🟡 agentic | 🟡 | ✅ index | ✅ PageRank map | ✅ | 🟡 | ❌ [B4] (FTS5+graph spec'd; skeleton tool spec'd) |
-| Dense/semantic retrieval | ❌ (deliberate) | 🟡 | ✅ | ❌ | ✅ | 🟡 | ❌ deferred (ADR-0014 — defensible, matches Claude Code's stance) |
-| Sub-agents / delegation | ✅ | 🟡 | 🟡 | ❌ | ✅ | ✅ | ❌ [B5] (`spawn_subagent` spec'd w/ grant-subset — stronger design) |
-| MCP client (external tool ecosystem) | ✅ | 🟡 | ✅ | ❌ | 🟡 | ✅ | ❌ [B5] — **table stakes gap; deferring it defers the whole ecosystem** |
-| Hooks / extensions / slash-commands / skills | ✅ | 🟡 | ✅ | 🟡 | ❌ | 🟡 | 🟡 extension model + entry-points spec'd (ADR-0013), unbuilt |
-| OS sandbox / container isolation | ✅ (sandbox modes) | 🟡 | 🟡 | ❌ | ✅ VM | ✅ container | ❌ [B5] — **and SAGIHA's own threat model says this is the perimeter** |
-| Capability-grant security model (non-ambient authority) | ❌ (permission UX) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ **unique differentiator, implemented** |
-| Record/replay determinism, replayable trajectories | ❌ | ❌ | ❌ | ❌ | 🟡 internal | 🟡 | ✅ **unique differentiator, implemented + CI-enforced** |
-| Verified evaluation harness w/ noise floor & stats | ❌ (internal) | ❌ | ❌ | 🟡 benchmarks | 🟡 internal | 🟡 SWE-bench | ✅ E0-lite shipped (`sagiha bench --aa`) — **unique** |
-| Best-of-N / parallel candidate search | 🟡 (subagents) | ❌ | ❌ | ❌ | 🟡 | ❌ | ❌ [B3] — spec superior (gates+PRM), unbuilt |
-| Long-term memory across sessions | ✅ (CLAUDE.md, memory) | 🟡 | 🟡 | 🟡 conventions | ✅ | 🟡 | 🟡 port + provenance implemented; graph/persistence [B4] |
-| Compaction / context management | ✅ | ✅ | ✅ | 🟡 | ✅ | 🟡 | ❌ spec'd (R9), not implemented — **agent dies at window edge today** |
-| Multimodal input (screenshots, images) | ✅ | ✅ | ✅ | 🟡 | ✅ | ✅ | ❌ — absent from spec entirely; no `ContentBlock` image kind noted |
-| Browser / web interaction for verification | 🟡 | ✅ | 🟡 | ❌ | ✅ | ✅ | ❌ (web_fetch/search spec'd, net-scoped) [B5] |
-| Multi-language toolchain | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ Python-only `Toolchain` v1 (deliberate; trigger-gated) |
-| Cost accounting / model tiering per role | 🟡 | 🟡 | ✅ | ✅ | ❌ | 🟡 | 🟡 spec complete & correct (cost-per-resolved-task), partially wired |
-| First-run repo onboarding (`init`) | ✅ | ✅ | ✅ | ✅ auto | ✅ | 🟡 | ❌ unscheduled (W12) |
-| Trace→fine-tune data pipeline | ❌ public | ❌ | ❌ | ❌ | 🟡 internal | 🟡 | ❌ **absent even as spec, despite being uniquely positioned (W7)** |
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│ PILOTS  (CLI/TUI · IDE-MCP · CI headless · remote A2A — thin clients)  │
+├────────────────────────────────────────────────────────────────────────┤
+│ CONTROL   PolicyEngine · ResourceGovernor · Gates · TaintGate(new)     │
+│           Budget & approval ledger · TCB (never agent-writable)        │
+├────────────────────────────────────────────────────────────────────────┤
+│ AGENCY    Inner Loop (DMARTIC) · Story-DAG scheduler (macro)           │
+│           ContextAssembler + Compactor(new) · CandidateSearch          │
+│           No imports of runtime/ or adapters/ (CI-enforced)            │
+├────────────────────────────────────────────────────────────────────────┤
+│ KERNEL    Single dispatch choke point · EventBus · record/replay       │
+│           (mechanism only — owns no policy, no reasoning)              │
+├────────────────────────────────────────────────────────────────────────┤
+│ RUNTIME   Container sandbox (Podman, rootless) · Worktrees · LSP pool  │
+│           MCP drivers · egress proxy — the only layer with effects     │
+└────────────────────────────────────────────────────────────────────────┘
+```
 
-**Reading of the matrix.** SAGIHA holds three genuine, implemented differentiators no competitor has: the capability-grant security architecture, digest-verified record/replay, and the statistical evaluation harness. It trails on essentially every *user-facing capability* — and the gap is concentrated in Block 5, a single mega-block (sandbox + MCP + OTel + LSP-warm + multi-agent + streaming) that is doing the work of four releases. Block 5 as scoped is the plan's largest schedule risk.
+Amendments to the existing model:
+
+- **Kernel is named as a fourth explicit stratum.** The current tree treats it implicitly ("the dispatch choke point"); making it explicit clarifies that EventBus/replay/dispatch are *mechanism* shared by all layers and belong to none — which is why the Meta-loop may never mutate them (TCB membership).
+- **`TaintGate` joins Control** (→ W8/R-7): a hard gate over diff *content*, not just diff mechanics. Rules (v1, deterministic, no LLM judge in the gate): (a) any `EditRequest` emitted within a taint window of EXTERNAL-provenance context is flagged `tainted=True` and requires `request_approval` at every autonomy level; (b) diffs introducing new network endpoints, new dependencies, disabled lint/type suppressions, or modified CI config are gate failures unless the `TaskSpec` explicitly authorizes that category. Taint is tracked as a boolean on trajectory steps, set when EXTERNAL content enters context and cleared at compaction of that span — coarse, cheap, and fail-closed.
+
+### 1.2 Port surface (consolidated: 21 → 15)  (→ R-15)
+
+Keep, unchanged: `ModelProvider`, `PolicyEngine`, `ResourceGovernor`, `Memory`, `Indexer`, `CodeGraph`, `LSPAdapter`, `Workspace`, `WorktreeManager`, `ToolRegistry`, `TrajectoryStore`, `Toolchain`, `Evaluator`, `Orchestrator`, `MetaImprover` (retained as spec, dormant — §6).
+
+Consolidations:
+
+| Removed / merged | Into | Rationale |
+| :--- | :--- | :--- |
+| `ShortTermMemory` | (deleted — already done, R7) | History is loop-local state, not a port. |
+| `Reviewer` | `CandidateSearch.evaluate()` scoring inputs | A soft score that only ranks is an input to selection, not a boundary. One fewer versioned contract; the frontier-judge/never-self-judge rules move to `CandidateSearch` conformance tests. |
+| `EmbeddingProvider` | Adapter-internal to `Memory`/`Indexer` | Already invisible to consumers by design; a port nobody outside an adapter may call is a module, not a port. Re-promote iff ADR-0014's trigger fires *and* two stores need to share one embedder. |
+| `RewardPredictor` / `FailurePredictor` / `CostPerformanceEstimator` | Single `Advisory` port: `predict(kind, features) -> Prediction` | Three shadow-mode rankers with identical shape and identical constraints (never admit/reject) are one port with a kind discriminator. |
+
+**Port stability policy unchanged** (provisional/experimental/stable, earned by adapters + conformance), with one addition: a port with zero non-test adapters for two consecutive blocks is automatically demoted to `experimental` and listed for deletion review — ports must pay rent.
+
+### 1.3 Configuration schema (single file, layered, TOML)
+
+TOML is retained over YAML deliberately (the repo's existing choice): no implicit typing footguns, no anchors/aliases indirection, `tomllib` in stdlib. The brief's requirement is *declarative, schema-validated, hot-swappable composition* — the format is incidental; the schema is normative and validated by the same Pydantic models that refuse insecure states today.
+
+```toml
+# sagiha.toml — the entire composition surface. build_kernel(config) reads only this.
+[profile]                    # execution profile selects which ports are mounted
+name        = "coding"       # coding | analysis | review | chat
+autonomy    = "interactive"  # interactive | hybrid | autonomous | scheduled
+gates       = "coding"       # coding | none   (none ⇒ no GateReport exists)
+
+[model.roles]                # role → tier binding; callers request roles, never models
+planning    = "frontier"
+execution   = "workhorse"
+compaction  = "fast"
+scoring     = "frontier"     # candidate scoring judge; MUST differ from execution
+[model.tiers.frontier]  provider = "anthropic"          model = "…"
+[model.tiers.workhorse] provider = "anthropic"          model = "…"
+[model.tiers.fast]      provider = "anthropic"          model = "…"
+[model.tiers.local]     provider = "openai-compatible"  model = "…"  base_url = "http://localhost:11434/v1"
+mode = "live"                # live | record | replay  — honored by composition (D3 regression-tested)
+
+[context]                    # §3 — normative numbers, not code
+headroom_pct        = 20
+keep_first_turns    = 2
+keep_last_tokens    = 24_000   # token-budgeted, whole-exchange granularity (replaces keep-last-6 turns)
+retrieval_authority = "agentic" # seed-only Layer 6; mid-task retrieval is tool-driven (→ W3)
+
+[budget]
+max_usd_per_run     = 5.00
+max_steps_per_run   = 120
+max_wall_clock_s    = 3600
+
+[search]                     # System 2 (§4)
+n_candidates        = 3
+prune_on_first_gate_fail = true
+repair_attempts     = 2
+
+[sandbox]
+runtime   = "podman-rootless"
+egress    = ["pypi.org", "files.pythonhosted.org", "github.com"]  # proxy allowlist, namespace-enforced
+# subprocess dev-mode is only legal with autonomy = "interactive"; validated at load, refused otherwise
+
+[workflow]                   # macro layer (§5) — order is composition, steps are swappable
+pipeline  = ["prd", "stories", "schedule", "code", "verify"]
+
+[telemetry]
+otel_exporter = "none"       # none | otlp   — TrajectoryStore always on; OTel optional extra
+trace_export  = { sft = true, min_gate = "admitted" }   # §6 dataset pipeline
+```
+
+Hot-swap semantics: config is resolved **once** at `build_kernel` (ADR-0004 preserved — no runtime DI); "hot" means a new run picks up a new config, never a running kernel mutating. Extensions register via entry points, resolved once then frozen (ADR-0013 preserved).
 
 ---
 
-## 3. Technical Debt & Risk Register
+## 2. Dual-Loop Engine Specification
 
-| ID | Risk | Mechanism | Likelihood | Impact | Mitigation status |
-| :--- | :--- | :--- | :---: | :---: | :--- |
-| R-1 | **Spec debt / doc-code divergence** | 147k words normative prose vs 5.7k LOC; every implementation sprint invalidates prose faster than C-series doc PRs repair it | High | High | Partially mitigated (contracts-in-code SSOT); rationale mass unmitigated (W1) |
-| R-2 | **Context exhaustion kills runs today** | Compaction spec'd, not implemented; `RunLoop` history is unbounded in-process; long tasks hit the window and die | High (any task >~50 steps) | High | None until R9 implementation lands; **should be pulled forward of Block 3** |
-| R-3 | **Token bloat via double retrieval** | Layer-6 pre-assembly + agentic tool retrieval both active (W3) | Medium | Medium (cost ×1.5–2 on retrieval-heavy tasks) | Unrecognized in docs; needs a normative ruling |
-| R-4 | **Cache forfeiture on mid-task Layer-6 refresh** | Any semi-stable refresh invalidates tail cache (W3) | Medium | High on long tails (10× input price on invalidated span) | Unrecognized |
-| R-5 | **Replay weakening via blanket-DESTRUCTIVE `run_command`** | Pure reads never re-verified (W5) | Certain | Medium (verification claim overstated) | Unrecognized |
-| R-6 | **Dev-mode = ambient authority** | Until Block 5, tool subprocesses run with full user privileges under path-containment only; `autonomous` is config-refused (good) but `interactive` humans habituate to approving | High | Critical if habituated approval meets injection | Acknowledged (R10); residual risk is human habituation, unaddressed |
-| R-7 | **Write-through injection at autonomy** | No diff-content/taint gate (W8) | Medium | Critical | Unmitigated |
-| R-8 | **State corruption at compaction boundaries** | Summarizing across tool_use/tool_result or signed-reasoning pairs produces provider-rejected requests (W4) | High once compaction ships | High (hard failures mid-run) | Unrecognized in R9 spec |
-| R-9 | **Block 5 mega-scope** | Sandbox, MCP, OTel, LSP, multi-agent, streaming in one block; each alone is a sprint-plus | High | High (schedule) | Needs decomposition (Deliverable 2, roadmap) |
-| R-10 | **Best-of-N spend amplification** | N parallel worktrees × full test suites; `ResourceGovernor` bounds concurrency but no early-termination/pruning policy is spec'd (kill candidates on first hard-gate failure signal; racing verifiers) | Medium | Medium-High ($) | Partially (governor); pruning unspec'd |
-| R-11 | **RHI never runs; self-evolution narrative unfulfilled** | Economics (W6) | High | Strategic (credibility of "self-improving" claim) | Reframe per W6 |
-| R-12 | **Empty knowledge net** | Manual-only link writes (W11) | High | Medium (memory tier underdelivers) | Deterministic auto-links proposed |
-| R-13 | **Stuck-loop cost bleed** | `RunLoop` has stuck-signature detection (implemented — good) but no spec ties detection to a *budget-aware* disposition ladder (retry-with-rehydration → escalate System 2 → abort-and-checkpoint) | Medium | Medium | Partial |
-| R-14 | **SQLite-WAL write contention under B3 parallelism** | One-writer-per-DB rule is specified; parallel candidates × per-step commits × trajectory appends will test it; NFS probe exists but no contention benchmark | Medium | Medium | Spec'd, unmeasured |
-| R-15 | **Single-maintainer bus factor on a 21-port surface** | Conformance suites make ports cheap to *hold*, but 21 ports × versioning policy is governance overhead sized for a team | High | Medium | Consider port consolidation (merge `ShortTermMemory` — already deleted its adapter — collapse `Reviewer` into `CandidateSearch` scoring inputs) |
+### 2.1 Inner Loop (runtime) — DMARTIC, amended
 
-### 3.1 Prioritized findings (what actually matters, in order)
+The eight-stage cycle (Design→Measure→Analyze→Review→Test→Improve→Control→Self-Reflect) is retained; three amendments:
 
-1. **Implement compaction now (R-2/R-8).** It is the only defect class that hard-kills runs today, and its spec has two latent structural bugs (token-uniformity, block-pairing) that are cheaper to fix before first implementation than after.
-2. **Rule on retrieval authority (R-3/R-4, W3).** One sentence of normative text ("Layer 6 seeds; all mid-task retrieval is agentic and tail-resident") saves the cache economics the whole layout exists for.
-3. **Decompose Block 5 (R-9)** into sandbox-first (it is the perimeter and the unblock for `autonomous`), then MCP, then the rest.
-4. **Write the trace→dataset spec (W7).** Zero implementation cost today; it converts every benchmarked run from now on into an asset.
-5. **Add the diff-taint gate (R-7, W8)** before any autonomy level above `interactive` is enabled outside a sandbox.
-6. **Reframe RHI (W6, R-11)** as prompt-regression CI + trace mining; archive mutation search behind a funding trigger.
-7. **Ship `sagiha init` (W12)** — smallest capability with the largest first-impression delta vs. every competitor.
+**A. Failure-disposition ladder is normative (→ R-13).** Stuck-signature detection already exists; its consequence is now specified as a budget-aware ladder, each rung consuming from `[budget]`:
+
+```
+detect(stuck | EditRejected×k | ContextOverflow)
+  1. rehydrate     — re-insert affected files in full (compaction rollback)  [cheap]
+  2. replan        — one planning-role call to restate approach              [1 frontier call]
+  3. escalate      — System 1 → System 2 via the escalation ladder           [N× cost]
+  4. checkpoint+abort — commit worktree, park run resumable, surface to human
+```
+No rung may repeat; the ladder is monotonic. Disposition transitions emit typed events (`RecoveryEscalated`) so E0 can measure recovery efficacy per rung.
+
+**B. Retrieval authority ruling (→ W3, normative).** Layer 6 pre-assembled retrieval is **seed-only**: computed once at task start, closed under the Layer-7 cache breakpoint, never refreshed mid-task. All subsequent retrieval is agentic (tool calls, tail-resident). Consequence: the semi-stable layers become *stable-per-task*, mid-task cache invalidation events reduce to exactly one class (compaction), and cache hit rate becomes a clean regression signal.
+
+**C. Per-invocation effect classification (→ W5).** `ToolRegistry` gains a pure-argv allowlist (`ls`, `cat`, `git status|diff|log|show`, `grep`, `pytest --collect-only`, …). `run_command` invocations matching it are recorded `PURE` and re-executed on `replay --verify`, restoring re-verification for the majority of real steps. Anything unmatched stays `DESTRUCTIVE`. The allowlist is TCB (agent-unwritable).
+
+### 2.2 Context engine & compactor (pulled forward — implements now)  (→ R-2, W4, R-8)
+
+Prompt layout unchanged (stability-ordered, breakpoints after Layers 4 and 7). Compactor spec, superseding R9's turn-count policy:
+
+1. **Unit of compaction is the *exchange*** — one assistant message plus all its paired `tool_result`s (and any signed reasoning block). Boundaries never fall inside an exchange; provider block-pairing is preserved by construction.
+2. **Keep policy is token-budgeted:** keep-first-2 exchanges verbatim (intent anchor) + most recent exchanges up to `keep_last_tokens`, whole exchanges only. Middle span → one synthetic summary turn produced by the `compaction` model role, tagged in the trajectory (`CompactionApplied` event with span digests) so replay distinguishes model speech from compactor speech.
+3. **Anchored artifacts survive outside the transcript:** `TaskSpec` + acceptance criteria (Layer 5), plan state (Layer 7), and two lifted artifacts — the *open-file set* (files with edits this run) and *unresolved diagnostics* — are structured state re-rendered every assembly, never entrusted to the summary.
+4. **Trigger:** headroom < `headroom_pct` of model window, checked pre-assembly, never mid-turn. If total tail ≤ keep budgets, no-op.
+5. **Verification:** conformance tests assert (a) post-compaction request is provider-valid (no orphan tool_results, reasoning blocks intact or wholly dropped with their exchange), (b) EXTERNAL provenance re-wraps in `<untrusted-data>` after summarization (extends the existing laundering test to the compactor path — the summary of untrusted content is untrusted).
+
+### 2.3 Outer Loop — Meta-Harness, economically re-founded  (→ W6, R-11)
+
+The outer loop splits into three mechanisms ordered by cost; only the first two are scheduled work:
+
+**Tier A — Prompt & config regression CI (continuous, ~$10s/run).** Prompts are versioned artifacts already; every PR touching `src/sagiha/prompts/` or `[context]`/`[search]` config triggers the pinned suite once, paired against baseline, judged against the stored A/A floor with multiple-comparison correction. Red = merge blocked. This is 90% of "self-improvement's" defensive value at CI cost.
+
+**Tier B — Trace mining (per-bench-run, near-zero marginal cost).** Post-run jobs over the `TrajectoryStore`:
+- *Exemplar mining:* gate-admitted trajectories clustered by task class; top-k become few-shot exemplars in a versioned exemplar library, injected into Layer 5 per task class. Exemplars are prompt artifacts ⇒ Tier A gates their adoption.
+- *Failure taxonomy:* `GateReport`-failed runs labeled by terminal error class (from the error taxonomy), feeding a ranked "what actually kills runs" report — the empirical input the old Meta-Improver was supposed to intuit.
+- *Dataset export:* §6.
+
+**Tier C — Mutation search (dormant, trigger-gated).** The full Meta-Improver + four-tier verification gauntlet is retained as spec, TCB constraints and human sign-off intact, behind an explicit trigger: *sustained eval budget ≥ $2k/month or a sponsoring deployment*. Until then it is `rationale/`, not roadmap.
+
+The **telemetry-driven evolution** contract is thereby honest: every run improves the system through Tiers A/B mechanically; Tier C is the research option, not the load-bearing claim.
 
 ---
 
-## 4. Dialectical Close — Should This Architecture Survive?
+## 3. DAG Orchestration Engine (macro layer)  (→ W10)
 
-**Thesis (keep and finish it).** The hexagon is real, not ceremonial: conformance suites are parametrized over adapters, import contracts fail CI, ports are wire-shaped, and the two implemented differentiators (grants, replay) fell out of the architecture rather than being bolted on. The evaluation harness is a moat no competitor has publicly matched, and the trigger-not-calendar deferral doctrine means the unbuilt 70% is pre-paid, not debt. Rewriting would discard the only parts that are both finished and unique.
+Retains ADR-0018's two constraints — native `WorkflowStep` protocol (no LangGraph/Temporal), and the E0 ablation gate (planning must beat no-planning or the layer does not ship) — and upgrades the linear pipeline to a genuine story-DAG.
 
-**Antithesis (it is an over-engineered monument).** A single maintainer specified 21 ports, 18 ADRs, a four-tier statistical gauntlet, and a self-improvement loop costing thousands per iteration — before the agent could call one tool against a live model. The differentiators (security, replay, stats) are invisible to users; the visible surface trails a 2023 Aider. The doc tree's own retrieval-optimization admits the docs are the product's main consumer of its own scarce resource. By the tree's own doctrine — "boring components first," "measure before building" — most of `02-architecture/` should not exist yet.
+### 3.1 Node & edge model
 
-**Synthesis.** Both are correct about different layers. The *contract layer* (ports, domain models, grants, replay, E0) is finished, cheap to hold, and should be frozen and defended — it is the return on the over-specification. The *prose layer* is where the antithesis bites: it should be aggressively shrunk and demoted from normative to rationale. The *capability layer* should be built in the competitive order (§3.1, and Deliverable 2's roadmap), not the block order — pulling compaction and sandbox forward, pushing frontend and RHI back. The architecture survives; the plan and the doc mass do not, unchanged. Boundary condition: if Block 3+4 measurements show best-of-N and graph retrieval failing to beat their ablation baselines beyond the A/A floor, the correct move is not more harness — it is conceding that the harness margin over a frontier model + 5 tools is thinner than the vision assumes, and pivoting the project's identity fully onto E0, the one artifact whose value is independent of that result.
+```python
+# ports/workflow.py  (experimental until adapters exist)
+class WorkflowStep(Protocol[In, Out]):        # In/Out: BaseModel
+    name: str
+    async def execute(self, ctx: StepContext, input_data: In) -> Out: ...
+
+class PipelineRunner(Protocol):
+    async def run(self, dag: StoryDAG) -> AsyncIterator[Event]: ...
+```
+
+```
+Prompt ─▶ PRDGeneratorStep ─▶ StoryDecomposerStep ─▶ StoryDAG
+                                                        │
+                     ┌──────────────────────────────────┤ scheduler
+                     ▼                                  ▼
+               CodingStep(story_i)  ∥  CodingStep(story_j)   … parallel where file-set
+                     │                                  │      closures are disjoint AND
+                     ▼                                  ▼      no dependency edge exists
+               VerifierStep ──rejected──▶ re-scope (back to decomposer, story-local)
+                     │accepted
+                     ▼
+               IntegrationStep(new) — rebase story branch onto moving base; on conflict
+                                      or closure-invalidation ⇒ re-plan that story only
+```
+
+- `StoryDAG = (stories: dict[id, StorySpec], deps: set[(id, id)])`. The decomposer emits dependency edges explicitly (interface-before-consumer, migration-before-usage); disjoint closures without edges are schedulable concurrently, each in its own worktree under `ResourceGovernor` admission.
+- **`IntegrationStep` is the new, load-bearing node:** parallel stories land against a moving base. Policy: rebase story branch onto current base; re-run the story's gates post-rebase (gates are cheap relative to re-implementation); if the rebase invalidates the story's file-set closure, the story returns to the board — never silent merge.
+- Steps hold no tool references, mint no Grants, call no provider outside `ModelProvider` — the existing `agency/` restriction, unchanged. Each step boundary persists output to `TrajectoryStore` and emits events ⇒ pipelines are resumable at step granularity and cassette-replayable, same as the inner loop.
+
+### 3.2 A2A protocol interface
+
+Adoption trigger unchanged (a genuinely remote peer must exist first), but the *shape* is fixed now so the pilot layer and `spawn_subagent` converge on it:
+
+- A remote peer is addressed as an `Orchestrator` adapter over A2A: it accepts a `TaskSpec`, streams typed `Event`s, terminates in a `GateReport` (or none, per profile). Identical contract local and remote — remoteability rule 4 already guarantees the payloads serialize.
+- Delegation semantics are grant-monotonic: a delegated task carries a strict subset of the delegator's grants and an explicit budget slice; the receiving kernel's own `PolicyEngine` may narrow further, never widen. `request_approval` from a remote peer routes to the *originating* human, through the same durable, deny-on-timeout gate.
+- Sub-agents (`spawn_subagent`) are the degenerate local case of the same contract — one protocol, two transports.
 
 ---
 
-*Companion document: `NEXT_GEN_HARNESS_ARCHITECTURE_SPEC.md` — the refined blueprint and prioritized action plan implementing the verdicts above.*
+## 4. System 2 — Candidate Search, hardened  (→ R-10)
+
+Best-of-N + sequential repair retained (ADR-0005). Additions:
+
+1. **Early termination:** with `prune_on_first_gate_fail = true`, a candidate is killed at its first hard-gate failure signal (first failing pristine test, first `tests_unmodified` violation) rather than run to completion; its worktree is released immediately. Expected spend reduction is measured by E0, not assumed.
+2. **Staggered launch:** candidates launch with a short stagger; if candidate 1 admits cleanly with margin above the PRM threshold, remaining launches are cancelled (bandit-flavored, but deterministic policy — no learned router until label volume exists, per the existing cold-start doctrine).
+3. **Judge separation is config-enforced:** `[model.roles].scoring` must resolve to a different model than `execution`; `build_kernel` refuses the config otherwise (same mechanism as existing security refusals).
+
+---
+
+## 5. Runtime & capability roadmap corrections
+
+**Block 5 is decomposed** (→ R-9) — sandbox is not a peer of MCP and streaming; it is the precondition for the autonomy levels the whole design targets:
+
+| New block | Contents | Exit gate |
+| :--- | :--- | :--- |
+| **B5a — Perimeter** | Rootless Podman sandbox, worktree materialization inside it, egress proxy + namespace firewall, secret exclusion | `autonomous` autonomy legal; injection canary suite (planted hostile README/issue/test-fixture instructions) shows zero out-of-worktree effects across the pinned suite |
+| **B5b — Ecosystem** | MCP stdio→HTTP-SSE client, tools registered `trusted_output=False`, warm LSP pool | External tool round-trip under grant + envelope; LSP diagnostics latency budget met |
+| **B5c — Experience** | Streaming TUI, mid-run interrupt/steer (interrupt = durable checkpoint + replan, reusing the recovery ladder), `sagiha init` (→ W12: generates AGENTS.md from code-graph + toolchain detection) | Interrupt round-trip < 2s to a steerable state; init produces a Layer-4 file the pinned suite measurably benefits from (E0 ablation) |
+| **B5d — Multimodal** | `ContentBlock` image kind, screenshot ingestion for UI-verification tasks | deferred behind a trigger: first task class requiring it |
+
+**Memory:** deterministic auto-links only (record→files-touched, record→task, record→superseder), derived from the trajectory at `remember` time — no LLM edge inference (→ W11). `neighbors`/`backlinks` land on the port as the flagged S2 version bump when the first graph-capable adapter ships.
+
+**Docs governance (→ W1):** normative word budget ≤ 15k; additions require equal deletions; everything else demoted to `rationale/` and excluded from default agent retrieval scope. ADRs exempt.
+
+---
+
+## 6. Trace → Fine-Tuning Dataset Pipeline (new, spec-complete)  (→ W7)
+
+Every ingredient exists; this composes them. Runs as a Tier-B post-processing job — zero inner-loop cost.
+
+**Selection.** Export unit = one run. Eligibility: `GateReport.admitted == true` ∧ replay-verified (`sagiha replay --verify` green) ∧ cost within budget ∧ `tainted == false` on every step (→ §1.1 — never train on injection-window behavior).
+
+**Transformation.** For each step, reconstruct the exact assembled request from the trajectory (prompt version + layers + tail digests make this exact, not approximate — this is the replay machinery reused) and pair it with the model's emitted message:
+
+```
+sample = {
+  "messages": [system, …context…, assistant(tool_use|text)],   # provider-neutral schema
+  "tools":    canonical tool schemas at that step,
+  "labels":   { gate_report, step_score, cost_usd, prompt_version, harness_version, model }
+}
+```
+- **SFT set:** all steps of admitted runs.
+- **Preference set (DPO/RLAIF-ready):** System-2 runs are natural preference pairs — the admitted winner vs. gate-failed siblings *on the identical prefix* (same TaskSpec, same seed context). This is the highest-value byproduct of best-of-N and costs nothing extra.
+- Reasoning blocks: excluded when provider terms prohibit distillation-bearing export; the exporter takes a per-provider policy flag and defaults to exclusion. Local-tier (Tier 4) traces carry no restriction.
+
+**Hygiene.** Secret-redaction pass (same scanner as the log path) re-applied at export; EXTERNAL-provenance spans excluded wholesale; dedup by request digest; per-repo license gate (exports only from repos whose license permits derivative training data, recorded per sample).
+
+**Consumption.** `sagiha export --format sft|dpo --min-gate admitted` emits JSONL; the Tier-4 local slot (Qwen-class) is the intended first consumer, closing the loop the vision names: *the harness's verified work product improves the open-weight model that runs inside it* — a self-improvement claim that is mechanical, cheap, and TCB-safe, unlike mutation search.
+
+---
+
+## 7. Prioritized Action Plan
+
+Ordered by (risk retired × user-visible delta) ÷ cost. Each item names its exit gate; nothing ships on calendar.
+
+| # | Action | Scope | Exit gate | Retires |
+| :- | :--- | :--- | :--- | :--- |
+| 1 | **Compactor implementation** per §2.2 (exchange-granular, token-budgeted, anchored artifacts) | `agency/context/` + conformance tests | 200-step synthetic run completes under a 128k window; provider-validity + provenance tests green | R-2, R-8, W4 |
+| 2 | **Retrieval-authority ruling** (seed-only Layer 6) — one doc PR + one assembler assertion | docs + `ContextAssembler` | Cache-hit-rate metric emitted per run; no mid-task Layer-6 writes possible by construction | R-3, R-4, W3 |
+| 3 | **Per-invocation PURE allowlist** for `run_command` | `ToolRegistry` + replay | `replay --verify` re-executes ≥60% of steps on the pinned suite | R-5, W5 |
+| 4 | **Trace→dataset exporter** (§6) | `outer_loop/export/` | `sagiha export` emits schema-valid SFT+DPO JSONL from existing bench cassettes | W7 |
+| 5 | **Block 3 as planned** (best-of-N) with §4 pruning + judge-separation config refusal | `agency/search/` | S3 gate: BoN beats single-shot > A/A floor; zero grader modifications; pruning spend delta reported | — |
+| 6 | **TaintGate v1** (§1.1) before any non-interactive autonomy outside a sandbox | Control + gates | Injection canary suite: 0 tainted diffs land without approval | R-7, W8 |
+| 7 | **B5a Perimeter** (sandbox first, alone) | Runtime | §5 exit gate; `autonomous` unlocked | R-6, R-9 |
+| 8 | **Block 4** (FTS5 + code graph + `sagiha init`) — init moves here from B5c: it is a retrieval consumer | Indexer/CodeGraph | S2 gate: recall@10 target + retrieval-beats-none ablation; init ablation positive | W12 |
+| 9 | **Story-DAG macro layer** (§3), *iff* ADR-0018's planning-beats-no-planning ablation passes | `agency/workflow/` | E0 ablation positive incl. `IntegrationStep` under 2-way parallelism | W10 |
+| 10 | **B5b/B5c** (MCP, LSP pool, streaming/interrupt) | Runtime/pilots | Per-block gates in §5 | matrix gaps |
+| 11 | **RHI Tier A regression CI** (cheap, immediate) — runs from #5 onward; **Tier C archived** behind funding trigger | CI | Prompt-PR suite wired; ADR amending RHI economics recorded | R-11, W6 |
+| 12 | **Docs shrink program** (§5 governance) | docs | Normative mass ≤ 15k words; retrieval scope excludes `rationale/` by default | W1, R-1 |
+
+**Explicitly de-prioritized:** frontend sprints (fe-1…fe-7) until B5c; dense retrieval (ADR-0014 stands); MCTS/PRM-guided search (ADR-0005 stands, PRM data accrues from #5); A2A transport (trigger stands, contract fixed in §3.2); quantization, Kùzu, sidecars, Redis, graph daemons (ADR-0010 stands — every one behind its measured trigger).
+
+---
+
+## 8. Closing position
+
+The audit's synthesis holds: **freeze the contract layer, shrink the prose layer, rebuild the plan around the capability layer.** The three implemented differentiators — capability-grant security, digest-verified replay, and the statistical evaluation harness — are the parts no competitor has and the parts this spec touches least. Everything added here (compactor, taint gate, story-DAG with integration semantics, dataset pipeline, economically honest outer loop) is composed from primitives the architecture already paid for, which is the strongest available evidence that the hexagon was drawn correctly. The system earns the word "self-evolving" the day `sagiha export` output measurably improves the Tier-4 model on the E0 suite — a falsifiable claim, with a threshold, on a benchmark. That is the standard this tree set for itself; this spec keeps it.
