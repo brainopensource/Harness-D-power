@@ -218,6 +218,67 @@ class ToolCallFailed(Event):
     consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI", "HK")
 
 
+class TaintIntroduced(Event):
+    """An untrusted tool output entered the run, taints it monotonically (T7).
+
+    Emitted once per untrusted result, not once per run, so a trajectory shows exactly
+    which call introduced the taint that later refused a mutation.
+    """
+
+    event: Literal["tool.taint_introduced"] = "tool.taint_introduced"
+    call_id: str
+    tool_name: str
+    #: What the envelope's `source=` attribute was set to.
+    source: str
+
+    group: ClassVar[str] = "Tools"
+    emitted_by: ClassVar[str] = "Dispatch"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI", "HK", "MI")
+
+
+# --- Context ---
+
+
+class CompactionApplied(Event):
+    """The context window was compacted at a deliberate checkpoint.
+
+    Replay-relevant: a replayed run must compact at the same step, or its requests diverge
+    from the recording after that point.
+    """
+
+    event: Literal["context.compaction_applied"] = "context.compaction_applied"
+    exchanges_before: int
+    exchanges_after: int
+    tail_tokens_before: int
+    tail_tokens_after: int
+    #: Whether the summarized span contained untrusted content, and the summary therefore
+    #: carries the `<untrusted-data>` envelope forward (T7 through compaction).
+    tainted_span: bool = False
+
+    group: ClassVar[str] = "Context"
+    emitted_by: ClassVar[str] = "ContextAssembler"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI", "MI")
+
+
+class ProviderFailover(Event):
+    """The execution provider failed over to a role-level fallback (S3.4).
+
+    Replay-relevant as a checkpoint: a resumed run must know which provider served which
+    steps, and cross-provider resumes drop reasoning blocks whole-exchange.
+    """
+
+    event: Literal["model.provider_failover"] = "model.provider_failover"
+    from_provider: str
+    to_provider: str
+    reason: str
+    #: True when reasoning blocks were stripped from the request for the new provider.
+    reasoning_dropped: bool = False
+
+    group: ClassVar[str] = "Reasoning"
+    emitted_by: ClassVar[str] = "FallbackModelAdapter"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI", "MI")
+
+
 # --- Workspace ---
 
 
@@ -442,6 +503,9 @@ ALL_EVENTS: tuple[type[Event], ...] = (
     ToolCallDenied,
     ToolCallCompleted,
     ToolCallFailed,
+    TaintIntroduced,
+    CompactionApplied,
+    ProviderFailover,
     EditApplied,
     CommandExecuted,
     DiagnosticsChanged,

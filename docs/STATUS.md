@@ -26,7 +26,7 @@ runs as a fresh series, **`v2-S0` … `v2-S7`**, mapping to the phases in the v2
 | `v2-S0` | Docs, governance, SSOT — **closed** |
 | `v2-S1` | **Instrument honesty** — H1–H4 fixed, post-honesty baseline re-measured — **closed** |
 | `v2-S2` | Port consolidation & kernel corrections — **closed** |
-| `v2-S3` | Context engine (`ContextAssembler`, `ExchangeCompactor`) + TaintGate v1 |
+| `v2-S3` | Context engine (`ContextAssembler`, `ExchangeCompactor`) + TaintGate v1 + FrozenRunState — **closed** |
 | `v2-S4` | Measurement re-baseline + Best-of-N |
 | `v2-S5` | Container perimeter, egress allowlist |
 | `v2-S6` | Retrieval, code graph, cold-start |
@@ -71,7 +71,7 @@ Marked against code, not intent. "Implemented" means a line-level read supports 
 | Coding gates (`tests_unmodified`, `diff_within_bounds`, `no_new_suppressions`) | **Implemented (PR-1a)** — real `git diff` checks against `RunContext.base_commit`, routed through the dispatch choke point. `coverage_not_decreased` reports an honest `None`: no `Toolchain` adapter, no baseline |
 | Typed event reads through `ALL_EVENTS` + `upcasters.py` | Implemented |
 | `RunLoop` — max steps, `end_turn`, stuck signature, **budget** | Implemented — the budget break is reachable as of PR-1b |
-| Prompt + history assembly into `ModelRequest` v2 | Implemented, inline in the loop body; no `agency/context/` package |
+| Prompt + history assembly into `ModelRequest` v2 | **Implemented (v2-S3)** — `agency/context/ContextAssembler` (seed-only Layer 6, `prefix_digest` / `stable_prefix_digest`); `ExchangeCompactor` |
 | Five built-in tools over a root-confined local workspace adapter | Implemented |
 | Schema-declared path scoping | Implemented |
 | Path containment enforced before a grant is minted | Implemented (traversal, sibling-prefix, symlink escape) |
@@ -100,8 +100,9 @@ reported as block-level progress; they are re-stated here honestly.
 | Block 5 — container sandbox | Stub — every method raises `NotImplementedError` (PR-1d) | `v2-S5` |
 | Block 5 — MCP driver | Stub — `invoke_tool()` raises; `list_tools()` returns `[]`, a truthful null (PR-1d) | `v2-S7` |
 | Block 5 — OTel exporter | Stub — `on_event()` raises (PR-1d) | `v2-S7` |
-| Context compaction | Algorithm specified (R9, superseded by exchange-granular in `v2-S3`); **zero implementation**. Runs past the window die | `v2-S3` |
-| TaintGate / untrusted-data envelope | Documented only; no `ToolResult.trusted`, no envelope at dispatch | `v2-S3` |
+| Context compaction | `ExchangeCompactor` (`TruncatingCompactor` default + `ModelCompactor`); 200-step under 128k green | — |
+| TaintGate / untrusted-data envelope | `ToolResult.trusted`; monotonic `_tainted_runs`; mutation deny `requires_human=True`; envelope at `assembler.result_message`; injection canary green | — |
+| FrozenRunState + failover | Grants-absent freeze/thaw; budget-park; `ProviderFailover` + backoff-first role-level fallback; kill-9×3 GateReport green | — |
 
 ## **Explicitly Deferred**
 
@@ -120,7 +121,7 @@ Every PR holds or improves all of these. The test count is **monotonic** — it 
 | Type check | 0 errors, strict | `uv run pyright src/sagiha` |
 | Lint | clean | `uv run ruff check && uv run ruff format --check` |
 | Import contracts | **5/5** | `uv run lint-imports` |
-| Event catalog | in sync (34 events) | `python scripts/gen_event_catalog.py --check` |
+| Event catalog | in sync (37 events) | `python scripts/gen_event_catalog.py --check` |
 | Coverage | `fail_under = 80` | `pytest --cov=src/sagiha` |
 | Replay | green | `uv run sagiha replay verify --verify --cassette tests/fixtures/replay_smoke/cassette.json …` |
 
@@ -141,8 +142,9 @@ Every PR holds or improves all of these. The test count is **monotonic** — it 
 
 1. ~~**`v2-S0` (Phase 0)**~~ — **closed 2026-07-31.** STATUS restored and re-baselined, docs budget and link gates in CI, v2 corpus folded into `01`–`08`, ADRs 0019–0023 recorded.
 2. ~~**`v2-S1` (Phase 1)**~~ — **closed 2026-07-31.** H1–H4 fixed (PR-1a…PR-1d), `scripts/migrate_cassettes_v2.py` executed, `harvest` + `bench --aa` post-honesty baseline committed to `docs/rationale/benchmarks/s1_honest_baseline.md`.
-3. **`v2-S2` (Phase 2)** — port consolidation while every affected port still has ≤1 stub adapter.
-4. **`v2-S3` (Phase 3)** — context engine and TaintGate, shipped together.
+3. ~~**`v2-S2` (Phase 2)**~~ — **closed.** Port consolidation & kernel corrections.
+4. ~~**`v2-S3` (Phase 3)**~~ — **closed 2026-07-31.** ContextAssembler + ExchangeCompactor; TaintGate v1 (envelope at assembler prompt boundary); FrozenRunState freeze/thaw + role-level failover; 200-step / canary / kill-9×3 green.
+5. **`v2-S4` (Phase 4)** — measurement re-baseline + Best-of-N.
 
 ### Known open item (Resolved in v2-S1)
 

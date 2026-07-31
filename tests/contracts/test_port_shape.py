@@ -150,6 +150,20 @@ def test_no_grant_in_any_public_signature() -> None:
     assert not violations, f"Grant crossing a public port signature: {violations}"
 
 
+def test_no_grant_in_frozen_run_state() -> None:
+    """FrozenRunState must never serialize a Grant — freeze is not a reason to freeze permission."""
+    from sagiha.domain.control import FrozenRunState
+
+    violations = []
+    for name, field_info in FrozenRunState.model_fields.items():
+        hint = field_info.annotation
+        if hint is not None and _contains_grant(hint):
+            violations.append(name)
+    assert not violations, f"Grant-typed fields on FrozenRunState: {violations}"
+    # Also assert no field name suggests a grant payload.
+    assert "grant" not in {n.lower() for n in FrozenRunState.model_fields}
+
+
 def test_all_datetimes_are_aware() -> None:
     from sagiha.domain.events import Event
     from sagiha.domain.memory import MemoryRecord, Provenance

@@ -9,19 +9,22 @@ import time
 import uuid
 from dataclasses import dataclass, field
 
-from sagiha.domain.config import PricingConfig
+from sagiha.agency.context.assembler import ContextAssembler, result_message
+from sagiha.agency.context.compactor import ExchangeCompactor
+from sagiha.agency.freeze import clear_freeze, load_freeze, persist_freeze
+from sagiha.domain.config import ContextConfig, PricingConfig
 from sagiha.domain.content import (
     Message,
-    ModelRequest,
     TextBlock,
     ToolCall,
     ToolResult,
-    ToolResultBlock,
     ToolSchema,
     ToolUseBlock,
 )
-from sagiha.domain.control import RunContext
+from sagiha.domain.control import FreezeReason, FrozenRunState, RunContext
 from sagiha.domain.events import (
+    BudgetExhausted,
+    CompactionApplied,
     GateEvaluated,
     ModelCallCompleted,
     ModelCallStarted,
@@ -31,7 +34,7 @@ from sagiha.domain.events import (
     StepCompleted,
     StepStarted,
 )
-from sagiha.domain.identity import StepId
+from sagiha.domain.identity import StepId, utc_now
 from sagiha.domain.trajectory import RunRecord, TrajectoryStep
 from sagiha.domain.work import (
     AcceptanceCriterion,
@@ -69,6 +72,10 @@ class RunLoopResult:
             usd=0.0, input_tokens=0, output_tokens=0, wall_clock_s=0.0, model_calls=0
         )
     )
+    #: True when the run stopped on budget-park (status `input-required`), not failure.
+    parked: bool = False
+    #: The freeze snapshot written when the run parked or checkpointed on failover.
+    frozen: FrozenRunState | None = None
 
 
 class RunLoop:
@@ -93,6 +100,8 @@ class RunLoop:
         evaluator: Evaluator | None = None,
         workspace: Workspace | None = None,
         pricing: PricingConfig | None = None,
+        context: ContextConfig | None = None,
+        compactor: ExchangeCompactor | None = None,
     ) -> None:
         self._model = model_provider
         self._policy = policy_engine
@@ -105,55 +114,114 @@ class RunLoop:
         self._tool_schemas = tool_schemas or []
         self._workspace = workspace
         self._pricing = pricing or PricingConfig()
+        self._context_config = context or ContextConfig()
+        self._compactor = compactor
         self._evaluator: Evaluator = evaluator or GateEvaluator(
             policy_engine, resource_governor, tool_registry, bus
         )
+        #: The last assembler built by `run`. Held so `freeze()` can lift anchored state
+        #: (plan, open-file set) out of it without the caller having to thread it through.
+        self._assembler: ContextAssembler | None = None
+        self._next_seq: int = 1
+        #: Plan/open-files to apply after the next `run()` builds its assembler (thaw path).
+        self._pending_thaw_plan: tuple[str, ...] | None = None
+        self._pending_thaw_open_files: tuple[str, ...] | None = None
 
     def _tool_signature(self, name: str, arguments: dict[str, object]) -> str:
         payload = json.dumps({"tool": name, "args": arguments}, sort_keys=True)
         return hashlib.sha256(payload.encode()).hexdigest()
 
-    def _reconstruct_history(self, task: TaskSpec, existing_steps: list[TrajectoryStep]) -> list[Message]:
-        """Rebuild the prompt history a resumed run would have accumulated in-process.
+    def _build_assembler(self, task: TaskSpec, existing_steps: list[TrajectoryStep]) -> ContextAssembler:
+        """Prompt assembly moved wholesale into `agency/context/` (PR-3.1).
 
-        Read straight from `TrajectoryStore`, not engine memory (D9) — the store is the source
-        of truth for what actually happened, an in-memory list is not durable across a restart.
+        It used to be four inline lines here plus a `_reconstruct_history` helper, which is
+        exactly why there was nowhere to put a compaction check and no way to enforce the
+        seed-only Layer 6 rule. `retrieval_seed` is not passed today — there is no indexer
+        until `v2-S6` — but the seam it lands in is construction-time-only by shape.
         """
-        history: list[Message] = [Message(role="user", content=[TextBlock(text=task.goal)])]
-        for step in existing_steps:
-            if not step.tool_calls:
-                continue
-            if step.message is not None:
-                # Full fidelity: replays the exact assistant turn, including any
-                # text/reasoning blocks that accompanied the tool calls.
-                history.append(step.message)
-            else:
-                # Legacy step recorded before `TrajectoryStep.message` existed (S2.5) —
-                # reconstruct what we can from the derived `ToolCall`s. Any text or
-                # reasoning content that accompanied them is lost; it was never stored.
-                history.append(
-                    Message(
-                        role="assistant",
-                        content=[
-                            ToolUseBlock(call_id=c.call_id, tool_name=c.tool_name, arguments=c.arguments)
-                            for c in step.tool_calls
-                        ],
-                    )
-                )
-            for call, result in zip(step.tool_calls, step.tool_results, strict=False):
-                history.append(
-                    Message(
-                        role="user",
-                        content=[
-                            ToolResultBlock(
-                                call_id=call.call_id,
-                                content=list(result.content),
-                                is_error=result.is_error,
-                            )
-                        ],
-                    )
-                )
-        return history
+        return ContextAssembler.from_trajectory(
+            system_prompt=self._system_prompt,
+            tool_schemas=tuple(self._tool_schemas),
+            task=task,
+            steps=existing_steps,
+            config=self._context_config,
+            compactor=self._compactor,
+        )
+
+    def freeze(
+        self,
+        ctx: RunContext,
+        *,
+        reason: FreezeReason = "checkpoint",
+        worktree_ref: str | None = None,
+    ) -> FrozenRunState:
+        """Serializable snapshot of this run — **with no capability grant in it**.
+
+        See `FrozenRunState`. The transcript is not copied here; it is already durable in
+        `TrajectoryStore`, and a second copy is a second thing that can go stale.
+        """
+        anchored = self._assembler.anchored() if self._assembler is not None else None
+        tainted = False
+        is_tainted = getattr(self._policy, "is_tainted", None)
+        if callable(is_tainted):
+            tainted = bool(is_tainted(ctx.run_id))
+        # Prefer an explicit worktree ref; otherwise carry base_commit so thaw can
+        # rematerialize a primary-checkout run at the gate baseline when asked.
+        ref = worktree_ref
+        return FrozenRunState(
+            run_id=ctx.run_id,
+            task_id=anchored.task.task_id if anchored else ctx.run_id,
+            autonomy_level=ctx.autonomy_level,
+            workspace_root=ctx.workspace_root,
+            budget_remaining_usd=ctx.budget_remaining_usd,
+            worktree_ref=ref,
+            base_commit=ctx.base_commit,
+            next_seq=self._next_seq,
+            plan=anchored.plan if anchored else (),
+            open_files=anchored.open_files if anchored else (),
+            tainted=tainted,
+            frozen_at=utc_now(),
+            reason=reason,
+        )
+
+    async def thaw(
+        self,
+        task: TaskSpec,
+        frozen: FrozenRunState | None = None,
+        *,
+        run_id: str | None = None,
+    ) -> RunLoopResult:
+        """Resume a previously frozen run: rematerialize, re-seed taint, re-authorize on demand.
+
+        Grants are never restored — thaw rebuilds a `RunContext` and mints fresh grants as
+        the loop proceeds. If `frozen` is omitted, load from the freeze file for `run_id`.
+        """
+        if frozen is None:
+            if run_id is None:
+                raise ValueError("thaw requires frozen state or run_id")
+            root = (
+                str(self._workspace.root)  # type: ignore[attr-defined]
+                if self._workspace is not None and hasattr(self._workspace, "root")
+                else "."
+            )
+            frozen = load_freeze(root, run_id)
+
+        if frozen.tainted:
+            mark = getattr(self._policy, "mark_tainted", None)
+            if callable(mark):
+                mark(frozen.run_id)
+
+        if frozen.worktree_ref and self._workspace is not None:
+            await self._workspace.restore(frozen.worktree_ref)
+
+        self._pending_thaw_plan = frozen.plan
+        self._pending_thaw_open_files = frozen.open_files
+        ctx = frozen.to_run_context()
+        ctx = ctx.model_copy(update={"budget_remaining_usd": frozen.budget_remaining_usd})
+
+        result = await self.run(task, ctx, resume=True)
+        clear_freeze(frozen.workspace_root, frozen.run_id)
+        return result
 
     async def run(self, task: TaskSpec, ctx: RunContext, *, resume: bool = False) -> RunLoopResult:
         """Run `task` to completion (or a stop condition).
@@ -178,6 +246,9 @@ class RunLoop:
                 pass
 
         await self._trajectory.upsert_run(RunRecord(run_id=ctx.run_id, task=task, status="working"))
+        bind_run = getattr(self._model, "bind_run", None)
+        if callable(bind_run):
+            bind_run(ctx.run_id)
         await self._bus.emit(
             RunStarted(
                 run_id=ctx.run_id,
@@ -187,11 +258,22 @@ class RunLoop:
             )
         )
 
-        history: list[Message] = self._reconstruct_history(task, existing_steps)
+        assembler = self._build_assembler(task, existing_steps)
+        if self._pending_thaw_plan is not None:
+            assembler.set_plan(self._pending_thaw_plan)
+            self._pending_thaw_plan = None
+        if self._pending_thaw_open_files is not None:
+            for path in self._pending_thaw_open_files:
+                if path not in assembler._open_files:  # noqa: SLF001
+                    assembler._open_files.append(path)  # noqa: SLF001
+            self._pending_thaw_open_files = None
+        self._assembler = assembler
         steps: list[TrajectoryStep] = list(existing_steps)
         signature_counts: dict[str, int] = {}
         stuck = False
         failed = False
+        parked = False
+        frozen_snap: FrozenRunState | None = None
         run_usd = 0.0
         run_input_tokens = 0
         run_output_tokens = 0
@@ -199,15 +281,37 @@ class RunLoop:
         run_started = time.monotonic()
 
         for seq in range(start_seq, start_seq + self._max_steps):
-            remaining = await self._governor.remaining_budget(ctx.run_id)
-            if remaining <= 0:
+            self._next_seq = seq
+            # RC-2: `GovernorConfig.max_wall_clock_s` was accepted and read by nothing.
+            # Checked here as well as in `acquire` because the loop can burn wall clock in
+            # model calls without ever touching a pooled resource, and a limit that only
+            # trips on tool use does not bound a run that is stuck talking to itself.
+            remaining_wall = getattr(self._governor, "remaining_wall_clock_s", None)
+            if callable(remaining_wall) and remaining_wall(ctx.run_id) <= 0:
                 failed = True
                 await self._bus.emit(
                     RunFailed(
                         run_id=ctx.run_id,
-                        error_kind="budget_exhausted",
+                        error_kind="wall_clock_exhausted",
                         disposition="ABORT",
-                        message="Budget exhausted",
+                        message="Wall-clock limit exceeded",
+                    )
+                )
+                break
+
+            remaining = await self._governor.remaining_budget(ctx.run_id)
+            if remaining <= 0:
+                # Budget-park: freeze (grants absent), wait for funding — not a failure.
+                frozen_snap = self.freeze(ctx, reason="budget")
+                frozen_snap = frozen_snap.model_copy(update={"budget_remaining_usd": 0.0})
+                persist_freeze(frozen_snap)
+                parked = True
+                await self._bus.emit(
+                    BudgetExhausted(
+                        run_id=ctx.run_id,
+                        spent_usd=run_usd,
+                        limit_usd=ctx.budget_remaining_usd,
+                        limit_kind="run",
                     )
                 )
                 break
@@ -220,12 +324,25 @@ class RunLoop:
             )
             await self._bus.emit(StepStarted(run_id=ctx.run_id, step_id=step_id))
 
-            request = ModelRequest(
-                system=self._system_prompt,
-                messages=list(history),
-                tools=list(self._tool_schemas),
-                role="execution",
-            )
+            # Compaction is checked here — once per step, pre-assembly, never mid-turn.
+            # It resets the cache exactly once in exchange for reclaiming the window; run
+            # continuously it pays that cost every turn and saves nothing.
+            tail_before = assembler.tail_tokens()
+            exchanges_before = len(assembler.exchanges)
+            assembled = await assembler.assemble(role="execution")
+            if assembled.compacted:
+                await self._bus.emit(
+                    CompactionApplied(
+                        run_id=ctx.run_id,
+                        step_id=step_id,
+                        exchanges_before=exchanges_before,
+                        exchanges_after=len(assembler.exchanges),
+                        tail_tokens_before=tail_before,
+                        tail_tokens_after=assembled.tail_tokens,
+                        tainted_span=assembler.is_tainted(),
+                    )
+                )
+            request = assembled.request
             digest = hashlib.sha256(request.model_dump_json().encode()).hexdigest()
             await self._bus.emit(
                 ModelCallStarted(
@@ -239,6 +356,13 @@ class RunLoop:
             call_started = time.monotonic()
             completion = await self._model.complete(request)
             call_seconds = time.monotonic() - call_started
+
+            # Failover-as-checkpoint: if the model adapter hopped providers, persist a
+            # freeze snapshot so a kill mid-failover still resumes with grants absent.
+            last_failover = getattr(self._model, "last_failover", None)
+            if last_failover is not None:
+                frozen_snap = self.freeze(ctx, reason="failover")
+                persist_freeze(frozen_snap)
 
             response = completion.message
             usage = completion.usage
@@ -272,21 +396,33 @@ class RunLoop:
                 )
             )
 
-            history.append(response)
-
             tool_use_blocks = [b for b in response.content if isinstance(b, ToolUseBlock)]
             if not tool_use_blocks:
-                # Model ended turn
+                # Model ended turn. Persist the text-only assistant turn before leaving:
+                # it is part of what happened, and a resumed or replayed run that cannot
+                # see it assembles a different prompt than the one that was recorded
+                # (the other half of RC-4 — `from_trajectory` now reads these back).
+                assembler.append_exchange(response, ())
+                final_step = TrajectoryStep(
+                    step_id=step_id, message=response, usage=usage, cost=step_cost
+                )
+                await self._trajectory.append_step(final_step)
+                await self._bus.emit(StepCompleted(run_id=ctx.run_id, step_id=step_id, step=final_step))
+                steps.append(final_step)
                 break
 
             tool_calls: list[ToolCall] = []
             tool_results: list[ToolResult] = []
-            for block in tool_use_blocks:
+            result_messages: list[Message] = []
+            tainted_exchange = False
+            skipped: list[ToolUseBlock] = []
+            for i, block in enumerate(tool_use_blocks):
                 sig = self._tool_signature(block.tool_name, block.arguments)
                 signature_counts[sig] = signature_counts.get(sig, 0) + 1
                 if signature_counts[sig] >= _STUCK_REPEAT_THRESHOLD:
                     stuck = True
                     logger.warning("Stuck signature detected for %s", block.tool_name)
+                    skipped = tool_use_blocks[i:]
                     break
 
                 effect = await self._registry.get_effect_class(block.tool_name)
@@ -308,18 +444,35 @@ class RunLoop:
                 )
                 tool_calls.append(call)
                 tool_results.append(result)
-                history.append(
-                    Message(
-                        role="user",
-                        content=[
-                            ToolResultBlock(
-                                call_id=block.call_id,
-                                content=list(result.content),
-                                is_error=result.is_error,
-                            )
-                        ],
+                if not result.trusted:
+                    tainted_exchange = True
+                # T7: envelope applied here — the single ToolResult → prompt path.
+                result_messages.append(result_message(block.call_id, result, block.tool_name))
+
+            # RC-1: the assistant message with its `tool_use` blocks is already in history.
+            # Breaking out of the loop above without answering the remaining blocks leaves
+            # dangling `tool_use` ids, and every provider rejects a request containing one —
+            # so a run that got stuck could not be resumed, which is precisely when you
+            # most want to resume it. Answer the skipped calls with explicit errors.
+            for block in skipped:
+                synthetic = ToolResult(
+                    call_id=block.call_id,
+                    content=[TextBlock(text="Skipped: run halted on repeated identical tool calls.")],
+                    is_error=True,
+                    trusted=True,  # harness-authored; it introduces no external content
+                )
+                tool_calls.append(
+                    ToolCall(
+                        call_id=block.call_id,
+                        tool_name=block.tool_name,
+                        arguments=block.arguments,
+                        effect=await self._registry.get_effect_class(block.tool_name),
                     )
                 )
+                tool_results.append(synthetic)
+                result_messages.append(result_message(block.call_id, synthetic, block.tool_name))
+
+            assembler.append_exchange(response, tuple(result_messages), tainted=tainted_exchange)
 
             step = TrajectoryStep(
                 step_id=step_id,
@@ -346,9 +499,13 @@ class RunLoop:
                 break
 
         gate_report = await self._evaluator.evaluate(task, ctx)
-        await self._trajectory.upsert_run(
-            RunRecord(run_id=ctx.run_id, task=task, status="failed" if failed else "completed")
-        )
+        if parked:
+            status = "input-required"
+        elif failed:
+            status = "failed"
+        else:
+            status = "completed"
+        await self._trajectory.upsert_run(RunRecord(run_id=ctx.run_id, task=task, status=status))
         run_cost = CostSummary(
             usd=run_usd,
             input_tokens=run_input_tokens,
@@ -359,7 +516,13 @@ class RunLoop:
         await self._bus.emit(GateEvaluated(run_id=ctx.run_id, gate_report=gate_report))
         await self._bus.emit(RunCompleted(run_id=ctx.run_id, gate_report=gate_report, cost=run_cost))
         return RunLoopResult(
-            task=task, gate_report=gate_report, steps=steps, run_id=ctx.run_id, cost=run_cost
+            task=task,
+            gate_report=gate_report,
+            steps=steps,
+            run_id=ctx.run_id,
+            cost=run_cost,
+            parked=parked,
+            frozen=frozen_snap,
         )
 
 

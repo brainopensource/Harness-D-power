@@ -169,16 +169,23 @@ def register_builtin_tools(
             is_error=result.exit_code != 0,
         )
 
-    specs: list[tuple[str, dict[str, Any], EffectClass, Any]] = [
-        ("read_file", READ_SCHEMA, EffectClass.PURE, read_file),
-        ("list_dir", LIST_SCHEMA, EffectClass.PURE, list_dir),
-        ("grep", GREP_SCHEMA, EffectClass.PURE, grep),
-        ("apply_edit", APPLY_EDIT_SCHEMA, EffectClass.DESTRUCTIVE, apply_edit),
-        ("write_file", WRITE_FILE_SCHEMA, EffectClass.DESTRUCTIVE, write_file),
-        ("run_command", RUN_COMMAND_SCHEMA, EffectClass.DESTRUCTIVE, run_command),
+    # T7 trust column. `False` means "this output surfaces content the harness did not
+    # author, so it may be attacker-controlled" — a repo file, a grep hit, a subprocess's
+    # stdout. `True` means the payload is harness-derived: `apply_edit` and `write_file`
+    # return an `EditResult` the workspace adapter itself constructed, describing an effect
+    # the harness performed. Note the asymmetry is about the *result*, not the tool's power:
+    # the mutating tools are the trusted-output ones precisely because they report on
+    # themselves rather than relaying foreign bytes.
+    specs: list[tuple[str, dict[str, Any], EffectClass, Any, bool]] = [
+        ("read_file", READ_SCHEMA, EffectClass.PURE, read_file, False),
+        ("list_dir", LIST_SCHEMA, EffectClass.PURE, list_dir, False),
+        ("grep", GREP_SCHEMA, EffectClass.PURE, grep, False),
+        ("apply_edit", APPLY_EDIT_SCHEMA, EffectClass.DESTRUCTIVE, apply_edit, True),
+        ("write_file", WRITE_FILE_SCHEMA, EffectClass.DESTRUCTIVE, write_file, True),
+        ("run_command", RUN_COMMAND_SCHEMA, EffectClass.DESTRUCTIVE, run_command, False),
     ]
 
-    for name, schema, effect, handler in specs:
-        registry.register_handler(name, schema, effect, handler)
+    for name, schema, effect, handler, trusted in specs:
+        registry.register_handler(name, schema, effect, handler, trusted_output=trusted)
 
     return dict(BUILTIN_SCHEMAS)

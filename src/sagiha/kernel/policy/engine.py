@@ -10,6 +10,7 @@ from typing import Any, cast
 from sagiha.domain.content import ToolCall, ToolResult
 from sagiha.domain.control import Decision, Grant, RunContext
 from sagiha.domain.identity import utc_now
+from sagiha.kernel.policy.effects import MUTATION_TOOLS
 
 
 def _extract_paths_from_schema(schema: dict[str, Any], arguments: dict[str, Any]) -> list[str]:
@@ -77,6 +78,30 @@ class DefaultPolicyEngine:
         self._always_gate = set(always_gate or [])
         self._active_grants: dict[str, Grant] = {}
         self._tool_schemas: dict[str, dict[str, Any]] = {}
+        #: TaintGate v1 (T7). Run ids that have observed at least one untrusted tool output.
+        #: **Monotonic — nothing removes an entry.** There is deliberately no `untaint`,
+        #: no TTL, and no "the model looked at it and decided it was fine": every one of
+        #: those is a path by which attacker-controlled text argues its way back to trusted,
+        #: which is the whole attack.
+        self._tainted_runs: set[str] = set()
+
+    def is_tainted(self, run_id: str) -> bool:
+        """Whether `run_id` has observed untrusted tool output.
+
+        A concrete-class helper like `get_grant`, deliberately **not** on the `PolicyEngine`
+        Protocol: taint is Control-internal state, and putting it on the port would let an
+        adapter read (and, one refactor later, influence) the input to its own gate.
+        """
+        return run_id in self._tainted_runs
+
+    def mark_tainted(self, run_id: str) -> None:
+        """Re-seed taint after thaw. Monotonic — only adds, never clears.
+
+        Freeze/thaw must not be an untaint primitive: a run that was tainted before the
+        process died is still tainted when it comes back. Called only from the thaw path
+        with the `tainted` bit carried on `FrozenRunState`.
+        """
+        self._tainted_runs.add(run_id)
 
     def register_tool_schema(self, tool_name: str, schema: dict[str, Any]) -> None:
         """Bind JSON Schema used for path extraction at authorize time (C1)."""
@@ -106,6 +131,20 @@ class DefaultPolicyEngine:
             return Decision(
                 allowed=False,
                 reason=f"Tool '{call.tool_name}' requires explicit human grant",
+                requires_human=True,
+            )
+
+        # TaintGate v1 (T7) — refused pre-grant, so no capability is minted at all for a
+        # mutation attempted from a tainted context. At *every* autonomy level: a run that
+        # has read attacker-controlled text has no autonomy level at which an unreviewed
+        # write is acceptable.
+        if call.tool_name in MUTATION_TOOLS and self.is_tainted(context.run_id):
+            return Decision(
+                allowed=False,
+                reason=(
+                    f"tainted-context mutation requires approval: run '{context.run_id}' has "
+                    f"observed untrusted tool output, so '{call.tool_name}' needs a human grant"
+                ),
                 requires_human=True,
             )
 
@@ -152,4 +191,8 @@ class DefaultPolicyEngine:
         )
 
     async def record_outcome(self, grant_id: str, result: ToolResult) -> None:
-        self._active_grants.pop(grant_id, None)
+        # Resolve the run *before* the pop: the grant is the only thing that binds this
+        # result to a run id, and it is still live at this instant.
+        grant = self._active_grants.pop(grant_id, None)
+        if grant is not None and not result.trusted:
+            self._tainted_runs.add(grant.run_id)

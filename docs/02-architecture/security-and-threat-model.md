@@ -77,7 +77,7 @@ architecture forbids.
 | **Provenance at source** | `ToolResult.trusted: bool`, stamped by `dispatch` from the handler's `register_handler(..., trusted_output=)` registration. `read_file`/`list_dir`/`grep`/`run_command` → `False` (they surface repo content). `apply_edit`/`write_file` → `True`. Harness-derived tools (`find_symbols`, `get_skeleton`) → `True`. |
 | **Monotonic taint** | `DefaultPolicyEngine` holds `_tainted_runs`. Any untrusted result taints the run. **Nothing untaints it** until the run terminates — there is no "the model looked at it and decided it was fine". |
 | **The gate** | `authorize()` refuses pre-grant: tainted run **and** tool ∈ `MUTATION_TOOLS` → `Decision(allowed=False, requires_human=True)`, **at every autonomy level**. |
-| **Envelope at dispatch** | `dispatch()` wraps untrusted text in `<untrusted-data source=…>` before it reaches the loop, and emits `TaintIntroduced`. The envelope currently exists only in prose. |
+| **Envelope at assembler prompt boundary** | `agency/context/assembler.result_message` wraps untrusted text in `<untrusted-data source=…>` when a `ToolResult` becomes prompt content. `dispatch()` emits `TaintIntroduced` but does **not** rewrite bytes — `GateEvaluator` and other machine consumers of `dispatch` must keep clean content. |
 | **Through compaction** | A tainted exchange's summary is tainted and re-wrapped. See [exchange-granular compaction](./prompt-architecture.md). |
 
 Taint state is **Control-internal**: `is_tainted(run_id)` is a concrete-class helper, deliberately

@@ -76,6 +76,7 @@ async def _run_or_resume(
         evaluator=kernel.evaluator,
         workspace=kernel.workspace,
         pricing=kernel.config.pricing,
+        context=kernel.config.context,
     )
 
     if resume is not None:
@@ -200,6 +201,7 @@ def replay(
         evaluator=kernel.evaluator,
         workspace=kernel.workspace,
         pricing=kernel.config.pricing,
+        context=kernel.config.context,
     )
     new_run_id = str(uuid.uuid4())
     ctx = RunContext(

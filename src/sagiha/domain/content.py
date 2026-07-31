@@ -128,6 +128,48 @@ class ToolResult(BaseModel):
     truncated: bool = False
     full_output_uri: str | None = None
     is_error: bool = False
+    #: Whether this output may be trusted as harness-derived rather than
+    #: attacker-influenced (T7). Stamped by `ToolRegistry.dispatch` from the handler's
+    #: `register_handler(..., trusted_output=)` registration.
+    #:
+    #: **Defaults to `False`, and that default is the security property.** A result from
+    #: a registry that does not stamp it — a legacy cassette, a future MCP driver, a
+    #: third-party registry — is treated as untrusted and taints the run. The failure
+    #: mode of the default is "a mutation needs human approval", never "attacker text
+    #: reached a write path unlabelled".
+    trusted: bool = False
+
+
+# --- The untrusted-data envelope (T7) ---
+#
+# Lives in `domain` because both ends need it and they are on opposite sides of the
+# hexagon: `kernel/dispatch.py` wraps a tool result at the moment it is produced, and
+# `agency/context/compactor.py` re-wraps the summary of a tainted span. A helper in
+# either of those would have to be imported by the other, which the layering forbids.
+#
+# The envelope is *labelling*, not a control — the control is TaintGate's pre-grant
+# refusal in `kernel/policy/engine.py`. Labelling tells the model what it is reading;
+# the gate is what stops the write. See docs/02-architecture/security-and-threat-model.md#t7.
+
+UNTRUSTED_OPEN_PREFIX: str = "<untrusted-data source="
+UNTRUSTED_CLOSE: str = "</untrusted-data>"
+
+
+def wrap_untrusted(text: str, *, source: str) -> str:
+    """Wrap `text` in an `<untrusted-data source=…>` envelope.
+
+    Idempotent: text that is already enveloped is returned unchanged, so a value that
+    passes through both dispatch and the compactor is not nested twice.
+    """
+    stripped = text.lstrip()
+    if stripped.startswith(UNTRUSTED_OPEN_PREFIX):
+        return text
+    safe_source = source.replace('"', "'")
+    return f'<untrusted-data source="{safe_source}">\n{text}\n{UNTRUSTED_CLOSE}'
+
+
+def is_untrusted_wrapped(text: str) -> bool:
+    return text.lstrip().startswith(UNTRUSTED_OPEN_PREFIX)
 
 
 # --- Tool return payloads, referenced by docs/03-contracts-and-models/tool-catalog.md ---

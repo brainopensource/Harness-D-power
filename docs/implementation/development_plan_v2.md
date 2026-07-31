@@ -122,22 +122,22 @@ retrieval: excluded
 **Objective:** long runs stop dying at the window edge, and untrusted content stops being a silent write path. The two mechanisms ship together because taint must propagate *through* compaction (FI §R1).
 **Dependencies:** v2-S1/S2. **This is the Spec's action-plan #1 — nothing in Sprints 4–7 produces trustworthy long-horizon numbers without it.**
 
-- [ ] **Epic S3.1 — `ContextAssembler`** — `src/sagiha/agency/context/assembler.py` (new package)
-  - [ ] Subtask: extract inline history/`ModelRequest` assembly from `RunLoop`; `from_trajectory()` absorbs `_reconstruct_history`; retrieval seed accepted **only at construction** (seed-only by shape — no public post-construction `RetrievalHit` method); `prefix_digest` emitted per assembly.
-  - [ ] Verification: contract test asserts no refresh surface; cache-stability regression signal (`prefix_digest` constant across steps) in e2e.
-- [ ] **Epic S3.2 — `ExchangeCompactor`** — `src/sagiha/agency/context/compactor.py`
-  - [ ] Subtask: `Exchange` unit (assistant + paired results + reasoning, never split); token-budgeted keep policy; middle-span → synthetic tagged summary turn; `TruncatingCompactor` (deterministic default) + `ModelCompactor` (compaction role); `CompactionApplied` event (`domain/events.py` + catalog regen).
-  - [ ] Verification: conformance — post-compaction request provider-valid (zero orphan `tool_result` ids; reasoning blocks intact or dropped whole-exchange); `total ≤ keep budgets ⇒ no-op`; 200-step synthetic run completes under a 128k window.
-- [ ] **Epic S3.3 — TaintGate v1** — `kernel/policy/engine.py`, `kernel/dispatch.py`, `adapters/tools/registry.py`, `domain/content.py`
-  - [ ] Subtask: `ToolResult.trusted` field; `register_handler(..., trusted_output)`; builtins flagged (read/list/grep/run untrusted; apply_edit/write_file trusted); `record_outcome` resolves `run_id` from the still-live grant and marks `_tainted_runs` (monotonic); `authorize()` denies tainted-run mutations with `requires_human=True` at every autonomy level; `MUTATION_TOOLS` in `kernel/policy/effects.py`; dispatch wraps untrusted output in `<untrusted-data>`; `TaintIntroduced` event.
-  - [ ] Subtask: taint → compactor: tainted-span summaries carry the envelope (extends `test_external_provenance_survives_roundtrip` to the summary path).
-  - [ ] Verification: injection canary — planted hostile README instructs a write; the mutation is denied `requires_human=True`; zero tainted diffs land unapproved.
-- [ ] **Epic S3.4 — `FrozenRunState` + provider degradation** — `domain/control.py`, `agency/run_loop.py`, `adapters/model/fallback.py`
-  - [ ] Subtask: schema per FI §A3 (grants **absent by design** — contract test extends `test_no_grant_in_any_public_signature`); freeze/thaw path (thaw = rebuild kernel, re-materialize at `worktree_ref`, re-authorize on demand); consumers: budget-park, failover, future interrupt.
-  - [ ] Subtask: degradation policy — backoff-first economics rule; failover as checkpoint event (`ProviderFailover`), reasoning blocks dropped whole-exchange cross-provider; per-role `fallback` binding resolved at composition (replaces the current in-adapter blind chain semantics in `fallback.py` for role-level failover).
-  - [ ] Verification: freeze → `kill -9` → thaw → identical final `GateReport` ×3.
+- [x] **Epic S3.1 — `ContextAssembler`** — `src/sagiha/agency/context/assembler.py` (new package)
+  - [x] Subtask: extract inline history/`ModelRequest` assembly from `RunLoop`; `from_trajectory()` absorbs `_reconstruct_history`; retrieval seed accepted **only at construction** (seed-only by shape — no public post-construction `RetrievalHit` method); `prefix_digest` emitted per assembly.
+  - [x] Verification: contract test asserts no refresh surface; cache-stability regression signal (`prefix_digest` constant across steps) in e2e.
+- [x] **Epic S3.2 — `ExchangeCompactor`** — `src/sagiha/agency/context/compactor.py`
+  - [x] Subtask: `Exchange` unit (assistant + paired results + reasoning, never split); token-budgeted keep policy; middle-span → synthetic tagged summary turn; `TruncatingCompactor` (deterministic default) + `ModelCompactor` (compaction role); `CompactionApplied` event (`domain/events.py` + catalog regen).
+  - [x] Verification: conformance — post-compaction request provider-valid (zero orphan `tool_result` ids; reasoning blocks intact or dropped whole-exchange); `total ≤ keep budgets ⇒ no-op`; 200-step synthetic run completes under a 128k window.
+- [x] **Epic S3.3 — TaintGate v1** — `kernel/policy/engine.py`, `kernel/dispatch.py`, `adapters/tools/registry.py`, `domain/content.py`
+  - [x] Subtask: `ToolResult.trusted` field; `register_handler(..., trusted_output)`; builtins flagged (read/list/grep/run untrusted; apply_edit/write_file trusted); `record_outcome` resolves `run_id` from the still-live grant and marks `_tainted_runs` (monotonic); `authorize()` denies tainted-run mutations with `requires_human=True` at every autonomy level; `MUTATION_TOOLS` in `kernel/policy/effects.py`; untrusted envelope at assembler prompt boundary (`result_message`); `TaintIntroduced` event from dispatch.
+  - [x] Subtask: taint → compactor: tainted-span summaries carry the envelope (extends `test_external_provenance_survives_roundtrip` to the summary path).
+  - [x] Verification: injection canary — planted hostile README instructs a write; the mutation is denied `requires_human=True`; zero tainted diffs land unapproved.
+- [x] **Epic S3.4 — `FrozenRunState` + provider degradation** — `domain/control.py`, `agency/run_loop.py`, `adapters/model/fallback.py`
+  - [x] Subtask: schema per FI §A3 (grants **absent by design** — contract test extends `test_no_grant_in_any_public_signature`); freeze/thaw path (thaw = rebuild kernel, re-materialize at `worktree_ref`, re-authorize on demand); consumers: budget-park, failover, future interrupt.
+  - [x] Subtask: degradation policy — backoff-first economics rule; failover as checkpoint event (`ProviderFailover`), reasoning blocks dropped whole-exchange cross-provider; per-role `fallback` binding resolved at composition (replaces the current in-adapter blind chain semantics in `fallback.py` for role-level failover).
+  - [x] Verification: freeze → `kill -9` → thaw → identical final `GateReport` ×3.
 
-**Exit gate:** long-run e2e (200 steps) green; injection canary zero-leak; freeze/thaw deterministic; cache-hit-rate metric reported per run.
+**Exit gate:** long-run e2e (200 steps) green; injection canary zero-leak; freeze/thaw deterministic; cache-hit-rate metric reported per run. **CLOSED 2026-07-31.**
 
 ## Sprint v2-S4 — Measurement Re-Baseline + Best-of-N (Block 2 + Block 3)
 

@@ -89,6 +89,8 @@ def build_kernel(
     resource_governor = DefaultResourceGovernor(
         max_spend_usd_per_run=config.governor.max_spend_usd_per_run,
         max_concurrent_sandboxes=config.governor.max_concurrent_sandboxes,
+        max_wall_clock_s=config.governor.max_wall_clock_s,
+        max_steps_per_run=config.governor.max_steps_per_run,
     )
     default_registry = DefaultToolRegistry()
     tool_registry: ToolRegistry = default_registry
@@ -108,43 +110,80 @@ def build_kernel(
 
     path = cassette_path or ".sagiha/cassettes/default.json"
     mode = config.model.mode
+    bus = EventBus()
+
+    def _adapter_for_tier(tier_cfg: object, *, api_key: str | None) -> list[tuple[str, ModelProvider]]:
+        """In-tier model chain: primary + same-endpoint fallbacks only."""
+        from sagiha.adapters.model.openai import OpenAIModelAdapter
+        from sagiha.domain.config import ModelTierConfig
+
+        assert isinstance(tier_cfg, ModelTierConfig)
+        base_url = tier_cfg.base_url or "http://localhost:11434/v1"
+        models = [tier_cfg.model, *tier_cfg.fallbacks]
+        out: list[tuple[str, ModelProvider]] = []
+        for m in models:
+            out.append(
+                (
+                    f"{tier_cfg.provider}:{m}",
+                    OpenAIModelAdapter(model_name=m, base_url=base_url, api_key=api_key),
+                )
+            )
+        return out
 
     def _create_live_model_provider() -> ModelProvider:
         import os
 
         from sagiha.adapters.model.fallback import FallbackModelAdapter
-        from sagiha.adapters.model.openai import OpenAIModelAdapter
+        from sagiha.domain.config import ModelTierConfig
 
-        tier_name = tier or config.model.roles.get("execution") or config.model.active_tier
-        tier_cfg = (
-            config.model.tiers.get(tier_name)
+        # Role-level binding: execution role → primary tier; ModelConfig.fallback → secondary tier.
+        role_tier_name = tier or config.model.roles.get("execution") or config.model.active_tier
+        primary_cfg = (
+            config.model.tiers.get(role_tier_name)
             or config.model.tiers.get("tier0")
             or config.model.tiers.get("local")
         )
+        if primary_cfg is None:
+            raise RuntimeError(f"No model tier resolved for role tier '{role_tier_name}'")
 
-        models = [tier_cfg.model] + tier_cfg.fallbacks if tier_cfg else ["deepseek-coder"]
-        base_url = tier_cfg.base_url if tier_cfg and tier_cfg.base_url else "http://localhost:11434/v1"
-        api_key_env = tier_cfg.api_key_env if tier_cfg else ""
+        def _api_key_for(tier_cfg: ModelTierConfig) -> str | None:
+            api_key_env = tier_cfg.api_key_env
+            api_key = os.environ.get(api_key_env) if api_key_env else None
+            if not api_key and api_key_env:
+                env_vars = load_env_file(Path(config.workspace.root) / ".env")
+                if not env_vars:
+                    env_vars = load_env_file(".env")
+                api_key = env_vars.get(api_key_env)
+            return api_key
 
-        api_key = os.environ.get(api_key_env) if api_key_env else None
-        if not api_key and api_key_env:
-            env_vars = load_env_file(Path(config.workspace.root) / ".env")
-            if not env_vars:
-                env_vars = load_env_file(".env")
-            api_key = env_vars.get(api_key_env)
+        labeled = _adapter_for_tier(primary_cfg, api_key=_api_key_for(primary_cfg))
 
-        providers: list[ModelProvider] = [
-            OpenAIModelAdapter(
-                model_name=m,
-                base_url=base_url,
-                api_key=api_key,
-            )
-            for m in models
-        ]
+        fallback_tier_name = config.model.fallback
+        if fallback_tier_name and fallback_tier_name != role_tier_name:
+            fb_cfg = config.model.tiers.get(fallback_tier_name)
+            if fb_cfg is not None:
+                # Role-level hop: only the fallback tier's primary model, not its whole in-tier chain.
+                from sagiha.adapters.model.openai import OpenAIModelAdapter
 
-        if len(providers) == 1:
-            return providers[0]
-        return FallbackModelAdapter(providers)
+                base_url = fb_cfg.base_url or "http://localhost:11434/v1"
+                labeled.append(
+                    (
+                        f"{fb_cfg.provider}:{fb_cfg.model}",
+                        OpenAIModelAdapter(
+                            model_name=fb_cfg.model,
+                            base_url=base_url,
+                            api_key=_api_key_for(fb_cfg),
+                        ),
+                    )
+                )
+
+        if len(labeled) == 1:
+            return labeled[0][1]
+        return FallbackModelAdapter(
+            [p for _, p in labeled],
+            labels=[name for name, _ in labeled],
+            bus=bus,
+        )
 
     if mode == "replay":
         if not Path(path).exists():
@@ -158,7 +197,6 @@ def build_kernel(
     else:
         raise RuntimeError(f"Unknown model.mode: {mode}")
 
-    bus = EventBus()
     bus.subscribe_observer(trajectory_store.append_event)
     evaluator = GateEvaluator(
         policy_engine,

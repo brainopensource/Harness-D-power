@@ -274,7 +274,7 @@ class ContextConfig(BaseModel):
     #: Token budget of the most recent history kept verbatim, uncompacted, regardless
     #: of `compact_at_headroom` — the immediate working context a compaction pass must
     #: never touch.
-    keep_last_tokens: int = 20_000
+    keep_last_tokens: int = 24_000
 
 
 class SearchConfig(BaseModel):

@@ -70,6 +70,7 @@ class BenchmarkRunner:
                 evaluator=kernel.evaluator,
                 workspace=kernel.workspace,
                 pricing=kernel.config.pricing,
+                context=kernel.config.context,
             )
 
             task_spec = make_task(
