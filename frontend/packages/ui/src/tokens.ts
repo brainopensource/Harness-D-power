@@ -31,6 +31,14 @@ export const motionDurationMs = {
   emphasis: 320,
 } as const;
 
+export const cyberDarkColors = {
+  bgDark: "#0A0D14",
+  neonViolet: "#8B5CF6",
+  taintEmerald: "#10B981",
+  warningAmber: "#F59E0B",
+  dangerCrimson: "#EF4444",
+} as const;
+
 /** Semantic color -> terminal-safe chalk color name, per ui-ux-guidelines.md's CLI column. */
 export const chalkColor = {
   accent: "cyan",
@@ -39,6 +47,8 @@ export const chalkColor = {
   danger: "red",
   info: "blue",
   pending: "magenta",
+  frozen: "cyan",
+  tainted: "green",
   effectPure: "dim white" as const,
   effectIdempotent: "blue",
   effectDestructive: "red bold" as const,
@@ -55,18 +65,26 @@ export const cliStyle = {
 
 /** Status glyphs — never color-only signaling; every color pairs with one of these. */
 export const statusGlyph = {
+  idle: "⏸",
+  running: "▶",
   success: "✓",
   failure: "✗",
   inProgress: "⋯",
   pending: "○",
   warning: "!",
+  frozen: "❄",
+  tainted: "🛡",
 } as const;
 
 /** ASCII fallback glyphs for terminals that don't advertise UTF-8. */
 export const statusGlyphAscii = {
+  idle: "[idle]",
+  running: "[run]",
   success: "[ok]",
   failure: "[x]",
   inProgress: "[...]",
   pending: "[ ]",
   warning: "[!]",
+  frozen: "[frozen]",
+  tainted: "[taint]",
 } as const;

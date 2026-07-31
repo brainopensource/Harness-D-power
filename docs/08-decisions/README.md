@@ -40,6 +40,8 @@ Binding decisions, each with the reasoning that produced it and the conditions t
 | [0021](./0021-seed-only-layer-6-retrieval.md) | Layer-6 retrieval is seed-only; all later retrieval is agentic and tail-resident | Accepted |
 | [0022](./0022-rhi-economic-refounding.md) | RHI re-founded on economics: Tiers A/B scheduled, Tier C dormant behind a funding trigger | Accepted |
 | [0023](./0023-port-rent-rule.md) | Ports pay rent — zero non-test adapters for two phases ⇒ automatic demotion and deletion review | Accepted |
+| [0024](./0024-e0-is-a-tool-not-a-port.md) | `e0/` is a tool, not a port — `adapters/benchmark/` and `ports/benchmark.py` deleted; the `layers` contract forbids the adapter this port needed | Accepted |
+| [0025](./0025-candidate-search-seams.md) | `CandidateExecutor`/`CandidateScorer` are adapter-internal Protocols, not ports — same reasoning as ADR-0024, applied to Best-of-N's scoring ladder | Accepted |
 
 ## **Template**
 

@@ -17,6 +17,15 @@ importers:
 
   apps/cli:
     dependencies:
+      '@sagiha/mock-engine':
+        specifier: workspace:*
+        version: link:../../packages/mock-engine
+      '@sagiha/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
+      '@sagiha/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       commander:
         specifier: ^12.1.0
         version: 12.1.0
@@ -51,6 +60,12 @@ importers:
 
   apps/gui:
     dependencies:
+      '@sagiha/mock-engine':
+        specifier: workspace:*
+        version: link:../../packages/mock-engine
+      '@sagiha/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
       react:
         specifier: ^18.3.0
         version: 18.3.1
@@ -124,6 +139,9 @@ importers:
       zod:
         specifier: ^3.24.0
         version: 3.25.76
+      zustand:
+        specifier: ^5.0.0
+        version: 5.0.14(@types/react@18.3.31)(react@18.3.1)
     devDependencies:
       '@sagiha/config':
         specifier: workspace:*
@@ -144,6 +162,27 @@ importers:
       '@sagiha/config':
         specifier: workspace:*
         version: link:../config
+      '@testing-library/jest-dom':
+        specifier: ^6.6.0
+        version: 6.10.0(@testing-library/dom@10.4.1)
+      '@testing-library/react':
+        specifier: ^16.0.0
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@types/react':
+        specifier: ^18.3.0
+        version: 18.3.31
+      '@types/react-dom':
+        specifier: ^18.3.0
+        version: 18.3.7(@types/react@18.3.31)
+      jsdom:
+        specifier: ^25.0.0
+        version: 25.0.1
+      react:
+        specifier: ^18.3.0
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.3.0
+        version: 18.3.1(react@18.3.1)
       tailwindcss:
         specifier: ^4.0.0
         version: 4.3.3
@@ -1859,6 +1898,24 @@ packages:
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
+  zustand@5.0.14:
+    resolution: {integrity: sha512-/8tAspM5LMPr28b3fwLYrtdj77ECpfZviaP75CMTnwO8ISyaE4GDIG/9rDDYq/cH9D2Xw2A2RXglLInmVBQB/g==}
+    engines: {node: '>=12.20.0'}
+    peerDependencies:
+      '@types/react': '>=18.0.0'
+      immer: '>=9.0.6'
+      react: '>=18.0.0'
+      use-sync-external-store: '>=1.2.0'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      immer:
+        optional: true
+      react:
+        optional: true
+      use-sync-external-store:
+        optional: true
+
 snapshots:
 
   '@adobe/css-tools@4.5.0': {}
@@ -3317,3 +3374,8 @@ snapshots:
   yoga-layout@3.2.1: {}
 
   zod@3.25.76: {}
+
+  zustand@5.0.14(@types/react@18.3.31)(react@18.3.1):
+    optionalDependencies:
+      '@types/react': 18.3.31
+      react: 18.3.1

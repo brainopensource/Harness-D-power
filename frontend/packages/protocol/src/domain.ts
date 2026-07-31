@@ -36,6 +36,26 @@ export const RunContextSchema = z.object({
 });
 export type RunContext = z.infer<typeof RunContextSchema>;
 
+export const FreezeReasonSchema = z.enum(["budget", "failover", "interrupt", "checkpoint"]);
+export type FreezeReason = z.infer<typeof FreezeReasonSchema>;
+
+export const FrozenRunStateSchema = z.object({
+  run_id: z.string(),
+  task_id: z.string(),
+  autonomy_level: z.enum(["interactive", "hybrid", "autonomous", "scheduled"]),
+  workspace_root: z.string(),
+  budget_remaining_usd: z.number(),
+  worktree_ref: z.string().nullable().optional(),
+  base_commit: z.string().nullable().optional(),
+  next_seq: z.number().int().default(1),
+  plan: z.array(z.string()).default([]),
+  open_files: z.array(z.string()).default([]),
+  tainted: z.boolean().default(false),
+  frozen_at: z.string(),
+  reason: FreezeReasonSchema.default("checkpoint"),
+});
+export type FrozenRunState = z.infer<typeof FrozenRunStateSchema>;
+
 // --- work.py ---
 
 export const AcceptanceCriterionSchema = z.object({
@@ -55,3 +75,56 @@ export const TaskSpecSchema = z.object({
   status: TaskStatusSchema.default("submitted"),
 });
 export type TaskSpec = z.infer<typeof TaskSpecSchema>;
+
+export const CostSummarySchema = z.object({
+  usd: z.number(),
+  input_tokens: z.number().int(),
+  output_tokens: z.number().int(),
+  wall_clock_s: z.number(),
+  model_calls: z.number().int(),
+});
+export type CostSummary = z.infer<typeof CostSummarySchema>;
+
+export const TokenUsageSchema = z.object({
+  prompt_tokens: z.number().int(),
+  completion_tokens: z.number().int(),
+  total_tokens: z.number().int(),
+  cost_usd: z.number().optional(),
+});
+export type TokenUsage = z.infer<typeof TokenUsageSchema>;
+
+export const CriterionResultSchema = z.object({
+  description: z.string(),
+  check: z.string(),
+  passed: z.boolean(),
+  required: z.boolean(),
+  output: z.string().default(""),
+  duration_ms: z.number().default(0.0),
+});
+export type CriterionResult = z.infer<typeof CriterionResultSchema>;
+
+export const GateReportSchema = z.object({
+  criteria: z.array(CriterionResultSchema),
+  no_new_suppressions: z.boolean().nullable().optional(),
+  tests_unmodified: z.boolean().nullable().optional(),
+  coverage_not_decreased: z.boolean().nullable().optional(),
+  diff_within_bounds: z.boolean().nullable().optional(),
+  required_gates: z
+    .array(z.string())
+    .default(["no_new_suppressions", "tests_unmodified", "diff_within_bounds"]),
+  admitted: z.boolean().default(false),
+});
+export type GateReport = z.infer<typeof GateReportSchema>;
+
+export const TrajectoryStepSchema = z.object({
+  step_id: StepIdSchema,
+  kind: z.string(),
+  timestamp: z.string(),
+  tool_name: z.string().optional(),
+  arguments: z.record(z.unknown()).optional(),
+  output: z.unknown().optional(),
+  error: z.string().optional(),
+  token_usage: TokenUsageSchema.optional(),
+  tainted: z.boolean().optional(),
+});
+export type TrajectoryStep = z.infer<typeof TrajectoryStepSchema>;

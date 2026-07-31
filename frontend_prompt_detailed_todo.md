@@ -77,11 +77,11 @@ Execute the following development plan sequentially. Mark tasks as done (`- [x]`
 
 ### Sprint FE-0 — Audit, Task Wave Mapping & Master TODO Ledger Setup
 
-- [ ] **Task FE-0.1 — Codebase & Protocol Contract Audit**
+- [x] **Task FE-0.1 — Codebase & Protocol Contract Audit**
   - Conduct a complete audit of `frontend/` monorepo structure, `@sagiha/protocol` types, and `src/sagiha/domain/` Pydantic models.
   - Verify alignment with [`refactor_sagiha_v2_guidelines.md`](file:///home/rock_dev/Code/Harness/refactor_sagiha_v2_guidelines.md) and [`development_plan_v2.md`](file:///home/rock_dev/Code/Harness/docs/implementation/development_plan_v2.md).
 
-- [ ] **Task FE-0.2 — Task Wave Mapping & Execution Briefing**
+- [x] **Task FE-0.2 — Task Wave Mapping & Execution Briefing**
   - Map out the execution waves and dependencies across all packages:
     - **Wave 1:** Shared UI Tokens & Domain Protocol Schemas (`@sagiha/ui`, `@sagiha/protocol`)
     - **Wave 2:** High-Fidelity Mock Engine & Event Transport (`@sagiha/mock-engine`)
@@ -91,7 +91,7 @@ Execute the following development plan sequentially. Mark tasks as done (`- [x]`
     - **Wave 6:** AETHER Swarm Overview, Optimization & Final Verification
   - Document risk factors, component reusability targets (≥ 80% shared primitives), and bundle size ceilings.
 
-- [ ] **Task FE-0.3 — Master TODO Ledger Initialization**
+- [x] **Task FE-0.3 — Master TODO Ledger Initialization**
   - Verify that every sprint task across Sprint FE-0 to FE-6 has an explicit checkbox (`- [ ]`).
   - Establish the rule that tasks must be updated to `- [x]` immediately upon full completion and test verification.
 

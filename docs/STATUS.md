@@ -93,7 +93,7 @@ reported as block-level progress; they are re-stated here honestly.
 | Area | Reality | Lands |
 | :--- | :--- | :--- |
 
-| Block 2 — E0 benchmark | Real harness in `e0/`; a **parallel stub** implementation also exists under `adapters/benchmark/`. Duplication unresolved | `v2-S4` |
+| Block 2 — E0 benchmark | Real harness in `e0/`. `adapters/benchmark/` and `ports/benchmark.py` deleted ([ADR-0024](./08-decisions/0024-e0-is-a-tool-not-a-port.md)) — the layers contract forbade the adapter this port needed | `v2-S4` |
 | Block 3 — Best-of-N search | Port + `GitWorktreeManager` stub with open SENIOR TODOs. `N>1` never executed | `v2-S4` |
 | Block 4 — retrieval / code graph | Ports only. No indexer, no FTS5, no Tree-sitter | `v2-S6` |
 | Block 4 — Workflow DAG (ADR-0018) | Protocol only; gated on an E0 ablation that cannot be trusted until `v2-S1` | `v2-S7` |
@@ -117,7 +117,7 @@ Every PR holds or improves all of these. The test count is **monotonic** — it 
 | Signal | Baseline (2026-07-31) | Command |
 | :--- | :--- | :--- |
 | Tests | **192 passed** (174 at prior baseline, 158 at `v2-S1` close) | `uv run pytest -q` |
-| Port count | **19 Protocols / 17 files** (ADR-0019; target stated "16", off by one) | `grep -rn "(Protocol)" src/sagiha/ports/ \| wc -l` |
+| Port count | **17 Protocols / 16 files** (ADR-0019 restated count; `CommitReplayHarvester`/`TaskRunner` deleted per [ADR-0024](./08-decisions/0024-e0-is-a-tool-not-a-port.md)) | `grep -rn "(Protocol)" src/sagiha/ports/ \| wc -l` |
 | Type check | 0 errors, strict | `uv run pyright src/sagiha` |
 | Lint | clean | `uv run ruff check && uv run ruff format --check` |
 | Import contracts | **5/5** | `uv run lint-imports` |
