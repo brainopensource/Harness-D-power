@@ -15,12 +15,37 @@ export const CockpitDashboard: React.FC = () => {
     isTainted,
     latestGateReport,
     runContext,
+    providerConfig,
+    setProviderConfig,
   } = useHarnessStore();
 
   const [goal, setGoal] = useState("");
   const [acceptance, setAcceptance] = useState("true");
   const [mode, setMode] = useState<"live" | "replay">("live");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handlePresetChange = (preset: "ollama" | "openrouter" | "custom") => {
+    if (preset === "ollama") {
+      setProviderConfig({
+        providerPreset: "ollama",
+        modelName: "qwen2.5-coder:7b",
+        baseUrl: "http://localhost:11434/v1",
+        apiKey: "",
+      });
+    } else if (preset === "openrouter") {
+      setProviderConfig({
+        providerPreset: "openrouter",
+        modelName: "qwen/qwen-2.5-coder-32b-instruct:free",
+        baseUrl: "https://openrouter.ai/api/v1",
+        apiKey: providerConfig.apiKey || "",
+      });
+    } else {
+      setProviderConfig({
+        ...providerConfig,
+        providerPreset: "custom",
+      });
+    }
+  };
 
   const handleRunTask = async () => {
     if (!goal.trim()) return;
@@ -30,6 +55,9 @@ export const CockpitDashboard: React.FC = () => {
       await backendBridge.runTask({
         goal: goal.trim(),
         mode,
+        modelName: providerConfig.modelName,
+        baseUrl: providerConfig.baseUrl,
+        apiKey: providerConfig.apiKey,
         acceptance: acceptance.trim() ? [acceptance.trim()] : ["true"],
         cassette: mode === "replay" ? "tests/fixtures/replay_smoke/cassette.json" : undefined,
       });
@@ -73,6 +101,78 @@ export const CockpitDashboard: React.FC = () => {
             >
               ❄ PAUSE
             </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* LLM Provider Configuration Card */}
+      <div className="bg-slate-900/90 p-4 rounded-2xl border border-slate-800 space-y-3">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xs font-bold font-mono text-slate-300 flex items-center gap-2">
+            ⚙ LLM MODEL PROVIDER ENDPOINT CONFIGURATION
+          </h2>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handlePresetChange("ollama")}
+              className={`px-3 py-1 rounded-lg text-xs font-mono transition-colors ${
+                providerConfig.providerPreset === "ollama"
+                  ? "bg-cyan-600 text-white font-bold"
+                  : "bg-slate-950 text-slate-400 border border-slate-800 hover:text-white"
+              }`}
+            >
+              🦙 Ollama Local (Qwen 2.5 Coder)
+            </button>
+            <button
+              onClick={() => handlePresetChange("openrouter")}
+              className={`px-3 py-1 rounded-lg text-xs font-mono transition-colors ${
+                providerConfig.providerPreset === "openrouter"
+                  ? "bg-indigo-600 text-white font-bold"
+                  : "bg-slate-950 text-slate-400 border border-slate-800 hover:text-white"
+              }`}
+            >
+              🌐 OpenRouter Free Models
+            </button>
+            <button
+              onClick={() => handlePresetChange("custom")}
+              className={`px-3 py-1 rounded-lg text-xs font-mono transition-colors ${
+                providerConfig.providerPreset === "custom"
+                  ? "bg-purple-600 text-white font-bold"
+                  : "bg-slate-950 text-slate-400 border border-slate-800 hover:text-white"
+              }`}
+            >
+              🔌 Custom OpenAI Endpoint
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-3 text-xs font-mono">
+          <div>
+            <label className="block text-slate-400 mb-1">Model Name:</label>
+            <input
+              type="text"
+              value={providerConfig.modelName}
+              onChange={(e) => setProviderConfig({ ...providerConfig, modelName: e.target.value })}
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-slate-200 outline-none focus:border-cyan-500"
+            />
+          </div>
+          <div>
+            <label className="block text-slate-400 mb-1">Endpoint Base URL:</label>
+            <input
+              type="text"
+              value={providerConfig.baseUrl}
+              onChange={(e) => setProviderConfig({ ...providerConfig, baseUrl: e.target.value })}
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-slate-200 outline-none focus:border-cyan-500"
+            />
+          </div>
+          <div>
+            <label className="block text-slate-400 mb-1">API Key (OpenRouter/OpenAI optional):</label>
+            <input
+              type="password"
+              value={providerConfig.apiKey || ""}
+              onChange={(e) => setProviderConfig({ ...providerConfig, apiKey: e.target.value })}
+              placeholder="sk-or-v1-..."
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-slate-200 outline-none focus:border-cyan-500"
+            />
           </div>
         </div>
       </div>

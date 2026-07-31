@@ -25,9 +25,19 @@ export interface ControlCard {
   lastRun?: string;
 }
 
+export type ProviderPreset = "ollama" | "openrouter" | "custom";
+
+export interface ProviderConfig {
+  providerPreset: ProviderPreset;
+  modelName: string;
+  baseUrl: string;
+  apiKey?: string;
+}
+
 export interface HarnessState {
   connectionState: ConnectionState;
   systemMetrics: SystemMetrics;
+  providerConfig: ProviderConfig;
   runContext: RunContext | null;
   status: "idle" | "running" | "frozen" | "tainted" | "error";
   steps: TrajectoryStep[];
@@ -46,6 +56,7 @@ export interface HarnessState {
   // Actions
   setConnectionState: (state: ConnectionState) => void;
   setSystemMetrics: (metrics: SystemMetrics) => void;
+  setProviderConfig: (config: ProviderConfig) => void;
   setRunContext: (ctx: RunContext) => void;
   setStatus: (status: HarnessState["status"]) => void;
   addStep: (step: TrajectoryStep) => void;
@@ -70,6 +81,12 @@ const DEFAULT_CARDS: ControlCard[] = [
 export const useHarnessStore = create<HarnessState>((set) => ({
   connectionState: "Connected",
   systemMetrics: { cpuUsagePct: 24, memoryMb: 182 },
+  providerConfig: {
+    providerPreset: "ollama",
+    modelName: "qwen2.5-coder:7b",
+    baseUrl: "http://localhost:11434/v1",
+    apiKey: "",
+  },
   runContext: null,
   status: "idle",
   steps: [],
@@ -95,6 +112,7 @@ export const useHarnessStore = create<HarnessState>((set) => ({
 
   setConnectionState: (connectionState) => set({ connectionState }),
   setSystemMetrics: (systemMetrics) => set({ systemMetrics }),
+  setProviderConfig: (providerConfig) => set({ providerConfig }),
   setRunContext: (ctx) => set({ runContext: ctx }),
   setStatus: (status) => set({ status }),
   addStep: (step) =>

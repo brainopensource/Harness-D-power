@@ -30,6 +30,8 @@ export const CockpitView: React.FC = () => {
     totalCompletionTokens,
     totalCostUsd,
     addLog,
+    providerConfig,
+    setProviderConfig,
   } = useHarnessStore();
 
   const [focusedPane, setFocusedPane] = useState<"content" | "prompt">("prompt");
@@ -118,12 +120,46 @@ export const CockpitView: React.FC = () => {
       else if (command.includes("warn")) setLogFilter("warn");
       else if (command.includes("tool")) setLogFilter("tool");
       else setLogFilter("all");
+    } else if (command.startsWith("/provider")) {
+      const parts = command.split(" ");
+      const preset = parts[1]?.toLowerCase();
+      const apiKey = parts[2] || providerConfig.apiKey || "";
+
+      if (preset === "openrouter") {
+        setProviderConfig({
+          providerPreset: "openrouter",
+          modelName: "qwen/qwen-2.5-coder-32b-instruct:free",
+          baseUrl: "https://openrouter.ai/api/v1",
+          apiKey,
+        });
+        addLog({ id: `cmd-${Date.now()}`, timestamp: new Date().toISOString(), level: "info", message: `Configured OpenRouter Free provider (model: qwen/qwen-2.5-coder-32b-instruct:free)`, source: "config" });
+      } else if (preset === "ollama") {
+        setProviderConfig({
+          providerPreset: "ollama",
+          modelName: "qwen2.5-coder:7b",
+          baseUrl: "http://localhost:11434/v1",
+          apiKey: "",
+        });
+        addLog({ id: `cmd-${Date.now()}`, timestamp: new Date().toISOString(), level: "info", message: `Configured Local Ollama provider (model: qwen2.5-coder:7b, url: http://localhost:11434/v1)`, source: "config" });
+      } else {
+        addLog({ id: `cmd-${Date.now()}`, timestamp: new Date().toISOString(), level: "info", message: "Usage: /provider [openrouter <sk-key> | ollama]", source: "config" });
+      }
+    } else if (command.startsWith("/model")) {
+      const modelName = command.replace("/model", "").trim();
+      if (modelName) {
+        setProviderConfig({ ...providerConfig, modelName });
+        addLog({ id: `cmd-${Date.now()}`, timestamp: new Date().toISOString(), level: "info", message: `Model name set to: ${modelName}`, source: "config" });
+      }
+    } else if (command.startsWith("/key")) {
+      const apiKey = command.replace("/key", "").trim();
+      setProviderConfig({ ...providerConfig, apiKey });
+      addLog({ id: `cmd-${Date.now()}`, timestamp: new Date().toISOString(), level: "info", message: `API Key updated.`, source: "config" });
     } else if (command === "/status") {
       addLog({
         id: `cmd-${Date.now()}`,
         timestamp: new Date().toISOString(),
         level: "info",
-        message: `Status: ${status} | CPU: ${systemMetrics.cpuUsagePct}% | RAM: ${systemMetrics.memoryMb}MB | Tokens: ${totalPromptTokens + totalCompletionTokens}`,
+        message: `Status: ${status} | Preset: ${providerConfig.providerPreset} | Model: ${providerConfig.modelName} | BaseURL: ${providerConfig.baseUrl}`,
         source: "system",
       });
     } else if (command === "/help") {
@@ -131,7 +167,7 @@ export const CockpitView: React.FC = () => {
         id: `cmd-${Date.now()}`,
         timestamp: new Date().toISOString(),
         level: "info",
-        message: "Available slash commands: /status, /logs [all|error|warn|tool], /pause, /resume, /restart, /help",
+        message: "Slash commands: /provider [openrouter|ollama], /model <name>, /key <sk-key>, /status, /logs, /pause, /resume, /help",
         source: "system",
       });
     } else {
@@ -148,6 +184,9 @@ export const CockpitView: React.FC = () => {
       backendBridge.runTask({
         goal,
         mode: isReplay ? "replay" : "live",
+        modelName: providerConfig.modelName,
+        baseUrl: providerConfig.baseUrl,
+        apiKey: providerConfig.apiKey,
         cassette: isReplay ? "tests/fixtures/replay_smoke/cassette.json" : undefined,
       });
     }

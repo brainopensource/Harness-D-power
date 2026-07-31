@@ -7,6 +7,7 @@ export interface RunOptions {
   mode?: "live" | "replay" | "record" | undefined;
   modelName?: string | undefined;
   baseUrl?: string | undefined;
+  apiKey?: string | undefined;
   acceptance?: string[] | undefined;
   workspace?: string | undefined;
   cassette?: string | undefined;
@@ -19,24 +20,25 @@ export class SagihaBackendBridge {
    * Run a real SAGIHA backend coding task and stream execution events into useHarnessStore.
    */
   public runTask(options: RunOptions): Promise<{ success: boolean; runId?: string | undefined }> {
+    const store = useHarnessStore.getState();
     const {
       goal,
       mode = "live",
-      modelName = "qwen2.5-coder:7b",
-      baseUrl = "http://localhost:11434/v1",
+      modelName = store.providerConfig.modelName || "qwen2.5-coder:7b",
+      baseUrl = store.providerConfig.baseUrl || "http://localhost:11434/v1",
+      apiKey = store.providerConfig.apiKey,
       acceptance = [],
       workspace = ".",
       cassette,
     } = options;
 
-    const store = useHarnessStore.getState();
     store.setStatus("running");
 
     store.addLog({
       id: `bridge-start-${Date.now()}`,
       timestamp: new Date().toISOString(),
       level: "info",
-      message: `Spawning Python SAGIHA kernel: goal="${goal}" [mode=${mode}]`,
+      message: `Spawning Python SAGIHA kernel: goal="${goal}" [mode=${mode}] [model=${modelName}] [url=${baseUrl}]`,
       source: "bridge",
     });
 
@@ -64,6 +66,11 @@ export class SagihaBackendBridge {
       args.push("-a", check);
     }
 
+    const env = {
+      ...process.env,
+      ...(apiKey ? { OPENAI_API_KEY: apiKey, OPENROUTER_API_KEY: apiKey } : {}),
+    };
+
     return new Promise((resolve) => {
       let runId: string | undefined = undefined;
       let admitted = false;
@@ -71,7 +78,7 @@ export class SagihaBackendBridge {
       try {
         const proc = spawn("uv", args, {
           cwd: process.cwd(),
-          env: process.env,
+          env,
         });
 
         this.currentProcess = proc;
