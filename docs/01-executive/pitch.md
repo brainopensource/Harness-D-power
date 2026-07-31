@@ -214,7 +214,7 @@ showing planning beats no-planning before it becomes one.
 
 That gap is tracked deliberately rather than papered over: [`docs/STATUS.md`](../STATUS.md) is the
 single source of implementation truth and outranks every architecture document. [Sprint 3a is
-closed](../rationale/sprints/sprint-3.md); Sprint 3b (hardening — resumable runs, bus resilience, deny-path
+closed](../implementation/development_plan_v2.md); Sprint 3b (hardening — resumable runs, bus resilience, deny-path
 coverage beyond grant expiry) is next, and Block 2 follows once 3b lands.
 
 ---

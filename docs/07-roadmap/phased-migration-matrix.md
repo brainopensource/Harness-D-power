@@ -9,7 +9,7 @@ updated: 2026-07-30
 > **Working Proposal Disclaimer**: A working architectural proposal, refined iteratively as practical evaluation progresses.
 
 > [!IMPORTANT]
-> **Current build contract:** [Sprint 3a / 3b](../rationale/sprints/sprint-3.md) (Block 1 — close the loop).
+> **Current build contract:** [Sprint 3a / 3b](../implementation/development_plan_v2.md) (Block 1 — close the loop).
 > Implementation truth: [STATUS.md](../STATUS.md). **Sprint 3a is closed (2026-07-30)** — its exit
 > test runs in CI. Sprint 3b (hardening) is next; do not extend periphery (MCP/OTel) before it lands.
 

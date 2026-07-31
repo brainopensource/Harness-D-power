@@ -10,7 +10,7 @@ title: Sprint 0 Decision Record: The Path from Specification to a Measurable SOT
 > **Status: advisory.** This document records what Sprint 0 decided and what it owes. It defines no
 > contracts and overrides no ADR — a recommendation here becomes real only when it lands in
 > [`03-contracts-and-models/`](../../03-contracts-and-models/), an ADR, or a sprint checklist. Its
-> companion is the [Harness vs. SAGIHA comparative analysis](./harness_vs_sagiha_comparisson.md),
+> companion is the Harness vs. SAGIHA comparative analysis,
 > which supplies the evidence; this document supplies the decisions.
 
 > **Purpose.** Sprint 0 is a documentation sprint. Its job is to make the specification honest,
@@ -31,8 +31,8 @@ title: Sprint 0 Decision Record: The Path from Specification to a Measurable SOT
 
 The blueprint that prompted this document scored ten dimensions 80–98 and set every target to 100.
 Those numbers describe the **specification**, and reporting them as a single figure is the exact
-over-claiming both internal reviews warn against — [§4 of the comparative
-analysis](./harness_vs_sagiha_comparisson.md) states the baseline flatly: *SAGIHA is unbuilt.* So the
+over-claiming both internal reviews warn against — §4 of the comparative
+analysis states the baseline flatly: *SAGIHA is unbuilt.* So the
 scorecard is kept, because the dimensions are the right ten, and split into two columns, because the
 gap between them **is** the Sprint 0 finding.
 
@@ -65,7 +65,7 @@ project that will ever be a measurement comes out of E0.
 * **Workflow flexibility is not 82.** Nothing exists: no `WorkflowStep`, no `PRDSpec`, no
   `StoryBoard`, and no doc in `04-workflows-and-loops/` above the inner loop. 60 is generous for a
   dimension whose specification is one paragraph in an advisory review.
-* **Resilience is not 80.** [§2.12 of the comparative analysis](./harness_vs_sagiha_comparisson.md)
+* **Resilience is not 80.** §2.12 of the comparative analysis
   found this dimension has no SAGIHA column at all — nothing on network filesystems, crashes,
   sleep/wake, or mid-turn interjection.
 
@@ -210,7 +210,7 @@ not a nicety.
 ## 4. 🔍 **Reconciliation: Which Audit Findings Survived Verification**
 
 An earlier draft of this document proposed five overengineering findings and a universality matrix.
-[§7 of the comparative analysis](./harness_vs_sagiha_comparisson.md) checked each against
+§7 of the comparative analysis checked each against
 `src/sagiha/` and the normative docs. **Three were confirmed, one was rejected, one was not a
 finding, and one was right about the design but wrong about the status.** Recording the rejections
 matters as much as the confirmations — per
@@ -406,16 +406,16 @@ Concrete, small, and each with a named target file.
 | 3 | Add a resilience section: journal-mode probe, crash/sleep-wake, interjection queue | [composition-and-configuration.md](../../05-tech-stack/composition-and-configuration.md) + [error-taxonomy.md](../../03-contracts-and-models/error-taxonomy.md) | §1 dimension 9 is the weakest *specified* dimension, not merely the weakest built one |
 | 4 | Generate the port stability table from `STABILITY` declarations and `--check` in CI | `scripts/`, [port-stability-and-versioning.md](../../03-contracts-and-models/port-stability-and-versioning.md) | The doc names five Stable ports; the code marks eight. Same drift class the event catalog already solved |
 | 5 | Document the `todo/` → `doing/` → `done/` convention and log the three `todo/` reviews | [reviews/README.md](./README.md) | The convention exists on disk and nowhere in prose; the log table omits these documents entirely |
-| 6 | Fix the foundation-review link path repo-wide (`reviews/` → `reviews/doing/`) | [README.md](../../README.md), [STATUS.md](../../STATUS.md), [sprint-2.md](../sprints/sprint-2.md), [sprint-3.md](../sprints/sprint-3.md) | The file moved into `doing/`; every inbound link still points at the old path |
+| 6 | Fix the foundation-review link path repo-wide (`reviews/` → `reviews/doing/`) | [README.md](../../README.md), [STATUS.md](../../STATUS.md), sprint-2.md, sprint-3.md | The file moved into `doing/`; every inbound link still points at the old path |
 | 7 | Add `docs/sprints/` to the README sitemap | [README.md](../../README.md) | Sprints are referenced in "Start Here" but absent from the sitemap table |
 
 ---
 
 ## 9. 🔗 **Cross-References**
 
-* [Harness vs. SAGIHA — Comparative Analysis](./harness_vs_sagiha_comparisson.md) — the evidence base; Tier A/B/C items and §7 verdicts
+* Harness vs. SAGIHA — Comparative Analysis — the evidence base; Tier A/B/C items and §7 verdicts
 * [2026-07-29 Foundation Review](2026-07-29-foundation-review.md) — D1–D18, G1–G10, U1–U5
-* [STATUS.md](../../STATUS.md) — implementation truth · [Sprint 3](../sprints/sprint-3.md) — the near-term contract
+* [STATUS.md](../../STATUS.md) — implementation truth · Sprint 3 — the near-term contract
 * [ADR-0018](../../08-decisions/0018-native-workflow-dag.md) — native workflow DAG · [ADR Log](../../08-decisions/README.md)
 * [CAR Model](../../02-architecture/car-model.md) · [Remoteable Ports](../../02-architecture/remoteable-ports.md) · [Neural-Symbolic Memory](../../02-architecture/neural-symbolic-memory.md)
 * [Phased Migration Matrix](../../07-roadmap/phased-migration-matrix.md)

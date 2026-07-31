@@ -49,7 +49,7 @@ subprocess+autonomous, refuse host network without `allow_unsafe`).
 
 Sprint 3a delivered one end-to-end capability: **the agent resolves a failing test in a fixture
 repo, verified by a gate, logged, and replayable from a cassette** — see
-[Sprint 3a / 3b](../rationale/sprints/sprint-3.md).
+[Sprint 3a / 3b](../implementation/development_plan_v2.md).
 
 Delivered: fixed tool-call parsing, `ModelRequest` v2, digest-matched cassette, five built-in tools
 with schema-declared path scoping, a minimal evaluator, `sagiha run` / `sagiha replay --verify` in
@@ -89,8 +89,8 @@ test runs in CI. A run against a **live** model is not yet possible (see the Ope
 
 | Sprint / Block | Focus | Doc |
 | :--- | :--- | :--- |
-| Sprint 3a | Close the loop | ✅ Closed — [sprint-3.md](../rationale/sprints/sprint-3.md) |
-| Sprint 3b | Hardening (resume, bus resilience, deny-path) | [sprint-3.md](../rationale/sprints/sprint-3.md) |
+| Sprint 3a | Close the loop | ✅ Closed — [sprint-3.md](../implementation/development_plan_v2.md) |
+| Sprint 3b | Hardening (resume, bus resilience, deny-path) | [sprint-3.md](../implementation/development_plan_v2.md) |
 | Block 2 | E0-lite measurement | [phased-migration-matrix.md](../07-roadmap/phased-migration-matrix.md) |
 | Blocks 3–5 | Authority, retrieval, sandbox/MCP/OTel | [STATUS.md](../STATUS.md) |
 

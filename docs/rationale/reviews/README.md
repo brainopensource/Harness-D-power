@@ -19,7 +19,7 @@ normative docs and sprints; open items until Sprint 3 closes are summarized belo
 | Date | Review | Scope | Headline |
 | :--- | :--- | :--- | :--- |
 | 2026-07-28 | [Architecture & Documentation Review](2026-07-28-architecture-and-documentation-review.md) | Full tree — 56 modular docs, 2 reference blueprints, ~5,000 lines. No code existed at review time. | 16 defects (5 critical/high in the port contracts), 10 gaps, 11 stack/architecture changes, 7 documentation changes. Verdict: the reasoning is ready, the contracts are not, and the next commit should be `src/`. |
-| 2026-07-29 | [Foundation Review & Deep Audit](2026-07-29-foundation-review.md) | Full tree — 74 docs, `src/` (~2,800 lines), 16 tests, CI, config, sprint plan. Mid–Sprint 2. | 18 code-verified defects, 10 gaps, 11 doc findings. Verdict: coherent but demonstration-poor; close one measured loop before growing surface. **Current audit of record** until Sprint 3 closes. Drives [Sprint 3](../sprints/sprint-3.md). |
+| 2026-07-29 | [Foundation Review & Deep Audit](2026-07-29-foundation-review.md) | Full tree — 74 docs, `src/` (~2,800 lines), 16 tests, CI, config, sprint plan. Mid–Sprint 2. | 18 code-verified defects, 10 gaps, 11 doc findings. Verdict: coherent but demonstration-poor; close one measured loop before growing surface. **Current audit of record** until Sprint 3 closes. Drives Sprint 3. |
 
 ## **Remediation (doc findings)**
 
@@ -48,7 +48,7 @@ IDs are stable within a review and prefixed by its date when referenced across r
 1. **Triage by tier**, not by ID order. Each review ends with a prioritized action plan; that ordering reflects dependency and cost, and the ID numbering does not.
 2. **Defects that touch a contract get fixed in code, not in prose.** A `Protocol` corrected in a markdown file is a correction that will drift again.
 3. **A rejected finding is recorded, not deleted.** Note the rejection and the reasoning in the relevant ADR — the same discipline as the `Reversal Conditions` section, applied in the other direction.
-4. **Track open work in [STATUS.md](../../STATUS.md) and [Sprint 3](../sprints/sprint-3.md)** until the audit of record is superseded by a newer review or Sprint 3 exit.
+4. **Track open work in [STATUS.md](../../STATUS.md) and Sprint 3** until the audit of record is superseded by a newer review or Sprint 3 exit.
 
 ## **Cross-References**
 

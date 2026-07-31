@@ -132,11 +132,8 @@ Nothing here is binding. It is preserved reasoning: the *why* behind decisions t
 
 | Directory | Status | Contents |
 | :--- | :--- | :--- |
-| 📁 [`rationale/reference/`](./rationale/reference/) | **Rationale** | Long-form derivation and comparative research, incl. [`harness_examples/`](./rationale/reference/harness_examples/) competitor teardowns. No interface definitions |
+| 📁 [`rationale/reference/`](./rationale/reference/) | **Rationale** | Long-form derivation behind the contracts. No interface definitions |
 | 📁 [`rationale/reviews/`](./rationale/reviews/) | **Historical** | Every adversarial review, flat and chronological (the `todo/`/`doing/`/`done/` kanban is retired — see below), plus the v2 corpus folded into `01`–`08` by PR-0d |
-| 📁 [`rationale/sprints/`](./rationale/sprints/) | **Rationale** | Sprints 2–4 under the old numbering, closed. The seven `sprint-fe-*` docs stay archived until Phase 7's TUI creates a real consumer |
-| 📁 [`rationale/frontend/`](./rationale/frontend/) | **Rationale** | Frontend surface design. **No consumer until `v2-S7`** |
-| 📁 [`rationale/implementation-archive/`](./rationale/implementation-archive/) | **Rationale** | Superseded development plans and todo lists |
 
 ---
 
@@ -144,6 +141,12 @@ Nothing here is binding. It is preserved reasoning: the *why* behind decisions t
 * 📘 [conceptual-design.md](rationale/reference/conceptual-design.md) — conceptual architecture, functional blocks, and dual-process execution engine.
 * 📗 [design-derivation.md](rationale/reference/design-derivation.md) — the research and comparative analysis behind the contracts, plus the adversarial failure analysis. **Contains no interface definitions**; those live in [`03-contracts-and-models/`](./03-contracts-and-models/).
 * 📙 [benchmarking-existing-harnesses.md](rationale/reference/benchmarking-existing-harnesses.md) — comparative teardown of Claude Code CLI, Aider, OpenHands, SWE-agent, and Grok Code Build.
+
+> The long-form competitor research (`harness_research.md`, `reference/harness_examples/`,
+> `reviews/harness_vs_sagiha_comparisson.md`), the frontend surface docs, the `sprint-fe-*`
+> series, the closed sprints 2–4, and the superseded plan archive were **deleted** on
+> 2026-07-31. They were unreferenced by anything normative and superseded by `01`–`08`,
+> the ADR log, and `development_plan_v2.md`. Recoverable from git history.
 
 
 ---
@@ -153,7 +156,7 @@ Nothing here is binding. It is preserved reasoning: the *why* behind decisions t
 1. **[Current Status](./STATUS.md)** — what is implemented today vs planned; the only page that answers “can I run this yet?”
 2. [Vision & Philosophy](./01-executive/vision-and-philosophy.md) — what the harness owns and what it deliberately does not.
 3. [Glossary](./01-executive/glossary.md) — terms carry precise meanings here; skim this first.
-4. [Sprint 3](rationale/sprints/sprint-3.md) — near-term executable build contract (close the loop).
+4. [Development Plan v2](./implementation/development_plan_v2.md) — the `v2-S0…S7` sprint sequence.
 5. [Hexagonal Ports](./03-contracts-and-models/hexagonal-ports.md) — the contracts everything else depends on.
 6. [ADR Log](./08-decisions/README.md) — every binding decision, with what would reverse it.
 7. [Phased Migration Matrix](./07-roadmap/phased-migration-matrix.md) — vertical slices, gates, and deliberate deferrals.
@@ -170,7 +173,7 @@ CI gates, and layer contracts are decided — see [Dependencies](./05-tech-stack
 
 What is **not** ready: `sagiha run` / `replay` / `bench`, a multi-step agent loop, built-in tools,
 an evaluator, and digest-verified replay. The near-term contract is
-[Sprint 3](rationale/sprints/sprint-3.md). Implementation truth: **[STATUS.md](./STATUS.md)**.
+[Development Plan v2](./implementation/development_plan_v2.md). Implementation truth: **[STATUS.md](./STATUS.md)**.
 
 Command examples elsewhere in this tree that show `sagiha run`, `sagiha replay`, or `sagiha bench`
 are **target UX** — Planned until the sprint/block named on [STATUS.md](./STATUS.md) exits.
