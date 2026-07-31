@@ -6,6 +6,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from sagiha.domain.trajectory import TokenUsage
+
 
 class ThinkingConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
@@ -185,6 +187,33 @@ class AutonomyConfig(BaseModel):
     )
 
 
+class PricingConfig(BaseModel):
+    """Per-million-token rates used to turn `TokenUsage` into dollars.
+
+    Defaults are `0.0` — the honest price of a local model. A non-zero default would
+    invent a cost figure for every user who never configured one, which is the same
+    class of defect as the zeroed telemetry it replaces (H2).
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    usd_per_1m_input: float = 0.0
+    usd_per_1m_output: float = 0.0
+    #: Cached input is billed at a discount by most providers. Falls back to the full
+    #: input rate when unset, which over-reports rather than under-reports.
+    usd_per_1m_cache_read: float | None = None
+
+    def cost_usd(self, usage: TokenUsage) -> float:
+        cache_rate = (
+            self.usd_per_1m_input if self.usd_per_1m_cache_read is None else self.usd_per_1m_cache_read
+        )
+        return (
+            usage.input_tokens * self.usd_per_1m_input
+            + usage.output_tokens * self.usd_per_1m_output
+            + usage.cache_read_tokens * cache_rate
+        ) / 1_000_000
+
+
 class GovernorConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -358,6 +387,7 @@ class Config(BaseModel):
     workspace: WorkspaceConfig = Field(default_factory=WorkspaceConfig)
     autonomy: AutonomyConfig = Field(default_factory=AutonomyConfig)
     governor: GovernorConfig = Field(default_factory=GovernorConfig)
+    pricing: PricingConfig = Field(default_factory=PricingConfig)
     sandbox: SandboxConfig = Field(default_factory=SandboxConfig)
     retrieval: RetrievalConfig = Field(default_factory=RetrievalConfig)
     context: ContextConfig = Field(default_factory=ContextConfig)

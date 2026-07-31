@@ -68,6 +68,8 @@ class BenchmarkRunner:
                 max_steps=self._max_steps,
                 tool_schemas=list(kernel.tool_schemas),
                 evaluator=kernel.evaluator,
+                workspace=kernel.workspace,
+                pricing=kernel.config.pricing,
             )
 
             task_spec = make_task(

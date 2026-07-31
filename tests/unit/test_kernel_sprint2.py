@@ -16,7 +16,7 @@ from sagiha.domain.config import ModelConfig, TelemetryConfig, WorkspaceConfig
 from sagiha.domain.content import EffectClass, Message, ModelRequest, TextBlock, ToolCall, ToolResult
 from sagiha.domain.control import Decision, RunContext
 from sagiha.domain.events import Event, ToolCallRequested
-from sagiha.domain.trajectory import StreamEvent
+from sagiha.domain.trajectory import Completion, StreamEvent, TokenUsage
 from sagiha.kernel.bus import EventBus
 from sagiha.kernel.dispatch import dispatch
 from sagiha.kernel.governor import DefaultResourceGovernor
@@ -111,8 +111,12 @@ async def test_run_loop_single_step_ends_turn_with_no_tool_calls() -> None:
     tool calls records exactly one step and stops without dispatching anything."""
 
     class EndTurnProvider:
-        async def complete(self, request: ModelRequest) -> Message:
-            return Message(role="assistant", content=[TextBlock(text="Hello back!")])
+        async def complete(self, request: ModelRequest) -> Completion:
+            return Completion(
+                message=Message(role="assistant", content=[TextBlock(text="Hello back!")]),
+                usage=TokenUsage(input_tokens=0, output_tokens=0),
+                model="test",
+            )
 
         async def stream(self, request: ModelRequest) -> AsyncIterator[StreamEvent]:
             raise NotImplementedError

@@ -23,7 +23,7 @@ from sagiha.domain.content import (
 from sagiha.domain.control import Grant, RunContext
 from sagiha.domain.events import ToolCallCompleted, ToolCallRequested
 from sagiha.domain.identity import utc_now
-from sagiha.domain.trajectory import StreamEvent
+from sagiha.domain.trajectory import Completion, StreamEvent, TokenUsage
 from sagiha.kernel.bus import EventBus
 from sagiha.kernel.dispatch import dispatch
 from sagiha.kernel.governor import DefaultResourceGovernor
@@ -119,14 +119,22 @@ async def test_react_parses_tool_use_block(tmp_path: Path) -> None:
         def __init__(self) -> None:
             self.calls = 0
 
-        async def complete(self, request: ModelRequest) -> Message:
+        async def complete(self, request: ModelRequest) -> Completion:
             self.calls += 1
             if self.calls == 1:
-                return Message(
-                    role="assistant",
-                    content=[ToolUseBlock(call_id="tu-1", tool_name="echo", arguments={"msg": "hi"})],
+                return Completion(
+                    message=Message(
+                        role="assistant",
+                        content=[ToolUseBlock(call_id="tu-1", tool_name="echo", arguments={"msg": "hi"})],
+                    ),
+                    usage=TokenUsage(input_tokens=0, output_tokens=0),
+                    model="test",
                 )
-            return Message(role="assistant", content=[TextBlock(text="done")])
+            return Completion(
+                message=Message(role="assistant", content=[TextBlock(text="done")]),
+                usage=TokenUsage(input_tokens=0, output_tokens=0),
+                model="test",
+            )
 
         async def stream(self, request: ModelRequest) -> AsyncIterator[StreamEvent]:
             raise NotImplementedError

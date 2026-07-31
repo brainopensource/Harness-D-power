@@ -7,10 +7,10 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from sagiha.domain.content import ContentBlock, ReasoningBlock, ToolCall, ToolResult
+from sagiha.domain.content import ContentBlock, Message, ReasoningBlock, ToolCall, ToolResult
 from sagiha.domain.control import TaskStatus
 from sagiha.domain.identity import StepId, utc_now
-from sagiha.domain.work import TaskSpec
+from sagiha.domain.work import CostSummary, TaskSpec
 
 
 class RunRecord(BaseModel):
@@ -29,6 +29,16 @@ class RunRecord(BaseModel):
     updated_at: datetime = Field(default_factory=utc_now)
 
 
+class TokenUsage(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    input_tokens: int
+    output_tokens: int
+    cache_read_tokens: int = 0  # populated where the provider supplies it
+    cache_write_tokens: int = 0
+    reasoning_tokens: int = 0
+
+
 class TrajectoryStep(BaseModel):
     """Frozen: a mutated step is an audit record that no longer reconstructs what happened."""
 
@@ -39,6 +49,15 @@ class TrajectoryStep(BaseModel):
     summary: str = ""
     tool_calls: tuple[ToolCall, ...] = ()
     tool_results: tuple[ToolResult, ...] = ()
+    #: What this step's model call actually consumed. Additive with zero defaults, so
+    #: steps recorded before PR-1b load unchanged — and a zero here now means "not
+    #: measured", which for those rows is true.
+    usage: TokenUsage = Field(default_factory=lambda: TokenUsage(input_tokens=0, output_tokens=0))
+    cost: CostSummary = Field(
+        default_factory=lambda: CostSummary(
+            usd=0.0, input_tokens=0, output_tokens=0, wall_clock_s=0.0, model_calls=0
+        )
+    )
     timestamp: datetime = Field(default_factory=utc_now)
 
 
@@ -73,14 +92,22 @@ class BlockEnd(BaseModel):
     block: ContentBlock  # the assembled, complete block
 
 
-class TokenUsage(BaseModel):
+class Completion(BaseModel):
+    """One model call's result: the message, what it cost in tokens, and who answered.
+
+    Usage is a property of the **call**, not of the message. The rejected alternative —
+    adding `usage` to `Message` — is recorded here so it is not re-proposed: it would
+    leak into conversation history and into cassette request digests, making replay
+    sensitive to token counts that have nothing to do with the request.
+    """
+
     model_config = ConfigDict(frozen=True)
 
-    input_tokens: int
-    output_tokens: int
-    cache_read_tokens: int = 0  # populated where the provider supplies it
-    cache_write_tokens: int = 0
-    reasoning_tokens: int = 0
+    message: Message
+    usage: TokenUsage
+    #: The model that actually answered, which is not always the one requested —
+    #: a fallback chain or a provider-side alias can substitute one.
+    model: str
 
 
 class UsageReported(BaseModel):

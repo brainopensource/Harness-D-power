@@ -14,15 +14,24 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from typing import Final, Protocol
 
-from sagiha.domain.content import Message, ModelRequest
-from sagiha.domain.trajectory import StreamEvent
+from sagiha.domain.content import ModelRequest
+from sagiha.domain.trajectory import Completion, StreamEvent
 
-PORT_VERSION: Final = 1
+PORT_VERSION: Final = 2
 STABILITY: Final = "provisional"
 
 
 class ModelProvider(Protocol):
-    async def complete(self, request: ModelRequest) -> Message: ...
+    #: v2 (PR-1b): returns `Completion`, not a bare `Message`.
+    #:
+    #: Migration: an adapter that previously returned `Message` wraps it in
+    #: `Completion(message=…, usage=…, model=…)`. Adapters with no usage figure report
+    #: `TokenUsage(input_tokens=0, output_tokens=0)` — a legitimate "not measured" for a
+    #: replayed cassette entry, and NOT a licence to zero real usage.
+    #:
+    #: The port is `provisional`, which permits this break; it has one live adapter and
+    #: one test double. Taken now rather than after Phase 4 writes real consumers.
+    async def complete(self, request: ModelRequest) -> Completion: ...
 
     # Coroutine that resolves to an async iterator of frames — every port method is async
     # per docs/02-architecture/remoteable-ports.md, including this one.

@@ -12,7 +12,7 @@ from sagiha.adapters.trajectory.sqlite import SQLiteTrajectoryStore
 from sagiha.agency.run_loop import RunLoop, make_task
 from sagiha.domain.content import EffectClass, Message, ModelRequest, TextBlock, ToolResult, ToolUseBlock
 from sagiha.domain.control import RunContext
-from sagiha.domain.trajectory import StreamEvent
+from sagiha.domain.trajectory import Completion, StreamEvent, TokenUsage
 from sagiha.kernel.bus import EventBus
 from sagiha.kernel.governor import DefaultResourceGovernor
 from sagiha.kernel.policy.engine import DefaultPolicyEngine
@@ -30,11 +30,11 @@ class _ScriptedProvider:
         self.i = 0
         self.seen_message_counts: list[int] = []
 
-    async def complete(self, request: ModelRequest) -> Message:
+    async def complete(self, request: ModelRequest) -> Completion:
         self.seen_message_counts.append(len(request.messages))
         msg = self._responses[min(self.i, len(self._responses) - 1)]
         self.i += 1
-        return msg
+        return Completion(message=msg, usage=TokenUsage(input_tokens=0, output_tokens=0), model="test")
 
     async def stream(self, request: ModelRequest) -> AsyncIterator[StreamEvent]:
         raise NotImplementedError

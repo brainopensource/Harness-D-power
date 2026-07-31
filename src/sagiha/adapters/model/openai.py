@@ -21,7 +21,7 @@ from sagiha.domain.content import (
     ToolSchema,
     ToolUseBlock,
 )
-from sagiha.domain.trajectory import StreamEvent
+from sagiha.domain.trajectory import Completion, StreamEvent, TokenUsage
 from sagiha.ports.model import ModelProvider
 
 logger = logging.getLogger(__name__)
@@ -188,7 +188,7 @@ class OpenAIModelAdapter(ModelProvider):
             return self._base_url
         return f"{self._base_url}/chat/completions"
 
-    async def complete(self, request: ModelRequest) -> Message:
+    async def complete(self, request: ModelRequest) -> Completion:
         payload_messages = self._build_messages_payload(request)
         payload: dict[str, Any] = {
             "model": self._model_name,
@@ -311,9 +311,30 @@ class OpenAIModelAdapter(ModelProvider):
         if not blocks:
             blocks.append(TextBlock(text=""))
 
-        return Message(role="assistant", content=blocks)
+        # The endpoint has always returned these and the adapter has always dropped
+        # them on the floor, which is the whole of H2 on the provider side.
+        raw_usage: dict[str, Any] = response_data.get("usage") or {}
+        details: dict[str, Any] = raw_usage.get("prompt_tokens_details") or {}
 
-    async def generate(self, request: ModelRequest) -> Message:
+        def _tokens(source: dict[str, Any], key: str) -> int:
+            value: Any = source.get(key, 0)
+            return int(value) if isinstance(value, int | float | str) and value else 0
+
+        usage = TokenUsage(
+            input_tokens=_tokens(raw_usage, "prompt_tokens"),
+            output_tokens=_tokens(raw_usage, "completion_tokens"),
+            cache_read_tokens=_tokens(details, "cached_tokens"),
+        )
+
+        return Completion(
+            message=Message(role="assistant", content=blocks),
+            usage=usage,
+            # What actually answered, which a fallback or a provider-side alias can
+            # change out from under the requested name.
+            model=str(response_data.get("model") or self._model_name),
+        )
+
+    async def generate(self, request: ModelRequest) -> Completion:
         """Alias for complete() matching prompt method naming."""
         return await self.complete(request)
 

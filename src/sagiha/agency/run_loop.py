@@ -5,9 +5,11 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import time
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
+from sagiha.domain.config import PricingConfig
 from sagiha.domain.content import (
     Message,
     ModelRequest,
@@ -30,7 +32,7 @@ from sagiha.domain.events import (
     StepStarted,
 )
 from sagiha.domain.identity import StepId
-from sagiha.domain.trajectory import RunRecord, TokenUsage, TrajectoryStep
+from sagiha.domain.trajectory import RunRecord, TrajectoryStep
 from sagiha.domain.work import (
     AcceptanceCriterion,
     CostSummary,
@@ -59,6 +61,13 @@ class RunLoopResult:
     gate_report: GateReport
     steps: list[TrajectoryStep]
     run_id: str
+    #: What the run actually cost. Was not exposed at all before PR-1b, because there
+    #: was no true figure to expose.
+    cost: CostSummary = field(
+        default_factory=lambda: CostSummary(
+            usd=0.0, input_tokens=0, output_tokens=0, wall_clock_s=0.0, model_calls=0
+        )
+    )
 
 
 class RunLoop:
@@ -82,6 +91,7 @@ class RunLoop:
         tool_schemas: list[ToolSchema] | None = None,
         evaluator: Evaluator | None = None,
         workspace: Workspace | None = None,
+        pricing: PricingConfig | None = None,
     ) -> None:
         self._model = model_provider
         self._policy = policy_engine
@@ -93,6 +103,7 @@ class RunLoop:
         self._system_prompt = system_prompt
         self._tool_schemas = tool_schemas or []
         self._workspace = workspace
+        self._pricing = pricing or PricingConfig()
         self._evaluator: Evaluator = evaluator or GateEvaluator(
             policy_engine, resource_governor, tool_registry, bus
         )
@@ -172,6 +183,11 @@ class RunLoop:
         signature_counts: dict[str, int] = {}
         stuck = False
         failed = False
+        run_usd = 0.0
+        run_input_tokens = 0
+        run_output_tokens = 0
+        run_model_calls = 0
+        run_started = time.monotonic()
 
         for seq in range(start_seq, start_seq + self._max_steps):
             remaining = await self._governor.remaining_budget(ctx.run_id)
@@ -211,21 +227,39 @@ class RunLoop:
                 )
             )
 
-            response = await self._model.complete(request)
+            call_started = time.monotonic()
+            completion = await self._model.complete(request)
+            call_seconds = time.monotonic() - call_started
+
+            response = completion.message
+            usage = completion.usage
+            cost_usd = self._pricing.cost_usd(usage)
+
+            # The call that makes `remaining_budget()` mean anything. `record_spend`
+            # was implemented, correct, and invoked from nowhere in `src/` — which is
+            # what made the budget break below unreachable (H2).
+            await self._governor.record_spend(ctx.run_id, cost_usd)
+
+            step_cost = CostSummary(
+                usd=cost_usd,
+                input_tokens=usage.input_tokens,
+                output_tokens=usage.output_tokens,
+                wall_clock_s=call_seconds,
+                model_calls=1,
+            )
+            run_usd += cost_usd
+            run_input_tokens += usage.input_tokens
+            run_output_tokens += usage.output_tokens
+            run_model_calls += 1
+
             has_tools = any(isinstance(b, ToolUseBlock) for b in response.content)
             await self._bus.emit(
                 ModelCallCompleted(
                     run_id=ctx.run_id,
                     step_id=step_id,
-                    usage=TokenUsage(input_tokens=0, output_tokens=0),
+                    usage=usage,
                     stop_reason="tool_use" if has_tools else "end_turn",
-                    cost=CostSummary(
-                        usd=0.0,
-                        input_tokens=0,
-                        output_tokens=0,
-                        wall_clock_s=0.0,
-                        model_calls=1,
-                    ),
+                    cost=step_cost,
                 )
             )
 
@@ -280,6 +314,8 @@ class RunLoop:
                 step_id=step_id,
                 tool_calls=tuple(tool_calls),
                 tool_results=tuple(tool_results),
+                usage=usage,
+                cost=step_cost,
             )
             await self._trajectory.append_step(step)
             await self._bus.emit(StepCompleted(run_id=ctx.run_id, step_id=step_id, step=step))
@@ -301,21 +337,18 @@ class RunLoop:
         await self._trajectory.upsert_run(
             RunRecord(run_id=ctx.run_id, task=task, status="failed" if failed else "completed")
         )
-        await self._bus.emit(GateEvaluated(run_id=ctx.run_id, gate_report=gate_report))
-        await self._bus.emit(
-            RunCompleted(
-                run_id=ctx.run_id,
-                gate_report=gate_report,
-                cost=CostSummary(
-                    usd=0.0,
-                    input_tokens=0,
-                    output_tokens=0,
-                    wall_clock_s=0.0,
-                    model_calls=len(steps),
-                ),
-            )
+        run_cost = CostSummary(
+            usd=run_usd,
+            input_tokens=run_input_tokens,
+            output_tokens=run_output_tokens,
+            wall_clock_s=time.monotonic() - run_started,
+            model_calls=run_model_calls,
         )
-        return RunLoopResult(task=task, gate_report=gate_report, steps=steps, run_id=ctx.run_id)
+        await self._bus.emit(GateEvaluated(run_id=ctx.run_id, gate_report=gate_report))
+        await self._bus.emit(RunCompleted(run_id=ctx.run_id, gate_report=gate_report, cost=run_cost))
+        return RunLoopResult(
+            task=task, gate_report=gate_report, steps=steps, run_id=ctx.run_id, cost=run_cost
+        )
 
 
 def make_task(goal: str, checks: list[str], task_id: str | None = None) -> TaskSpec:

@@ -7,8 +7,8 @@ from collections.abc import AsyncIterator
 from typing import Final
 
 from sagiha.adapters.model.openai import OpenAIModelError
-from sagiha.domain.content import Message, ModelRequest
-from sagiha.domain.trajectory import StreamEvent
+from sagiha.domain.content import ModelRequest
+from sagiha.domain.trajectory import Completion, StreamEvent
 from sagiha.ports.model import ModelProvider
 
 logger = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ class FallbackModelAdapter(ModelProvider):
         """Return the underlying list of providers in failover order."""
         return list(self._providers)
 
-    async def complete(self, request: ModelRequest) -> Message:
+    async def complete(self, request: ModelRequest) -> Completion:
         last_exception: Exception | None = None
         for i, provider in enumerate(self._providers):
             try:

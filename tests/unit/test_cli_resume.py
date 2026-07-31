@@ -48,7 +48,7 @@ async def test_run_or_resume_round_trip(tmp_path: Path) -> None:
     from sagiha.composition import build_kernel
     from sagiha.domain.config import Config, ModelConfig, TelemetryConfig, WorkspaceConfig
     from sagiha.domain.content import Message, ModelRequest, TextBlock, ToolUseBlock
-    from sagiha.domain.trajectory import StreamEvent
+    from sagiha.domain.trajectory import Completion, StreamEvent, TokenUsage
 
     workspace = tmp_path / "ws"
     workspace.mkdir()
@@ -62,11 +62,11 @@ async def test_run_or_resume_round_trip(tmp_path: Path) -> None:
             self.i = 0
             self.recorded: list[tuple[ModelRequest, Message]] = []
 
-        async def complete(self, request: ModelRequest) -> Message:
+        async def complete(self, request: ModelRequest) -> Completion:
             msg = self._responses[self.i]
             self.i += 1
             self.recorded.append((request, msg))
-            return msg
+            return Completion(message=msg, usage=TokenUsage(input_tokens=0, output_tokens=0), model="test")
 
         async def stream(self, request: ModelRequest) -> AsyncIterator[StreamEvent]:
             raise NotImplementedError

@@ -11,6 +11,7 @@ from sagiha.adapters.model.openai import OpenAIModelError
 from sagiha.composition import build_kernel
 from sagiha.domain.config import Config, ModelConfig
 from sagiha.domain.content import Message, ModelRequest, TextBlock
+from sagiha.domain.trajectory import Completion, TokenUsage
 from sagiha.ports.model import ModelProvider
 
 
@@ -23,11 +24,15 @@ class MockModelProvider(ModelProvider):
         self.fail_message = fail_message
         self.call_count = 0
 
-    async def complete(self, request: ModelRequest) -> Message:
+    async def complete(self, request: ModelRequest) -> Completion:
         self.call_count += 1
         if self.should_fail:
             raise OpenAIModelError(self.fail_message)
-        return Message(role="assistant", content=[TextBlock(text=f"Response from {self.name}")])
+        return Completion(
+            message=Message(role="assistant", content=[TextBlock(text=f"Response from {self.name}")]),
+            usage=TokenUsage(input_tokens=0, output_tokens=0),
+            model="test",
+        )
 
     async def stream(self, request: ModelRequest) -> Any:
         raise NotImplementedError()
@@ -42,7 +47,7 @@ async def test_fallback_success_on_primary() -> None:
     req = ModelRequest(messages=[Message(role="user", content=[TextBlock(text="Test")])])
 
     res = await adapter.complete(req)
-    assert res.content[0].text == "Response from primary"
+    assert res.message.content[0].text == "Response from primary"
     assert p1.call_count == 1
     assert p2.call_count == 0
 
@@ -56,7 +61,7 @@ async def test_fallback_failover_to_secondary() -> None:
     req = ModelRequest(messages=[Message(role="user", content=[TextBlock(text="Test")])])
 
     res = await adapter.complete(req)
-    assert res.content[0].text == "Response from fallback1"
+    assert res.message.content[0].text == "Response from fallback1"
     assert p1.call_count == 1
     assert p2.call_count == 1
 

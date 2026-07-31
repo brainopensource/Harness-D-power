@@ -74,6 +74,8 @@ async def _run_or_resume(
         max_steps=max_steps,
         tool_schemas=list(kernel.tool_schemas),
         evaluator=kernel.evaluator,
+        workspace=kernel.workspace,
+        pricing=kernel.config.pricing,
     )
 
     if resume is not None:
@@ -182,6 +184,8 @@ def replay(
         bus=kernel.bus,
         tool_schemas=list(kernel.tool_schemas),
         evaluator=kernel.evaluator,
+        workspace=kernel.workspace,
+        pricing=kernel.config.pricing,
     )
     new_run_id = str(uuid.uuid4())
     ctx = RunContext(

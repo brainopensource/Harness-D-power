@@ -92,21 +92,25 @@ async def test_e2e_cassette_fixes_failing_check(tmp_path: Path) -> None:
 
     from collections.abc import AsyncIterator
 
-    from sagiha.domain.trajectory import StreamEvent
+    from sagiha.domain.trajectory import Completion, StreamEvent, TokenUsage
 
     class ScriptedProvider:
         def __init__(self) -> None:
             self.i = 0
             self.recorded: list[tuple[ModelRequest, Message]] = []
 
-        async def complete(self, request: ModelRequest) -> Message:
+        async def complete(self, request: ModelRequest) -> Completion:
             responses = [resp1, resp2]
             if self.i >= len(responses):
-                return Message(role="assistant", content=[TextBlock(text="stop")])
+                return Completion(
+                    message=Message(role="assistant", content=[TextBlock(text="stop")]),
+                    usage=TokenUsage(input_tokens=0, output_tokens=0),
+                    model="test",
+                )
             msg = responses[self.i]
             self.recorded.append((request, msg))
             self.i += 1
-            return msg
+            return Completion(message=msg, usage=TokenUsage(input_tokens=0, output_tokens=0), model="test")
 
         async def stream(self, request: ModelRequest) -> AsyncIterator[StreamEvent]:
             raise NotImplementedError
