@@ -2,7 +2,6 @@
 status: normative
 updated: 2026-07-31
 ---
-
 # **FrozenRunState**
 
 A run that must stop — budget exhausted, provider failing over, a human interrupting — needs to

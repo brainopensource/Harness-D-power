@@ -1,8 +1,8 @@
 ---
 status: rationale
 updated: 2026-07-30
+retrieval: excluded
 ---
-
 # ⚡ SAGIHA — The Pitch
 
 > **A meta-loop harness: infrastructure that turns a frontier LLM into an autonomous software

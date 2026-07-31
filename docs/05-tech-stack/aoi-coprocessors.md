@@ -1,6 +1,7 @@
 ---
 status: rationale
 updated: 2026-07-29
+retrieval: excluded
 ---
 # **Auxiliary Optimization Intelligence (AOI) Co-processors**
 

@@ -1,5 +1,6 @@
 ---
 status: rationale
+retrieval: excluded
 ---
 # SPRINT PLANNING — SAGIHA v0.3.0 Re-Baseline
 

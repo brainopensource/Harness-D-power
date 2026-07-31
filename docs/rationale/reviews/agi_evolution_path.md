@@ -83,26 +83,28 @@ The Modes are pilots, not architectures ("One Core, Many Cockpits" extended one 
 `src/sagiha_conductor/domain/mission.py` — the Conductor is a **separate package** depending on `sagiha`'s ports/domain only (enforced by a new import-linter contract: `sagiha_conductor` may import `sagiha.ports`, `sagiha.domain`, nothing else from the engine — the hot-swap seam made mechanical).
 
 ```python
-class MissionSpec(BaseModel):        # frozen; amended by revision like TaskSpec
+class MissionSpec(BaseModel):  # frozen; amended by revision like TaskSpec
     mission_id: str
     revision: int = 0
-    objective: str                    # the under-specified human intent, verbatim
-    constraints: tuple[str, ...]      # budget ceilings, deadlines, non-goals
-    acceptance: tuple[AcceptanceCriterion, ...]   # mission-level, machine-checkable where possible
+    objective: str  # the under-specified human intent, verbatim
+    constraints: tuple[str, ...]  # budget ceilings, deadlines, non-goals
+    acceptance: tuple[AcceptanceCriterion, ...]  # mission-level, machine-checkable where possible
     mode: Literal["autonomous", "piloted", "delegated"]
-    budget: MissionBudget             # usd, wall-clock, max human interventions
+    budget: MissionBudget  # usd, wall-clock, max human interventions
 
-class EpicDAG(BaseModel):             # MissionSpec → Epics; Epic → StoryDAG (Spec §3.1, unchanged)
+
+class EpicDAG(BaseModel):  # MissionSpec → Epics; Epic → StoryDAG (Spec §3.1, unchanged)
     epics: dict[str, EpicSpec]
     deps: frozenset[tuple[str, str]]
 
-class MissionState(BaseModel):        # the Conductor's FrozenRunState analogue
+
+class MissionState(BaseModel):  # the Conductor's FrozenRunState analogue
     mission_id: str
     roadmap: EpicDAG
-    story_states: dict[str, StoryStatus]        # pending|frozen(run_id)|admitted|returned|abandoned
-    ledger: CostSummary                          # aggregated from kernel GateReports/events
+    story_states: dict[str, StoryStatus]  # pending|frozen(run_id)|admitted|returned|abandoned
+    ledger: CostSummary  # aggregated from kernel GateReports/events
     interventions: tuple[InterventionRecord, ...]
-    knowledge_writes: tuple[str, ...]            # memory ids produced this mission (§5.4 audit trail)
+    knowledge_writes: tuple[str, ...]  # memory ids produced this mission (§5.4 audit trail)
 ```
 
 `StoryDAG`, `StorySpec`, `IntegrationStep`, `ResolveConflictTask` are inherited unchanged from Spec §3.1 / FI §R2 — the mission layer decomposes one level above them (`objective → epics → stories`) using the same protocol shape (`WorkflowStep[In, Out]`) and the same E0 gating discipline: **the mission-planning stage itself does not ship unless an ablation shows mission-level planning beats feeding epics directly**, the ADR-0018 rule applied recursively.

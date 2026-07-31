@@ -2,7 +2,6 @@
 status: normative
 updated: 2026-07-29
 ---
-
 # ADR-0013: Extension Registration via Entry Points
 
 **Status**: Accepted

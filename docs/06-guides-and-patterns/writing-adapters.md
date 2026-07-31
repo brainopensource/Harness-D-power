@@ -1,7 +1,7 @@
 ---
 status: rationale
-retrieval: excluded
 updated: 2026-07-29
+retrieval: excluded
 ---
 # **Writing Custom Adapters**
 

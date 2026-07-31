@@ -2,7 +2,6 @@
 status: normative
 updated: 2026-07-31
 ---
-
 # ADR-0021: Layer-6 Retrieval Is Seed-Only
 
 **Status**: Accepted

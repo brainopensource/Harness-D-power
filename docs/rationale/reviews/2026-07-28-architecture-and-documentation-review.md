@@ -1,7 +1,7 @@
 ---
 status: historical
-retrieval: excluded
 updated: 2026-07-29
+retrieval: excluded
 ---
 # SAGIHA — Architecture & Documentation Review
 

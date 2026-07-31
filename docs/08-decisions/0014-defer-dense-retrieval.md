@@ -2,7 +2,6 @@
 status: normative
 updated: 2026-07-29
 ---
-
 # ADR-0014: Defer Dense Retrieval and the Embedding Provider
 
 **Status**: Accepted

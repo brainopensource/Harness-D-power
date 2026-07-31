@@ -2,7 +2,6 @@
 status: normative
 updated: 2026-07-31
 ---
-
 # **Trace Distillation**
 
 Every run already writes a complete, typed, replayable trajectory. Distillation is the exporter

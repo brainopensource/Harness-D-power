@@ -85,6 +85,7 @@ Placed under `kernel/policy/` deliberately: the `tcb-isolation` import-linter co
 PURE_ARGV: Final[frozenset[str]] = frozenset({"ls", "cat", "head", "tail", "wc", "git"})
 PURE_GIT_OPS: Final[frozenset[str]] = frozenset({"status", "diff", "log", "show", "blame"})
 
+
 def classify_command(argv: Sequence[str], declared: EffectClass) -> EffectClass:
     """Narrow run_command's declared DESTRUCTIVE to PURE for allowlisted read-only argv.
     Never widens; anything unmatched keeps `declared`. bash -lc is never narrowed."""
@@ -124,7 +125,9 @@ Verified gap: `evaluate(branch_id)` and `select(branch_ids)` cannot reach a work
 class CandidateSearch(Protocol):  # PORT_VERSION = 2
     async def propose(self, task: TaskSpec, ctx: RunContext, n: int) -> list[str]: ...
     async def evaluate(self, branch_id: str, task: TaskSpec, ctx: RunContext) -> GateReport | None: ...
-    async def score(self, branch_id: str, task: TaskSpec, report: GateReport) -> ReviewReport: ...  # absorbs Reviewer; S-0 deterministic proxy first (further_improvements A1)
+    async def score(
+        self, branch_id: str, task: TaskSpec, report: GateReport
+    ) -> ReviewReport: ...  # absorbs Reviewer; S-0 deterministic proxy first (further_improvements A1)
     async def select(self, candidates: dict[str, GateReport | None]) -> str: ...
 ```
 
@@ -159,16 +162,23 @@ src/sagiha/ports/advisory.py          # rewritten — §1
 ```python
 class AssembledPrompt(BaseModel):
     request: ModelRequest
-    prefix_digest: str          # layers 1–7 hash — cache-stability regression signal
+    prefix_digest: str  # layers 1–7 hash — cache-stability regression signal
     tail_tokens: int
 
+
 class ContextAssembler:
-    def __init__(self, *, system_prompt: str, tool_schemas: tuple[ToolSchema, ...],
-                 task: TaskSpec, retrieval_seed: tuple[RetrievalHit, ...] = (),  # Layer 6: set once, frozen
-                 config: ContextConfig) -> None: ...
+    def __init__(
+        self,
+        *,
+        system_prompt: str,
+        tool_schemas: tuple[ToolSchema, ...],
+        task: TaskSpec,
+        retrieval_seed: tuple[RetrievalHit, ...] = (),  # Layer 6: set once, frozen
+        config: ContextConfig,
+    ) -> None: ...
     def append_exchange(self, assistant: Message, results: tuple[Message, ...]) -> None: ...
-    def anchored(self) -> AnchoredState: ...     # plan, open-file set, unresolved diagnostics
-    def assemble(self, role: str) -> AssembledPrompt: ...   # triggers compaction check pre-assembly
+    def anchored(self) -> AnchoredState: ...  # plan, open-file set, unresolved diagnostics
+    def assemble(self, role: str) -> AssembledPrompt: ...  # triggers compaction check pre-assembly
 ```
 
 `RunLoop` delegates its inline `history` list and `ModelRequest` construction here; `_reconstruct_history` moves in as `ContextAssembler.from_trajectory(...)`. Tool schemas are consumed in the canonical order from §2.7. Seed-only enforcement test: `pyright` + a contract test asserting `ContextAssembler` has no public method accepting `RetrievalHit` post-construction.
@@ -176,15 +186,17 @@ class ContextAssembler:
 **`compactor.py`** (Spec §2.2, `further_improvements` R1):
 
 ```python
-class Exchange(BaseModel):            # unit of compaction — never split
-    assistant: Message                 # incl. tool_use / signed reasoning blocks
-    results: tuple[Message, ...]       # paired tool_result turns
+class Exchange(BaseModel):  # unit of compaction — never split
+    assistant: Message  # incl. tool_use / signed reasoning blocks
+    results: tuple[Message, ...]  # paired tool_result turns
     tokens: int
-    tainted: bool                      # R1: taint survives into the summary
+    tainted: bool  # R1: taint survives into the summary
 
-class ExchangeCompactor(Protocol):     # agency-internal protocol, not a hexagonal port
-    async def compact(self, exchanges: Sequence[Exchange], *, keep_first: int,
-                      keep_last_tokens: int) -> tuple[Exchange, ...]:
+
+class ExchangeCompactor(Protocol):  # agency-internal protocol, not a hexagonal port
+    async def compact(
+        self, exchanges: Sequence[Exchange], *, keep_first: int, keep_last_tokens: int
+    ) -> tuple[Exchange, ...]:
         """Middle span → one synthetic Exchange (role=user, single TextBlock summary,
         tagged via CompactionApplied event; wrapped <untrusted-data> if any source tainted).
         Whole-exchange granularity ⇒ provider block-pairing preserved by construction."""

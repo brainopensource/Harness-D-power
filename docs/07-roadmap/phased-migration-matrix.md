@@ -1,7 +1,7 @@
 ---
 status: rationale
-retrieval: excluded
 updated: 2026-07-30
+retrieval: excluded
 ---
 # **Roadmap: Vertical Slices & Component Migration**
 

@@ -2,7 +2,6 @@
 status: normative
 updated: 2026-07-30
 ---
-
 # **Architecture Decision Records**
 
 > [!NOTE]

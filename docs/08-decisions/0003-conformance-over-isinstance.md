@@ -2,7 +2,6 @@
 status: normative
 updated: 2026-07-29
 ---
-
 # ADR-0003: Conformance Suites, Not `@runtime_checkable`
 
 **Status**: Accepted

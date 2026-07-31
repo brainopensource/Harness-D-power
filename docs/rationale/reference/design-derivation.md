@@ -1,7 +1,7 @@
 ---
 status: rationale
-retrieval: excluded
 updated: 2026-07-30
+retrieval: excluded
 ---
 # **Engineering Specification and Research Brief: SOTA Meta-Harness and Infrastructure for Autonomous LLM Coding Agents (SAGIHA)**
 

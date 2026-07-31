@@ -2,7 +2,6 @@
 status: normative
 updated: 2026-07-29
 ---
-
 # **Prompt Architecture**
 
 > [!NOTE]

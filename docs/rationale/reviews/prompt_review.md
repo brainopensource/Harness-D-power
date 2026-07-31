@@ -1,7 +1,7 @@
 ---
 status: historical
-retrieval: excluded
 updated: 2026-07-30
+retrieval: excluded
 audience: External Principal Engineer / Staff Architect / Tech Lead
 purpose: Sprint 0 foundation audit — and the mandate to reshape this foundation into the Super Coder AGI
 ---

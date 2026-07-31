@@ -1,6 +1,7 @@
 ---
 status: rationale
 updated: 2026-07-29
+retrieval: excluded
 ---
 # **Native Sidecars — Deferred, and Scoped Down**
 

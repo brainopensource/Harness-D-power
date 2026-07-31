@@ -169,9 +169,11 @@ Retains ADR-0018's two constraints — native `WorkflowStep` protocol (no LangGr
 
 ```python
 # ports/workflow.py  (experimental until adapters exist)
-class WorkflowStep(Protocol[In, Out]):        # In/Out: BaseModel
+class WorkflowStep(Protocol[In, Out]):  # In/Out: BaseModel
     name: str
+
     async def execute(self, ctx: StepContext, input_data: In) -> Out: ...
+
 
 class PipelineRunner(Protocol):
     async def run(self, dag: StoryDAG) -> AsyncIterator[Event]: ...

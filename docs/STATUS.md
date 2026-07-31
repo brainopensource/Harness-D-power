@@ -2,7 +2,6 @@
 status: normative
 updated: 2026-07-31
 ---
-
 # **SAGIHA — Current Status**
 
 > [!IMPORTANT]

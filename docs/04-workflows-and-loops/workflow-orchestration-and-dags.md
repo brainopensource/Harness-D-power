@@ -1,8 +1,8 @@
 ---
-status: normative
+status: rationale
 updated: 2026-07-30
+retrieval: excluded
 ---
-
 # **Workflow Orchestration & DAGs — The Macro Pipeline**
 
 > [!NOTE]

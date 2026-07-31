@@ -2,7 +2,6 @@
 status: normative
 updated: 2026-07-30
 ---
-
 # ADR-0018: Macro-Workflow Is a Native Step Protocol, Not an Orchestration Framework
 
 **Status**: Accepted

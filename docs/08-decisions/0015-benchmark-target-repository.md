@@ -2,7 +2,6 @@
 status: normative
 updated: 2026-07-29
 ---
-
 # ADR-0015: S0 Benchmark Target Repository
 
 **Status**: **Accepted**

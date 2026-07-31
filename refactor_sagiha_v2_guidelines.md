@@ -289,6 +289,7 @@ PURE_ARGV: Final[frozenset[str]] = frozenset({"ls", "cat", "head", "tail", "wc",
 PURE_GIT_OPS: Final[frozenset[str]] = frozenset({"status", "diff", "log", "show", "blame"})
 MUTATION_TOOLS: Final[frozenset[str]] = frozenset({"apply_edit", "write_file", "run_command"})
 
+
 def classify_command(argv: Sequence[str], declared: EffectClass) -> EffectClass:
     """Narrow run_command's declared DESTRUCTIVE to PURE for allowlisted read-only argv.
     NEVER widens. Anything unmatched keeps `declared`. `bash -lc` is never narrowed."""
@@ -345,17 +346,23 @@ Persist the full assistant `Message` on `TrajectoryStep` (schema addition + upca
 ```python
 class AssembledPrompt(BaseModel):
     request: ModelRequest
-    prefix_digest: str      # layers 1–7 hash — the cache-stability regression signal
+    prefix_digest: str  # layers 1–7 hash — the cache-stability regression signal
     tail_tokens: int
 
+
 class ContextAssembler:
-    def __init__(self, *, system_prompt: str, tool_schemas: tuple[ToolSchema, ...],
-                 task: TaskSpec,
-                 retrieval_seed: tuple[RetrievalHit, ...] = (),   # Layer 6: set once, frozen
-                 config: ContextConfig) -> None: ...
+    def __init__(
+        self,
+        *,
+        system_prompt: str,
+        tool_schemas: tuple[ToolSchema, ...],
+        task: TaskSpec,
+        retrieval_seed: tuple[RetrievalHit, ...] = (),  # Layer 6: set once, frozen
+        config: ContextConfig,
+    ) -> None: ...
     def append_exchange(self, assistant: Message, results: tuple[Message, ...]) -> None: ...
-    def anchored(self) -> AnchoredState: ...   # plan, open-file set, unresolved diagnostics
-    def assemble(self, role: str) -> AssembledPrompt: ...   # checks compaction pre-assembly
+    def anchored(self) -> AnchoredState: ...  # plan, open-file set, unresolved diagnostics
+    def assemble(self, role: str) -> AssembledPrompt: ...  # checks compaction pre-assembly
 ```
 
 **Seed-only is enforced by shape, not by discipline:** the retrieval seed is accepted *only at construction*, and there is no public post-construction method taking a `RetrievalHit`. `RunLoop` delegates its inline `history` list and `ModelRequest` construction here; `_reconstruct_history` moves in as `ContextAssembler.from_trajectory(...)`. Tool schemas consume the canonical sorted order from PR-2.4.
@@ -369,13 +376,14 @@ class ContextAssembler:
 The unit of compaction is the **exchange** — one assistant message plus all its paired `tool_result`s and any signed reasoning block. Boundaries never fall inside one, so provider block-pairing is preserved **by construction**. This is the fix for the R9 spec's two latent structural bugs (turn-count policies have unbounded token variance; summarising across a `tool_use`/`tool_result` pair produces provider-rejected requests).
 
 ```python
-class Exchange(BaseModel):        # never split
+class Exchange(BaseModel):  # never split
     assistant: Message
     results: tuple[Message, ...]
     tokens: int
-    tainted: bool                 # taint survives into the summary
+    tainted: bool  # taint survives into the summary
 
-class ExchangeCompactor(Protocol):   # agency-internal protocol, NOT a hexagonal port
+
+class ExchangeCompactor(Protocol):  # agency-internal protocol, NOT a hexagonal port
     async def compact(self, exchanges, *, keep_first: int, keep_last_tokens: int) -> tuple[Exchange, ...]: ...
 ```
 
