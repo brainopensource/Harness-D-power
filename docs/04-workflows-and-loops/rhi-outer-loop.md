@@ -80,11 +80,11 @@ loop is therefore re-founded on what each tier actually costs versus what it act
 **Tier C is dormant by default and does not ship on a schedule.** It activates only when a human
 funds a specific iteration against a named hypothesis, with the A/A floor already measured on
 honest gates. `ports/meta_improver.py` stays in the tree — it costs 22 LOC and the port-rent rule
-(ADR-0023) governs it — but it has no scheduled consumer.
+([ADR-0023](../08-decisions/0023-port-rent-rule.md)) governs it — but it has no scheduled consumer.
 
 This is the economically honest ordering: **measurement is nearly free and compounds; mutation
 search is expensive and speculative.** The previous framing funded them as peers. The AOI
 pre-filter still exists to keep Tier C tractable *when it runs*; it is not a reason to run it.
 
 *Implements: `docs/rationale/reviews/agi_evolution_path.md` and `critical_gaps_analysis.md`.
-Recorded as ADR-0022.*
+Recorded as [ADR-0022](../08-decisions/0022-rhi-economic-refounding.md).*

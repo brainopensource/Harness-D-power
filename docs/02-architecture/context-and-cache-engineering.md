@@ -51,7 +51,7 @@ Making this a *ruling* rather than a guideline buys two things downstream:
   affordance only exists because nothing rewrites Layer 6 mid-run.
 
 *Implements: `docs/rationale/reviews/next_gen_architecture_specs.md`. Ruling recorded as
-ADR-0021; lands `v2-S3` (PR-3.1).*
+[ADR-0021](../08-decisions/0021-seed-only-layer-6-retrieval.md); lands `v2-S3` (PR-3.1).*
 
 ## **Compaction Is a Checkpoint, Not a Background Process**
 
