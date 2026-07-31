@@ -85,3 +85,20 @@ def test_build_kernel_candidate_search_none_when_search_disabled(tmp_path: Path)
     )
     kernel = build_kernel(config, cassette_path=_empty_cassette(tmp_path))
     assert kernel.candidate_search is None
+
+
+def test_build_kernel_include_search_false_skips_candidate_search_even_when_enabled(
+    tmp_path: Path,
+) -> None:
+    """Defect #7 (sprint_v2_s4_fixes.md): `KernelCandidateExecutor.execute` calls `build_kernel`
+    once per Best-of-N candidate. Without `include_search=False`, every one of those per-candidate
+    kernels would recursively build its own `BestOfNSearch` (and `GitWorktreeManager`) it can
+    never use, purely from `search.enabled=True` still being set on the copied config."""
+    repo = _init_repo(tmp_path)
+    config = Config(
+        model=ModelConfig(mode="replay"),
+        workspace=WorkspaceConfig(root=str(repo)),
+        search=SearchConfig(enabled=True),
+    )
+    kernel = build_kernel(config, cassette_path=_empty_cassette(tmp_path), include_search=False)
+    assert kernel.candidate_search is None

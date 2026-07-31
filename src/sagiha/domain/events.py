@@ -387,6 +387,11 @@ class CandidateSelected(Event):
     branch_id: str
     gate_report: GateReport
     selection_basis: str
+    #: `distinct_candidates / N` over the proposed batch (v2-S4 Epic S4.2d) — a validity
+    #: precondition on the Best-of-N exit gate, not a score. Reported here (rather than a
+    #: separate event) because `select()` is the one call site that already holds the full
+    #: `branch_ids` batch a diversity ratio is computed over.
+    diversity_ratio: float = 1.0
 
     group: ClassVar[str] = "Evaluation & Control"
     emitted_by: ClassVar[str] = "CandidateSearch"

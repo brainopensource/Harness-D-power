@@ -49,7 +49,12 @@ async def export_dpo_pairs(
         if key is None:
             continue
         elig = eligibility_by_run.get(record.run_id)
-        if elig is None or elig.tainted is not False or elig.replay_verified is not True or elig.within_budget is not True:
+        if (
+            elig is None
+            or elig.tainted is not False
+            or elig.replay_verified is not True
+            or elig.within_budget is not True
+        ):
             continue
         groups[key].append(record)
 
@@ -76,7 +81,9 @@ async def export_dpo_pairs(
 
         for rejected_record in rejected_records:
             rejected_steps = steps_by_run[rejected_record.run_id]
-            rejected_message = rejected_steps[0].message.model_dump(mode="json") if rejected_steps[0].message else {}
+            rejected_message = (
+                rejected_steps[0].message.model_dump(mode="json") if rejected_steps[0].message else {}
+            )
 
             raw_sample = {
                 "prompt": prompt_messages,

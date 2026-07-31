@@ -16,6 +16,7 @@ from sagiha.e0.statistics import (
     StatisticalAnalyzer,
     bootstrap_ci,
     holm,
+    holm_correct_family,
     mcnemar_exact,
     paired_deltas,
 )
@@ -98,3 +99,31 @@ def test_compare_runs_empty_noise_floor_never_reports_beats() -> None:
         "an empty A/A floor must never be treated as 'beaten' by a real delta — "
         "this is H5's fabrication reintroduced through an uncomputable noise floor"
     )
+
+
+def test_compare_runs_populates_adjusted_p_value() -> None:
+    """Defect #3 (sprint_v2_s4_fixes.md): `holm()` was written and fixture-tested but never
+    invoked, so `adjusted_p_value` was `None` on every path despite the exit gate requiring
+    'Holm-corrected'. `compare_runs` now runs the (family-of-one) correction itself."""
+    control = _run("r1", "a1", [("t1", False), ("t2", False), ("t3", True)])
+    treatment = _run("r2", "a2", [("t1", True), ("t2", True), ("t3", True)])
+    comp = StatisticalAnalyzer.compare_runs(control, treatment)
+    assert comp.p_value is not None
+    assert comp.adjusted_p_value is not None
+    assert comp.adjusted_p_value == pytest.approx(comp.p_value)  # family of one == identity
+
+
+def test_holm_correct_family_corrects_across_multiple_comparisons() -> None:
+    """A real multi-treatment family must get the actual Holm step-down, not each comparison's
+    degenerate family-of-one correction."""
+    control = _run("r1", "a1", [("t1", False), ("t2", False), ("t3", False), ("t4", False)])
+    treatment_a = _run("r2", "a2", [("t1", True), ("t2", True), ("t3", True), ("t4", True)])
+    treatment_b = _run("r3", "a3", [("t1", True), ("t2", False), ("t3", False), ("t4", False)])
+
+    comp_a = StatisticalAnalyzer.compare_runs(control, treatment_a)
+    comp_b = StatisticalAnalyzer.compare_runs(control, treatment_b)
+    assert comp_a.p_value is not None and comp_b.p_value is not None
+
+    corrected = holm_correct_family([comp_a, comp_b])
+    expected = holm([comp_a.p_value, comp_b.p_value])
+    assert [c.adjusted_p_value for c in corrected] == pytest.approx(expected)

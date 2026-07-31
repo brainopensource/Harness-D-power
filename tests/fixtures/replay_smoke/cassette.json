@@ -12,7 +12,7 @@
           ]
         }
       ],
-      "system": "You are an autonomous software developer agent. To solve the task, you MUST use the provided tools (apply_edit, run_command). When creating or editing a file, call apply_edit directly instead of conversational text.",
+      "system": "You are an autonomous software developer agent. To solve the task, you MUST use the provided tools (apply_edit, run_command). When creating or editing a file, call apply_edit directly instead of conversational text.\n\n## Acceptance criteria\nYou will be graded on exactly these:\n- true (check: `true`)",
       "tools": [
         {
           "name": "apply_edit",
@@ -147,12 +147,8 @@
         }
       ]
     },
-    "digest": "38147513096d528e0f8a0a8bd76471707fd2fa165fa91a708be710ea5802e3d6",
-    "usage": {
-      "input_tokens": 0,
-      "output_tokens": 0,
-      "cache_read_tokens": 0
-    },
-    "model": "cassette"
+    "digest": "79586d754ae32405082b32ba28fde8609a7c63efba1a8e5c321bc7f176d0df9c",
+    "usage": null,
+    "model": null
   }
 ]

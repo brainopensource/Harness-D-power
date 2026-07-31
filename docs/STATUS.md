@@ -94,7 +94,7 @@ reported as block-level progress; they are re-stated here honestly.
 | :--- | :--- | :--- |
 
 | Block 2 — E0 benchmark | Real harness in `e0/`. `adapters/benchmark/` and `ports/benchmark.py` deleted ([ADR-0024](./08-decisions/0024-e0-is-a-tool-not-a-port.md)) — the layers contract forbade the adapter this port needed | `v2-S4` |
-| Block 3 — Best-of-N search | Port + `GitWorktreeManager` stub with open SENIOR TODOs. `N>1` never executed | `v2-S4` |
+| Block 3 — Best-of-N search | `BestOfNSearch` implemented over real `GitWorktreeManager` worktrees, sequential + parallel launch, temperature ladder, `diversity_ratio` (reported on `CandidateSelected`), rank-never-admit `select()`. Not yet wired into a CLI comparison path (`sagiha bench --compare`, pinned ≥30-task suite, published noise-floor/BoN-delta reports) — that remains open before the `v2-S4` exit gate closes | `v2-S4` |
 | Block 4 — retrieval / code graph | Ports only. No indexer, no FTS5, no Tree-sitter | `v2-S6` |
 | Block 4 — Workflow DAG (ADR-0018) | Protocol only; gated on an E0 ablation that cannot be trusted until `v2-S1` | `v2-S7` |
 | Block 5 — container sandbox | Stub — every method raises `NotImplementedError` (PR-1d) | `v2-S5` |
@@ -116,12 +116,12 @@ Every PR holds or improves all of these. The test count is **monotonic** — it 
 
 | Signal | Baseline (2026-07-31) | Command |
 | :--- | :--- | :--- |
-| Tests | **192 passed** (174 at prior baseline, 158 at `v2-S1` close) | `uv run pytest -q` |
+| Tests | **253 passed** (192 at prior baseline, 174 before that, 158 at `v2-S1` close) | `uv run pytest -q` |
 | Port count | **17 Protocols / 16 files** (ADR-0019 restated count; `CommitReplayHarvester`/`TaskRunner` deleted per [ADR-0024](./08-decisions/0024-e0-is-a-tool-not-a-port.md)) | `grep -rn "(Protocol)" src/sagiha/ports/ \| wc -l` |
 | Type check | 0 errors, strict | `uv run pyright src/sagiha` |
 | Lint | clean | `uv run ruff check && uv run ruff format --check` |
 | Import contracts | **5/5** | `uv run lint-imports` |
-| Event catalog | in sync (37 events) | `python scripts/gen_event_catalog.py --check` |
+| Event catalog | in sync (38 events) | `python scripts/gen_event_catalog.py --check` |
 | Coverage | `fail_under = 80` | `pytest --cov=src/sagiha` |
 | Replay | green | `uv run sagiha replay verify --verify --cassette tests/fixtures/replay_smoke/cassette.json …` |
 
@@ -135,7 +135,7 @@ Every PR holds or improves all of these. The test count is **monotonic** — it 
 | `sagiha run --resume <run_id>` | **Available now** |
 | `sagiha harvest [--repo …]` | **Available now** |
 | `sagiha bench [--suite …] [--aa]` | **Available now** — post-honesty baseline at `docs/rationale/benchmarks/s1_honest_baseline.md` |
-| `sagiha export --format sft\|dpo` | Planned — `v2-S4` |
+| `sagiha export --format sft\|dpo` | **Available now** — eligibility (admitted ∧ ¬tainted ∧ within-budget ∧ replay-verified), redaction, license gate |
 | `sagiha init` | Planned — `v2-S6` |
 
 ## **Next Items, In Order**
@@ -144,7 +144,26 @@ Every PR holds or improves all of these. The test count is **monotonic** — it 
 2. ~~**`v2-S1` (Phase 1)**~~ — **closed 2026-07-31.** H1–H4 fixed (PR-1a…PR-1d), `scripts/migrate_cassettes_v2.py` executed, `harvest` + `bench --aa` post-honesty baseline committed to `docs/rationale/benchmarks/s1_honest_baseline.md`.
 3. ~~**`v2-S2` (Phase 2)**~~ — **closed.** Port consolidation & kernel corrections.
 4. ~~**`v2-S3` (Phase 3)**~~ — **closed 2026-07-31.** ContextAssembler + ExchangeCompactor; TaintGate v1 (envelope at assembler prompt boundary); FrozenRunState freeze/thaw + role-level failover; 200-step / canary / kill-9×3 green.
-5. **`v2-S4` (Phase 4)** — measurement re-baseline + Best-of-N.
+5. **`v2-S4` (Phase 4)** — measurement re-baseline + Best-of-N. E0 honesty (H5), harvester
+   validation, `BestOfNSearch`, scoring S-0, and the trace→dataset exporter are implemented
+   (Epics S4.0–S4.4). The line-level audit in `docs/implementation/sprint_v2_s4_fixes.md`
+   found eight defects in that first pass; all eight are now fixed: paired statistics
+   aggregate `k>1` repetitions correctly, an uncomputable A/A floor stays `None` rather than
+   trivially "beaten", `holm()` is actually invoked (`adjusted_p_value` populated;
+   `holm_correct_family` added for real multi-treatment families), `diversity_ratio` is
+   reported on `CandidateSelected` instead of being an uncalled method, `KernelCandidateExecutor`
+   no longer recursively builds a `BestOfNSearch`/`GitWorktreeManager` per candidate
+   (`build_kernel(..., include_search=False)`), and the parallel launch stagger sleeps before
+   acquiring an inference-capacity slot rather than while holding one. RC-5 (ADR-0019/0020 →
+   Accepted-Implemented) and RC-6 (re-execution exit metric raised to `>= 0.60`) are closed.
+   **Still open before the `v2-S4` exit gate can be claimed:** `sagiha bench --compare` is not
+   wired to actually run `BestOfNSearch` against a single-shot control; the pinned ≥30-task
+   `benchmarks/definitions/s0-core.json` suite, `docs/rationale/benchmarks/noise-floor.md`, and
+   the published BoN-delta report do not exist yet; the `bench-aa` CI job is a documented no-op
+   pending that suite. The stale `tests/fixtures/replay_smoke/workspace` fixture (untracked,
+   pre-`v2-S1` prompt assembly) was regenerated and is now tracked with a `.gitkeep`, closing the
+   "not a tracked path" CI trap noted in `refactor_sagiha_v2_guidelines.md` §2.4/§11.6 — a clean
+   checkout previously crashed `sagiha replay verify` outright rather than merely mis-measuring.
 
 ### Known open item (Resolved in v2-S1)
 

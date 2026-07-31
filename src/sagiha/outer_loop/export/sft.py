@@ -17,6 +17,7 @@ from sagiha.domain.trajectory import RunRecord, TrajectoryStep
 from sagiha.outer_loop.export.redaction import redact_sample
 from sagiha.outer_loop.export.schema import SFTSample
 
+
 def _harness_version() -> str:
     try:
         return importlib.metadata.version("sagiha")

@@ -90,11 +90,19 @@ def build_kernel(
     *,
     cassette_path: str | None = None,
     tier: str | None = None,
+    include_search: bool = True,
 ) -> Kernel:
     """Builds and wires the Sprint 3a kernel from configuration.
 
     Adapter selection, capability instantiation, and port binding happen exactly once here.
     Misconfiguration fails at composition (D3 / D14).
+
+    `include_search=False` skips wiring a `CandidateSearch` — used by
+    `KernelCandidateExecutor.execute` (v2-S4), which calls `build_kernel` once per Best-of-N
+    candidate to get that candidate its own worktree-scoped kernel. Without this flag every
+    candidate would recursively build a full `BestOfNSearch` (and its own `GitWorktreeManager`,
+    pointed at the same `worktree_dir`) that it can never use — construction cost and a stray
+    worktree-manager instance per candidate, for zero behavioral benefit.
     """
     trajectory_store = SQLiteTrajectoryStore(config.telemetry.trajectory_db)
     policy_engine = DefaultPolicyEngine(always_gate=config.autonomy.always_gate)
@@ -227,7 +235,7 @@ def build_kernel(
         bus=bus,
     )
 
-    candidate_search = build_candidate_search(config, cassette_path=path, bus=bus)
+    candidate_search = build_candidate_search(config, cassette_path=path, bus=bus) if include_search else None
 
     return Kernel(
         config=config,
@@ -301,7 +309,9 @@ class KernelCandidateExecutor:
         candidate_workspace_cfg = self.parent_config.workspace.model_copy(update={"root": worktree_path})
         candidate_config = self.parent_config.model_copy(update={"workspace": candidate_workspace_cfg})
 
-        kernel = build_kernel(candidate_config, cassette_path=self.cassette_path, tier=candidate_tier)
+        kernel = build_kernel(
+            candidate_config, cassette_path=self.cassette_path, tier=candidate_tier, include_search=False
+        )
         run_id = str(uuid.uuid4())
 
         loop = RunLoop(

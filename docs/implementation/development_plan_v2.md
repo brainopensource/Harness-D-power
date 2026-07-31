@@ -263,7 +263,7 @@ Sprint status in `docs/STATUS.md` marks v2-S1/S2 **closed** for the primary H1�
 | RC-2 | S1.2 / PR-1.2 §6 | Enforce `max_wall_clock_s` and step-token ceilings from `GovernorConfig` (fields exist, unenforced) | `kernel/governor.py`, `agency/run_loop.py` |
 | RC-3 | S2.4 | `ContextConfig.keep_last_tokens: int = 24_000` (currently `20_000`) | `domain/config.py` |
 | RC-4 | S2.5 | Persist assistant `Message` for text-only turns; `_reconstruct_history` must not skip empty `tool_calls` when `message` is present | `agency/run_loop.py` |
-| RC-5 | Phase 2 exit | Mark ADR-0019 / ADR-0020 `Accepted-Implemented` | `docs/08-decisions/001{9,20}-*.md` |
-| RC-6 | S2.2 exit metric | Proving test asserts re-execution fraction `≥ 0.60` (currently `≥ 0.5`) | `tests/unit/test_effect_classification.py` |
+| RC-5 | Phase 2 exit | ~~Mark ADR-0019 / ADR-0020 `Accepted-Implemented`~~ **CLOSED 2026-07-31** | `docs/08-decisions/001{9,20}-*.md` |
+| RC-6 | S2.2 exit metric | ~~Proving test asserts re-execution fraction `≥ 0.60` (currently `≥ 0.5`)~~ **CLOSED 2026-07-31** | `tests/unit/test_effect_classification.py` |
 | RC-7 | S1.5 | Commit **before** + after honesty bench reports (only post exists today) | `docs/rationale/benchmarks/` |
 | RC-8 | S2.4 soft | Make `RunLoop.evaluator` required (composition already builds `GateEvaluator`); stop agency default-constructing TCB | `agency/run_loop.py`, call sites |

@@ -116,7 +116,7 @@ The **requested / authorized** split is deliberate: it makes the policy decision
 | `gate.evaluated` | `gate_report` | Evaluator | TS OT UI HK MI | ✅ |
 | `review.completed` | `review` | Reviewer | TS MI UI | ❌ |
 | `candidate.proposed` | `branch_id`, `strategy`, `budget_usd` | CandidateSearch | TS OT UI | ✅ |
-| `candidate.selected` | `branch_id`, `gate_report`, `selection_basis` | CandidateSearch | TS OT UI | ✅ |
+| `candidate.selected` | `branch_id`, `gate_report`, `selection_basis`, `diversity_ratio` | CandidateSearch | TS OT UI | ✅ |
 | `approval.requested` | `action`, `scope`, `rationale`, `blast_radius` | PolicyEngine | UI HK (blocking) | ✅ |
 | `approval.resolved` | `approved`, `resolved_by`, `note` | Entry point | TS OT UI | ✅ |
 | `budget.warning` | `spent_usd`, `remaining_usd`, `projected_usd` | ResourceGovernor | UI HK | ❌ |

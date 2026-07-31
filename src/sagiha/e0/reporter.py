@@ -119,6 +119,9 @@ class BenchmarkReporter:
             )
         if comparison:
             p_str = f"{comparison.p_value:.4f}" if comparison.p_value is not None else "N/A"
+            adj_str = (
+                f"{comparison.adjusted_p_value:.4f}" if comparison.adjusted_p_value is not None else "N/A"
+            )
             beats_str = (
                 "N/A (not computed)"
                 if comparison.beats_noise_floor is None
@@ -130,6 +133,7 @@ class BenchmarkReporter:
                     f"- Delta Pass Rate: `{comparison.delta_pass_rate:.4f}`",
                     f"- p-value ({comparison.method or 'n/a'}): `{p_str}` "
                     f"(discordant pairs: {comparison.n_discordant})",
+                    f"- Holm-adjusted p-value: `{adj_str}`",
                     f"- Beats Noise Floor: `{beats_str}`",
                     "",
                 ]

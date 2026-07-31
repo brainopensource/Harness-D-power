@@ -233,9 +233,12 @@ class BestOfNSearch:
         limiter = anyio.CapacityLimiter(self._max_concurrent)
 
         async def _worker(i: int, branch_id: str, scope: anyio.CancelScope) -> None:
+            # Sleep *before* acquiring the limiter slot — staggering is meant to spread launch
+            # starts out, not to hold a scarce inference-capacity slot idle while waiting to
+            # start, which would shrink effective concurrency below `max_concurrent`.
+            if self._config.stagger_s > 0:
+                await anyio.sleep(i * self._config.stagger_s)
             async with limiter:
-                if self._config.stagger_s > 0:
-                    await anyio.sleep(i * self._config.stagger_s)
                 outcome = await self._run_and_release_one(task, context, i, branch_id)
                 if (
                     self._config.cancel_on_clean_admit
@@ -300,6 +303,7 @@ class BestOfNSearch:
                     branch_id=best_branch,
                     gate_report=winning_outcome.gate_report,
                     selection_basis=selection_basis,
+                    diversity_ratio=self.diversity_ratio(branch_ids),
                 )
             )
         return best_branch

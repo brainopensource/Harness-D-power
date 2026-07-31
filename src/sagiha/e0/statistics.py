@@ -211,6 +211,13 @@ class StatisticalAnalyzer:
             )
 
         p_value = mcnemar_exact(b, c)
+        # Holm-Bonferroni over the family of comparisons this call is judged alongside.
+        # `compare_runs` sees one comparison at a time, so the default family is this
+        # comparison alone (`holm([p_value])[0] == p_value`) — correction only bites once a
+        # caller comparing multiple treatments against one control passes the real family
+        # (see `holm_correct_family` below); until such a call site exists, a family-of-one
+        # keeps `adjusted_p_value` a true statistic rather than the permanent `None` H5 left it.
+        adjusted_p_value = holm([p_value])[0]
         beats_floor: bool | None = None
         # `noise_floor.n_tasks == 0` means the floor itself was never honestly computed (no
         # pairable A/A tasks) — its `mean_delta`/`confidence_interval` are both the `0.0`
@@ -228,8 +235,25 @@ class StatisticalAnalyzer:
             treatment_agent_id=treatment.agent_id,
             delta_pass_rate=delta_pass_rate,
             p_value=p_value,
-            adjusted_p_value=None,
+            adjusted_p_value=adjusted_p_value,
             n_discordant=n_discordant,
             method="mcnemar_exact",
             beats_noise_floor=beats_floor,
         )
+
+
+def holm_correct_family(comparisons: list[ComparisonResult]) -> list[ComparisonResult]:
+    """Re-derives `adjusted_p_value` for a family of comparisons run together (e.g. several
+    treatments benched against the same control in one invocation), replacing each result's
+    family-of-one correction with the real Holm–Bonferroni step-down across the whole family.
+    Comparisons with `p_value is None` (nothing discordant to test) pass through unchanged —
+    `holm` only operates over comparisons that produced a real p-value.
+    """
+    indices = [i for i, c in enumerate(comparisons) if c.p_value is not None]
+    if not indices:
+        return comparisons
+    adjusted = holm([comparisons[i].p_value for i in indices])  # type: ignore[misc]
+    out = list(comparisons)
+    for idx, adj in zip(indices, adjusted, strict=True):
+        out[idx] = out[idx].model_copy(update={"adjusted_p_value": adj})
+    return out

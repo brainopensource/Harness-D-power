@@ -72,15 +72,18 @@ async def test_pure_git_status_reexecutes_destructive_rm_served_from_cassette(
     register_builtin_tools(live, git_workspace)
     cassette_path = str(tmp_path / "tools.json")
 
-    # Record pass: both calls execute for real once.
+    # Record pass: all calls execute for real once.
     recorder = CassetteToolRegistry(live, cassette_path, mode="record")
     declared = await recorder.get_effect_class("run_command")
     git_status_call = _call("run_command", ["git", "status"], declared)
+    git_diff_call = _call("run_command", ["git", "diff"], declared)
     rm_call = _call("run_command", ["rm", "x"], declared)
     assert git_status_call.effect is EffectClass.PURE
+    assert git_diff_call.effect is EffectClass.PURE
     assert rm_call.effect is EffectClass.DESTRUCTIVE
 
     await recorder.dispatch(git_status_call)
+    await recorder.dispatch(git_diff_call)
     await recorder.dispatch(rm_call)
 
     # Recreate the file the `rm` recorded as deleted, so a stray re-execution would be visible.
@@ -92,18 +95,20 @@ async def test_pure_git_status_reexecutes_destructive_rm_served_from_cassette(
     replayer = CassetteToolRegistry(live2, cassette_path, mode="replay")
 
     git_status_call_2 = _call("run_command", ["git", "status"], declared)
+    git_diff_call_2 = _call("run_command", ["git", "diff"], declared)
     rm_call_2 = _call("run_command", ["rm", "x"], declared)
 
     await replayer.dispatch(git_status_call_2)
+    await replayer.dispatch(git_diff_call_2)
     await replayer.dispatch(rm_call_2)
 
-    assert replayer.re_executed == 1  # only git status
+    assert replayer.re_executed == 2  # git status + git diff
     assert replayer.served_from_cassette == 1  # rm served, not re-run
     # The file must still exist — `rm` was never re-executed against the live workspace.
     assert (Path(git_workspace.root) / "x").exists()
 
     total = replayer.re_executed + replayer.served_from_cassette
-    assert replayer.re_executed / total >= 0.5  # exit metric context: PURE-majority trajectories re-execute
+    assert replayer.re_executed / total >= 0.6  # RC-6: exit metric context, PURE-majority re-executes
 
 
 @pytest.mark.asyncio

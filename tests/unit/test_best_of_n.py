@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
-
 import pytest
 
 from sagiha.adapters.search.best_of_n import BestOfNSearch, should_escalate
@@ -179,6 +177,40 @@ def test_diversity_ratio_empty_branch_list_is_zero() -> None:
         config=SearchConfig(),
     )
     assert search.diversity_ratio([]) == 0.0
+
+
+class FakeBus:
+    def __init__(self) -> None:
+        self.events: list[object] = []
+
+    async def emit(self, event: object) -> None:
+        self.events.append(event)
+
+
+@pytest.mark.asyncio
+async def test_select_emits_diversity_ratio_on_candidate_selected() -> None:
+    """RC/defect #4: `diversity_ratio` was computed but never reported anywhere. `select()`
+    now stamps it on `CandidateSelected` — the one event a caller already has to consume to
+    learn the winner, so the validity precondition travels with the result rather than
+    requiring a second, unwired call."""
+    from sagiha.domain.events import CandidateSelected
+
+    worktree_manager = FakeWorktreeManager()
+    executor = ScriptedExecutor([_outcome(True, diff_digest="d1"), _outcome(True, diff_digest="d2")])
+    bus = FakeBus()
+    search = BestOfNSearch(
+        worktree_manager=worktree_manager,
+        executor=executor,
+        scorer=NullScorer(),
+        config=SearchConfig(launch_mode="sequential"),
+        bus=bus,
+    )
+    branch_ids = await search.propose(_task(), _context(), n=2)
+    await search.select(branch_ids)
+
+    selected = [e for e in bus.events if isinstance(e, CandidateSelected)]
+    assert len(selected) == 1
+    assert selected[0].diversity_ratio == pytest.approx(1.0)
 
 
 @pytest.mark.asyncio
