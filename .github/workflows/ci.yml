@@ -36,11 +36,13 @@ jobs:
         with:
           python-version: "3.13"
       - run: pip install uv && uv pip install --system -e ".[dev]"
+      # After `--system` install, use bare commands — `uv run` would create a separate venv
+      # that may not see the system-editable install.
       - run: ruff check .
       - run: ruff format --check .
       - run: pyright
       - run: lint-imports
-      - run: uv run python scripts/gen_event_catalog.py --check
+      - run: python scripts/gen_event_catalog.py --check
       # H3: an unimplemented method that returns a success-shaped value lies to its
       # caller. ContainerSandbox.apply_edit reported a landed edit for a file it never
       # opened, and the scaffolding suite pinned that as correct behaviour. Stdlib-only,
@@ -112,6 +114,7 @@ jobs:
       # a CI-authorable one (see docs/rationale/benchmarks/noise-floor.md). This job is a
       # no-op until that suite is committed, so it does not block on work nobody has done yet;
       # once the suite lands, drop the existence guard so the job runs unconditionally.
+      # Bare `sagiha` after `--system` install (do not mix with `uv run`).
       - name: Run A/A calibration against the pinned suite, if committed
         run: |
           SUITE=benchmarks/definitions/s0-core.json
@@ -119,7 +122,7 @@ jobs:
             echo "::notice::$SUITE not committed yet — skipping bench-aa (see noise-floor.md)"
             exit 0
           fi
-          uv run sagiha bench --suite "$SUITE" --mode replay --aa --runs 2 \
+          sagiha bench --suite "$SUITE" --mode replay --aa --runs 2 \
             --output docs/rationale/benchmarks/noise-floor.md
       - uses: actions/upload-artifact@v4
         if: always()
@@ -143,8 +146,9 @@ jobs:
       # command itself works end-to-end in CI; the fuller claim in the Sprint 3 exit
       # sentence — a cassette-driven fix through the dispatch choke point, gate-evaluated —
       # is proven by test_sprint3a_e2e.py in the `tests` job above.
+      # Bare `sagiha` after `--system` install (do not mix with `uv run`).
       - run: |
-          uv run sagiha replay verify --verify \
+          sagiha replay verify --verify \
             --cassette tests/fixtures/replay_smoke/cassette.json \
             --workspace tests/fixtures/replay_smoke/workspace \
             --trajectory-db /tmp/ci_replay.db | tee /tmp/replay_output.txt

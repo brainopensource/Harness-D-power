@@ -195,12 +195,14 @@ read_file_max_lines   = 2000
 
 # ─── Candidate search (System 2) ─────────────────────────────────────────────
 [search]
-enabled            = true
+# Off by default: empirical exit gate not met (s4-harvest-findings.md).
+enabled            = false
 candidates         = 3
 max_repair_rounds  = 2
-escalate_after_failures = 2         # System 1 → System 2 trigger
+escalate_after_failures = 3         # stop further repair after this many failed attempts
 escalate_on_files  = 3
 escalate_on_diff_lines = 150
+prune_on_first_gate_fail = false    # true = skip repair after first fail
 
 # ─── Gates ───────────────────────────────────────────────────────────────────
 [gates]

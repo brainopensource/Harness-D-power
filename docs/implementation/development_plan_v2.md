@@ -143,21 +143,21 @@ retrieval: excluded
 
 **Objective:** the E0 harness graduates from scaffolding to instrument, then Best-of-N ships against it — measurement strictly before the capability it measures, per the resequencing doctrine.
 
-- [ ] **Epic S4.0 — Resolve `e0/` vs `adapters/benchmark/` duplication** — delete `adapters/benchmark/` & `ports/benchmark.py` (ADR-0024, port count 19 → 17); create agency-internal `e0/protocols.py` (`TaskHarvester`, `SuiteRunner`, `StatisticalTest`).
-- [ ] **Epic S4.1 — E0 honesty (H5) + harvester validation** — `src/sagiha/e0/`
-  - [ ] Subtask: rewrite `e0/statistics.py` in pure stdlib (~150 LOC) with McNemar exact binomial test (`math.comb`), seeded bootstrap CIs, Holm-Bonferroni correction, and `ComparisonResult.beats_noise_floor: bool | None = None` (absence of verdict is never a pass); harvester validation gate (`validate_task` with scratch worktree at `base_commit`, test checkout, revert check, determinism probe $k=3$); runner threading `task.base_commit` and real cost; publish `benchmarks/definitions/s0-core.json` (≥30 validated tasks) + CI `bench-aa` job + `docs/rationale/benchmarks/noise-floor.md` + close RC-7.
-  - [ ] Verification: `sagiha bench --aa` report artifact in CI; pinned suite committed; statistics verified against textbook fixtures.
-- [ ] **Epic S4.2 — Best-of-N over real worktrees** — `adapters/search/best_of_n.py`, `adapters/workspace/worktree.py`
-  - [ ] Subtask: `CandidateSearch` v2 over real `GitWorktreeManager` worktrees (one kernel per active candidate); `adapters/search/protocols.py` (`CandidateExecutor`, `CandidateOutcome`); `SearchConfig.launch_mode` (`"sequential"` CPU default / `"parallel"` GPU opt-in with `CapacityLimiter`); candidate temperature ladder `candidate_temperatures` (default `0.0, 0.6, 0.9`) with diff-digest dedup and `diversity_ratio` reporting; early pruning (`prune_on_first_gate_fail`); sequential repair (`max_repair_rounds`); deterministic `should_escalate()` ladder.
-  - [ ] Verification: S3 gate — BoN beats single-shot beyond the measured A/A floor; **zero grader modifications** (detectable thanks to v2-S1); parallel contention probe green; `diversity_ratio` materially above $1/N$.
-- [ ] **Epic S4.3 — Scoring bootstrap S-0/S-1** — `adapters/search/scoring.py` (FI §A1)
-  - [ ] Subtask: active S-0 deterministic proxy composite default ($w_{\text{pass}}\cdot\text{PassFraction} - w_{\text{diff}}\cdot\Delta\text{Diff}$, $w_{\text{cov}}$ and $w_{\text{supp}}$ default to `0.0` to avoid double-counting hard gates); `LocalJudgeScorer` (`backend="judge"`, ships OFF); judge≠generator enforced by S2.4 config refusal; learned ML scorers stubbed to `NotImplementedError("v2-S6+ — see ADR-0025")`.
-  - [ ] Verification: proxies rank, never admit (contract test: `select()` cannot return a non-admitted candidate while an admitted one exists).
-- [ ] **Epic S4.4 — Trace→dataset exporter** — `src/sagiha/outer_loop/export/`
-  - [ ] Subtask: `sagiha export --format sft|dpo --min-gate admitted`; eligibility = admitted ∧ replay-verified (new `ReplayVerified` event) ∧ ¬tainted ∧ within-budget; `list_runs` port bump (PORT_VERSION 2 → 3); `sagiha replay <run_id> --verify` fix; DPO pairs grouped by parent task + `stable_prefix_digest`; secret redaction + license gate + per-provider reasoning flag.
-  - [ ] Verification: schema-valid JSONL from existing bench cassettes; tainted-run exclusion tested against canary trajectory; eligibility ledger printed.
+- [x] **Epic S4.0 — Resolve `e0/` vs `adapters/benchmark/` duplication** — delete `adapters/benchmark/` & `ports/benchmark.py` (ADR-0024, port count 19 → 17); create agency-internal `e0/protocols.py` (`TaskHarvester`, `SuiteRunner`, `StatisticalTest`).
+- [x] **Epic S4.1 — E0 honesty (H5) + harvester validation** — `src/sagiha/e0/`
+  - [x] Subtask: rewrite `e0/statistics.py` in pure stdlib (~150 LOC) with McNemar exact binomial test (`math.comb`), seeded bootstrap CIs, Holm-Bonferroni correction, and `ComparisonResult.beats_noise_floor: bool | None = None` (absence of verdict is never a pass); harvester validation gate (`validate_task` with scratch worktree at `base_commit`, test checkout, revert check, determinism probe $k=3$); runner threading `task.base_commit` and real cost; CI `bench-aa` job (existence-guarded) + `docs/rationale/benchmarks/noise-floor.md` template + close RC-7 mechanism.
+  - [ ] Verification (deferred pre-S6): `sagiha bench --aa` report artifact against a committed ≥30-task suite; pinned `s0-core.json` — **blocked**: this repo harvests 0/23 ([s4-harvest-findings.md](../rationale/benchmarks/s4-harvest-findings.md)).
+- [x] **Epic S4.2 — Best-of-N over real worktrees** — `adapters/search/best_of_n.py`, `adapters/workspace/worktree.py`
+  - [x] Subtask: `CandidateSearch` v2 over real `GitWorktreeManager` worktrees; `launch_mode`; temperature ladder; `diversity_ratio`; prune vs repair knobs split (`prune_on_first_gate_fail` default false; `max_repair_rounds`; `escalate_after_failures=3` stop ladder); parallel release accounting tested.
+  - [ ] Verification (deferred pre-S6): BoN beats single-shot beyond measured A/A floor; live `--compare` end-to-end — **not run** (no suite). Unit-level parallel zero-leak probe green; `search.enabled=false` per honest-negative clause.
+- [x] **Epic S4.3 — Scoring bootstrap S-0/S-1** — `adapters/search/scoring.py` (FI §A1)
+  - [x] Subtask: active S-0 deterministic proxy composite default; `LocalJudgeScorer` ships OFF; judge≠generator config refusal; learned scorers stubbed to `NotImplementedError("v2-S6+")`.
+  - [x] Verification: proxies rank, never admit (contract test).
+- [x] **Epic S4.4 — Trace→dataset exporter** — `src/sagiha/outer_loop/export/`
+  - [x] Subtask: `sagiha export --format sft|dpo`; eligibility = admitted ∧ replay-verified ∧ ¬tainted ∧ within-budget; `list_runs` PORT_VERSION 3; `ReplayVerified`; DPO sibling grouping; redaction + license gate.
+  - [x] Verification: eligibility unit tests (four criteria, `None`≠pass, taint canary); schema round-trips; license fail-closed.
 
-**Exit gate:** honest baseline + BoN delta published as $X \pm \sigma$ with cost-per-resolved-task alongside pass rate; `diversity_ratio` $> 1/N$; exporter emitting; the plan's first defensible external claim: "BoN beats single-shot by X ± σ over a floor of Y."
+**Exit gate (amended 2026-07-31 — honest-negative close):** mechanism complete; exporter emitting with tested eligibility; `search.enabled=false` by default; empirical claim "BoN beats single-shot by X ± σ" **not published** ([s4-harvest-findings.md](../rationale/benchmarks/s4-harvest-findings.md)). Original measured-delta gate (suite ≥30, populated `noise-floor.md`, `s4_bon_delta.md`, unguarded `bench-aa`) is deferred as a **pre-S6** hard dependency. **CLOSED 2026-07-31.**
 
 ## Sprint v2-S5 — Perimeter & Isolation (B5a)
 
@@ -227,10 +227,10 @@ retrieval: excluded
 | v2-S3 | ExchangeCompactor | Exchange unit; keep policy; summary turn; two adapters | `agency/context/compactor.py`, `domain/events.py` | 200-step run under 128k; pairing conformance |
 | v2-S3 | TaintGate v1 | trusted flag; monotonic run taint; mutation denial; envelope; summary propagation | `kernel/policy/{engine,effects}.py`, `kernel/dispatch.py`, `adapters/tools/registry.py`, `domain/content.py` | Injection canary: zero unapproved tainted diffs |
 | v2-S3 | FrozenRunState + degradation | Schema (grants absent); freeze/thaw; failover-as-checkpoint | `domain/control.py`, `agency/run_loop.py`, `adapters/model/fallback.py` | kill -9 ×3 ⇒ identical GateReport |
-| v2-S4 | E0 hardening | Harvest validation; A/A CI artifact; stats fixtures | `e0/`, `adapters/benchmark/` | Floor with CI on pinned suite |
-| v2-S4 | Best-of-N | Worktree parallel; pruning; repair; stagger | `adapters/search/best_of_n.py`, `adapters/workspace/worktree.py` | BoN > single-shot beyond floor; zero grader edits |
+| v2-S4 | E0 hardening | Harvest validation; A/A CI job (guarded); stats fixtures | `e0/` | Mechanism green; suite/floor deferred pre-S6 |
+| v2-S4 | Best-of-N | Worktree parallel; prune/repair split; stagger | `adapters/search/best_of_n.py`, `adapters/workspace/worktree.py` | Shipped `search.enabled=false`; live delta deferred pre-S6 |
 | v2-S4 | Scoring S-0/S-1 | Deterministic composite; local judge; rank-never-admit | `adapters/search/scoring.py` | select() cannot bypass admission (contract test) |
-| v2-S4 | Dataset exporter | sagiha export; SFT/DPO; taint/secret/license gates | `outer_loop/export/`, `cli.py` | Schema-valid JSONL; canary excluded |
+| v2-S4 | Dataset exporter | sagiha export; SFT/DPO; taint/secret/license gates | `outer_loop/export/`, `cli.py` | Eligibility + taint canary unit-tested |
 | v2-S5 | Podman sandbox | Lifecycle; mounts; Workspace conformance ×2 adapters | `adapters/sandbox/container.py` | Conformance suite parametrized green |
 | v2-S5 | Egress + secrets | Proxy allowlist; namespace drop; credential exclusion | sandbox infra + `domain/config.py` | Zero non-allowlisted egress in canary |
 | v2-S5 | Autonomy unlock | Container-required gating | `domain/config.py` | autonomous legal; subprocess+autonomous still refused |

@@ -40,12 +40,12 @@ logger = logging.getLogger(__name__)
 
 
 def should_escalate(*, failures: int, files_changed: int, diff_lines: int, config: SearchConfig) -> bool:
-    """Deterministic escalation ladder over the three existing `escalate_*` thresholds.
+    """Deterministic **stop** condition over the three `escalate_*` thresholds.
 
-    No learned router until label volume exists (ADR-0005 cold-start doctrine) — this is the
-    hand-written trigger the corpus requires before any bandit-flavored `n_policy` is legal.
-    `config.n_policy == "fixed"` disables the ladder entirely: repair always runs the full
-    `max_repair_rounds`, win or lose.
+    This stops further repair on a candidate — it does **not** widen search (no N bump, no
+    strategy change). No learned router until label volume exists (ADR-0005 cold-start
+    doctrine). `config.n_policy == "fixed"` disables the ladder entirely: repair always runs
+    the full `max_repair_rounds`, win or lose.
     """
     if config.n_policy == "fixed":
         return False
@@ -118,10 +118,18 @@ class BestOfNSearch:
             repair_round=round_,
         )
 
+        # `prune_on_first_gate_fail`: cheap profile — skip further repair after the first
+        # failed attempt. Worktree release is independent (always in `_run_and_release_one`).
+        if (
+            self._config.prune_on_first_gate_fail
+            and outcome.gate_report is not None
+            and not outcome.gate_report.admitted
+        ):
+            return outcome
+
         while (
             outcome.gate_report is not None
             and not outcome.gate_report.admitted
-            and not self._config.prune_on_first_gate_fail
             and round_ < self._config.max_repair_rounds
             and not should_escalate(
                 failures=round_ + 1,

@@ -67,11 +67,11 @@ interface EventSource {
 }
 ```
 
-Full wire shapes and resumability: [`frontend/docs/BRIDGE_CONTRACT.md`](../../../frontend/docs/BRIDGE_CONTRACT.md).
+Full wire shapes and resumability: [`frontend/docs/BRIDGE_CONTRACT.md`](../../frontend/docs/BRIDGE_CONTRACT.md).
 
 ## Live vs mock matrix
 
-Authoritative matrix: [`frontend/docs/LIVE_VS_MOCK.md`](../../../frontend/docs/LIVE_VS_MOCK.md).
+Authoritative matrix: [`frontend/docs/LIVE_VS_MOCK.md`](../../frontend/docs/LIVE_VS_MOCK.md).
 
 **Summary:** coding run telemetry, gates, cost, taint *display*, trajectory list, export/replay become **live after thin bridge**. Pause/steer/approval loop stay **mock until v2-S7**. Story-DAG, AGENTS.md editor, skills, memory graphs, AETHER swarm, queue, behaviours ladder, model/prompt/harness editors stay **mock** until S6/C0+.
 
@@ -107,15 +107,15 @@ Binary: **`sagiha-fe`** (keep `sagiha-mock` alias).
 
 ## Sprint waves
 
-Checkbox ledgers live under [`frontend/docs/sprints/`](../../../frontend/docs/sprints/):
+Checkbox ledgers live under [`frontend/docs/sprints/`](../../frontend/docs/sprints/):
 
 | Wave | Focus |
 | :--- | :--- |
-| [FE-A](../../../frontend/docs/sprints/FE-A.md) | Protocol truth — Zod parity with `events.py` + domain fields |
-| [FE-B](../../../frontend/docs/sprints/FE-B.md) | Mock `EventSource` + `transport-live` stubs + factory |
-| [FE-C](../../../frontend/docs/sprints/FE-C.md) | Cockpit + dual CLI over mock end-to-end |
-| [FE-D](../../../frontend/docs/sprints/FE-D.md) | DAG / Context / Memory / Skills / Models mock UIs |
-| [FE-E](../../../frontend/docs/sprints/FE-E.md) | Polish, labeling, verification, Wave-1 bridge checklist |
+| [FE-A](../../frontend/docs/sprints/FE-A.md) | Protocol truth — Zod parity with `events.py` + domain fields |
+| [FE-B](../../frontend/docs/sprints/FE-B.md) | Mock `EventSource` + `transport-live` stubs + factory |
+| [FE-C](../../frontend/docs/sprints/FE-C.md) | Cockpit + dual CLI over mock end-to-end |
+| [FE-D](../../frontend/docs/sprints/FE-D.md) | DAG / Context / Memory / Skills / Models mock UIs |
+| [FE-E](../../frontend/docs/sprints/FE-E.md) | Polish, labeling, verification, Wave-1 bridge checklist |
 
 ## Reference implementations (read, don't fork)
 

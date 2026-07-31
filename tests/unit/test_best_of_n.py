@@ -9,7 +9,7 @@ from sagiha.adapters.search.protocols import CandidateOutcome
 from sagiha.adapters.search.scoring import NullScorer
 from sagiha.domain.config import SearchConfig
 from sagiha.domain.control import RunContext
-from sagiha.domain.work import CriterionResult, GateReport, ReviewReport, TaskSpec
+from sagiha.domain.work import CostSummary, CriterionResult, GateReport, ReviewReport, TaskSpec
 
 
 def _task() -> TaskSpec:
@@ -32,40 +32,59 @@ def _gate_report(admitted: bool) -> GateReport:
 
 
 class FakeWorktreeManager:
+    """Test-local double — tracks allocate/release pairs for leak assertions."""
+
     def __init__(self) -> None:
+        self.allocated: list[str] = []
         self.released: list[str] = []
 
-    async def allocate(self, base_commit: str, branch_id: str) -> object:
+    async def allocate(self, base_commit: str, branch_id: str, **_kwargs: object) -> object:
+        self.allocated.append(branch_id)
         return object()
 
     async def materialize(self, branch_id: str) -> None:
         pass
 
-    async def release(self, branch_id: str) -> None:
+    async def release(self, branch_id: str, **_kwargs: object) -> None:
         self.released.append(branch_id)
 
 
 class ScriptedExecutor:
     """Returns outcomes from a script keyed by call order, so tests can control admission per
-    candidate/round without a real Kernel/RunLoop."""
+    candidate/round without a real Kernel/RunLoop. Allocates on `repair_round==0` so parallel
+    leak tests exercise the same allocate→release pairing as `KernelCandidateExecutor`."""
 
-    def __init__(self, script: list[CandidateOutcome]) -> None:
+    def __init__(
+        self,
+        script: list[CandidateOutcome],
+        *,
+        worktree_manager: FakeWorktreeManager | None = None,
+    ) -> None:
         self._script = list(script)
         self.calls = 0
+        self._worktree_manager = worktree_manager
 
     async def execute(self, task, context, *, branch_id, base_commit, temperature=None, repair_round=0):
+        if repair_round == 0 and self._worktree_manager is not None:
+            await self._worktree_manager.allocate(base_commit, branch_id)
         outcome = self._script[min(self.calls, len(self._script) - 1)]
         self.calls += 1
         return outcome.model_copy(update={"branch_id": branch_id, "temperature": temperature or 0.0})
 
 
-def _outcome(admitted: bool, *, diff_digest: str = "x") -> CandidateOutcome:
+def _outcome(
+    admitted: bool,
+    *,
+    diff_digest: str = "x",
+    cost: CostSummary | None = None,
+) -> CandidateOutcome:
     return CandidateOutcome(
         branch_id="b",
         run_id="r",
         worktree_ref="b",
         gate_report=_gate_report(admitted),
         diff_digest=diff_digest,
+        cost=cost,
     )
 
 
@@ -226,13 +245,29 @@ async def test_score_standalone_synthesizes_outcome_from_diff() -> None:
 
 
 @pytest.mark.asyncio
-async def test_prune_on_first_gate_fail_default_disables_repair() -> None:
-    """Documents current behavior: with the shipped default (`prune_on_first_gate_fail=True`),
-    a failing candidate is never revised — `max_repair_rounds` is unreachable. Flagged in review
-    as defect #5 (the flag's docstring claims 'releases at first failure', not 'disables repair
-    entirely'); this test pins today's actual behavior so a future fix changes it deliberately."""
+async def test_default_config_allows_repair_after_first_gate_fail() -> None:
+    """Shipped defaults: prune=False and escalate_after_failures=3 so max_repair_rounds=2
+    is reachable (audit defects #5/#6)."""
     worktree_manager = FakeWorktreeManager()
-    executor = ScriptedExecutor([_outcome(False), _outcome(True)])  # 2nd call would succeed
+    executor = ScriptedExecutor([_outcome(False), _outcome(True)])
+    search = BestOfNSearch(
+        worktree_manager=worktree_manager,
+        executor=executor,
+        scorer=NullScorer(),
+        config=SearchConfig(launch_mode="sequential"),
+    )
+    assert search._config.prune_on_first_gate_fail is False
+    assert search._config.escalate_after_failures == 3
+    await search.propose(_task(), _context(), n=1)
+    assert executor.calls == 2, "expected one repair round under shipped defaults"
+
+
+@pytest.mark.asyncio
+async def test_prune_on_first_gate_fail_skips_repair() -> None:
+    """`prune_on_first_gate_fail=True` is the cheap / no-repair profile — distinct from
+    worktree release, which always runs in `_run_and_release_one`'s finally."""
+    worktree_manager = FakeWorktreeManager()
+    executor = ScriptedExecutor([_outcome(False), _outcome(True)])
     search = BestOfNSearch(
         worktree_manager=worktree_manager,
         executor=executor,
@@ -241,3 +276,113 @@ async def test_prune_on_first_gate_fail_default_disables_repair() -> None:
     )
     await search.propose(_task(), _context(), n=1)
     assert executor.calls == 1, "expected no repair round under prune_on_first_gate_fail=True"
+    assert worktree_manager.released  # release still happens
+
+
+@pytest.mark.asyncio
+async def test_max_repair_rounds_zero_skips_repair() -> None:
+    worktree_manager = FakeWorktreeManager()
+    executor = ScriptedExecutor([_outcome(False), _outcome(True)])
+    search = BestOfNSearch(
+        worktree_manager=worktree_manager,
+        executor=executor,
+        scorer=NullScorer(),
+        config=SearchConfig(launch_mode="sequential", prune_on_first_gate_fail=False, max_repair_rounds=0),
+    )
+    await search.propose(_task(), _context(), n=1)
+    assert executor.calls == 1
+
+
+@pytest.mark.asyncio
+async def test_escalate_stop_allows_two_repair_rounds_under_default() -> None:
+    """With escalate_after_failures=3 and max_repair_rounds=2, two repairs run before stop."""
+    worktree_manager = FakeWorktreeManager()
+    executor = ScriptedExecutor([_outcome(False), _outcome(False), _outcome(False)])
+    search = BestOfNSearch(
+        worktree_manager=worktree_manager,
+        executor=executor,
+        scorer=NullScorer(),
+        config=SearchConfig(launch_mode="sequential", n_policy="escalating"),
+    )
+    await search.propose(_task(), _context(), n=1)
+    assert executor.calls == 3  # initial + 2 repairs
+
+
+def test_search_config_shipped_defaults() -> None:
+    cfg = SearchConfig()
+    assert cfg.enabled is False
+    assert cfg.prune_on_first_gate_fail is False
+    assert cfg.escalate_after_failures == 3
+    assert cfg.max_repair_rounds == 2
+
+
+def _cost(usd: float) -> CostSummary:
+    return CostSummary(usd=usd, input_tokens=10, output_tokens=5, wall_clock_s=1.0, model_calls=1)
+
+
+def test_batch_cost_sums_all_candidates_not_winner_only() -> None:
+    search = BestOfNSearch(
+        worktree_manager=FakeWorktreeManager(),
+        executor=ScriptedExecutor([]),
+        scorer=NullScorer(),
+        config=SearchConfig(),
+    )
+    search._outcomes = {  # type: ignore[attr-defined]
+        "b1": _outcome(True, cost=_cost(1.0)),
+        "b2": _outcome(False, cost=_cost(2.0)),
+        "b3": _outcome(True, cost=_cost(3.0)),
+    }
+    total = search.batch_cost(["b1", "b2", "b3"])
+    assert total.usd == pytest.approx(6.0)
+    assert total.model_calls == 3
+
+
+def test_batch_cost_skips_none_cost_outcomes() -> None:
+    search = BestOfNSearch(
+        worktree_manager=FakeWorktreeManager(),
+        executor=ScriptedExecutor([]),
+        scorer=NullScorer(),
+        config=SearchConfig(),
+    )
+    search._outcomes = {  # type: ignore[attr-defined]
+        "b1": _outcome(True, cost=_cost(1.0)),
+        "b2": _outcome(False, cost=None),
+        "b3": _outcome(True, cost=_cost(2.0)),
+    }
+    total = search.batch_cost(["b1", "b2", "b3"])
+    assert total.usd == pytest.approx(3.0)
+    assert total.model_calls == 2
+
+
+@pytest.mark.asyncio
+async def test_parallel_cancel_on_clean_admit_releases_every_allocate() -> None:
+    """Parallel contention probe: every allocate has a matching release, including peers
+    cancelled after a clean admit (shielded finally in `_run_and_release_one`)."""
+    worktree_manager = FakeWorktreeManager()
+    # First candidate admits; remaining may still start / get cancelled mid-flight.
+    executor = ScriptedExecutor(
+        [_outcome(True, cost=_cost(1.0)), _outcome(False, cost=_cost(1.0)), _outcome(False, cost=_cost(1.0))],
+        worktree_manager=worktree_manager,
+    )
+    search = BestOfNSearch(
+        worktree_manager=worktree_manager,
+        executor=executor,
+        scorer=NullScorer(),
+        config=SearchConfig(
+            launch_mode="parallel",
+            cancel_on_clean_admit=True,
+            stagger_s=0.0,
+            prune_on_first_gate_fail=True,
+        ),
+        max_concurrent=3,
+    )
+    branch_ids = await search.propose(_task(), _context(), n=3)
+    # Every allocate must have a matching release (zero leaked worktrees). Branches cancelled
+    # before they enter `_run_and_release_one` never allocate — that is not a leak.
+    assert set(worktree_manager.allocated) <= set(worktree_manager.released)
+    assert worktree_manager.allocated, "expected at least the admitting candidate to allocate"
+    # Peers that finished still land in `_outcomes` and contribute to batch_cost.
+    finished = list(search._outcomes.keys())  # type: ignore[attr-defined]
+    total = search.batch_cost(finished)
+    assert total.usd == pytest.approx(float(len(finished)))
+    assert set(finished) <= set(branch_ids)

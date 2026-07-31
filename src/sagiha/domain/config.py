@@ -307,16 +307,24 @@ class ScoringConfig(BaseModel):
 class SearchConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    enabled: bool = True
+    #: Off by default: the v2-S4 empirical exit gate was not met (no ≥30-task suite from this
+    #: repo's history — see `docs/rationale/benchmarks/s4-harvest-findings.md`). Protocol and
+    #: adapter stay; set `true` only with an explicit opt-in once a task corpus exists.
+    enabled: bool = False
     candidates: int = 3
+    #: Sequential repair revisions after the initial attempt. `0` disables repair entirely.
     max_repair_rounds: int = 2
-    escalate_after_failures: int = 2
+    #: Stop further repair when this many failed attempts have been observed (initial attempt
+    #: counts). Default `3` so `max_repair_rounds=2` is reachable under `n_policy="escalating"`
+    #: — with `2`, `failures=round_+1` stopped after a single repair round (audit defect #6).
+    escalate_after_failures: int = 3
     escalate_on_files: int = 3
     escalate_on_diff_lines: int = 150
-    #: Drop a candidate branch as soon as its first gate fails rather than carrying it
-    #: through the remaining repair rounds — cheaper, and a branch that fails gate 1 of N
-    #: rarely recovers by round 2.
-    prune_on_first_gate_fail: bool = True
+    #: When `True`, skip further repair after the first failed gate attempt (cheap / no-repair
+    #: profile). Does **not** control worktree release — release always runs in
+    #: `BestOfNSearch._run_and_release_one`'s `finally`. Default `False` so shipped
+    #: `max_repair_rounds` is not dead code.
+    prune_on_first_gate_fail: bool = False
     #: `sequential` (default, CPU-inference safe) runs candidates one at a time in their own
     #: worktree; `parallel` launches concurrently, bounded by inference capacity — see
     #: `ModelTierConfig.max_concurrent_requests`. Config-driven rather than hardware-sniffed so
@@ -326,9 +334,9 @@ class SearchConfig(BaseModel):
     stagger_s: float = 0.0
     #: In `parallel` mode, cancel remaining launches once one candidate admits cleanly.
     cancel_on_clean_admit: bool = True
-    #: `escalating` (default) widens the repair ladder per `escalate_*` thresholds;
-    #: `fixed` always runs exactly `max_repair_rounds`. `"bandit"` is deliberately absent — no
-    #: learned router until label volume exists (ADR-0005 cold-start doctrine).
+    #: `escalating` (default) **stops** repair when `should_escalate` fires (threshold stop,
+    #: not "widen search"); `fixed` always runs exactly `max_repair_rounds`. `"bandit"` is
+    #: deliberately absent — no learned router until label volume exists (ADR-0005).
     n_policy: Literal["fixed", "escalating"] = "escalating"
     #: Per-candidate sampling temperature, cycled by candidate index (`i % len(...)`). Without
     #: this, N candidates from one local model at one temperature are near-identical diffs and

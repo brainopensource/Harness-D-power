@@ -62,7 +62,7 @@ Update this file whenever a mock surface flips to live.
 | Queue / multi-run scheduler | None | MOCK | FleetGovernor |
 | AETHER swarm topology | Spec | MOCK | Entire product area |
 | Behaviours / DMARTIC ladder UI | Stuck detection partial | MOCK | |
-| Best-of-N candidate UI | Lib exists; no compare CLI | MOCK (or LIVE if bridge calls search) | |
+| Best-of-N candidate UI | LIVE lib + `bench --compare` CLI; `search.enabled=false` by default | MOCK | Opt-in search after bridge; suite needed before default-on |
 | RHI / self-improve mutations | Dormant | MOCK | |
 
 ## Config / models / harness params
