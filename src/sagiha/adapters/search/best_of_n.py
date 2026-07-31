@@ -33,7 +33,7 @@ from sagiha.domain.events import (
     ReviewCompleted,
     WorktreeReleased,
 )
-from sagiha.domain.work import GateReport, ReviewReport, TaskSpec
+from sagiha.domain.work import CostSummary, GateReport, ReviewReport, TaskSpec
 from sagiha.ports.workspace import WorktreeManager
 
 logger = logging.getLogger(__name__)
@@ -151,6 +151,28 @@ class BestOfNSearch:
         bump nothing else needs yet."""
         digests = {self._outcomes[b].diff_digest for b in branch_ids if b in self._outcomes}
         return len(digests)
+
+    def batch_cost(self, branch_ids: list[str]) -> CostSummary:
+        """Summed cost of **every** candidate in the batch, not just the winner.
+
+        Best-of-N pays for all N attempts to keep one. Reporting only the selected candidate's
+        cost would make BoN look free next to single-shot and turn the exit gate's
+        cost-per-resolved-task comparison into a fiction — the whole point of that metric is
+        that a pass-rate win bought at N× the price is a cost loss, not a win. Concrete-class
+        only, like `diversity_ratio`: the `CandidateSearch` Protocol has no cost surface.
+        """
+        outcomes = [self._outcomes[b] for b in branch_ids if b in self._outcomes]
+        costs = [o.cost for o in outcomes if o.cost is not None]
+        return CostSummary(
+            usd=sum(c.usd for c in costs),
+            input_tokens=sum(c.input_tokens for c in costs),
+            output_tokens=sum(c.output_tokens for c in costs),
+            # Wall clock sums across candidates under `sequential` (they really did run one
+            # after another). Under `parallel` this over-reports elapsed time; it is the
+            # honest *compute* total either way, which is what a cost comparison wants.
+            wall_clock_s=sum(c.wall_clock_s for c in costs),
+            model_calls=sum(c.model_calls for c in costs),
+        )
 
     def diversity_ratio(self, branch_ids: list[str]) -> float:
         """`distinct_candidates / N`. A ratio at or near `1/N` means the candidate temperature

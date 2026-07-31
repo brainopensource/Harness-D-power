@@ -127,3 +127,68 @@ def test_holm_correct_family_corrects_across_multiple_comparisons() -> None:
     corrected = holm_correct_family([comp_a, comp_b])
     expected = holm([comp_a.p_value, comp_b.p_value])
     assert [c.adjusted_p_value for c in corrected] == pytest.approx(expected)
+
+
+def test_harvester_test_file_predicate_excludes_fixture_data() -> None:
+    """The harvester's `failing_test_cmd` must contain only files pytest actually collects.
+
+    The predicate used to be `"test" in path.lower() or path.startswith("tests/")`, which swept
+    fixture data (`tests/fixtures/replay_smoke/cassette.json`, a `.gitkeep`) into the command.
+    `pytest <a JSON file>` exits non-zero on a collection error, so validation would "confirm"
+    a failing test that no source fix could ever make pass — every task harvested from a commit
+    touching test fixtures was silently unusable.
+    """
+    from sagiha.e0.harvester import is_test_file
+
+    assert is_test_file("tests/unit/test_best_of_n.py")
+    assert is_test_file("tests/contracts/test_port_shape.py")
+    assert is_test_file("src/pkg/thing_test.py")
+
+    assert not is_test_file("tests/fixtures/replay_smoke/cassette.json")
+    assert not is_test_file("tests/fixtures/replay_smoke/workspace/.gitkeep")
+    assert not is_test_file("tests/conftest.py")
+    assert not is_test_file("src/sagiha/e0/statistics.py")
+    assert not is_test_file("docs/latest-greatest.md")
+
+
+def test_default_test_command_isolates_the_worktree_source_tree(tmp_path) -> None:
+    """The harvested test command must force the *worktree's* source onto `sys.path`.
+
+    The venv materialized into a scratch worktree carries an **editable** install whose `.pth`
+    points at the main checkout's `src/`. Without `PYTHONPATH=src`, `import sagiha` inside a
+    worktree pinned at commit X resolves to whatever is in the developer's working tree right
+    now — so the harvester validated tasks against current source rather than the task
+    baseline, `BenchmarkRunner` measured the same, and Best-of-N candidates would each edit
+    their own worktree while every candidate's tests imported one shared tree, making candidate
+    diffs invisible to the gates scoring them.
+    """
+    from sagiha.e0.harvester import default_test_command
+
+    cmd = default_test_command(tmp_path)
+    assert cmd.startswith("env PYTHONPATH=src "), cmd
+    assert "-m pytest" in cmd
+    # No interpreter in a bare tmp dir -> falls back to python3, never a bare `pytest`.
+    assert "python3 -m pytest" in cmd
+
+    venv_bin = tmp_path / ".venv" / "bin"
+    venv_bin.mkdir(parents=True)
+    (venv_bin / "python").write_text("")
+    assert str(venv_bin / "python") in default_test_command(tmp_path)
+
+
+def test_infrastructure_failures_are_not_reproduced_test_failures() -> None:
+    """A command that could not execute is not evidence about a task.
+
+    Exit 127 (`pytest` not on PATH) and a plain exit 1 carrying `No module named pytest` both
+    used to count as "the failing test reproduced", so the harvester would certify tasks whose
+    failure no source fix could ever resolve.
+    """
+    from sagiha.e0.harvester import _is_infrastructure_failure
+
+    assert _is_infrastructure_failure(127, "")
+    assert _is_infrastructure_failure(126, "")
+    assert _is_infrastructure_failure(5, "")  # pytest: no tests collected
+    assert _is_infrastructure_failure(1, "/usr/bin/python: No module named pytest")
+    # A real failing test: exit 1 with ordinary pytest output.
+    assert not _is_infrastructure_failure(1, "2 failed, 6 passed in 0.20s")
+    assert not _is_infrastructure_failure(0, "")

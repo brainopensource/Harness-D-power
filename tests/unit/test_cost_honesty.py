@@ -155,6 +155,7 @@ def _loop(tmp_path: Path, provider: object, gov: DefaultResourceGovernor) -> tup
         tool_registry=kernel.tool_registry,
         trajectory_store=kernel.trajectory_store,
         bus=kernel.bus,
+        evaluator=kernel.evaluator,
         max_steps=10,
         workspace=kernel.workspace,
         pricing=config.pricing,

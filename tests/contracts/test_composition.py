@@ -89,3 +89,28 @@ def test_search_enabled_allowed_when_judge_and_execution_differ() -> None:
         search=SearchConfig(enabled=True),
     )
     assert config.search.enabled
+
+
+def test_agency_never_constructs_a_tcb_evaluator() -> None:
+    """RC-8: `agency` must not build its own `GateEvaluator`.
+
+    `RunLoop.evaluator` used to default to `evaluator or GateEvaluator(...)`, which meant the
+    layer being judged constructed its own judge — a TCB object built outside the composition
+    root, where `tcb-isolation` cannot see it. Two things must hold and stay holding: the
+    parameter is required, and `agency.run_loop` does not import from the evaluator package
+    at all (an unused import is one careless edit away from becoming a used one).
+    """
+    import inspect
+
+    from sagiha.agency import run_loop as run_loop_module
+    from sagiha.agency.run_loop import RunLoop
+
+    param = inspect.signature(RunLoop.__init__).parameters["evaluator"]
+    assert param.default is inspect.Parameter.empty, (
+        "RunLoop.evaluator must be required — a default means agency can construct a TCB object"
+    )
+
+    source = inspect.getsource(run_loop_module)
+    assert "from sagiha.outer_loop" not in source, (
+        "agency/run_loop.py must not import from outer_loop (the TCB) at all"
+    )

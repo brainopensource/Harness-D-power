@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, cast
 
 import anyio
 import typer
@@ -309,7 +310,7 @@ def harvest(
         ".sagiha/benchmark/suite.json", "--output", "-o", help="Output path for BenchmarkSuite JSON"
     ),
     max_commits: int = typer.Option(200, "--max-commits", help="Maximum commits to inspect"),
-    test_cmd: str = typer.Option("pytest", "--test-cmd", help="Test command to run for tasks"),
+    test_cmd: str = typer.Option("python -m pytest", "--test-cmd", help="Test command to run for tasks"),
     suite_id: str = typer.Option("s0-baseline", "--suite-id", help="Suite identifier"),
     validate: bool = typer.Option(
         True, "--validate/--no-validate", help="Validate clean revert + reproducing failure per task"
@@ -370,10 +371,21 @@ def bench(
     runs: int = typer.Option(
         1, "--runs", "-k", help="Repetitions per task, for reporting variance (k>=3 recommended)"
     ),
+    compare: str = typer.Option(
+        "",
+        "--compare",
+        help="Two comma-separated arms to compare, e.g. 'single_shot,bon'. Runs both and reports "
+        "the paired delta. Requires --aa (or --noise-floor) so the delta is judged against a floor.",
+    ),
+    noise_floor_path: str = typer.Option(
+        "",
+        "--noise-floor",
+        help="Path to a previously written A/A report JSON, reused as the floor for --compare.",
+    ),
 ) -> None:
     """Run E0 evaluation benchmark over a harvested task suite."""
 
-    from sagiha.domain.benchmark import ComparisonResult, NoiseFloor
+    from sagiha.domain.benchmark import BenchmarkRun, ComparisonResult, NoiseFloor
     from sagiha.e0.harvester import Harvester
     from sagiha.e0.reporter import BenchmarkReporter
     from sagiha.e0.runner import BenchmarkRunner
@@ -390,37 +402,91 @@ def bench(
     mode_val: Literal["live", "replay", "record"] = (
         "live" if mode == "live" else ("record" if mode == "record" else "replay")
     )
-    runner = BenchmarkRunner(
-        suite=suite,
-        model_mode=mode_val,
-        cassette_path=cassette,
-        workspace_root=suite.repo,
-    )
 
-    run_a = asyncio.run(runner.run_suite(run_id="run-pass-1", k=runs))
+    def _runner(strategy: Literal["single_shot", "bon"]) -> BenchmarkRunner:
+        return BenchmarkRunner(
+            suite=suite,
+            model_mode=mode_val,
+            cassette_path=cassette,
+            workspace_root=suite.repo,
+            strategy=strategy,
+            agent_id=f"sagiha-{strategy}",
+        )
+
     nf: NoiseFloor | None = None
     comp: ComparisonResult | None = None
 
-    if aa:
-        typer.echo("Running second pass for A/A noise floor calibration...")
-        run_b = asyncio.run(runner.run_suite(run_id="run-pass-2", k=runs))
-        nf = StatisticalAnalyzer.compute_noise_floor(run_a, run_b)
-        comp = StatisticalAnalyzer.compare_runs(run_a, run_b, noise_floor=nf)
-        typer.echo(
-            f"A/A Calibration mean_delta: {nf.mean_delta:.3f}, beats_noise_floor: {comp.beats_noise_floor}"
-        )
+    if compare:
+        arms = [a.strip() for a in compare.split(",") if a.strip()]
+        valid = {"single_shot", "bon"}
+        if len(arms) != 2 or not set(arms) <= valid or arms[0] == arms[1]:
+            typer.echo(f"--compare needs two distinct arms from {sorted(valid)}, got {compare!r}")
+            raise SystemExit(1)
+
+        control_arm = cast(Literal["single_shot", "bon"], arms[0])
+        treatment_arm = cast(Literal["single_shot", "bon"], arms[1])
+
+        # The floor comes first and from the *control* arm, run against itself. A treatment
+        # delta judged against no floor — or against a floor measured under a different
+        # launch_mode/arm — is the H5 failure shape: a number with nothing to beat.
+        if noise_floor_path:
+            nf = NoiseFloor.model_validate(json.loads(Path(noise_floor_path).read_text())["noise_floor"])
+            typer.echo(f"Reusing noise floor from {noise_floor_path} (n={nf.n_tasks})")
+        elif aa:
+            typer.echo(f"A/A calibration on the control arm ({control_arm})...")
+            floor_a = asyncio.run(_runner(control_arm).run_suite(run_id="aa-pass-1", k=runs))
+            floor_b = asyncio.run(_runner(control_arm).run_suite(run_id="aa-pass-2", k=runs))
+            nf = StatisticalAnalyzer.compute_noise_floor(floor_a, floor_b)
+            typer.echo(f"  floor mean_delta={nf.mean_delta:.4f} CI={nf.confidence_interval} n={nf.n_tasks}")
+        else:
+            typer.echo(
+                "--compare without --aa or --noise-floor would publish a delta with nothing to "
+                "judge it against; beats_noise_floor would be None. Re-run with --aa."
+            )
+            raise SystemExit(1)
+
+        typer.echo(f"Control arm: {control_arm}...")
+        run_control = asyncio.run(_runner(control_arm).run_suite(run_id=f"{control_arm}-run", k=runs))
+        typer.echo(f"Treatment arm: {treatment_arm}...")
+        run_treatment = asyncio.run(_runner(treatment_arm).run_suite(run_id=f"{treatment_arm}-run", k=runs))
+
+        comp = StatisticalAnalyzer.compare_runs(run_control, run_treatment, noise_floor=nf)
+        report_run = run_treatment
+        control_for_report: BenchmarkRun | None = run_control
+    else:
+        runner = _runner("single_shot")
+        run_a = asyncio.run(runner.run_suite(run_id="run-pass-1", k=runs))
+        control_for_report = None
+
+        if aa:
+            typer.echo("Running second pass for A/A noise floor calibration...")
+            run_b = asyncio.run(runner.run_suite(run_id="run-pass-2", k=runs))
+            nf = StatisticalAnalyzer.compute_noise_floor(run_a, run_b)
+            comp = StatisticalAnalyzer.compare_runs(run_a, run_b, noise_floor=nf)
+            typer.echo(
+                f"A/A Calibration mean_delta: {nf.mean_delta:.3f}, "
+                f"beats_noise_floor: {comp.beats_noise_floor}"
+            )
+        report_run = run_a
 
     if output.endswith(".json"):
-        report_content = BenchmarkReporter.render_json(run_a, noise_floor=nf, comparison=comp)
+        report_content = BenchmarkReporter.render_json(
+            report_run, noise_floor=nf, comparison=comp, control=control_for_report
+        )
     else:
-        report_content = BenchmarkReporter.render_markdown(run_a, noise_floor=nf, comparison=comp)
+        report_content = BenchmarkReporter.render_markdown(
+            report_run, noise_floor=nf, comparison=comp, control=control_for_report
+        )
 
     out_file = Path(output)
     out_file.parent.mkdir(parents=True, exist_ok=True)
     out_file.write_text(report_content)
 
-    pass_rate = StatisticalAnalyzer.compute_pass_rate(run_a)
+    pass_rate = StatisticalAnalyzer.compute_pass_rate(report_run)
     typer.echo(f"Benchmark complete! Pass rate: {pass_rate:.1%}. Report written to {output}")
+    if comp is not None and control_for_report is not None:
+        verdict = BenchmarkReporter.verdict(report_run, control_for_report, comp)
+        typer.echo(verdict)
 
 
 @dataclass

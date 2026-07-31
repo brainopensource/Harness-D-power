@@ -24,6 +24,30 @@ def _per_task_pass_rates(run: BenchmarkRun) -> dict[str, list[bool]]:
     return by_task
 
 
+def cost_per_resolved_task(run: BenchmarkRun) -> float | None:
+    """Total USD spent across **all** attempts divided by the number that resolved.
+
+    Denominator is resolved tasks, numerator is every task's cost including the failures —
+    that is what a resolved task actually costs you. `None` when nothing resolved (an infinite
+    cost is not a number to publish) or when no result carried a cost at all.
+
+    This is the exit gate's cost-normalized comparison: a pass-rate win bought at a
+    cost-per-resolved-task loss is reported as a cost loss, not a win.
+    """
+    costs = [r.cost.usd for r in run.results if r.cost is not None]
+    if not costs:
+        return None
+    resolved = sum(1 for r in run.results if r.resolved)
+    if resolved == 0:
+        return None
+    return sum(costs) / resolved
+
+
+def _mean_diversity_ratio(run: BenchmarkRun) -> float | None:
+    ratios = [r.diversity_ratio for r in run.results if r.diversity_ratio is not None]
+    return sum(ratios) / len(ratios) if ratios else None
+
+
 def _resolved_mean_std(run: BenchmarkRun) -> tuple[float, float]:
     """Mean resolved count per task and its stddev across repetitions (k >= 3 for a real sigma)."""
     by_task = _per_task_pass_rates(run)
@@ -39,11 +63,66 @@ class BenchmarkReporter:
     """Renders E0 benchmark results as Markdown reports or structured JSON."""
 
     @staticmethod
+    def verdict(
+        treatment: BenchmarkRun,
+        control: BenchmarkRun,
+        comparison: ComparisonResult,
+    ) -> str:
+        """The exit gate's pass/fail sentence, computed rather than asserted by a human.
+
+        Encodes the honest-negative clause from `sprint_v2_s4_options.md` §6 literally: a
+        treatment that does not beat the floor is a NEGATIVE, and so is one that wins on pass
+        rate while losing on cost-per-resolved-task. Both outcomes ship as a published number
+        and a default-off feature — which is only possible if the tool says so plainly instead
+        of leaving the reader to notice the cost column.
+        """
+        if comparison.beats_noise_floor is None:
+            return (
+                "VERDICT: INDETERMINATE — no honest noise floor was available, so the delta has "
+                "nothing to beat. Not a win and not a loss; re-run with a computable A/A floor."
+            )
+
+        t_cost = cost_per_resolved_task(treatment)
+        c_cost = cost_per_resolved_task(control)
+        diversity = _mean_diversity_ratio(treatment)
+        n_candidates = next((r.candidates for r in treatment.results if r.candidates), None)
+
+        # Diversity is a *validity precondition*, checked before the delta is believed at all:
+        # if candidates were one answer sampled N times, the delta is a sampling artifact.
+        if diversity is not None and n_candidates and n_candidates > 1:
+            floor_ratio = 1.0 / n_candidates
+            if diversity <= floor_ratio + 1e-9:
+                return (
+                    f"VERDICT: INVALID — diversity_ratio {diversity:.3f} is at the {floor_ratio:.3f} "
+                    f"floor (1/N for N={n_candidates}). The candidates were one answer sampled "
+                    f"{n_candidates} times, so any delta here is a sampling artifact, not a search result."
+                )
+
+        if not comparison.beats_noise_floor:
+            return (
+                f"VERDICT: NEGATIVE — delta {comparison.delta_pass_rate:+.4f} does not clear the "
+                "noise floor. Per the honest-negative clause, publish this number and ship the "
+                "treatment OFF by default (search.enabled = false)."
+            )
+
+        if t_cost is not None and c_cost is not None and t_cost > c_cost:
+            return (
+                f"VERDICT: COST LOSS — pass rate improved by {comparison.delta_pass_rate:+.4f} "
+                f"beyond the floor, but cost-per-resolved-task rose ${c_cost:.4f} -> ${t_cost:.4f}. "
+                "A pass-rate win at a cost-per-resolved-task loss is reported as a cost loss, not a win."
+            )
+
+        return f"VERDICT: POSITIVE — delta {comparison.delta_pass_rate:+.4f} beats the noise floor" + (
+            f" at equal-or-better cost (${t_cost:.4f}/resolved)." if t_cost is not None else "."
+        )
+
+    @staticmethod
     def render_markdown(
         run: BenchmarkRun,
         *,
         noise_floor: NoiseFloor | None = None,
         comparison: ComparisonResult | None = None,
+        control: BenchmarkRun | None = None,
         suite_version: str = "",
         harness_version: str = "",
         model: str = "",
@@ -135,9 +214,24 @@ class BenchmarkReporter:
                     f"(discordant pairs: {comparison.n_discordant})",
                     f"- Holm-adjusted p-value: `{adj_str}`",
                     f"- Beats Noise Floor: `{beats_str}`",
-                    "",
                 ]
             )
+            if control is not None:
+                t_cost = cost_per_resolved_task(run)
+                c_cost = cost_per_resolved_task(control)
+                lines.append(
+                    "- Cost per resolved task: "
+                    f"control `{'n/a' if c_cost is None else f'${c_cost:.4f}'}` -> "
+                    f"treatment `{'n/a' if t_cost is None else f'${t_cost:.4f}'}`"
+                )
+                diversity = _mean_diversity_ratio(run)
+                if diversity is not None:
+                    n_candidates = next((r.candidates for r in run.results if r.candidates), None)
+                    floor_note = f" (1/N floor = {1.0 / n_candidates:.3f})" if n_candidates else ""
+                    lines.append(f"- Mean `diversity_ratio`: `{diversity:.3f}`{floor_note}")
+            lines.append("")
+            if control is not None:
+                lines.extend([BenchmarkReporter.verdict(run, control, comparison), ""])
 
         lines.extend(["## Tasks", ""])
         for task_id, outcomes in sorted(_per_task_pass_rates(run).items()):
@@ -155,6 +249,7 @@ class BenchmarkReporter:
         run: BenchmarkRun,
         noise_floor: NoiseFloor | None = None,
         comparison: ComparisonResult | None = None,
+        control: BenchmarkRun | None = None,
     ) -> str:
         pass_rate = StatisticalAnalyzer.compute_pass_rate(run)
         gate_failures = Counter(r.gate_failure_kind for r in run.results if r.gate_failure_kind)
@@ -168,10 +263,27 @@ class BenchmarkReporter:
             "n_tasks": len(_per_task_pass_rates(run)),
             "n_results": len(run.results),
             "cost_per_success_usd": (sum(costs) / len(costs)) if costs else None,
+            "cost_per_resolved_task_usd": cost_per_resolved_task(run),
+            "diversity_ratio": _mean_diversity_ratio(run),
             "cache_hit_rate": (sum(cache_hits) / len(cache_hits)) if cache_hits else None,
             "gate_failures": dict(gate_failures),
             "results": [r.model_dump(mode="json") for r in run.results],
             "noise_floor": noise_floor.model_dump(mode="json") if noise_floor else None,
             "comparison": comparison.model_dump(mode="json") if comparison else None,
+            "control": (
+                {
+                    "run_id": control.run_id,
+                    "agent_id": control.agent_id,
+                    "pass_rate": StatisticalAnalyzer.compute_pass_rate(control),
+                    "cost_per_resolved_task_usd": cost_per_resolved_task(control),
+                }
+                if control is not None
+                else None
+            ),
+            "verdict": (
+                BenchmarkReporter.verdict(run, control, comparison)
+                if control is not None and comparison is not None
+                else None
+            ),
         }
         return json.dumps(data, indent=2)

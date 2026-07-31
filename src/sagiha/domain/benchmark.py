@@ -90,6 +90,17 @@ class BenchmarkResult(BaseModel):
     gate_failure_kind: str | None = None
     #: Advisory cache-hit signal for this task's run, `None` when the provider did not report it.
     cache_hit: bool | None = None
+    #: Which arm produced this result — `"single_shot"` (one run) or `"bon"` (Best-of-N over
+    #: real worktrees). Recorded per-result so a comparison report can never silently pair two
+    #: runs of the same arm and call it a treatment effect.
+    strategy: str = "single_shot"
+    #: `distinct_candidates / N` for the BoN arm (v2-S4 S4.2d) — `None` for single-shot, where
+    #: N=1 makes the ratio meaningless rather than 1.0. A ratio at or near `1/N` invalidates
+    #: the comparison: the candidates were one answer sampled N times, so any measured delta is
+    #: a sampling artifact and BoN paid N× for single-shot's diversity.
+    diversity_ratio: float | None = None
+    #: Candidates actually proposed for this task under the BoN arm. `None` for single-shot.
+    candidates: int | None = None
 
 
 class BenchmarkSuite(BaseModel):

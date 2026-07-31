@@ -46,7 +46,6 @@ from sagiha.domain.work import (
 from sagiha.kernel.bus import EventBus
 from sagiha.kernel.dispatch import dispatch
 from sagiha.kernel.policy.effects import classify_command
-from sagiha.outer_loop.evaluator import GateEvaluator
 from sagiha.ports.evaluator import Evaluator
 from sagiha.ports.governor import ResourceGovernor
 from sagiha.ports.model import ModelProvider
@@ -101,10 +100,10 @@ class RunLoop:
         trajectory_store: TrajectoryStore,
         bus: EventBus,
         *,
+        evaluator: Evaluator,
         max_steps: int = 20,
         system_prompt: str = DEFAULT_SYSTEM_PROMPT,
         tool_schemas: list[ToolSchema] | None = None,
-        evaluator: Evaluator | None = None,
         workspace: Workspace | None = None,
         pricing: PricingConfig | None = None,
         context: ContextConfig | None = None,
@@ -136,9 +135,11 @@ class RunLoop:
         self._pricing = pricing or PricingConfig()
         self._context_config = context or ContextConfig()
         self._compactor = compactor
-        self._evaluator: Evaluator = evaluator or GateEvaluator(
-            policy_engine, resource_governor, tool_registry, bus
-        )
+        #: RC-8: required, never default-constructed here. `agency` building its own
+        #: `GateEvaluator` meant the layer being judged also chose its judge — a TCB object
+        #: constructed outside the composition root, where the `tcb-isolation` contract cannot
+        #: see it. Composition already builds exactly one; every caller passes that one.
+        self._evaluator: Evaluator = evaluator
         #: The last assembler built by `run`. Held so `freeze()` can lift anchored state
         #: (plan, open-file set) out of it without the caller having to thread it through.
         self._assembler: ContextAssembler | None = None

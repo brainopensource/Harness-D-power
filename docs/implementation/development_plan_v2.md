@@ -266,4 +266,4 @@ Sprint status in `docs/STATUS.md` marks v2-S1/S2 **closed** for the primary H1�
 | RC-5 | Phase 2 exit | ~~Mark ADR-0019 / ADR-0020 `Accepted-Implemented`~~ **CLOSED 2026-07-31** | `docs/08-decisions/001{9,20}-*.md` |
 | RC-6 | S2.2 exit metric | ~~Proving test asserts re-execution fraction `≥ 0.60` (currently `≥ 0.5`)~~ **CLOSED 2026-07-31** | `tests/unit/test_effect_classification.py` |
 | RC-7 | S1.5 | Commit **before** + after honesty bench reports (only post exists today) | `docs/rationale/benchmarks/` |
-| RC-8 | S2.4 soft | Make `RunLoop.evaluator` required (composition already builds `GateEvaluator`); stop agency default-constructing TCB | `agency/run_loop.py`, call sites |
+| RC-8 | S2.4 soft | ~~Make `RunLoop.evaluator` required; stop agency default-constructing TCB~~ **CLOSED 2026-07-31** — `agency/run_loop.py` no longer imports `outer_loop` at all; `Kernel.evaluator` is non-optional; pinned by `tests/contracts/test_composition.py::test_agency_never_constructs_a_tcb_evaluator` | `agency/run_loop.py`, call sites |

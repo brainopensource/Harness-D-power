@@ -57,12 +57,16 @@ class Kernel:
     trajectory_store: TrajectoryStore
     memory: Memory
     workspace: Workspace
+    #: Non-optional (RC-8): `RunLoop.evaluator` is required, and `build_kernel` always
+    #: constructs exactly one `GateEvaluator`. Leaving this `| None` re-created the hole RC-8
+    #: closes — every consumer had to either narrow it or fall back to building its own TCB
+    #: object, which is the thing `agency` must never do.
+    evaluator: Evaluator
     bus: EventBus = field(default_factory=EventBus)
     indexer: Indexer | None = None
     code_graph: CodeGraph | None = None
     lsp_adapter: LSPAdapter | None = None
     worktree_manager: WorktreeManager | None = None
-    evaluator: Evaluator | None = None
     candidate_search: CandidateSearch | None = None
     tool_schemas: tuple[ToolSchema, ...] = ()
 

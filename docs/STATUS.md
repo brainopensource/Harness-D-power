@@ -94,7 +94,7 @@ reported as block-level progress; they are re-stated here honestly.
 | :--- | :--- | :--- |
 
 | Block 2 — E0 benchmark | Real harness in `e0/`. `adapters/benchmark/` and `ports/benchmark.py` deleted ([ADR-0024](./08-decisions/0024-e0-is-a-tool-not-a-port.md)) — the layers contract forbade the adapter this port needed | `v2-S4` |
-| Block 3 — Best-of-N search | `BestOfNSearch` implemented over real `GitWorktreeManager` worktrees, sequential + parallel launch, temperature ladder, `diversity_ratio` (reported on `CandidateSelected`), rank-never-admit `select()`. Not yet wired into a CLI comparison path (`sagiha bench --compare`, pinned ≥30-task suite, published noise-floor/BoN-delta reports) — that remains open before the `v2-S4` exit gate closes | `v2-S4` |
+| Block 3 — Best-of-N search | **Mechanism complete.** `BestOfNSearch` over real `GitWorktreeManager` worktrees; sequential + parallel launch; temperature ladder; `diversity_ratio`; rank-never-admit `select()`; wired into `sagiha bench --compare single_shot,bon` with cost-per-resolved-task and a machine-checked verdict. **Never measured against a real suite** — 0/23 tasks validate from this repo's history ([findings](./rationale/benchmarks/s4-harvest-findings.md)), so `search.enabled` remains an untested default | `v2-S4` |
 | Block 4 — retrieval / code graph | Ports only. No indexer, no FTS5, no Tree-sitter | `v2-S6` |
 | Block 4 — Workflow DAG (ADR-0018) | Protocol only; gated on an E0 ablation that cannot be trusted until `v2-S1` | `v2-S7` |
 | Block 5 — container sandbox | Stub — every method raises `NotImplementedError` (PR-1d) | `v2-S5` |
@@ -116,7 +116,7 @@ Every PR holds or improves all of these. The test count is **monotonic** — it 
 
 | Signal | Baseline (2026-07-31) | Command |
 | :--- | :--- | :--- |
-| Tests | **253 passed** (192 at prior baseline, 174 before that, 158 at `v2-S1` close) | `uv run pytest -q` |
+| Tests | **266 passed** (253, 192, 174 at prior baselines; 158 at `v2-S1` close) | `uv run pytest -q` |
 | Port count | **17 Protocols / 16 files** (ADR-0019 restated count; `CommitReplayHarvester`/`TaskRunner` deleted per [ADR-0024](./08-decisions/0024-e0-is-a-tool-not-a-port.md)) | `grep -rn "(Protocol)" src/sagiha/ports/ \| wc -l` |
 | Type check | 0 errors, strict | `uv run pyright src/sagiha` |
 | Lint | clean | `uv run ruff check && uv run ruff format --check` |
@@ -155,15 +155,28 @@ Every PR holds or improves all of these. The test count is **monotonic** — it 
    no longer recursively builds a `BestOfNSearch`/`GitWorktreeManager` per candidate
    (`build_kernel(..., include_search=False)`), and the parallel launch stagger sleeps before
    acquiring an inference-capacity slot rather than while holding one. RC-5 (ADR-0019/0020 →
-   Accepted-Implemented) and RC-6 (re-execution exit metric raised to `>= 0.60`) are closed.
-   **Still open before the `v2-S4` exit gate can be claimed:** `sagiha bench --compare` is not
-   wired to actually run `BestOfNSearch` against a single-shot control; the pinned ≥30-task
-   `benchmarks/definitions/s0-core.json` suite, `docs/rationale/benchmarks/noise-floor.md`, and
-   the published BoN-delta report do not exist yet; the `bench-aa` CI job is a documented no-op
-   pending that suite. The stale `tests/fixtures/replay_smoke/workspace` fixture (untracked,
-   pre-`v2-S1` prompt assembly) was regenerated and is now tracked with a `.gitkeep`, closing the
-   "not a tracked path" CI trap noted in `refactor_sagiha_v2_guidelines.md` §2.4/§11.6 — a clean
-   checkout previously crashed `sagiha replay verify` outright rather than merely mis-measuring.
+   Accepted-Implemented), RC-6 (re-execution exit metric raised to `>= 0.60`), and RC-8
+   (`RunLoop.evaluator` now required; `agency/run_loop.py` no longer imports the TCB at all,
+   pinned by a contract test) are closed — **RC-1…RC-8 are all closed.** `sagiha bench --compare
+   single_shot,bon` is wired end-to-end, publishing cost-per-resolved-task and `diversity_ratio`
+   alongside pass rate, with `BenchmarkReporter.verdict` enforcing the honest-negative clause in
+   code (NEGATIVE below the floor, COST LOSS on a pass-rate win at a cost regression, INVALID at
+   the `1/N` diversity floor). The stale `tests/fixtures/replay_smoke/workspace` fixture was
+   regenerated and tracked, closing the "not a tracked path" CI trap
+   (`refactor_sagiha_v2_guidelines.md` §2.4/§11.6).
+
+   **The empirical half of the exit gate is NOT met, and no number is published in its place.**
+   Harvesting this repo's own history for the pinned ≥30-task suite exposed three further
+   instrument defects — all now fixed — the most serious being that the venv's **editable
+   install defeated worktree isolation**, so every worktree-scoped run (harvester validation,
+   both bench arms, and every Best-of-N candidate) imported the live working tree instead of its
+   own checked-out source. Best-of-N candidate diffs were therefore invisible to the gates
+   scoring them. With the instrument repaired, `harvest --validate` reports **0/23 valid tasks**:
+   this repo's history is sprint-sized commits, not the small fix-commits commit-replay
+   harvesting requires. So `benchmarks/definitions/s0-core.json` does not exist, `bench-aa`
+   remains a documented no-op, and the claim "BoN beats single-shot by X ± σ" is **not made**.
+   Full write-up and unblock options: [s4-harvest-findings.md](./rationale/benchmarks/s4-harvest-findings.md).
+   Closing that half needs a task corpus (external repo or a hand-authored suite), not more code.
 
 ### Known open item (Resolved in v2-S1)
 

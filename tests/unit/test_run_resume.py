@@ -6,6 +6,7 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 
 import pytest
+from tests.conftest import build_test_evaluator
 
 from sagiha.adapters.tools.registry import DefaultToolRegistry
 from sagiha.adapters.trajectory.sqlite import SQLiteTrajectoryStore
@@ -82,6 +83,7 @@ async def test_resume_continues_seq_without_collision(tmp_path: Path) -> None:
         tool_registry=registry,
         trajectory_store=store,
         bus=EventBus(),
+        evaluator=build_test_evaluator(policy, governor, registry),
         max_steps=2,
     )
     first_result = await first_loop.run(task, ctx)
@@ -104,6 +106,7 @@ async def test_resume_continues_seq_without_collision(tmp_path: Path) -> None:
         tool_registry=registry,
         trajectory_store=store,
         bus=EventBus(),
+        evaluator=build_test_evaluator(policy, governor, registry),
         max_steps=5,
     )
     resumed_result = await second_loop.run(task, ctx, resume=True)

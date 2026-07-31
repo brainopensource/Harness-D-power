@@ -7,6 +7,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import pytest
+from tests.conftest import build_test_evaluator
 
 from sagiha.adapters.tools.registry import DefaultToolRegistry
 from sagiha.adapters.trajectory.sqlite import SQLiteTrajectoryStore
@@ -159,6 +160,7 @@ async def test_react_parses_tool_use_block(tmp_path: Path) -> None:
         tool_registry=registry,
         trajectory_store=store,
         bus=EventBus(),
+        evaluator=build_test_evaluator(policy, governor, registry),
     )
     ctx = RunContext(
         run_id="r-react",

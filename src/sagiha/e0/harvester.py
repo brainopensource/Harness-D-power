@@ -26,6 +26,76 @@ class HarvesterError(RuntimeError):
     """Base exception for harvester operations."""
 
 
+#: Exit codes that mean *the test command never ran*, as distinct from "the tests failed".
+#: 127 = command not found, 126 = found but not executable, and pytest's own 4 = usage error /
+#: 5 = no tests collected. Treating any of these as a reproduced failure is the H-series
+#: fabrication in its purest form: the harvester would certify a task whose "failing test"
+#: fails because `pytest` is not on PATH in the scratch worktree, and no source fix could ever
+#: make it pass. That is precisely how a suite of zero real tasks can look like a suite.
+_INFRASTRUCTURE_EXIT_CODES: frozenset[int] = frozenset({126, 127, 4, 5})
+
+#: Stderr fingerprints of "the runner itself is missing", which exit with a plain `1` and are
+#: therefore indistinguishable from a failing test by exit code alone. `python -m pytest` under
+#: an interpreter without pytest installed prints exactly this and exits 1 — the subtler twin of
+#: the 127 case, and the one that survived the first fix.
+_INFRASTRUCTURE_STDERR_MARKERS: tuple[str, ...] = (
+    "No module named pytest",
+    "No module named 'pytest'",
+    "command not found",
+)
+
+
+def default_test_command(repo_dir: Path, *, source_dir: str = "src") -> str:
+    """The test command for a task, run inside a scratch worktree.
+
+    Two things this must get right, both of which were silently wrong before:
+
+    1. **A concrete interpreter, not a bare `pytest`/`python`.** A scratch worktree inherits the
+       caller's `PATH`, where `python` is usually the *system* interpreter with no pytest in it.
+       Both failure modes (127 from a missing console script, exit 1 from a missing module) look
+       like a failing test to a validator that only reads exit codes.
+
+    2. **`PYTHONPATH=<source_dir>` so the worktree's own source wins.** This is the load-bearing
+       one. The venv materialized into the worktree contains an *editable* install of this
+       package, whose `.pth` points at the main checkout's `src/`. Without an override,
+       `import sagiha` inside a worktree at commit X resolves to whatever is in the developer's
+       working tree *right now* — so the harvester validated tasks against current `src/`
+       rather than against the task's baseline, and `BenchmarkRunner` measured the same. Worse,
+       Best-of-N candidates each edit their own worktree while every candidate's tests import
+       one shared source tree, which would make candidate diffs invisible to the gates scoring
+       them. `PYTHONPATH` is relative here and the command runs with the worktree as cwd, so it
+       resolves per-worktree; it is embedded in `failing_test_cmd` so the recorded task carries
+       its own isolation rather than depending on the runner remembering to add it.
+    """
+    venv_python = repo_dir / ".venv" / "bin" / "python"
+    interpreter = str(venv_python) if venv_python.exists() else "python3"
+    # `env` rather than a shell string: `workspace.run` takes argv and never spawns a shell.
+    return f"env PYTHONPATH={source_dir} {interpreter} -m pytest"
+
+
+def _is_infrastructure_failure(exit_code: int, stderr: str) -> bool:
+    """Did the test command fail to *run*, as opposed to running and reporting failures?"""
+    if exit_code in _INFRASTRUCTURE_EXIT_CODES:
+        return True
+    return any(marker in stderr for marker in _INFRASTRUCTURE_STDERR_MARKERS)
+
+
+def is_test_file(path: str) -> bool:
+    """Is `path` a file pytest would actually collect as a test module?
+
+    Pytest's own default collection rule (`test_*.py` / `*_test.py`), deliberately — the
+    previous predicate was `"test" in path.lower() or path.startswith("tests/")`, which
+    swept in every fixture and data file living under `tests/`. That put paths like
+    `tests/fixtures/replay_smoke/cassette.json` and `tests/fixtures/.../.gitkeep` into
+    `failing_test_cmd`, so the harvested command was `pytest <a JSON file>` — which pytest
+    exits non-zero on for the wrong reason. Validation then "confirmed" a failing test that
+    was really a collection error, and the fix commit could never make it pass: every task
+    harvested from a commit touching test fixtures was silently unusable.
+    """
+    name = path.rsplit("/", 1)[-1]
+    return name.endswith(".py") and (name.startswith("test_") or name.endswith("_test.py"))
+
+
 class Harvester:
     """Walks git history in a repository to discover and validate fix-commit tasks."""
 
@@ -33,11 +103,12 @@ class Harvester:
         self,
         repo_dir: str | Path,
         *,
-        test_cmd: str = "pytest",
+        test_cmd: str | None = None,
         max_commits: int = 200,
     ) -> None:
         self._repo_dir = Path(repo_dir).resolve()
-        self._test_cmd = test_cmd
+        #: `None` means "resolve a real interpreter for this repo" — see `default_test_command`.
+        self._test_cmd = test_cmd or default_test_command(self._repo_dir)
         self._max_commits = max_commits
 
     async def _exec_git(self, *args: str) -> str:
@@ -63,7 +134,7 @@ class Harvester:
         lines = stat_output.splitlines()
         subject = lines[0] if lines else ""
         files = [line.strip() for line in lines[1:] if line.strip()]
-        test_files = [f for f in files if "test" in f.lower() or f.startswith("tests/")]
+        test_files = [f for f in files if is_test_file(f)]
         source_files = [
             f
             for f in files
@@ -124,6 +195,11 @@ class Harvester:
         branch_id = f"validate-{task.task_id}-{uuid.uuid4().hex[:8]}"
         try:
             workspace = await manager.allocate(task.base_commit, branch_id, run_id=task.task_id)
+            # Without this the worktree has no `.venv`, so a bare `pytest` exits 127 and every
+            # stage below misreads "could not run" as "the test failed". `materialize` is what
+            # symlinks the interpreter/toolchain in — allocating without it produced a
+            # 0-valid-task suite whose rejections all pointed at the wrong cause.
+            await manager.materialize(branch_id)
         except Exception as exc:  # noqa: BLE001 - reported as an honest validation failure, not raised
             return TaskValidation(task_id=task.task_id, passed=False, reason=f"allocate_failed:{exc}")
 
@@ -138,6 +214,14 @@ class Harvester:
             determinism_failures = 0
             for _ in range(max(1, k_determinism)):
                 result = await workspace.run(test_argv)
+                # A command that could not execute is not evidence about the task. Reject the
+                # task loudly rather than counting it as a reproduced failure.
+                if _is_infrastructure_failure(result.exit_code, result.stderr):
+                    return TaskValidation(
+                        task_id=task.task_id,
+                        passed=False,
+                        reason=f"test_command_not_runnable:exit_{result.exit_code}",
+                    )
                 if result.exit_code != 0:
                     determinism_failures += 1
 
@@ -171,6 +255,14 @@ class Harvester:
                 )
 
             fixed_result = await workspace.run(test_argv)
+            if _is_infrastructure_failure(fixed_result.exit_code, fixed_result.stderr):
+                return TaskValidation(
+                    task_id=task.task_id,
+                    passed=False,
+                    reason=f"test_command_not_runnable:exit_{fixed_result.exit_code}",
+                    determinism_runs=k_determinism,
+                    determinism_failures=determinism_failures,
+                )
             if fixed_result.exit_code != 0:
                 return TaskValidation(
                     task_id=task.task_id,

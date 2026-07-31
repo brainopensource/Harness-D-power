@@ -7,6 +7,7 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 
 import pytest
+from tests.conftest import build_test_evaluator
 
 from sagiha import Config, build_kernel
 from sagiha.adapters.tools.registry import DefaultToolRegistry
@@ -124,13 +125,17 @@ async def test_run_loop_single_step_ends_turn_with_no_tool_calls() -> None:
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         store = SQLiteTrajectoryStore(db_path=str(Path(tmp_dir) / "traj.db"))
+        policy = DefaultPolicyEngine()
+        governor = DefaultResourceGovernor()
+        registry = DefaultToolRegistry()
         loop = RunLoop(
             model_provider=EndTurnProvider(),
-            policy_engine=DefaultPolicyEngine(),
-            resource_governor=DefaultResourceGovernor(),
-            tool_registry=DefaultToolRegistry(),
+            policy_engine=policy,
+            resource_governor=governor,
+            tool_registry=registry,
             trajectory_store=store,
             bus=EventBus(),
+            evaluator=build_test_evaluator(policy, governor, registry),
         )
         ctx = RunContext(
             run_id="r-react",
@@ -169,8 +174,9 @@ async def test_build_kernel_wires_day_zero_adapters() -> None:
 def test_kernel_mandatory_ports_are_not_optional() -> None:
     """D14: model_provider, policy_engine, resource_governor, tool_registry, and
     trajectory_store are non-optional constructor arguments — a partially wired Kernel is not
-    representable. Profile-optional ports (evaluator, indexer, code_graph, lsp_adapter,
-    worktree_manager) may still default to None."""
+    representable. Profile-optional ports (indexer, code_graph, lsp_adapter, worktree_manager)
+    may still default to None. `evaluator` joined the mandatory set under RC-8: `RunLoop`
+    requires it, so an optional one only ever meant somebody built their own TCB object."""
     import dataclasses
 
     from sagiha.composition import Kernel
@@ -184,8 +190,9 @@ def test_kernel_mandatory_ports_are_not_optional() -> None:
         "trajectory_store",
         "memory",
         "workspace",
+        "evaluator",
     }
-    profile_optional = {"indexer", "code_graph", "lsp_adapter", "worktree_manager", "evaluator"}
+    profile_optional = {"indexer", "code_graph", "lsp_adapter", "worktree_manager"}
 
     for f in dataclasses.fields(Kernel):
         if f.name in mandatory_no_default:
