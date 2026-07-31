@@ -11,9 +11,9 @@ from __future__ import annotations
 from typing import Final, Protocol
 
 from sagiha.domain.control import RunContext
-from sagiha.domain.work import GateReport, TaskSpec
+from sagiha.domain.work import GateReport, ReviewReport, TaskSpec
 
-PORT_VERSION: Final = 1
+PORT_VERSION: Final = 2
 STABILITY: Final = "provisional"
 
 
@@ -23,3 +23,7 @@ class CandidateSearch(Protocol):
     async def evaluate(self, branch_id: str) -> GateReport | None: ...
 
     async def select(self, branch_ids: list[str]) -> str: ...  # winning branch_id
+
+    async def score(self, task: TaskSpec, diff: str, branch_id: str) -> ReviewReport:
+        """Optional frontier-judge score — a soft rank, never a gate that admits."""
+        ...

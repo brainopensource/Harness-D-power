@@ -29,7 +29,7 @@ from sagiha.composition import build_kernel
 from sagiha.domain.config import Config, ModelConfig, TelemetryConfig, WorkspaceConfig
 from sagiha.domain.content import Message, ModelRequest, TextBlock
 from sagiha.domain.control import RunContext
-from sagiha.domain.trajectory import StreamEvent
+from sagiha.domain.trajectory import Completion, StreamEvent, TokenUsage
 
 FIXTURE_DIR = Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "replay_smoke"
 
@@ -43,10 +43,14 @@ class _StopImmediately:
     def __init__(self) -> None:
         self.recorded: list[tuple[ModelRequest, Message]] = []
 
-    async def complete(self, request: ModelRequest) -> Message:
+    async def complete(self, request: ModelRequest) -> Completion:
         msg = Message(role="assistant", content=[TextBlock(text="Nothing to do.")])
         self.recorded.append((request, msg))
-        return msg
+        return Completion(
+            message=msg,
+            usage=TokenUsage(input_tokens=0, output_tokens=0),
+            model="cassette",
+        )
 
     async def stream(self, request: ModelRequest) -> AsyncIterator[StreamEvent]:
         raise NotImplementedError
@@ -60,6 +64,22 @@ async def main() -> None:
     trajectory_db = FIXTURE_DIR / "traj.db"
     trajectory_db.unlink(missing_ok=True)
     cassette_path.write_text("[]", encoding="utf-8")
+
+    def _git_init(repo: Path) -> None:
+        import subprocess
+
+        def run(*args: str) -> None:
+            subprocess.run(["git", *args], cwd=repo, capture_output=True, check=True)
+
+        if not (repo / ".git").exists():
+            run("init", "-q")
+            run("config", "user.email", "test@example.com")
+            run("config", "user.name", "Test")
+            (repo / ".gitkeep").touch()
+            run("add", "-A")
+            run("commit", "-q", "-m", "base")
+
+    _git_init(workspace)
 
     config = Config(
         model=ModelConfig(mode="replay"),
@@ -76,6 +96,7 @@ async def main() -> None:
         trajectory_store=kernel.trajectory_store,
         bus=kernel.bus,
         tool_schemas=list(kernel.tool_schemas),
+        workspace=kernel.workspace,
     )
     ctx = RunContext(
         run_id="fixture-gen",

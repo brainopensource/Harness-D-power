@@ -88,6 +88,13 @@ class DefaultToolRegistry:
     async def get_effect_class(self, tool_name: str) -> EffectClass:
         return self._effects.get(tool_name, EffectClass.DESTRUCTIVE)
 
+    async def effect_for_call(self, call: ToolCall) -> EffectClass:
+        """Per-tool default. `run_command` is narrowed by callers in `agency`/TCB code via
+        `kernel.policy.effects.classify_command` — adapters may not import `kernel` (layers
+        contract), so this seam only returns the declared per-tool class here.
+        """
+        return await self.get_effect_class(call.tool_name)
+
     async def dispatch(self, call: ToolCall) -> ToolResult:
         handler = self._handlers.get(call.tool_name)
         if handler is None:

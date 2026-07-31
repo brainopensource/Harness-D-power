@@ -46,7 +46,11 @@ class ModelConfig(BaseModel):
             ),
             "workhorse": ModelTierConfig(
                 provider="anthropic",
-                model="claude-3-5-sonnet-20241022",
+                # Deliberately not the same model as "frontier": the judge-separation
+                # refusal (Config.validate_security_invariants) requires 'judge' and
+                # 'execution' to differ when search is enabled — a judge that is also
+                # the generator cannot score its own candidate honestly.
+                model="claude-3-5-haiku-20241022",
                 max_tokens=8192,
                 api_key_env="ANTHROPIC_API_KEY",
                 thinking=ThinkingConfig(enabled=True, budget_tokens=4096),
@@ -260,10 +264,17 @@ class ContextConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     max_context_tokens: int = 200_000
-    compact_at_headroom: float = 0.15
+    compact_at_headroom: float = 0.20
     cache_breakpoints: bool = True
     tool_output_max_chars: int = 30_000
     read_file_max_lines: int = 2000
+    #: Exchanges (user + assistant turn pairs) kept verbatim from the start of history
+    #: across compaction — the task statement and early context an agent re-orients from.
+    keep_first_exchanges: int = 2
+    #: Token budget of the most recent history kept verbatim, uncompacted, regardless
+    #: of `compact_at_headroom` — the immediate working context a compaction pass must
+    #: never touch.
+    keep_last_tokens: int = 20_000
 
 
 class SearchConfig(BaseModel):
@@ -275,6 +286,10 @@ class SearchConfig(BaseModel):
     escalate_after_failures: int = 2
     escalate_on_files: int = 3
     escalate_on_diff_lines: int = 150
+    #: Drop a candidate branch as soon as its first gate fails rather than carrying it
+    #: through the remaining repair rounds — cheaper, and a branch that fails gate 1 of N
+    #: rarely recovers by round 2.
+    prune_on_first_gate_fail: bool = True
 
 
 class GatesConfig(BaseModel):
@@ -414,5 +429,21 @@ class Config(BaseModel):
         for role_name, tier_name in self.model.roles.items():
             if tier_name not in self.model.tiers:
                 raise ValueError(f"Model role '{role_name}' references undefined tier '{tier_name}'")
+
+        if self.search.enabled:
+            judge_tier_name = self.model.roles.get("judge")
+            execution_tier_name = self.model.roles.get("execution")
+            judge_tier = self.model.tiers.get(judge_tier_name) if judge_tier_name else None
+            execution_tier = self.model.tiers.get(execution_tier_name) if execution_tier_name else None
+            if (
+                judge_tier is not None
+                and execution_tier is not None
+                and (judge_tier.provider, judge_tier.model) == (execution_tier.provider, execution_tier.model)
+            ):
+                raise ValueError(
+                    "search.enabled=True is refused when the 'judge' role uses the same "
+                    f"(provider, model) tuple as 'execution' ({judge_tier.provider}, {judge_tier.model}) — "
+                    "a judge that is also the generator cannot score its own candidate honestly"
+                )
 
         return self

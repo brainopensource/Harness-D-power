@@ -162,6 +162,12 @@ def replay(
     cassette: str = typer.Option(".sagiha/cassettes/default.json", "--cassette", "-c"),
     workspace: str = typer.Option(".", "--workspace", "-w"),
     trajectory_db: str = typer.Option(".sagiha/trajectories.db", "--trajectory-db"),
+    tool_cassette: str | None = typer.Option(
+        None,
+        "--tool-cassette",
+        help="Also verify tool dispatch against a recorded tool cassette (ADR-0020): "
+        "PURE-classified calls re-execute, everything else is served from the recording.",
+    ),
 ) -> None:
     """Replay a cassette-driven run and optionally verify gate admission."""
     if not verify and run_id != "verify":
@@ -175,11 +181,19 @@ def replay(
     # Verification: re-run with the same cassette; mismatch raises CassetteMismatchError.
     from sagiha.adapters.model.cassette import CassetteMismatchError
 
+    tool_registry = kernel.tool_registry
+    cassette_tool_registry = None
+    if tool_cassette is not None:
+        from sagiha.adapters.tools.cassette import CassetteToolRegistry
+
+        cassette_tool_registry = CassetteToolRegistry(kernel.tool_registry, tool_cassette, mode="replay")  # type: ignore[arg-type]
+        tool_registry = cassette_tool_registry
+
     loop = RunLoop(
         model_provider=kernel.model_provider,
         policy_engine=kernel.policy_engine,
         resource_governor=kernel.resource_governor,
-        tool_registry=kernel.tool_registry,
+        tool_registry=tool_registry,
         trajectory_store=kernel.trajectory_store,
         bus=kernel.bus,
         tool_schemas=list(kernel.tool_schemas),
@@ -201,6 +215,13 @@ def replay(
     except CassetteMismatchError as exc:
         typer.echo(f"replay verify FAILED: {exc}")
         raise SystemExit(2) from exc
+    if cassette_tool_registry is not None:
+        total = cassette_tool_registry.re_executed + cassette_tool_registry.served_from_cassette
+        pct = (cassette_tool_registry.re_executed / total * 100) if total else 0.0
+        typer.echo(
+            f"tool_reexecution: {cassette_tool_registry.re_executed}/{total} steps ({pct:.1f}%) "
+            f"re-executed; {cassette_tool_registry.served_from_cassette} served from cassette"
+        )
     typer.echo(f"replay_ok run_id={result.run_id} admitted={result.gate_report.admitted}")
     raise SystemExit(0)
 

@@ -183,3 +183,183 @@ async def test_e2e_cassette_fixes_failing_check(tmp_path: Path) -> None:
     result2 = await loop2.run(task.model_copy(update={"task_id": "e2e-2"}), ctx2)
     assert (ws / "mod.py").read_text(encoding="utf-8") == "VALUE = 2\n"
     assert result2.gate_report.admitted is True
+
+
+@pytest.mark.asyncio
+async def test_e2e_editing_tests_fails_unmodified_gate(tmp_path: Path) -> None:
+    ws = tmp_path / "fixture"
+    ws.mkdir()
+    tests_dir = ws / "tests"
+    tests_dir.mkdir()
+    (tests_dir / "test_mod.py").write_text("def test_one(): assert 1 == 1\n", encoding="utf-8")
+    _git_init(ws)
+
+    # Edit a test file
+    (tests_dir / "test_mod.py").write_text("def test_one(): assert 1 == 2\n", encoding="utf-8")
+
+    system = "You are a careful coding agent."
+    goal = "Modify test"
+    schemas = _tool_schemas()
+
+    resp = Message(role="assistant", content=[TextBlock(text="Done.")])
+    cassette_path = tmp_path / "cassette.json"
+    cassette_path.write_text("[]", encoding="utf-8")
+    traj = tmp_path / "traj.db"
+
+    from sagiha.domain.trajectory import Completion, TokenUsage
+
+    class ScriptedProvider:
+        async def complete(self, request: ModelRequest) -> Completion:
+            return Completion(message=resp, usage=TokenUsage(input_tokens=0, output_tokens=0), model="test")
+
+        async def stream(self, request: ModelRequest):
+            raise NotImplementedError
+            yield
+
+    config = Config(
+        model=ModelConfig(mode="replay"),
+        workspace=WorkspaceConfig(root=str(ws)),
+        telemetry=TelemetryConfig(trajectory_db=str(traj)),
+    )
+    kernel = build_kernel(config, cassette_path=str(cassette_path))
+    loop = RunLoop(
+        model_provider=ScriptedProvider(),
+        policy_engine=kernel.policy_engine,
+        resource_governor=kernel.resource_governor,
+        tool_registry=kernel.tool_registry,
+        trajectory_store=kernel.trajectory_store,
+        bus=kernel.bus,
+        max_steps=5,
+        system_prompt=system,
+        tool_schemas=schemas,
+        workspace=kernel.workspace,
+    )
+    ctx = RunContext(
+        run_id="e2e-unmod-1",
+        autonomy_level="interactive",
+        workspace_root=str(ws),
+        budget_remaining_usd=5.0,
+    )
+    task = make_task(goal, checks=['python -c "assert True"'], task_id="e2e-unmod-1")
+    result = await loop.run(task, ctx)
+    assert result.gate_report.tests_unmodified is False
+    assert result.gate_report.admitted is False
+
+
+@pytest.mark.asyncio
+async def test_e2e_oversized_diff_fails_bounds_gate(tmp_path: Path) -> None:
+    ws = tmp_path / "fixture"
+    ws.mkdir()
+    (ws / "mod.py").write_text("VALUE = 1\n", encoding="utf-8")
+    _git_init(ws)
+
+    # Make a diff exceeding default max_diff_lines (1000)
+    large_content = "\n".join(f"X_{i} = {i}" for i in range(1200)) + "\n"
+    (ws / "mod.py").write_text(large_content, encoding="utf-8")
+
+    system = "You are a careful coding agent."
+    goal = "Large edit"
+    schemas = _tool_schemas()
+
+    resp = Message(role="assistant", content=[TextBlock(text="Done.")])
+    cassette_path = tmp_path / "cassette.json"
+    cassette_path.write_text("[]", encoding="utf-8")
+    traj = tmp_path / "traj.db"
+
+    from sagiha.domain.trajectory import Completion, TokenUsage
+
+    class ScriptedProvider:
+        async def complete(self, request: ModelRequest) -> Completion:
+            return Completion(message=resp, usage=TokenUsage(input_tokens=0, output_tokens=0), model="test")
+
+        async def stream(self, request: ModelRequest):
+            raise NotImplementedError
+            yield
+
+    config = Config(
+        model=ModelConfig(mode="replay"),
+        workspace=WorkspaceConfig(root=str(ws)),
+        telemetry=TelemetryConfig(trajectory_db=str(traj)),
+    )
+    kernel = build_kernel(config, cassette_path=str(cassette_path))
+    loop = RunLoop(
+        model_provider=ScriptedProvider(),
+        policy_engine=kernel.policy_engine,
+        resource_governor=kernel.resource_governor,
+        tool_registry=kernel.tool_registry,
+        trajectory_store=kernel.trajectory_store,
+        bus=kernel.bus,
+        max_steps=5,
+        system_prompt=system,
+        tool_schemas=schemas,
+        workspace=kernel.workspace,
+    )
+    ctx = RunContext(
+        run_id="e2e-bounds-1",
+        autonomy_level="interactive",
+        workspace_root=str(ws),
+        budget_remaining_usd=5.0,
+    )
+    task = make_task(goal, checks=['python -c "assert True"'], task_id="e2e-bounds-1")
+    result = await loop.run(task, ctx)
+    assert result.gate_report.diff_within_bounds is False
+    assert result.gate_report.admitted is False
+
+
+@pytest.mark.asyncio
+async def test_e2e_adding_suppression_fails_suppressions_gate(tmp_path: Path) -> None:
+    ws = tmp_path / "fixture"
+    ws.mkdir()
+    (ws / "mod.py").write_text("VALUE = 1\n", encoding="utf-8")
+    _git_init(ws)
+
+    # Add suppression marker
+    (ws / "mod.py").write_text("VALUE = 1  # type: ignore\n", encoding="utf-8")
+
+    system = "You are a careful coding agent."
+    goal = "Add suppression"
+    schemas = _tool_schemas()
+
+    resp = Message(role="assistant", content=[TextBlock(text="Done.")])
+    cassette_path = tmp_path / "cassette.json"
+    cassette_path.write_text("[]", encoding="utf-8")
+    traj = tmp_path / "traj.db"
+
+    from sagiha.domain.trajectory import Completion, TokenUsage
+
+    class ScriptedProvider:
+        async def complete(self, request: ModelRequest) -> Completion:
+            return Completion(message=resp, usage=TokenUsage(input_tokens=0, output_tokens=0), model="test")
+
+        async def stream(self, request: ModelRequest):
+            raise NotImplementedError
+            yield
+
+    config = Config(
+        model=ModelConfig(mode="replay"),
+        workspace=WorkspaceConfig(root=str(ws)),
+        telemetry=TelemetryConfig(trajectory_db=str(traj)),
+    )
+    kernel = build_kernel(config, cassette_path=str(cassette_path))
+    loop = RunLoop(
+        model_provider=ScriptedProvider(),
+        policy_engine=kernel.policy_engine,
+        resource_governor=kernel.resource_governor,
+        tool_registry=kernel.tool_registry,
+        trajectory_store=kernel.trajectory_store,
+        bus=kernel.bus,
+        max_steps=5,
+        system_prompt=system,
+        tool_schemas=schemas,
+        workspace=kernel.workspace,
+    )
+    ctx = RunContext(
+        run_id="e2e-suppress-1",
+        autonomy_level="interactive",
+        workspace_root=str(ws),
+        budget_remaining_usd=5.0,
+    )
+    task = make_task(goal, checks=['python -c "assert True"'], task_id="e2e-suppress-1")
+    result = await loop.run(task, ctx)
+    assert result.gate_report.no_new_suppressions is False
+    assert result.gate_report.admitted is False

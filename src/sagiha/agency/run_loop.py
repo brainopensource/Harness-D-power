@@ -41,6 +41,7 @@ from sagiha.domain.work import (
 )
 from sagiha.kernel.bus import EventBus
 from sagiha.kernel.dispatch import dispatch
+from sagiha.kernel.policy.effects import classify_command
 from sagiha.outer_loop.evaluator import GateEvaluator
 from sagiha.ports.evaluator import Evaluator
 from sagiha.ports.governor import ResourceGovernor
@@ -122,15 +123,23 @@ class RunLoop:
         for step in existing_steps:
             if not step.tool_calls:
                 continue
-            history.append(
-                Message(
-                    role="assistant",
-                    content=[
-                        ToolUseBlock(call_id=c.call_id, tool_name=c.tool_name, arguments=c.arguments)
-                        for c in step.tool_calls
-                    ],
+            if step.message is not None:
+                # Full fidelity: replays the exact assistant turn, including any
+                # text/reasoning blocks that accompanied the tool calls.
+                history.append(step.message)
+            else:
+                # Legacy step recorded before `TrajectoryStep.message` existed (S2.5) —
+                # reconstruct what we can from the derived `ToolCall`s. Any text or
+                # reasoning content that accompanied them is lost; it was never stored.
+                history.append(
+                    Message(
+                        role="assistant",
+                        content=[
+                            ToolUseBlock(call_id=c.call_id, tool_name=c.tool_name, arguments=c.arguments)
+                            for c in step.tool_calls
+                        ],
+                    )
                 )
-            )
             for call, result in zip(step.tool_calls, step.tool_results, strict=False):
                 history.append(
                     Message(
@@ -281,6 +290,8 @@ class RunLoop:
                     break
 
                 effect = await self._registry.get_effect_class(block.tool_name)
+                if block.tool_name == "run_command":
+                    effect = classify_command(block.arguments.get("command", []), effect)
                 call = ToolCall(
                     call_id=block.call_id,
                     tool_name=block.tool_name,
@@ -314,6 +325,7 @@ class RunLoop:
                 step_id=step_id,
                 tool_calls=tuple(tool_calls),
                 tool_results=tuple(tool_results),
+                message=response,
                 usage=usage,
                 cost=step_cost,
             )

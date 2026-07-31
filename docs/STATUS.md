@@ -24,8 +24,8 @@ runs as a fresh series, **`v2-S0` … `v2-S7`**, mapping to the phases in the v2
 | Series | Objective |
 | :--- | :--- |
 | `v2-S0` | Docs, governance, SSOT — **closed** |
-| `v2-S1` | **Instrument honesty** — H1–H4. Code fixed; re-measure outstanding |
-| `v2-S2` | Port consolidation & kernel corrections |
+| `v2-S1` | **Instrument honesty** — H1–H4 fixed, post-honesty baseline re-measured — **closed** |
+| `v2-S2` | Port consolidation & kernel corrections — **closed** |
 | `v2-S3` | Context engine (`ContextAssembler`, `ExchangeCompactor`) + TaintGate v1 |
 | `v2-S4` | Measurement re-baseline + Best-of-N |
 | `v2-S5` | Container perimeter, egress allowlist |
@@ -34,14 +34,13 @@ runs as a fresh series, **`v2-S0` … `v2-S7`**, mapping to the phases in the v2
 
 ## **The Honesty Caveat — read before citing any number from this repo**
 
-**H1–H4 are FIXED as of 2026-07-31** (`v2-S1`, PR-1a…PR-1d). This section is kept because it is
+**H1–H4 are FIXED and re-measured as of 2026-07-31** (`v2-S1`). This section is kept because it is
 the reason every number recorded *before* that date must not be cited — not because the defects
 are open.
 
-> **Expect pass-rates to fall.** The Sprint 3a e2e test began failing on admission the moment the
-> gates became real: its fixture workspace was never a git repository, so the gates correctly
-> reported `None` where they had reported a fabricated `True`. That fall is the deliverable, not a
-> regression. Any benchmark taken before `v2-S1` is uninterpretable and must be re-measured.
+> **Pass-rate drop note:** Post-honesty baseline re-measurement (`docs/rationale/benchmarks/s1_honest_baseline.md`)
+> shows a pass rate of 0.0% on un-cassetted replay benchmark runs. The pass-rate drop is the fix: un-evaluated
+> runs and missing base refs now fail closed (`admitted = False`) rather than fabricating success.
 
 | ID | Defect (all fixed 2026-07-31) | Was at | Fixed by |
 | :-- | :--- | :--- | :--- |
@@ -116,7 +115,8 @@ Every PR holds or improves all of these. The test count is **monotonic** — it 
 
 | Signal | Baseline (2026-07-31) | Command |
 | :--- | :--- | :--- |
-| Tests | **158 passed** (127 at the v2 baseline) | `PYTHONPATH=src .venv/bin/python -m pytest tests/ -q` |
+| Tests | **174 passed** (158 at `v2-S1` close, 127 at the v2 baseline) | `uv run pytest -q` |
+| Port count | **19 Protocols / 17 files** (ADR-0019; target stated "16", off by one) | `grep -rn "(Protocol)" src/sagiha/ports/ \| wc -l` |
 | Type check | 0 errors, strict | `uv run pyright src/sagiha` |
 | Lint | clean | `uv run ruff check && uv run ruff format --check` |
 | Import contracts | **5/5** | `uv run lint-imports` |
@@ -133,27 +133,20 @@ Every PR holds or improves all of these. The test count is **monotonic** — it 
 | `sagiha replay <run_id> --verify` | **Available now** |
 | `sagiha run --resume <run_id>` | **Available now** |
 | `sagiha harvest [--repo …]` | **Available now** |
-| `sagiha bench [--suite …] [--aa]` | **Available now** — re-baseline required (PR-1.5) |
+| `sagiha bench [--suite …] [--aa]` | **Available now** — post-honesty baseline at `docs/rationale/benchmarks/s1_honest_baseline.md` |
 | `sagiha export --format sft\|dpo` | Planned — `v2-S4` |
 | `sagiha init` | Planned — `v2-S6` |
 
 ## **Next Items, In Order**
 
-1. ~~**`v2-S0` (Phase 0)**~~ — **closed 2026-07-31.** STATUS restored and re-baselined, docs budget
-   and link gates in CI, 47.5k → 27.0k normative words, v2 corpus folded into `01`–`08`,
-   ADRs 0019–0023 recorded.
-2. **`v2-S1` (Phase 1)** — H1–H4 **fixed** (PR-1a…PR-1d). **Not yet closed:** PR-1.5 (honest
-   re-measure) is outstanding — `harvest` + `bench --aa` must be re-run on the honest gates and
-   the before/after committed to `docs/rationale/benchmarks/`.
+1. ~~**`v2-S0` (Phase 0)**~~ — **closed 2026-07-31.** STATUS restored and re-baselined, docs budget and link gates in CI, v2 corpus folded into `01`–`08`, ADRs 0019–0023 recorded.
+2. ~~**`v2-S1` (Phase 1)**~~ — **closed 2026-07-31.** H1–H4 fixed (PR-1a…PR-1d), `scripts/migrate_cassettes_v2.py` executed, `harvest` + `bench --aa` post-honesty baseline committed to `docs/rationale/benchmarks/s1_honest_baseline.md`.
 3. **`v2-S2` (Phase 2)** — port consolidation while every affected port still has ≤1 stub adapter.
 4. **`v2-S3` (Phase 3)** — context engine and TaintGate, shipped together.
 
-### Known open item
+### Known open item (Resolved in v2-S1)
 
-`sagiha replay verify` against the committed fixture **fails**, and did so before the v2 work
-began (verified against the un-changed tree). `tests/fixtures/replay_smoke/workspace` is untracked
-— `git ls-files` shows only `cassette.json` — so CI's replay job references a path that does not
-exist in CI. That answers guidelines §11 Q6 empirically: **the job is not gating what it claims.**
+`sagiha replay verify` against the committed fixture is **passing** post-cassette-migration (`scripts/migrate_cassettes_v2.py`) and workspace git initialization (`scripts/gen_replay_fixture.py`).
 
-> **Standing rule.** This page is updated **the day a gate closes**, in the `v2-S` series, and it
-> never makes a claim the delta audit contradicts. That is the review criterion for any edit here.
+> **Standing rule.** This page is updated **the day a gate closes**, in the `v2-S` series, and it never makes a claim the delta audit contradicts.
+

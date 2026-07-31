@@ -11,7 +11,7 @@ from pathlib import Path
 
 from sagiha.adapters.memory.short_term import InMemoryMemory
 from sagiha.adapters.model.cassette import CassetteModelProvider
-from sagiha.adapters.tools.builtins import register_builtin_tools
+from sagiha.adapters.tools.builtins import BUILTIN_SCHEMAS, TOOL_DESCRIPTIONS, register_builtin_tools
 from sagiha.adapters.tools.registry import DefaultToolRegistry
 from sagiha.adapters.trajectory.sqlite import SQLiteTrajectoryStore
 from sagiha.adapters.workspace.local import LocalWorkspace
@@ -31,7 +31,7 @@ from sagiha.ports.model import ModelProvider
 from sagiha.ports.policy import PolicyEngine
 from sagiha.ports.tool_registry import ToolRegistry
 from sagiha.ports.trajectory import TrajectoryStore
-from sagiha.ports.workspace import WorktreeManager
+from sagiha.ports.workspace import Workspace, WorktreeManager
 
 
 @dataclass(frozen=True)
@@ -45,7 +45,7 @@ class Kernel:
     tool_registry: ToolRegistry
     trajectory_store: TrajectoryStore
     memory: Memory
-    workspace: LocalWorkspace
+    workspace: Workspace
     bus: EventBus = field(default_factory=EventBus)
     indexer: Indexer | None = None
     code_graph: CodeGraph | None = None
@@ -90,64 +90,20 @@ def build_kernel(
         max_spend_usd_per_run=config.governor.max_spend_usd_per_run,
         max_concurrent_sandboxes=config.governor.max_concurrent_sandboxes,
     )
-    tool_registry = DefaultToolRegistry()
+    default_registry = DefaultToolRegistry()
+    tool_registry: ToolRegistry = default_registry
     memory = InMemoryMemory()
     workspace = LocalWorkspace(config.workspace.root)
-    schemas = register_builtin_tools(tool_registry, workspace)
+    schemas = register_builtin_tools(default_registry, workspace)
     for tool_name, schema in schemas.items():
         policy_engine.register_tool_schema(tool_name, schema)
 
-    tool_schemas = (
-        ToolSchema(
-            name="read_file",
-            description="Read a text file from the workspace",
-            parameters={
-                "type": "object",
-                "properties": {"path": {"type": "string"}},
-                "required": ["path"],
-            },
-        ),
-        ToolSchema(
-            name="list_dir",
-            description="List directory entries",
-            parameters={"type": "object", "properties": {"path": {"type": "string"}}},
-        ),
-        ToolSchema(
-            name="grep",
-            description="Search file contents by regex",
-            parameters={
-                "type": "object",
-                "properties": {
-                    "pattern": {"type": "string"},
-                    "path": {"type": "string"},
-                },
-                "required": ["pattern"],
-            },
-        ),
-        ToolSchema(
-            name="apply_edit",
-            description="Apply a search/replace edit to a file",
-            parameters={
-                "type": "object",
-                "properties": {
-                    "path": {"type": "string"},
-                    "old_string": {"type": "string"},
-                    "new_string": {"type": "string"},
-                },
-                "required": ["path", "old_string", "new_string"],
-            },
-        ),
-        ToolSchema(
-            name="run_command",
-            description="Run a command in the workspace",
-            parameters={
-                "type": "object",
-                "properties": {
-                    "command": {"type": "array", "items": {"type": "string"}},
-                },
-                "required": ["command"],
-            },
-        ),
+    # Derived from BUILTIN_SCHEMAS in a fixed sorted() order — the manually-duplicated
+    # per-tool ToolSchema literals this replaced could (and once did) drift from the
+    # schemas actually registered on the tool registry.
+    tool_schemas = tuple(
+        ToolSchema(name=name, description=TOOL_DESCRIPTIONS[name], parameters=BUILTIN_SCHEMAS[name])
+        for name in sorted(BUILTIN_SCHEMAS)
     )
 
     path = cassette_path or ".sagiha/cassettes/default.json"

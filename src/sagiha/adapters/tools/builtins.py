@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any, cast
 
 from sagiha.adapters.tools.registry import DefaultToolRegistry
@@ -46,6 +47,15 @@ APPLY_EDIT_SCHEMA: dict[str, Any] = {
     "required": ["path", "old_string", "new_string"],
 }
 
+WRITE_FILE_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "path": {"type": "string", "x-sagiha-path": True},
+        "content": {"type": "string"},
+    },
+    "required": ["path", "content"],
+}
+
 RUN_COMMAND_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
@@ -57,11 +67,21 @@ RUN_COMMAND_SCHEMA: dict[str, Any] = {
     "required": ["command"],
 }
 
+TOOL_DESCRIPTIONS: dict[str, str] = {
+    "read_file": "Read a text file from the workspace",
+    "list_dir": "List directory entries",
+    "grep": "Search file contents by regex",
+    "apply_edit": "Apply a search/replace edit to a file",
+    "write_file": "Write content to a file, creating it (and parent directories) if necessary",
+    "run_command": "Run a command in the workspace",
+}
+
 BUILTIN_SCHEMAS: dict[str, dict[str, Any]] = {
     "read_file": READ_SCHEMA,
     "list_dir": LIST_SCHEMA,
     "grep": GREP_SCHEMA,
     "apply_edit": APPLY_EDIT_SCHEMA,
+    "write_file": WRITE_FILE_SCHEMA,
     "run_command": RUN_COMMAND_SCHEMA,
 }
 
@@ -84,22 +104,27 @@ def register_builtin_tools(
         call_id = str(args.get("_call_id", ""))
         path = str(args.get("path", "."))
         entries = list_dir_entries(workspace.root, path)
-        return ToolResult(call_id=call_id, content=[TextBlock(text=str(entries))])
+        payload = json.dumps([e.model_dump() for e in entries])
+        return ToolResult(call_id=call_id, content=[TextBlock(text=payload)])
 
     async def grep(args: dict[str, Any]) -> ToolResult:
         call_id = str(args.get("_call_id", ""))
         pattern = str(args["pattern"])
         path = str(args.get("path", "."))
         matches = grep_workspace(workspace.root, pattern, path)
-        return ToolResult(call_id=call_id, content=[TextBlock(text=str(matches))])
+        payload = json.dumps([m.model_dump() for m in matches])
+        return ToolResult(call_id=call_id, content=[TextBlock(text=payload)])
+
+    async def write_file(args: dict[str, Any]) -> ToolResult:
+        call_id = str(args.get("_call_id", ""))
+        path = str(args["path"])
+        content = str(args["content"])
+        await workspace.write(path, content)
+        return ToolResult(call_id=call_id, content=[TextBlock(text=f"wrote {path}")])
 
     async def apply_edit(args: dict[str, Any]) -> ToolResult:
         call_id = str(args.get("_call_id", ""))
         path = str(args["path"])
-        if path.startswith("app/"):
-            path = path[4:]
-        elif path.startswith("./app/"):
-            path = path[6:]
 
         req = EditRequest(
             path=path,
@@ -148,7 +173,8 @@ def register_builtin_tools(
         ("read_file", READ_SCHEMA, EffectClass.PURE, read_file),
         ("list_dir", LIST_SCHEMA, EffectClass.PURE, list_dir),
         ("grep", GREP_SCHEMA, EffectClass.PURE, grep),
-        ("apply_edit", APPLY_EDIT_SCHEMA, EffectClass.IDEMPOTENT, apply_edit),
+        ("apply_edit", APPLY_EDIT_SCHEMA, EffectClass.DESTRUCTIVE, apply_edit),
+        ("write_file", WRITE_FILE_SCHEMA, EffectClass.DESTRUCTIVE, write_file),
         ("run_command", RUN_COMMAND_SCHEMA, EffectClass.DESTRUCTIVE, run_command),
     ]
 

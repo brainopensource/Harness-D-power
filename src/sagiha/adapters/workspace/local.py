@@ -7,8 +7,9 @@ import asyncio
 import os
 import time
 from pathlib import Path
+from typing import Literal
 
-from sagiha.domain.content import CommandResult
+from sagiha.domain.content import CommandResult, DirEntry, Match
 from sagiha.domain.work import EditRequest, EditResult, HunkResult
 
 
@@ -156,30 +157,24 @@ class LocalWorkspace:
         return None
 
 
-def list_dir_entries(root: Path, path: str = ".") -> list[dict[str, str | int | None]]:
+def list_dir_entries(root: Path, path: str = ".") -> list[DirEntry]:
     base = resolve_within(root.resolve(), path)
-    entries: list[dict[str, str | int | None]] = []
+    entries: list[DirEntry] = []
     for child in sorted(base.iterdir(), key=lambda p: p.name):
-        kind = "dir" if child.is_dir() else "file"
+        kind: Literal["file", "dir", "symlink"] = "dir" if child.is_dir() else "file"
         if child.is_symlink():
             kind = "symlink"
         size = child.stat().st_size if child.is_file() else None
-        entries.append(
-            {
-                "path": str(child.relative_to(root)),
-                "kind": kind,
-                "size_bytes": size,
-            }
-        )
+        entries.append(DirEntry(path=str(child.relative_to(root)), kind=kind, size_bytes=size))
     return entries
 
 
-def grep_workspace(root: Path, pattern: str, path: str = ".") -> list[dict[str, str | int]]:
+def grep_workspace(root: Path, pattern: str, path: str = ".") -> list[Match]:
     import re
 
     base = resolve_within(root.resolve(), path)
     rx = re.compile(pattern)
-    matches: list[dict[str, str | int]] = []
+    matches: list[Match] = []
     files = [base] if base.is_file() else list(base.rglob("*"))
     for file in files:
         if not file.is_file():
@@ -190,13 +185,7 @@ def grep_workspace(root: Path, pattern: str, path: str = ".") -> list[dict[str, 
             continue
         for i, line in enumerate(text.splitlines(), start=1):
             if rx.search(line):
-                matches.append(
-                    {
-                        "path": str(file.relative_to(root)),
-                        "line": i,
-                        "text": line,
-                    }
-                )
+                matches.append(Match(path=str(file.relative_to(root)), line=i, text=line))
                 if len(matches) >= 200:
                     return matches
     return matches

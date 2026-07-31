@@ -249,3 +249,20 @@ retrieval: excluded
 2. **No periphery before the gate:** a sprint's exit gate is the only thing that closes it — MCP/OTel/frontend work inside an unrelated sprint is the anti-pattern two audits have now flagged; the seven `sprint-fe-*` files stay archived until v2-S7's TUI fragment creates a real consumer.
 3. **Honest negatives are deliverables:** an ablation that fails ships as a published number and a shelved feature, not a retry with a friendlier prompt.
 4. **STATUS.md is updated the day a gate closes**, in the v2-S series, and never claims what the delta audit's H-findings taught us to check first.
+
+---
+
+## Residual closeout — v2-S1 / v2-S2 (audit 2026-07-31)
+
+Sprint status in `docs/STATUS.md` marks v2-S1/S2 **closed** for the primary H1–H4 and port-consolidation deliverables. A line-level re-audit against this plan + `refactor_sagiha_v2_guidelines.md` found **residuals that the written exit gates still require**. These are not new design decisions — they are unfinished items from the existing epics. Tracked as **RC-1…RC-8** in `docs/STATUS.md`. **Do not start v2-S3 until RC-1…RC-4 close.**
+
+| ID | Epic source | Required fix (verbatim from plan/guidelines) | File(s) |
+| :--- | :--- | :--- | :--- |
+| RC-1 | S1.2 / PR-1.2 §7 | On stuck mid-`tool_use_blocks`, append synthetic `is_error=True` `ToolResultBlock`s for skipped calls **before** breaking | `agency/run_loop.py` |
+| RC-2 | S1.2 / PR-1.2 §6 | Enforce `max_wall_clock_s` and step-token ceilings from `GovernorConfig` (fields exist, unenforced) | `kernel/governor.py`, `agency/run_loop.py` |
+| RC-3 | S2.4 | `ContextConfig.keep_last_tokens: int = 24_000` (currently `20_000`) | `domain/config.py` |
+| RC-4 | S2.5 | Persist assistant `Message` for text-only turns; `_reconstruct_history` must not skip empty `tool_calls` when `message` is present | `agency/run_loop.py` |
+| RC-5 | Phase 2 exit | Mark ADR-0019 / ADR-0020 `Accepted-Implemented` | `docs/08-decisions/001{9,20}-*.md` |
+| RC-6 | S2.2 exit metric | Proving test asserts re-execution fraction `≥ 0.60` (currently `≥ 0.5`) | `tests/unit/test_effect_classification.py` |
+| RC-7 | S1.5 | Commit **before** + after honesty bench reports (only post exists today) | `docs/rationale/benchmarks/` |
+| RC-8 | S2.4 soft | Make `RunLoop.evaluator` required (composition already builds `GateEvaluator`); stop agency default-constructing TCB | `agency/run_loop.py`, call sites |

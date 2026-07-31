@@ -14,7 +14,9 @@ from sagiha.domain.config import (
     AutonomyConfig,
     GatesConfig,
     ModelConfig,
+    ModelTierConfig,
     SandboxConfig,
+    SearchConfig,
     TelemetryConfig,
     WorkspaceConfig,
 )
@@ -62,3 +64,28 @@ def test_refuse_undefined_model_tier_in_roles() -> None:
                 roles={"planning": "non_existent_tier"},
             )
         )
+
+
+def test_refuse_search_enabled_when_judge_and_execution_share_a_model() -> None:
+    with pytest.raises(ValueError, match="judge-separation|search.enabled=True is refused"):
+        Config(
+            model=ModelConfig(
+                tiers={"same": ModelTierConfig(provider="anthropic", model="shared-model")},
+                roles={"judge": "same", "execution": "same"},
+            ),
+            search=SearchConfig(enabled=True),
+        )
+
+
+def test_search_enabled_allowed_when_judge_and_execution_differ() -> None:
+    config = Config(
+        model=ModelConfig(
+            tiers={
+                "judge_tier": ModelTierConfig(provider="anthropic", model="judge-model"),
+                "exec_tier": ModelTierConfig(provider="anthropic", model="exec-model"),
+            },
+            roles={"judge": "judge_tier", "execution": "exec_tier"},
+        ),
+        search=SearchConfig(enabled=True),
+    )
+    assert config.search.enabled

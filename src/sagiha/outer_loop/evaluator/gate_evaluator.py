@@ -16,6 +16,7 @@ from sagiha.domain.control import RunContext
 from sagiha.domain.work import CriterionResult, GateReport, TaskSpec
 from sagiha.kernel.bus import EventBus
 from sagiha.kernel.dispatch import dispatch
+from sagiha.kernel.policy.effects import classify_command
 from sagiha.ports.governor import ResourceGovernor
 from sagiha.ports.policy import PolicyEngine
 from sagiha.ports.tool_registry import ToolRegistry
@@ -73,7 +74,7 @@ class GateEvaluator:
             call_id=str(uuid.uuid4()),
             tool_name="run_command",
             arguments={"command": argv},
-            effect=await self._registry.get_effect_class("run_command"),
+            effect=classify_command(argv, await self._registry.get_effect_class("run_command")),
         )
         result = await dispatch(
             call=call,

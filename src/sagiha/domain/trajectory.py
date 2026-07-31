@@ -49,6 +49,12 @@ class TrajectoryStep(BaseModel):
     summary: str = ""
     tool_calls: tuple[ToolCall, ...] = ()
     tool_results: tuple[ToolResult, ...] = ()
+    #: The complete assistant `Message` for this step — every content block the model
+    #: produced (text, reasoning, tool_use), not just the `ToolCall`s derived from it.
+    #: `None` for steps recorded before this field existed (`upcast_trajectory_step`
+    #: fills it from `tool_calls` on read, which loses any text/reasoning that
+    #: accompanied them — the reason this field exists at all).
+    message: Message | None = None
     #: What this step's model call actually consumed. Additive with zero defaults, so
     #: steps recorded before PR-1b load unchanged — and a zero here now means "not
     #: measured", which for those rows is true.

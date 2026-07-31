@@ -145,6 +145,9 @@ class EditResult(BaseModel):
     syntax_valid: bool
 
 
+PredictionKind = Literal["reward", "failure", "cost_performance"]
+
+
 class Prediction(BaseModel):
     """AOI outputs are never bare floats — a scalar carries no basis for deciding if it may be acted on."""
 

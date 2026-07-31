@@ -12,7 +12,7 @@ from anyio.to_thread import run_sync
 
 from sagiha.domain.events import ALL_EVENTS, Event
 from sagiha.domain.trajectory import RunRecord, TrajectoryStep
-from sagiha.domain.upcasters import upcast_event
+from sagiha.domain.upcasters import upcast_event, upcast_trajectory_step
 
 logger = logging.getLogger(__name__)
 
@@ -173,7 +173,9 @@ class SQLiteTrajectoryStore:
                     (run_id,),
                 )
                 rows = cursor.fetchall()
-                return [TrajectoryStep.model_validate_json(row[0]) for row in rows]
+                return [
+                    TrajectoryStep.model_validate(upcast_trajectory_step(json.loads(row[0]))) for row in rows
+                ]
 
         return await run_sync(_sync_fetch)
 
