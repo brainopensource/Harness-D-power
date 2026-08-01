@@ -12,26 +12,16 @@ from pathlib import Path
 
 import pytest
 
-from sagiha.adapters.sandbox.container import ContainerSandbox, podman_available
+from sagiha.adapters.sandbox.container import ContainerSandbox
 from sagiha.adapters.workspace.local import LocalWorkspace
 from sagiha.domain.config import SandboxConfig
 from sagiha.domain.work import Edit, EditRequest
 from sagiha.ports.workspace import Workspace
+from tests.podman_support import RUNTIME_IMAGE, require_podman
 
 pytestmark = pytest.mark.asyncio
 
-_RUNTIME_IMAGE = "sagiha/runtime:latest"
-
-
-def _podman_ready() -> bool:
-    if not podman_available():
-        return False
-    probe = subprocess.run(
-        ["podman", "image", "exists", _RUNTIME_IMAGE],
-        capture_output=True,
-        check=False,
-    )
-    return probe.returncode == 0
+_RUNTIME_IMAGE = RUNTIME_IMAGE
 
 
 def _init_git_repo(root: Path) -> None:
@@ -59,8 +49,7 @@ async def workspace(request: pytest.FixtureRequest, git_root: Path) -> AsyncIter
         yield LocalWorkspace(str(git_root))
         return
 
-    if not _podman_ready():
-        pytest.skip("podman + sagiha/runtime:latest required")
+    require_podman()
 
     sandbox = ContainerSandbox(
         str(git_root),

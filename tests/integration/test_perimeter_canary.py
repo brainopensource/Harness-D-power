@@ -5,35 +5,27 @@ Requires rootless Podman and `sagiha/runtime:latest`.
 
 from __future__ import annotations
 
-import subprocess
 from pathlib import Path
 
 import pytest
+from tests.podman_support import RUNTIME_IMAGE, require_podman
 
 from sagiha.adapters.sandbox.container import (
     SECRET_MATERIALIZE_NAMES,
     ContainerSandbox,
-    podman_available,
     secret_materialize_paths,
 )
 from sagiha.domain.config import SandboxConfig
 
 pytestmark = [pytest.mark.asyncio, pytest.mark.podman]
 
-_RUNTIME_IMAGE = "sagiha/runtime:latest"
+_RUNTIME_IMAGE = RUNTIME_IMAGE
 _CANARY_SECRET = "SAGIHA_CANARY_SECRET_VALUE_9f3a"
-
-
-def _podman_ready() -> bool:
-    if not podman_available():
-        return False
-    return subprocess.run(["podman", "image", "exists", _RUNTIME_IMAGE], capture_output=True).returncode == 0
 
 
 @pytest.fixture(autouse=True)
 def _require_podman() -> None:
-    if not _podman_ready():
-        pytest.skip("podman + sagiha/runtime:latest required")
+    require_podman()
 
 
 @pytest.fixture
@@ -138,6 +130,32 @@ async def test_non_allowlisted_egress_denied(worktree: Path) -> None:
         assert denied.exit_code != 0
         assert sandbox.egress_proxy is not None
         assert any(d.startswith("example.com:") for d in sandbox.egress_proxy.denied)
+
+        # The allowlist must also *permit*. Without this half, a proxy that
+        # denied everything would pass this canary, and an allowlist that
+        # silently matched nothing would look like a working perimeter.
+        # Asserted on the proxy's own decision record, not on the upstream
+        # connection succeeding — CI runners have no guaranteed egress.
+        await sandbox.run(
+            [
+                "python",
+                "-c",
+                (
+                    "import urllib.request\n"
+                    "proxy = urllib.request.ProxyHandler({"
+                    "'https': 'http://127.0.0.1:3128', 'http': 'http://127.0.0.1:3128'})\n"
+                    "opener = urllib.request.build_opener(proxy)\n"
+                    "try:\n"
+                    "    opener.open('https://pypi.org', timeout=5)\n"
+                    "except Exception:\n"
+                    "    pass\n"
+                ),
+            ]
+        )
+        assert any(a.startswith("pypi.org:") for a in sandbox.egress_proxy.allowed), (
+            "allowlisted host was never permitted through the CONNECT proxy"
+        )
+        assert not any(d.startswith("pypi.org:") for d in sandbox.egress_proxy.denied)
 
 
 async def test_parallel_sandboxes_do_not_interfere(tmp_path: Path) -> None:

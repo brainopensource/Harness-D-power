@@ -625,19 +625,19 @@ improves the mechanism, it does not license a default flip. That requires W9.
 
 ---
 
-## ☐ Wave 8 — Perimeter CI (M-2)
+## ◐ Wave 8 — Perimeter CI (M-2) — 8.2/8.3/8.4 landed; 8.1 awaits human TCB commit
 
 **Closes:** **M-2** · P1
 
 - [ ] **8.1** Land the job proposed in `docs/implementation/ci-podman-perimeter.md` into
       `.github/workflows/ci.yml`: a Podman-capable runner executing `pytest -m podman` plus the
       workspace conformance suite parametrized over `LocalWorkspace` and `ContainerSandbox`.
-- [ ] **8.2** The job must **fail**, not skip, when Podman is absent on a runner that is supposed
+- [x] **8.2** The job must **fail**, not skip, when Podman is absent on a runner that is supposed
       to have it. A perimeter test that silently skips is an unenforced perimeter — the M-2 defect
       wearing a green checkmark.
-- [ ] **8.3** Add the egress canary: assert direct outbound fails and that only allowlisted hosts
+- [x] **8.3** Add the egress canary: assert direct outbound fails and that only allowlisted hosts
       traverse the CONNECT proxy.
-- [ ] **8.4** Add a Podman row to `scripts/verify.sh` output reflecting host presence.
+- [x] **8.4** Add a Podman row to `scripts/verify.sh` output reflecting host presence.
 
 **Exit gate:** CI config validates; the job passes locally via `act` or an equivalent dry run.
 
@@ -686,8 +686,8 @@ Fill one row per wave, at commit time, from real command output. **Do not pre-fi
 | W4 | ☑ | `51cfa24` | 358 | 0 ✅ | 0 ✅ | 0 ✅ | **14,474** ✅ | **0** ✅ | ok | 5/5 | 526-word margin; 106→0 links; untagged now fails closed |
 | W5 | ☑ | `0389f89` | 358 | 0 ✅ | 0 ✅ | 0 ✅ | 14,899 ✅ | 0 ✅ | ok ✅ | 5/5 ✅ | **verify.sh exits 0 — P0 COMPLETE** |
 | W6 | ☑ | `9d6d3d2` | 361 | 0 ✅ | 0 ✅ | 0 ✅ | 14,899 ✅ | 0 ✅ | ok ✅ | 5/5 ✅ | retrieval stays enabled=false — W9 gates any flip |
-| W7 | ☑ | `PENDING-W7` | 358 | 0 ✅ | 0 ✅ | 0 ✅ | 14,899 ✅ | 0 ✅ | ok ✅ | 5/5 ✅ | 361→358: 4 deleted tests asserted M-8 fabrications (see L-19) |
-| W8 | ☐ | | | | | | | | | | |
+| W7 | ☑ | `06f716d` | 358 | 0 ✅ | 0 ✅ | 0 ✅ | 14,899 ✅ | 0 ✅ | ok ✅ | 5/5 ✅ | 361→358: 4 deleted tests asserted M-8 fabrications (see L-19) |
+| W8 | ◐ | `PENDING-W8` | 358 | 0 ✅ | 0 ✅ | 0 ✅ | 14,899 ✅ | 0 ✅ | ok ✅ | 5/5 ✅ | 8.2/8.3/8.4 landed; **8.1 ci.yml is TCB — proposal written, human authors it. M-2 stays OPEN** |
 | W9 | ☐ | | | | | | | | | | |
 
 ---
@@ -718,6 +718,8 @@ Append-only. Record (a) decisions already made during planning that changed a re
 | L-18 | 2026-08-01 | W6 | **`Chunk` gained a `body` field** rather than the envelope being stripped at read time | 6.6 mandated keeping the envelope on `Chunk.text` and adding a separate field if a consumer needs the raw span. `body` is that field; the conformance test asserts the span survives byte-identical |
 | L-19 | 2026-08-01 | W7 | **Test count fell 361 → 358**, against the standing monotonicity rule | The four deleted tests were `tests/unit/test_search_scaffolding.py`, which asserted `SequentialCandidateSearch`'s fabrications: that `propose()` returns ids starting with `candidate-`, that `evaluate()` returns `None`, that `select()` returns `branch_ids[0]`. D3 anticipated exactly this ("if any test imports it, delete that test too — it tests fabrications"). Net of the deletion the wave added 1 test (m-5 orphan pruning) |
 | L-20 | 2026-08-01 | W7 | **m-7's config source is an explicit `--code-intel` flag, not a loaded `Config`** | D6 says "driven by the active `Config`", but verification found the CLI has no config-file loader at all — every command builds a `Config` inline. Inventing a loader is far outside a remediation wave. The flag defaults to `false`, matching `retrieval.enabled`'s default, and the per-run warning D6 requires makes the reconstruction visible either way |
+| L-21 | 2026-08-01 | W8 | **Step 8.1 deliberately not executed.** `.github/workflows/ci.yml` was not modified | Direct conflict between the plan and an architectural invariant: `AGENTS.md` §1 and `ci.yml`'s own `tcb-check` both name `.github/workflows` as TCB, and `ci-podman-perimeter.md` states "Agents propose this diff; a human authors the commit." Raised with the user, who chose the proposal route. The exact job YAML — including the `SAGIHA_REQUIRE_PODMAN=1` env that 8.2 requires — is ready to apply in `docs/implementation/ci-podman-perimeter.md`. **M-2 remains open until that commit lands** |
+| L-22 | 2026-08-01 | W8 | **8.3 found a real hole, not just a missing job.** The egress canary asserted only *denial*; a proxy that denied everything, or an allowlist matching nothing, would have passed | Added the positive half, asserted against `EgressProxy.allowed` rather than a live connection so no runner egress is required. Verified against real Podman 5.8.4: 11 podman tests pass |
 | L-11 | 2026-08-01 | W1 | **Step 1.5's "all three must return ≥1 hit" holds for two of three.** `"handle user's input"` returns 0 against the snippet's one-line corpus (`def greet(name): return 1`) | Not a regression — that is now a *true* empty: the corpus contains none of `handle`/`user`/`input`. Verified by re-running with a file containing those tokens, which returns 1 hit. The C-1 symptom (a swallowed `OperationalError` masquerading as no-matches) is gone; the two goal-shaped queries with matching tokens both return hits |
 | | | | | |
 
