@@ -41,9 +41,7 @@ def _fts_query(text: str) -> str:
     true empty and must not touch the database.
     """
     tokens = [
-        token
-        for token in re.findall(r"\w+", text)
-        if len(token) >= 2 and token.upper() not in _FTS_OPERATORS
+        token for token in re.findall(r"\w+", text) if len(token) >= 2 and token.upper() not in _FTS_OPERATORS
     ]
     return " OR ".join(f'"{token}"' for token in tokens)
 

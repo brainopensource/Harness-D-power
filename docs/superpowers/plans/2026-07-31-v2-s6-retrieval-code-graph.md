@@ -68,6 +68,7 @@ Create `tests/fixtures/retrieval_mini/pkg/util.py`:
 ```python
 """Util module."""
 
+
 def greet(name: str) -> str:
     """Return a greeting."""
     return f"hello {name}"
@@ -205,6 +206,7 @@ Add fixture `pkg/client.py`:
 
 ```python
 from pkg.util import greet
+
 
 def main() -> None:
     print(greet("world"))
@@ -347,6 +349,7 @@ async def test_init_writes_agents_md(tmp_path: Path) -> None:
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "demo.py").write_text("def main():\n    pass\n", encoding="utf-8")
     from sagiha.outer_loop.init.generate import generate_agents_md
+
     path = await generate_agents_md(tmp_path, graph=None, force=False)
     text = path.read_text(encoding="utf-8")
     assert path.name == "AGENTS.md"

@@ -83,6 +83,18 @@ reportIncompatibleVariableOverride = false
 target-version = "py313"
 line-length = 110
 src = ["src", "tests"]
+# Same rationale as the pyright `include` above: the vendored reference
+# harnesses are third-party trees, not this project's code, and linting them
+# drowns the signal (16 of the baseline's 34 errors came from aether_examples
+# alone). Project files are never excluded to make a gate green — keep_alive.py
+# and scripts/extract_gemini_share.py were fixed, not silenced.
+extend-exclude = [
+    "aether_examples",
+    "src/claude_code",
+    "src/grok_build",
+    "src/hermes_agent",
+    "src/open_code",
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "ASYNC"]

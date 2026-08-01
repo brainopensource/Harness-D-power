@@ -27,6 +27,10 @@ from sagiha.domain.config import (
 )
 from sagiha.domain.content import EffectClass, ToolCall
 
+# Resolved at import, not inside a coroutine: `Path.resolve()` is a blocking
+# stat() call and stalls the event loop when made from an async test (ASYNC240).
+FIXTURE_ROOT = Path(__file__).resolve().parents[1] / "fixtures" / "retrieval_mini"
+
 
 def test_build_kernel_default_config(tmp_path: Path) -> None:
     cassette = tmp_path / "c.json"
@@ -174,9 +178,8 @@ async def test_build_kernel_retrieval_enabled_find_symbols_trusted(tmp_path: Pat
 
 @pytest.mark.asyncio
 async def test_ensure_index_cold_start_populates_find_symbols(tmp_path: Path) -> None:
-    fixture_root = Path(__file__).resolve().parents[1] / "fixtures" / "retrieval_mini"
     workspace = tmp_path / "workspace"
-    shutil.copytree(fixture_root, workspace)
+    shutil.copytree(FIXTURE_ROOT, workspace)
     cassette = tmp_path / "c.json"
     cassette.write_text("[]", encoding="utf-8")
     config = Config(

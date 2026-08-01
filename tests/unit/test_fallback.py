@@ -9,7 +9,7 @@ import pytest
 from sagiha.adapters.model.fallback import FallbackModelAdapter, drop_reasoning_whole_exchange
 from sagiha.adapters.model.openai import OpenAIModelError
 from sagiha.composition import build_kernel
-from sagiha.domain.config import SandboxConfig, Config, ModelConfig
+from sagiha.domain.config import Config, ModelConfig, SandboxConfig
 from sagiha.domain.content import Message, ModelRequest, ReasoningBlock, TextBlock
 from sagiha.domain.trajectory import Completion, TokenUsage
 from sagiha.ports.model import ModelProvider

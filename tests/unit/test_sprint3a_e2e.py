@@ -10,7 +10,7 @@ import pytest
 from sagiha.adapters.model.cassette import CassetteEntry, request_digest
 from sagiha.agency.run_loop import RunLoop, make_task
 from sagiha.composition import build_kernel
-from sagiha.domain.config import SandboxConfig, Config, ModelConfig, TelemetryConfig, WorkspaceConfig
+from sagiha.domain.config import Config, ModelConfig, SandboxConfig, TelemetryConfig, WorkspaceConfig
 from sagiha.domain.content import (
     Message,
     ModelRequest,

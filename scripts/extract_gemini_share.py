@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Extract full Gemini share-page conversation text to markdown."""
+
 from __future__ import annotations
 
 import re
@@ -17,9 +18,7 @@ def clean_body(text: str) -> str:
     lines = text.splitlines()
     start = 0
     for i, line in enumerate(lines):
-        if line.strip() in {"You said", "Advanced Agent Architecture Design"} or line.startswith(
-            "# SAGIHA2"
-        ):
+        if line.strip() in {"You said", "Advanced Agent Architecture Design"} or line.startswith("# SAGIHA2"):
             # Prefer title if present earlier
             if "Advanced Agent Architecture Design" in line:
                 start = i
@@ -53,8 +52,8 @@ def main() -> None:
         for _ in range(3):
             for btn in page.locator("button").all():
                 try:
-                    label = (btn.inner_text(timeout=200) or "") + " " + (
-                        btn.get_attribute("aria-label") or ""
+                    label = (
+                        (btn.inner_text(timeout=200) or "") + " " + (btn.get_attribute("aria-label") or "")
                     )
                     if re.search(r"expand|mostrar|previous|anteriores", label, re.I):
                         btn.click(timeout=1000)
@@ -90,7 +89,8 @@ def main() -> None:
             "**Captured:** 2026-08-01 via Playwright (full `document.body` text after expand/scroll).",
             "",
             "> Note: This is a linear text dump of a shared Gemini chat UI. Formatting may include",
-            "> doubled newlines from the share renderer; speaker turns are marked `You said` / model replies.",
+            "> doubled newlines from the share renderer; speaker turns are marked",
+            "> `You said` / model replies.",
             "",
             "---",
             "",

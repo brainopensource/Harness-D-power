@@ -148,10 +148,7 @@ class TreeSitterCodeGraph:
             conn.commit()
 
     def _upsert_symbol_refs_sync(self, symbol_meta: Iterable[_SymbolMeta]) -> None:
-        rows = [
-            (m.symbol_path, m.path, m.name, m.kind, m.line)
-            for m in symbol_meta
-        ]
+        rows = [(m.symbol_path, m.path, m.name, m.kind, m.line) for m in symbol_meta]
         if not rows:
             return
         with sqlite3.connect(self._db_path) as conn:

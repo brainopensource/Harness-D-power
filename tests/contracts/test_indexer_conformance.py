@@ -67,17 +67,15 @@ async def test_goal_shaped_query_returns_same_paths_as_bare_keyword(
 @pytest.mark.parametrize(
     "query",
     [
-        "handle greet's input",       # apostrophe
-        "add greet - use Greeter",    # bare hyphen (column-syntax trap)
-        "call greet() twice",         # parentheses
-        "fix util:greet mapping",     # colon
-        "greet AND shout",            # bare boolean operator
+        "handle greet's input",  # apostrophe
+        "add greet - use Greeter",  # bare hyphen (column-syntax trap)
+        "call greet() twice",  # parentheses
+        "fix util:greet mapping",  # colon
+        "greet AND shout",  # bare boolean operator
     ],
 )
 @pytest.mark.asyncio
-async def test_punctuated_queries_search_instead_of_erroring(
-    indexed: FTS5Indexer, query: str
-) -> None:
+async def test_punctuated_queries_search_instead_of_erroring(indexed: FTS5Indexer, query: str) -> None:
     """Each of these raised `fts5: syntax error` before the fix, and the bare
     `except` converted it to `[]`. Every one carries a token the fixture has,
     so a non-empty result is the only honest answer.

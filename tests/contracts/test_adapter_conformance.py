@@ -67,9 +67,7 @@ def test_fts5_indexer_satisfies_indexer(tmp_path: Path) -> None:
 
 
 def test_treesitter_satisfies_code_graph(tmp_path: Path) -> None:
-    _accepts_code_graph(
-        TreeSitterCodeGraph(db_path=str(tmp_path / "graph.db"), workspace_root=tmp_path)
-    )
+    _accepts_code_graph(TreeSitterCodeGraph(db_path=str(tmp_path / "graph.db"), workspace_root=tmp_path))
 
 
 # --- workspace ----------------------------------------------------------------
@@ -175,6 +173,4 @@ def test_required_pair_has_a_test(pair: tuple[str, str]) -> None:
     """
     adapter, _port = pair
     source = Path(__file__).read_text(encoding="utf-8")
-    assert f"_accepts_" in source and adapter in source, (
-        f"no assignability assertion covers {adapter}"
-    )
+    assert "_accepts_" in source and adapter in source, f"no assignability assertion covers {adapter}"

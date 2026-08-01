@@ -8,7 +8,7 @@ from pathlib import Path
 
 from sagiha.adapters.search.best_of_n import BestOfNSearch
 from sagiha.composition import build_candidate_search, build_kernel
-from sagiha.domain.config import SandboxConfig, Config, ModelConfig, SearchConfig, WorkspaceConfig
+from sagiha.domain.config import Config, ModelConfig, SandboxConfig, SearchConfig, WorkspaceConfig
 
 
 def _init_repo(tmp_path: Path) -> Path:

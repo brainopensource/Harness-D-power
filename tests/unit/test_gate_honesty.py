@@ -17,7 +17,14 @@ from pathlib import Path
 import pytest
 
 from sagiha.composition import build_kernel
-from sagiha.domain.config import SandboxConfig, Config, GatesConfig, ModelConfig, TelemetryConfig, WorkspaceConfig
+from sagiha.domain.config import (
+    Config,
+    GatesConfig,
+    ModelConfig,
+    SandboxConfig,
+    TelemetryConfig,
+    WorkspaceConfig,
+)
 from sagiha.domain.control import RunContext
 from sagiha.domain.work import GateReport
 from sagiha.outer_loop.evaluator.gate_evaluator import GateEvaluator

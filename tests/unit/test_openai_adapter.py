@@ -17,7 +17,7 @@ from sagiha.adapters.model.openai import (
     OpenAIModelError,
 )
 from sagiha.composition import build_kernel
-from sagiha.domain.config import SandboxConfig, Config, ModelConfig
+from sagiha.domain.config import Config, ModelConfig, SandboxConfig
 from sagiha.domain.content import (
     Message,
     ModelRequest,

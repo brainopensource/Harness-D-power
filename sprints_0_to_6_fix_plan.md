@@ -115,7 +115,7 @@ half was rejected because it violates ADR-0023 and duplicates `CodeGraph`.
 
 ```python
 # src/sagiha/adapters/indexer/walk.py
-MAX_CHUNK_TOKENS: Final = 1024   # fixed policy until an ablation justifies tuning (ADR-0027)
+MAX_CHUNK_TOKENS: Final = 1024  # fixed policy until an ablation justifies tuning (ADR-0027)
 ```
 
 **Rationale.** The review said "implement splitting **or** delete the field." Deletion wins:
@@ -387,6 +387,7 @@ Each wave: steps → exit gate → commit. Tick boxes as you go.
       ```python
       _FTS_OPERATORS: Final = frozenset({"AND", "OR", "NOT", "NEAR"})
 
+
       def _fts_query(text: str) -> str:
           """Convert free text into a safe FTS5 MATCH expression.
 
@@ -453,8 +454,9 @@ Each wave: steps → exit gate → commit. Tick boxes as you go.
 - [x] **2.7 (m-4)** Add public write methods to `FTS5Indexer`, mirroring the existing public
       `chunk_count()`:
       ```python
-      def replace_file_chunks(self, path: str, chunks: Sequence[Chunk],
-                              symbols: Sequence[tuple[str, str, str, int, str]]) -> None: ...
+      def replace_file_chunks(
+          self, path: str, chunks: Sequence[Chunk], symbols: Sequence[tuple[str, str, str, int, str]]
+      ) -> None: ...
       def clear_path(self, path: str) -> None: ...
       ```
 - [x] **2.8** Rewrite `adapters/indexer/service.py` `_reindex_python` and `_reindex_markdown` to
@@ -471,21 +473,21 @@ Each wave: steps → exit gate → commit. Tick boxes as you go.
 
 ---
 
-## ☐ Wave 3 — Lint and format green (m-14)
+## ☑ Wave 3 — Lint and format green (m-14)
 
 **Closes:** **m-14**, ruff, format
 
-- [ ] **3.1** Add the `extend-exclude` block from **D9** to `[tool.ruff]` in `pyproject.toml`,
+- [x] **3.1** Add the `extend-exclude` block from **D9** to `[tool.ruff]` in `pyproject.toml`,
       with a comment pointing at the pyright rationale at `pyproject.toml:63-69`.
-- [ ] **3.2** `uv run ruff check --fix .` then `uv run ruff format .`
-- [ ] **3.3** Hand-fix what `--fix` cannot: the `E501` long lines, the `UP035`/`UP006` deprecated
+- [x] **3.2** `uv run ruff check --fix .` then `uv run ruff format .`
+- [x] **3.3** Hand-fix what `--fix` cannot: the `E501` long lines, the `UP035`/`UP006` deprecated
       typing imports, and the `ASYNC240`/`ASYNC251` blocking-call-in-async findings.
       **`ASYNC240`/`ASYNC251` are real defects, not style** — a blocking `Path` method or
       `time.sleep` inside an async function stalls the event loop. Fix them properly
       (`anyio.to_thread.run_sync` / `anyio.sleep`); do not `# noqa` them.
-- [ ] **3.4** Fix `keep_alive.py` (4) and `scripts/extract_gemini_share.py` (1). Do not exclude,
+- [x] **3.4** Fix `keep_alive.py` (4) and `scripts/extract_gemini_share.py` (1). Do not exclude,
       do not delete.
-- [ ] **3.5** Re-run `uv run pytest -q` — formatting touched 17 files; confirm nothing broke.
+- [x] **3.5** Re-run `uv run pytest -q` — formatting touched 17 files; confirm nothing broke.
 
 **Exit gate:** `uv run ruff check .` → **0** · `uv run ruff format --check .` → **0** ·
 `uv run pytest -q` green.
@@ -679,8 +681,8 @@ Fill one row per wave, at commit time, from real command output. **Do not pre-fi
 | *baseline* | — | `eae4c22` | 332 | 3 ❌ | 34 ❌ | 17 ❌ | 15,183 ❌ | 106 ❌ | ok | 5/5 | audit HEAD |
 | W0 | ☑ | `5a8ea4c` | 332 | 3 ❌ | 34 ❌ | 18 ❌ | 15,183 ❌ | 106 ❌ | ok | 5/5 | baseline reproduced; 5 red as expected (format 18, not 17) |
 | W1 | ☑ | `52d4691` | 342 | 3 ❌ | 34 ❌ | 18 ❌ | 15,183 ❌ | 106 ❌ | ok | 5/5 | +10 tests; C-1 closed, other gates untouched by design |
-| W2 | ☑ | `PENDING-W2` | 358 | **0** ✅ | 34 ❌ | 18 ❌ | 15,183 ❌ | 106 ❌ | ok | 5/5 | C-3 test landed red first, then C-R1 fix made it green |
-| W3 | ☐ | | | | | | | | | | ruff + format must be 0 |
+| W2 | ☑ | `7438718` | 358 | **0** ✅ | 34 ❌ | 18 ❌ | 15,183 ❌ | 106 ❌ | ok | 5/5 | C-3 test landed red first, then C-R1 fix made it green |
+| W3 | ☑ | `PENDING-W3` | 358 | 0 ✅ | **0** ✅ | **0** ✅ | 15,183 ❌ | 106 ❌ | ok | 5/5 | vendored trees excluded (16 errs); 18 project errs fixed, none suppressed |
 | W4 | ☐ | | | | | | | | | | budget + links must be 0 |
 | W5 | ☐ | | | | | | | | | | **all 7 green — P0 done** |
 | W6 | ☐ | | | | | | | | | | |

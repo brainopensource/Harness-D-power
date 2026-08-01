@@ -7,9 +7,7 @@ from dataclasses import dataclass
 from tree_sitter import Node, Tree
 from tree_sitter_language_pack import get_parser
 
-_SYMBOL_NODE_TYPES = frozenset(
-    {"function_definition", "async_function_definition", "class_definition"}
-)
+_SYMBOL_NODE_TYPES = frozenset({"function_definition", "async_function_definition", "class_definition"})
 
 
 @dataclass(frozen=True)

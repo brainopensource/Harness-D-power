@@ -237,8 +237,7 @@ This chapter provides an exhaustive, uncompromising breakdown of every problem, 
 - **How to fix it**:
   Consolidate path validation into a single helper function in [`src/sagiha/domain/config.py`](file:///home/rock_dev/Code/Harness/src/sagiha/domain/config.py):
   ```python
-  def ensure_workspace_layout(workspace_root: Path) -> Path:
-      ...
+  def ensure_workspace_layout(workspace_root: Path) -> Path: ...
   ```
   *(double-check — putting filesystem I/O helpers in `domain/config.py` may violate domain purity (AGENTS.md); prefer `composition.py` or a small `runtime/` helper if the duplication is confirmed.)*
 

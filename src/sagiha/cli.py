@@ -87,6 +87,7 @@ async def _run_or_resume(
 
     if stream_json:
         import sys
+
         from sagiha.domain.events import Event
 
         async def _stream_event(ev: Event) -> None:
