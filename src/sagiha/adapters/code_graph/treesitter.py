@@ -174,6 +174,16 @@ class TreeSitterCodeGraph:
             )
             conn.commit()
 
+    def graphed_paths(self) -> set[str]:
+        """Every path with rows in the graph — the input to orphan pruning (m-5)."""
+        with sqlite3.connect(self._db_path) as conn:
+            rows = conn.execute("SELECT path FROM symbols UNION SELECT path FROM symbol_refs").fetchall()
+            return {row[0] for row in rows}
+
+    def clear_path(self, path: str) -> None:
+        """Drop every edge, symbol and reference recorded for *path*."""
+        self.replace_file_edges(path, [], {})
+
     def replace_file_edges(
         self,
         path: str,

@@ -601,20 +601,20 @@ improves the mechanism, it does not license a default flip. That requires W9.
 
 ---
 
-## ☐ Wave 7 — Quality and completeness (M-8, m-1, m-2, m-5, m-7)
+## ☑ Wave 7 — Quality and completeness (M-8, m-1, m-2, m-5, m-7)
 
 **Closes:** **M-8**, **m-1**, **m-2**, **m-5**, **m-7** · P2
 
-- [ ] **7.1 (M-8, per D3)** Delete `src/sagiha/adapters/search/sequential.py`; strip its import
+- [x] **7.1 (M-8, per D3)** Delete `src/sagiha/adapters/search/sequential.py`; strip its import
       and `__all__` entry from `adapters/search/__init__.py`; delete any test that imported it.
-- [ ] **7.2 (m-1)** In `cli.py:648`, when `--reindex` is passed or `.sagiha/code_graph.db` exists,
+- [x] **7.2 (m-1)** In `cli.py:648`, when `--reindex` is passed or `.sagiha/code_graph.db` exists,
       construct/load `TreeSitterCodeGraph` and pass it to `generate_agents_md` instead of `None`.
-- [ ] **7.3 (m-2, per D7)** Fix `_discover_python_modules`: strip a leading `src/`; include
+- [x] **7.3 (m-2, per D7)** Fix `_discover_python_modules`: strip a leading `src/`; include
       non-`__init__` modules under discovered package roots; use `walk.SKIP_DIRS`.
-- [ ] **7.4 (m-5)** Make full reindex prune orphans: track seen paths during `_reindex_all` and
+- [x] **7.4 (m-5)** Make full reindex prune orphans: track seen paths during `_reindex_all` and
       delete chunk/symbol/edge rows for unseen paths. Test: index, delete a file, reindex, assert
       its chunks are gone.
-- [ ] **7.5 (m-7, per D6)** Route the export CLI's schema construction through the config-driven
+- [x] **7.5 (m-7, per D6)** Route the export CLI's schema construction through the config-driven
       registry helper; `logger.warning` naming the run id when the tool set cannot be
       reconstructed with certainty. Note the trajectory-snapshot approach as the S7 follow-up in
       the module docstring.
@@ -685,8 +685,8 @@ Fill one row per wave, at commit time, from real command output. **Do not pre-fi
 | W3 | ☑ | `36e1a8f` | 358 | 0 ✅ | **0** ✅ | **0** ✅ | 15,183 ❌ | 106 ❌ | ok | 5/5 | vendored trees excluded (16 errs); 18 project errs fixed, none suppressed |
 | W4 | ☑ | `51cfa24` | 358 | 0 ✅ | 0 ✅ | 0 ✅ | **14,474** ✅ | **0** ✅ | ok | 5/5 | 526-word margin; 106→0 links; untagged now fails closed |
 | W5 | ☑ | `0389f89` | 358 | 0 ✅ | 0 ✅ | 0 ✅ | 14,899 ✅ | 0 ✅ | ok ✅ | 5/5 ✅ | **verify.sh exits 0 — P0 COMPLETE** |
-| W6 | ☑ | `PENDING-W6` | 361 | 0 ✅ | 0 ✅ | 0 ✅ | 14,899 ✅ | 0 ✅ | ok ✅ | 5/5 ✅ | retrieval stays enabled=false — W9 gates any flip |
-| W7 | ☐ | | | | | | | | | | |
+| W6 | ☑ | `9d6d3d2` | 361 | 0 ✅ | 0 ✅ | 0 ✅ | 14,899 ✅ | 0 ✅ | ok ✅ | 5/5 ✅ | retrieval stays enabled=false — W9 gates any flip |
+| W7 | ☑ | `PENDING-W7` | 358 | 0 ✅ | 0 ✅ | 0 ✅ | 14,899 ✅ | 0 ✅ | ok ✅ | 5/5 ✅ | 361→358: 4 deleted tests asserted M-8 fabrications (see L-19) |
 | W8 | ☐ | | | | | | | | | | |
 | W9 | ☐ | | | | | | | | | | |
 
@@ -716,6 +716,8 @@ Append-only. Record (a) decisions already made during planning that changed a re
 | L-16 | 2026-08-01 | W5 | **W5 added ~425 net normative words** (m-9 rationale, the `file://` rule, the STATUS provenance note) against a docs-shrink rule that asks for equal deletions. Margin is 101 words, not the 526 D10 bought | Every addition was a mandated P0 deliverable (5.5–5.7, 5.9). Own prose was tightened twice rather than deleting content nobody asked to change (D10's own reasoning). Flagged: the next docs PR should ratchet back toward 14,474 |
 | L-17 | 2026-08-01 | W6 | **Existing tests did not need the expectation updates 6.3 predicted.** All 358 passed unchanged after `module_name` moved to the full dotted form | No test asserted a bare `symbol_path` value, so the namespace change was invisible to them — which is precisely why M-3 survived to be found by audit. The new 6.4 assertion closes that hole |
 | L-18 | 2026-08-01 | W6 | **`Chunk` gained a `body` field** rather than the envelope being stripped at read time | 6.6 mandated keeping the envelope on `Chunk.text` and adding a separate field if a consumer needs the raw span. `body` is that field; the conformance test asserts the span survives byte-identical |
+| L-19 | 2026-08-01 | W7 | **Test count fell 361 → 358**, against the standing monotonicity rule | The four deleted tests were `tests/unit/test_search_scaffolding.py`, which asserted `SequentialCandidateSearch`'s fabrications: that `propose()` returns ids starting with `candidate-`, that `evaluate()` returns `None`, that `select()` returns `branch_ids[0]`. D3 anticipated exactly this ("if any test imports it, delete that test too — it tests fabrications"). Net of the deletion the wave added 1 test (m-5 orphan pruning) |
+| L-20 | 2026-08-01 | W7 | **m-7's config source is an explicit `--code-intel` flag, not a loaded `Config`** | D6 says "driven by the active `Config`", but verification found the CLI has no config-file loader at all — every command builds a `Config` inline. Inventing a loader is far outside a remediation wave. The flag defaults to `false`, matching `retrieval.enabled`'s default, and the per-run warning D6 requires makes the reconstruction visible either way |
 | L-11 | 2026-08-01 | W1 | **Step 1.5's "all three must return ≥1 hit" holds for two of three.** `"handle user's input"` returns 0 against the snippet's one-line corpus (`def greet(name): return 1`) | Not a regression — that is now a *true* empty: the corpus contains none of `handle`/`user`/`input`. Verified by re-running with a file containing those tokens, which returns 1 hit. The C-1 symptom (a swallowed `OperationalError` masquerading as no-matches) is gone; the two goal-shaped queries with matching tokens both return hits |
 | | | | | |
 

@@ -92,6 +92,12 @@ class FTS5Indexer:
     # coordinator to this adapter's private storage layout. These two methods
     # are the whole surface it needs; the FTS schema stays in here.
 
+    def indexed_paths(self) -> set[str]:
+        """Every path with rows in the index — the input to orphan pruning (m-5)."""
+        with sqlite3.connect(self._db_path) as conn:
+            rows = conn.execute("SELECT path FROM chunks UNION SELECT path FROM symbols").fetchall()
+            return {row[0] for row in rows}
+
     def clear_path(self, path: str) -> None:
         """Drop every chunk and symbol row recorded for *path*."""
         with sqlite3.connect(self._db_path) as conn:

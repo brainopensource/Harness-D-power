@@ -3,6 +3,15 @@
 Reconstructs the exact assembled request context via `ContextAssembler.from_trajectory` (the
 "exact-not-approximate" replay-reconstruction path, per `next_gen_architecture_specs.md` §6) so a
 sample's `messages` is what the model actually saw, not an approximation of it.
+
+**Known gap (m-7), S7 follow-up.** The `tools` field is *not* exact in the same
+sense. A `TrajectoryStep` carries no snapshot of the registered tool set, so the
+caller reconstructs it from the active configuration and passes it in. That is
+correct for runs recorded under the current retrieval setting and wrong for runs
+recorded under a different one; `cli._do_export` logs a warning naming each run
+so the uncertainty is visible rather than silent. The real fix is to persist a
+registry snapshot on the run — a trajectory-schema change with a migration,
+deliberately not taken in a remediation wave.
 """
 
 from __future__ import annotations

@@ -68,12 +68,26 @@ class IndexService:
             self._reindex_markdown(rel, source)
 
     def _reindex_all(self) -> None:
+        """Full reindex — updates every file seen, and prunes every file not seen.
+
+        A full reindex previously only *updated* files it walked, so a deleted
+        source file kept its chunks, symbols and graph edges forever (audit m-5).
+        Retrieval would then surface content that no longer exists on disk, and
+        `impacted_by` would route through a file nobody could open.
+        """
+        seen: set[str] = set()
         for file_path in sorted(self._root.rglob("*")):
             if not file_path.is_file() or self._should_skip(file_path):
                 continue
             rel = file_path.relative_to(self._root).as_posix()
             if rel.endswith(".py") or rel.endswith(tuple(TEXT_EXTENSIONS)):
                 self._reindex_path(rel)
+                seen.add(rel)
+
+        for orphan in self._indexer.indexed_paths() - seen:
+            self._indexer.clear_path(orphan)
+        for orphan in self._graph.graphed_paths() - seen:
+            self._graph.clear_path(orphan)
 
     async def reindex(self, paths: list[str] | None = None) -> None:
         """Reindex the workspace or an explicit path list."""

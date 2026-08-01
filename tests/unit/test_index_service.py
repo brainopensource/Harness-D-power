@@ -62,3 +62,33 @@ async def test_reindex_single_python_path(index_service: IndexService) -> None:
     assert row is not None
     assert row[0] == "class"
     assert row[1] > 1
+
+
+@pytest.mark.asyncio
+async def test_full_reindex_prunes_deleted_files(tmp_path: Path) -> None:
+    """m-5: a full reindex must forget files that no longer exist.
+
+    Before this, `_reindex_all` only updated the files it walked. A deleted
+    source kept its chunks, symbols and graph edges indefinitely, so retrieval
+    surfaced content that was not on disk.
+    """
+    import shutil
+
+    root = tmp_path / "workspace"
+    shutil.copytree(FIXTURE, root)
+    indexer = FTS5Indexer(db_path=str(tmp_path / "index.db"))
+    graph = TreeSitterCodeGraph(db_path=str(tmp_path / "graph.db"), workspace_root=root)
+    service = IndexService(root, indexer, graph)
+
+    await service.reindex(None)
+    assert any(h.path == "pkg/client.py" for h in await indexer.search("client", limit=50))
+    assert "pkg/client.py" in indexer.indexed_paths()
+
+    (root / "pkg" / "client.py").unlink()
+    await service.reindex(None)
+
+    assert "pkg/client.py" not in indexer.indexed_paths(), "deleted file kept its index rows"
+    assert "pkg/client.py" not in graph.graphed_paths(), "deleted file kept its graph rows"
+    # The surviving file is untouched.
+    assert "pkg/util.py" in indexer.indexed_paths()
+    assert any(h.path == "pkg/util.py" for h in await indexer.search("greet", limit=50))

@@ -569,8 +569,11 @@ async def _do_export(
     spdx_license: str | None,
     redact_patterns: list[str],
     include_reasoning: bool,
+    code_intel: bool,
 ) -> ExportOutcome:
-    from sagiha.adapters.tools.builtins import BUILTIN_SCHEMAS, TOOL_DESCRIPTIONS
+    import logging
+
+    from sagiha.adapters.tools.builtins import TOOL_DESCRIPTIONS, schemas_for
     from sagiha.adapters.trajectory.sqlite import SQLiteTrajectoryStore
     from sagiha.domain.content import ToolSchema
     from sagiha.domain.trajectory import RunRecord, TrajectoryStep
@@ -584,9 +587,15 @@ async def _do_export(
         ledger.append(f"REFUSED: export requires an allowlisted SPDX license, got {spdx_license!r}")
         return ExportOutcome(ledger=ledger, samples=[], refused=True)
 
+    # m-7: the tool set is reconstructed through the same helper the registry
+    # uses, so a retrieval-enabled run no longer exports the builtin-only list it
+    # never had. Trajectories carry no registry snapshot — that is the S7
+    # follow-up — so this remains a reconstruction, and the residual uncertainty
+    # is warned about per run rather than silently papered over.
+    schemas = schemas_for(code_intel=code_intel)
     tool_schemas = tuple(
-        ToolSchema(name=name, description=TOOL_DESCRIPTIONS[name], parameters=BUILTIN_SCHEMAS[name])
-        for name in sorted(BUILTIN_SCHEMAS)
+        ToolSchema(name=name, description=TOOL_DESCRIPTIONS[name], parameters=schemas[name])
+        for name in sorted(schemas)
     )
     store = SQLiteTrajectoryStore(trajectory_db)
     records: list[RunRecord] = await store.list_runs()
@@ -601,6 +610,17 @@ async def _do_export(
         elig = assess(record, steps, events)
         eligibility_by_run[record.run_id] = elig
         if elig.eligible:
+            # m-7: the trajectory records no registry snapshot, so the tool list
+            # attached to this sample is reconstructed from the flag above rather
+            # than read back from the run. Say so, per run, by name — a sample
+            # carrying a tool list the run did not have is a silently wrong label.
+            logging.getLogger(__name__).warning(
+                "run %s: tool schemas reconstructed with code_intel=%s, not read from the "
+                "trajectory. If this run executed under a different retrieval setting, its "
+                "exported tool list is wrong. Registry snapshots are an S7 follow-up.",
+                record.run_id,
+                code_intel,
+            )
             ledger.append(f"  eligible {record.run_id}")
         else:
             ledger.append(f"  excluded {record.run_id}: {', '.join(elig.reasons())}")
@@ -640,13 +660,29 @@ async def _do_export(
 def init(
     workspace: str = typer.Option(".", "--workspace", "-w", help="Repository root to initialize"),
     force: bool = typer.Option(False, "--force", help="Overwrite an existing AGENTS.md"),
+    reindex: bool = typer.Option(
+        False, "--reindex", help="Build the code graph first, and describe it in AGENTS.md"
+    ),
 ) -> None:
     """Generate AGENTS.md from toolchain detection and repository layout."""
     from sagiha.outer_loop.init.generate import generate_agents_md
 
     root = Path(workspace).resolve()
+
+    # `graph=None` was passed unconditionally, which made generate.py's
+    # `## Code graph` renderer unreachable (audit m-1). Load an existing graph,
+    # or build one on --reindex.
+    graph = None
+    graph_db = root / ".sagiha" / "code_graph.db"
+    if reindex or graph_db.exists():
+        from sagiha.adapters.code_graph.treesitter import TreeSitterCodeGraph
+
+        graph = TreeSitterCodeGraph(db_path=str(graph_db), workspace_root=root)
+        if reindex:
+            asyncio.run(graph.rebuild_from_root(root))
+
     try:
-        path = asyncio.run(generate_agents_md(root, graph=None, force=force))
+        path = asyncio.run(generate_agents_md(root, graph=graph, force=force))
     except FileExistsError as exc:
         typer.echo(str(exc))
         raise SystemExit(1) from exc
@@ -664,6 +700,14 @@ def export(
     out: str = typer.Option("data/", "--out", "-o", help="Output directory for the JSONL file"),
     spdx_license: str | None = typer.Option(
         None, "--spdx-license", help="SPDX identifier of the exported repo (fails closed if omitted)"
+    ),
+    code_intel: bool = typer.Option(
+        False,
+        "--code-intel/--no-code-intel",
+        help=(
+            "Whether the exported runs had code-intelligence tools registered "
+            "(retrieval.enabled). Defaults to the config default, false."
+        ),
     ),
     include_reasoning: bool = typer.Option(
         False, "--include-reasoning", help="Include reasoning blocks (provider-policy permitting)"
@@ -692,6 +736,7 @@ def export(
             spdx_license=spdx_license,
             redact_patterns=redact_patterns,
             include_reasoning=include_reasoning,
+            code_intel=code_intel,
         )
     )
 
