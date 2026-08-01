@@ -350,11 +350,11 @@ Each wave: steps → exit gate → commit. Tick boxes as you go.
 
 ---
 
-## ☐ Wave 0 — Baseline capture and the verification harness
+## ☑ Wave 0 — Baseline capture and the verification harness
 
 **Closes:** *(enabler for every later wave; addresses the mechanism half of C-2)*
 
-- [ ] **0.1** Create `scripts/verify.sh` (executable, `set -uo pipefail`, **not** `-e` — it must
+- [x] **0.1** Create `scripts/verify.sh` (executable, `set -uo pipefail`, **not** `-e` — it must
       run all gates and report all failures, not stop at the first). It must:
       - print host facts: `git rev-parse --short HEAD`, `python --version`,
         `podman --version || echo "podman: absent"`;
@@ -366,10 +366,11 @@ Each wave: steps → exit gate → commit. Tick boxes as you go.
       - print the port count: `grep -rn "(Protocol)" src/sagiha/ports/ | wc -l`;
       - emit a markdown table on stdout in exactly the shape of the STATUS regression table;
       - exit `1` if any gate failed, `0` only if all passed.
-- [ ] **0.2** Run it. Save output to `docs/rationale/done/verify-baseline-W0.txt`.
+- [x] **0.2** Run it. Save output to `docs/rationale/done/verify-baseline-W0.txt`.
       Expect: **5 red** (pyright 3, ruff 34, format 17, budget 15,183, links 106).
-- [ ] **0.3** Stage `Harness_LLM_orchestrator_project_review.md`, `concept_review.md`, and this
-      plan.
+      **Measured: 5 red** — pyright 3, ruff 34, format **18**, budget 15,183, links 106.
+- [x] **0.3** Stage `Harness_LLM_orchestrator_project_review.md`, `concept_review.md`, and this
+      plan. *(Already tracked at `1fd9ff9`; nothing to stage — see L-7.)*
 
 **Exit gate:** `scripts/verify.sh` runs end-to-end and reports 5 failures without crashing. It is
 *expected to exit 1* here — that is the correct baseline.
@@ -676,7 +677,7 @@ Fill one row per wave, at commit time, from real command output. **Do not pre-fi
 | Wave | Status | Commit SHA | pytest | pyright | ruff | format | budget | links | catalog | imports | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | *baseline* | — | `eae4c22` | 332 | 3 ❌ | 34 ❌ | 17 ❌ | 15,183 ❌ | 106 ❌ | ok | 5/5 | audit HEAD |
-| W0 | ☐ | | | | | | | | | | expected: still 5 red |
+| W0 | ☑ | `PENDING-W0` | 332 | 3 ❌ | 34 ❌ | 18 ❌ | 15,183 ❌ | 106 ❌ | ok | 5/5 | baseline reproduced; 5 red as expected (format 18, not 17) |
 | W1 | ☐ | | | | | | | | | | |
 | W2 | ☐ | | | | | | | | | | pyright must be 0 |
 | W3 | ☐ | | | | | | | | | | ruff + format must be 0 |
@@ -702,6 +703,9 @@ Append-only. Record (a) decisions already made during planning that changed a re
 | L-4 | 2026-08-01 | plan | **m-9 is documentation-only**; the proposed policy tightening is not implemented | It is a security-behavior change requiring threat review and a canary suite, out of scope for remediation (D5) |
 | L-5 | 2026-08-01 | plan | **m-7 uses config-driven reconstruction + warning**, not a trajectory snapshot | Snapshot is a schema migration serving a consumer that does not exist yet; the warning makes residual uncertainty visible (D6) |
 | L-6 | 2026-08-01 | plan | **`ASYNC240`/`ASYNC251` treated as defects, not style** — fixed properly, never `# noqa` | Blocking calls in async functions stall the event loop; suppressing them would be lint-theatre (W3.3) |
+| L-7 | 2026-08-01 | W0 | **Step 0.3 is a no-op.** The two review documents and this plan were already committed at `1fd9ff9`; there was nothing unstaged to stage | Verified with `git status --short` (clean tree) before starting W0 |
+| L-8 | 2026-08-01 | W0 | **Baseline format count is 18, not the 17 the plan predicted.** All other four red gates match exactly | D0: numbers come from commands, not from the plan's prediction. Recorded as measured; the audit ran on a different working tree state |
+| L-9 | 2026-08-01 | W0 | **Branch is `refactor_aether_V210`, not `refactor_aether_v2`** as the plan header states | The branch was renamed before execution began; all other rules (never push, no tags, no PRs) apply unchanged |
 | | | | | |
 
 ---
