@@ -64,6 +64,7 @@ class BenchmarkRunner:
         max_steps: int = 20,
         strategy: Literal["single_shot", "bon"] = "single_shot",
         search: SearchConfig | None = None,
+        model_config: ModelConfig | None = None,
     ) -> None:
         self._suite = suite
         self._agent_id = agent_id
@@ -78,6 +79,30 @@ class BenchmarkRunner:
         #: paired statistics compare two harnesses rather than two strategies.
         self._strategy = strategy
         self._search = search or SearchConfig(enabled=True)
+        #: Explicit model binding for the run. Without this the runner fell back to
+        #: ModelConfig's defaults (an Anthropic tier) while pointing at whatever
+        #: base_url was configured, so a local Ollama endpoint was asked for a
+        #: Claude model and returned 404 on every task.
+        self._model_config = model_config
+
+    def _model_for_run(self) -> ModelConfig:
+        mode_val = cast(Literal["live", "replay", "record"], self._model_mode)
+        if self._model_config is not None:
+            return self._model_config.model_copy(update={"mode": mode_val})
+        return ModelConfig(mode=mode_val)
+
+    def _repo_root_for(self, task: HarvestedTask) -> str:
+        """The repository this task's worktree is cut from.
+
+        A harvested task's base commit is in the harness repo and resolves to it
+        unchanged. An *imported* task (SWE-bench Lite) has a base commit from a
+        different project, which is fetched shallowly into the repo cache — the
+        alternative was `fatal: invalid reference` on every task, a failure that
+        reads exactly like an unsolved benchmark.
+        """
+        from sagiha.e0.repo_cache import resolve_task_root
+
+        return str(resolve_task_root(task.repo, task.base_commit, workspace_root=self._workspace_root))
 
     async def run_single_task(self, task: HarvestedTask) -> BenchmarkResult:
         """Dispatches to the configured arm. Both arms return the same `BenchmarkResult`
@@ -98,10 +123,10 @@ class BenchmarkRunner:
         run_id = str(uuid.uuid4())
         start_time = time.monotonic()
         try:
-            mode_val = cast(Literal["live", "replay", "record"], self._model_mode)
+            task_repo_root = self._repo_root_for(task)
             config = Config(
-                model=ModelConfig(mode=mode_val),
-                workspace=WorkspaceConfig(root=self._workspace_root),
+                model=self._model_for_run(),
+                workspace=WorkspaceConfig(root=task_repo_root),
                 telemetry=TelemetryConfig(trajectory_db=self._trajectory_db),
                 search=self._search,
             )
@@ -120,7 +145,7 @@ class BenchmarkRunner:
             ctx = RunContext(
                 run_id=run_id,
                 autonomy_level=config.autonomy.level,
-                workspace_root=self._workspace_root,
+                workspace_root=task_repo_root,
                 budget_remaining_usd=config.governor.max_spend_usd_per_run,
                 base_commit=task.base_commit,
             )
@@ -174,7 +199,7 @@ class BenchmarkRunner:
 
         from sagiha.adapters.workspace.worktree import GitWorktreeManager
 
-        manager = GitWorktreeManager(self._workspace_root)
+        manager = GitWorktreeManager(self._repo_root_for(task))
         branch_id = f"bench-{task.task_id}-{run_id[:8]}"
         allocated = False
 
@@ -186,9 +211,8 @@ class BenchmarkRunner:
             # `Kernel` bound to the worktree's real filesystem location.
             task_root = str(await anyio.Path(manager.path_for(branch_id)).resolve())
 
-            mode_val = cast(Literal["live", "replay", "record"], self._model_mode)
             config = Config(
-                model=ModelConfig(mode=mode_val),
+                model=self._model_for_run(),
                 workspace=WorkspaceConfig(root=task_root),
                 telemetry=TelemetryConfig(trajectory_db=self._trajectory_db),
             )

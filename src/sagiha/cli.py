@@ -441,6 +441,13 @@ def bench(
         help="Two comma-separated arms to compare, e.g. 'single_shot,bon'. Runs both and reports "
         "the paired delta. Requires --aa (or --noise-floor) so the delta is judged against a floor.",
     ),
+    model_name: str = typer.Option("qwen2.5-coder:7b", "--model-name", help="Model name for live mode"),
+    base_url: str = typer.Option(
+        "http://localhost:11434/v1", "--base-url", help="OpenAI-compatible endpoint URL"
+    ),
+    api_key_env: str = typer.Option(
+        "", "--api-key-env", help="Env var holding the API key (e.g. OPENROUTER_API_KEY)"
+    ),
     noise_floor_path: str = typer.Option(
         "",
         "--noise-floor",
@@ -450,6 +457,7 @@ def bench(
     """Run E0 evaluation benchmark over a harvested task suite."""
 
     from sagiha.domain.benchmark import BenchmarkRun, ComparisonResult, NoiseFloor
+    from sagiha.domain.config import ModelConfig, ModelTierConfig
     from sagiha.e0.harvester import Harvester
     from sagiha.e0.reporter import BenchmarkReporter
     from sagiha.e0.runner import BenchmarkRunner
@@ -467,14 +475,31 @@ def bench(
         "live" if mode == "live" else ("record" if mode == "record" else "replay")
     )
 
+    # An imported suite's `repo` is a dataset name, not a path on disk; the per-task
+    # repo cache resolves those. Only fall back to it when it really is a directory.
+    workspace_root = suite.repo if Path(suite.repo).is_dir() else "."
+
+    tier = ModelTierConfig(
+        provider="openai-compatible",
+        model=model_name,
+        base_url=base_url,
+        api_key_env=api_key_env,
+    )
+    bench_model = ModelConfig(
+        mode=mode_val,
+        tiers={"local": tier, "workhorse": tier},
+        roles={"execution": "local"},
+    )
+
     def _runner(strategy: Literal["single_shot", "bon"]) -> BenchmarkRunner:
         return BenchmarkRunner(
             suite=suite,
             model_mode=mode_val,
             cassette_path=cassette,
-            workspace_root=suite.repo,
+            workspace_root=workspace_root,
             strategy=strategy,
             agent_id=f"sagiha-{strategy}",
+            model_config=bench_model,
         )
 
     nf: NoiseFloor | None = None
