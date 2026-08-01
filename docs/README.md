@@ -83,6 +83,16 @@ and a status note in a README does not survive chunking.
 both are retired. `scripts/docs_budget.py` reports any file whose `status:` is outside the three
 declared values, so a doc cannot dodge the budget by inventing a fourth.
 
+**Every file must declare `status:`, and the gate enforces it** — `docs_budget.py` exits non-zero on
+any untagged file. An untagged doc is invisible to the word count, so omitting the key was a way to
+add normative words for free.
+
+### Links must be repo-relative
+
+**Absolute `file://` URLs are prohibited in `docs/`.** They resolve only on the authoring machine
+and are dead for every other reader. `scripts/check_links.py` validates every relative link — path
+and anchor — and CI fails on any that does not resolve.
+
 ### The docs-shrink rule
 
 **A PR adding N normative words deletes N elsewhere.** `scripts/docs_budget.py --max` enforces the

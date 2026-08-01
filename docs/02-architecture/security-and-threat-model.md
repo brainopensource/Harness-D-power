@@ -88,6 +88,24 @@ Until the CLI approval loop exists (`v2-S7`), `requires_human=True` denials flow
 correct pre-sandbox posture: the alternative is an autonomous write path fed by attacker-controlled
 text.
 
+### Why `run_command` is not taint-blocked
+
+`_TAINT_BLOCKED_TOOLS` is `{apply_edit, write_file}` — a strict subset of `MUTATION_TOOLS`, asserted
+in `kernel/policy/engine.py`. Excluding `run_command` is deliberate:
+
+* **Blocking it regresses H1.** The gates *are* `git diff` calls through `dispatch()`. Blocking
+  `run_command` under taint means one hostile README makes a run's gates unrunnable — turning an
+  injection attempt into denial-of-service against the evaluator.
+* **The write path stays closed.** Taint blocks the tools that land a diff; a tainted run may
+  observe but not mutate without approval.
+* **Under `runtime=container` the perimeter is the real boundary** — `--network=none` plus an
+  allowlisted CONNECT proxy is structural, not policy. Blocklists are UX.
+
+Residual exposure: a tainted run executing a non-mutating command with a side effect the sandbox
+does not contain. Tightening it (*tainted ∧ `autonomy=autonomous` ⇒ deny non-`PURE` `run_command`*)
+is a security-behaviour change needing threat review and a canary suite. Recorded as a candidate,
+not adopted (m-9).
+
 **Proving test — injection canary:** a planted hostile README instructs a write; the mutation is
 denied with `requires_human=True`; zero tainted diffs land unapproved.
 
