@@ -12,6 +12,8 @@
 - [`AGENTS.md`](file:///home/rock_dev/Code/Harness/AGENTS.md) (Architectural invariants & TCB definition)
 - [`docs/08-decisions/`](file:///home/rock_dev/Code/Harness/docs/08-decisions) (ADRs 0001–0025, specifically ADR-0019 through ADR-0025)
 
+> **Bias / re-verification notice (2026-08-01):** A second pass against the live tree found several quantitative and path claims below that **do not match current `uv run` / filesystem reality** (or overstate mechanism “complete”). Where flagged with *(double-check before treating as strict truth)*, re-run the cited command or open the cited path before enforcing the claim as a release rule.
+
 ---
 
 # CHAPTER 1: GENERAL EXECUTIVE SUMMARY & SPRINT DELIVERY OVERVIEW
@@ -20,26 +22,28 @@
 
 ### **Audit Gate Decision: CONDITIONAL PASS**
 
-The **SAGIHA** autonomous coding harness v2 re-baseline series (`v2-S0` through `v2-S6`) has completed its core mechanical implementation. Across all seven executed sprints, the codebase under [`src/sagiha/`](file:///home/rock_dev/Code/Harness/src/sagiha) demonstrates exceptional adherence to microkernel capability security, hexagonal port-adapter isolation, instrument honesty, and deterministic evaluation gates. 
+The **SAGIHA** autonomous coding harness v2 re-baseline series (`v2-S0` through `v2-S6`) has completed its core mechanical implementation. Across all seven executed sprints, the codebase under [`src/sagiha/`](file:///home/rock_dev/Code/Harness/src/sagiha) demonstrates exceptional adherence to microkernel capability security, hexagonal port-adapter isolation, instrument honesty, and deterministic evaluation gates. *(double-check before treating as strict truth — “exceptional adherence” is subjective qualitative judgment, not a measured metric.)*
 
-The test suite exhibits strict monotonicity: **332 passed tests out of 332 collected** (`uv run pytest`), up from 303 at initial baseline. Import layering contracts ([`uv run lint-imports`](file:///home/rock_dev/Code/Harness/pyproject.toml)) pass **5/5 clean**.
+The test suite exhibits strict monotonicity: **332 passed tests out of 332 collected** (`uv run pytest`), up from 303 at initial baseline. *(double-check before treating as strict truth — re-run on 2026-08-01 showed **321 passed, 11 skipped**, not 332/332 with zero skips; Podman-marked tests are skipped when Podman/image is absent. Prefer STATUS + live `pytest -q` over this count.)* Import layering contracts ([`uv run lint-imports`](file:///home/rock_dev/Code/Harness/pyproject.toml)) pass **5/5 clean**.
 
 However, a **CONDITIONAL PASS** decision is rendered because of three specific technical defects that prevent immediate production release:
-1. **Static Type Checker Failures**: Pyright reports 3 type errors in [`src/sagiha/adapters/indexer/fts5.py`](file:///home/rock_dev/Code/Harness/src/sagiha/adapters/indexer/fts5.py#L199), [`src/sagiha/adapters/indexer/service.py`](file:///home/rock_dev/Code/Harness/src/sagiha/adapters/indexer/service.py#L52), and [`src/sagiha/composition.py`](file:///home/rock_dev/Code/Harness/src/sagiha/composition.py#L158) stemming from an interface signature mismatch on the [`Indexer`](file:///home/rock_dev/Code/Harness/src/sagiha/ports/indexer.py#L17) protocol (`neighbors(query)` vs `neighbors(path)`).
-2. **Linter Style Violations**: Ruff reports 30 import sorting (`I001`) and line-length (`E501`) errors across test modules.
+1. **Static Type Checker Failures**: Pyright reports 3 type errors in [`src/sagiha/adapters/indexer/fts5.py`](file:///home/rock_dev/Code/Harness/src/sagiha/adapters/indexer/fts5.py#L199), [`src/sagiha/adapters/indexer/service.py`](file:///home/rock_dev/Code/Harness/src/sagiha/adapters/indexer/service.py#L52), and [`src/sagiha/composition.py`](file:///home/rock_dev/Code/Harness/src/sagiha/composition.py#L158) stemming from an interface signature mismatch on the [`Indexer`](file:///home/rock_dev/Code/Harness/src/sagiha/ports/indexer.py#L17) protocol (`neighbors(query)` vs `neighbors(path)`). *(double-check before treating as strict truth — live `pyright` reports the **errors at `service.py` and `composition.py`**, not as a diagnostic line inside `fts5.py`; `fts5.py:199` is the mismatched *signature source*, not an error locus.)*
+2. **Linter Style Violations**: Ruff reports 30 import sorting (`I001`) and line-length (`E501`) errors across test modules. *(double-check before treating as strict truth — live `uv run ruff check src/sagiha tests` reported **14 errors** (11 fixable), not 30; re-count before citing in CI gates.)*
 3. **Missing Empirical Benchmark Datasets**: Best-of-N (`v2-S4`) and Code Graph/Retrieval (`v2-S6`) mechanisms are fully implemented but correctly shipped set to `enabled=false` by default because local repository harvesting yielded 0/23 valid benchmark tasks ([`docs/rationale/benchmarks/s4-harvest-findings.md`](file:///home/rock_dev/Code/Harness/docs/rationale/benchmarks/s4-harvest-findings.md)).
+
+> **Also omitted from this three-item list but currently failing on the tree:** normative docs budget (`docs_budget.py --max 15000` → **15,183 > 15,000**). *(double-check before treating S0 as fully closed — see matrix row below.)*
 
 ### **System Scorecard**
 
 | Dimension | Measured Value | Target Standard | Status |
 | :--- | :--- | :--- | :--- |
-| **Completed Sprints** | 7 / 7 (`v2-S0` .. `v2-S6`) | S0 through S6 Closed | **100% Complete** |
+| **Completed Sprints** | 7 / 7 (`v2-S0` .. `v2-S6`) | S0 through S6 Closed | **100% Complete** *(double-check — S0 budget gate currently red; S4/S6 empirical halves deferred by design; “100% Complete” overstates absolute closure)* |
 | **Active Port Surface** | 17 Protocols across 16 files | 17 Active Ports (ADR-0019/0024) | **Conforming** |
-| **Test Suite Monotonicity** | **332 passed**, 0 failed | >= 303 passed | **PASSED** (100%) |
+| **Test Suite Monotonicity** | **332 passed**, 0 failed | >= 303 passed | **PASSED** (100%) *(double-check — live run: 321 passed, 11 skipped; “0 failed” ≠ “0 skipped”)* |
 | **Import Layering Contracts** | **5 / 5 KEPT** | 5 / 5 KEPT (`lint-imports`) | **PASSED** (100%) |
 | **Static Type Checking** | **3 Errors** | 0 Errors (`pyright src/sagiha`) | **FAILED** (Fix required) |
-| **Code Style & Format** | **30 Lints** | 0 Lints (`ruff check`) | **FAILED** (Fix required) |
-| **Instrument Honesty (H1–H4)** | **100% Fixed & Verified** | Zero hardcoded constants | **PASSED** (100%) |
+| **Code Style & Format** | **30 Lints** | 0 Lints (`ruff check`) | **FAILED** (Fix required) *(double-check — live count was 14, not 30)* |
+| **Instrument Honesty (H1–H4)** | **100% Fixed & Verified** | Zero hardcoded constants | **PASSED** (100%) *(double-check nuance — MCP `list_tools()` returns `[]` rather than raising; coverage gate is honest `None`, not a live check)* |
 | **TCB Isolation (CAR Model)** | **100% Enforced** | Gated at `kernel/dispatch.py` | **PASSED** (100%) |
 
 ---
@@ -59,31 +63,31 @@ This audit evaluated the codebase under [`src/sagiha/`](file:///home/rock_dev/Co
 
 | Sprint | Objective | Planned Epics | Status | Delivered Modules / Files | Audit Notes & Verdict |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **`v2-S0`** | Documentation Shrink & Governance | S0.1 Normative word budget (<=15k words), S0.2 `rationale/` migration, S0.3 SSOT consolidation, S0.4 ADRs 0019–0023, S0.5 STATUS re-baseline | **Complete** | [`docs/STATUS.md`](file:///home/rock_dev/Code/Harness/docs/STATUS.md), [`docs/08-decisions/`](file:///home/rock_dev/Code/Harness/docs/08-decisions), [`scripts/docs_budget.py`](file:///home/rock_dev/Code/Harness/scripts/docs_budget.py) | **PASSED**. Normative word budget enforced in CI. Single source of truth established. |
-| **`v2-S1`** | Instrument Honesty (H1–H4 Fixes) | S1.1 Real gates (H1: base_commit diffs), S1.2 Budget & spend telemetry (H2), S1.3 Syntax valid (H4: ast.parse), S1.4 Loud stubs (H3), S1.5 Honest re-measure | **Complete** | [`outer_loop/evaluator/gate_evaluator.py`](file:///home/rock_dev/Code/Harness/src/sagiha/outer_loop/evaluator/gate_evaluator.py), [`kernel/governor.py`](file:///home/rock_dev/Code/Harness/src/sagiha/kernel/governor.py), [`adapters/workspace/local.py`](file:///home/rock_dev/Code/Harness/src/sagiha/adapters/workspace/local.py) | **PASSED**. 0.0% honest pass-rate recorded. Fabricated gate constants fully eliminated. |
+| **`v2-S0`** | Documentation Shrink & Governance | S0.1 Normative word budget (<=15k words), S0.2 `rationale/` migration, S0.3 SSOT consolidation, S0.4 ADRs 0019–0023, S0.5 STATUS re-baseline | **Complete** *(double-check before treating as strict truth — live `docs_budget.py --max 15000` fails at **15,183** words; “budget enforced in CI” is not currently green)* | [`docs/STATUS.md`](file:///home/rock_dev/Code/Harness/docs/STATUS.md), [`docs/08-decisions/`](file:///home/rock_dev/Code/Harness/docs/08-decisions), [`scripts/docs_budget.py`](file:///home/rock_dev/Code/Harness/scripts/docs_budget.py) | **PASSED**. Normative word budget enforced in CI. Single source of truth established. *(double-check — EXIT code was non-zero on re-verify)* |
+| **`v2-S1`** | Instrument Honesty (H1–H4 Fixes) | S1.1 Real gates (H1: base_commit diffs), S1.2 Budget & spend telemetry (H2), S1.3 Syntax valid (H4: ast.parse), S1.4 Loud stubs (H3), S1.5 Honest re-measure | **Complete** | [`outer_loop/evaluator/gate_evaluator.py`](file:///home/rock_dev/Code/Harness/src/sagiha/outer_loop/evaluator/gate_evaluator.py), [`kernel/governor.py`](file:///home/rock_dev/Code/Harness/src/sagiha/kernel/governor.py), [`adapters/workspace/local.py`](file:///home/rock_dev/Code/Harness/src/sagiha/adapters/workspace/local.py) | **PASSED**. 0.0% honest pass-rate recorded. Fabricated gate constants fully eliminated. *(double-check — 0.0% is from `s1_honest_baseline.md` on a specific un-cassetted setup; do not generalize to all workloads)* |
 | **`v2-S2`** | Port Consolidation & Kernel Corrections | S2.1 Deletions (21->17 ports), S2.2 PURE/DESTRUCTIVE effect classification, S2.3 Builtin tool fixes, S2.4 Composition hardening, S2.5 Trajectory completeness | **Complete** | [`ports/`](file:///home/rock_dev/Code/Harness/src/sagiha/ports), [`kernel/policy/effects.py`](file:///home/rock_dev/Code/Harness/src/sagiha/kernel/policy/effects.py), [`adapters/tools/builtins.py`](file:///home/rock_dev/Code/Harness/src/sagiha/adapters/tools/builtins.py), [`composition.py`](file:///home/rock_dev/Code/Harness/src/sagiha/composition.py) | **PASSED**. 17 Protocols locked across 16 files. Import contracts (5/5) verified. |
-| **`v2-S3`** | Context Engine & Taint Security | S3.1 `ContextAssembler` (seed-only L6), S3.2 `ExchangeCompactor`, S3.3 TaintGate v1 (monotonic taint), S3.4 `FrozenRunState` + role failover | **Complete** | [`agency/context/assembler.py`](file:///home/rock_dev/Code/Harness/src/sagiha/agency/context/assembler.py), [`agency/context/compactor.py`](file:///home/rock_dev/Code/Harness/src/sagiha/agency/context/compactor.py), [`kernel/policy/engine.py`](file:///home/rock_dev/Code/Harness/src/sagiha/kernel/policy/engine.py), [`agency/freeze.py`](file:///home/rock_dev/Code/Harness/src/sagiha/agency/freeze.py) | **PASSED**. Injection canary zero-leak verified. Context prefix digest stability guaranteed. |
-| **`v2-S4`** | E0 Hardening & Best-of-N Search | S4.0 Scaffolding cleanup (ADR-0024), S4.1 E0 statistics, S4.2 Best-of-N over worktrees, S4.3 S-0/S-1 scoring, S4.4 Dataset exporter (`sagiha export`) | **Complete** *(Honest-Negative)* | [`e0/`](file:///home/rock_dev/Code/Harness/src/sagiha/e0), [`adapters/search/best_of_n.py`](file:///home/rock_dev/Code/Harness/src/sagiha/adapters/search/best_of_n.py), [`outer_loop/export/exporter.py`](file:///home/rock_dev/Code/Harness/src/sagiha/outer_loop/export/exporter.py) | **PASSED (Empirical Half Deferred)**. Mechanism 100% complete. Default set to `search.enabled=false` due to 0/23 harvest yield. |
-| **`v2-S5`** | Perimeter & Isolation | S5.1 Rootless Podman `ContainerSandbox`, S5.2 Egress proxy allowlist & secret isolation, S5.3 Autonomy profile unlock | **Complete** | [`adapters/sandbox/container.py`](file:///home/rock_dev/Code/Harness/src/sagiha/adapters/sandbox/container.py), [`domain/config.py`](file:///home/rock_dev/Code/Harness/src/sagiha/domain/config.py) | **PASSED**. Conformance suite parametrized over Local and Container sandboxes. |
-| **`v2-S6`** | Retrieval, Code Graph & Cold-Start | S6.1 FTS5 indexer + AST chunking, S6.2 Tree-sitter code graph, S6.3 Code-intel tools, S6.4 `sagiha init`, S6.5 Frontmatter exclusion | **Complete** *(Honest-Negative & Drifts)* | [`adapters/indexer/fts5.py`](file:///home/rock_dev/Code/Harness/src/sagiha/adapters/indexer/fts5.py), [`adapters/code_graph/treesitter.py`](file:///home/rock_dev/Code/Harness/src/sagiha/adapters/code_graph/treesitter.py), [`outer_loop/init/generator.py`](file:///home/rock_dev/Code/Harness/src/sagiha/outer_loop/init/generator.py) | **CONDITIONAL**. Mechanism complete; `retrieval.enabled=false` default. 3 Pyright errors present on `Indexer` protocol signatures. |
+| **`v2-S3`** | Context Engine & Taint Security | S3.1 `ContextAssembler` (seed-only L6), S3.2 `ExchangeCompactor`, S3.3 TaintGate v1 (monotonic taint), S3.4 `FrozenRunState` + role failover | **Complete** | [`agency/context/assembler.py`](file:///home/rock_dev/Code/Harness/src/sagiha/agency/context/assembler.py), [`agency/context/compactor.py`](file:///home/rock_dev/Code/Harness/src/sagiha/agency/context/compactor.py), [`kernel/policy/engine.py`](file:///home/rock_dev/Code/Harness/src/sagiha/kernel/policy/engine.py), [`agency/freeze.py`](file:///home/rock_dev/Code/Harness/src/sagiha/agency/freeze.py) | **PASSED**. Injection canary zero-leak verified. Context prefix digest stability guaranteed. *(double-check — re-run `tests/integration/test_taint_canary.py` before citing “zero-leak” as a standing invariant; also see §1.4 taint scope note)* |
+| **`v2-S4`** | E0 Hardening & Best-of-N Search | S4.0 Scaffolding cleanup (ADR-0024), S4.1 E0 statistics, S4.2 Best-of-N over worktrees, S4.3 S-0/S-1 scoring, S4.4 Dataset exporter (`sagiha export`) | **Complete** *(Honest-Negative)* | [`e0/`](file:///home/rock_dev/Code/Harness/src/sagiha/e0), [`adapters/search/best_of_n.py`](file:///home/rock_dev/Code/Harness/src/sagiha/adapters/search/best_of_n.py), [`outer_loop/export/exporter.py`](file:///home/rock_dev/Code/Harness/src/sagiha/outer_loop/export/exporter.py) *(double-check path — **no `exporter.py`**; modules are `eligibility.py`, `sft.py`, `dpo.py`, etc.)* | **PASSED (Empirical Half Deferred)**. Mechanism 100% complete. Default set to `search.enabled=false` due to 0/23 harvest yield. |
+| **`v2-S5`** | Perimeter & Isolation | S5.1 Rootless Podman `ContainerSandbox`, S5.2 Egress proxy allowlist & secret isolation, S5.3 Autonomy profile unlock | **Complete** *(double-check — CI Podman job is still proposal-only (`ci-podman-perimeter.md`); “Complete” means mechanism in code, not CI-enforced)* | [`adapters/sandbox/container.py`](file:///home/rock_dev/Code/Harness/src/sagiha/adapters/sandbox/container.py), [`domain/config.py`](file:///home/rock_dev/Code/Harness/src/sagiha/domain/config.py) | **PASSED**. Conformance suite parametrized over Local and Container sandboxes. |
+| **`v2-S6`** | Retrieval, Code Graph & Cold-Start | S6.1 FTS5 indexer + AST chunking, S6.2 Tree-sitter code graph, S6.3 Code-intel tools, S6.4 `sagiha init`, S6.5 Frontmatter exclusion | **Complete** *(Honest-Negative & Drifts)* | [`adapters/indexer/fts5.py`](file:///home/rock_dev/Code/Harness/src/sagiha/adapters/indexer/fts5.py), [`adapters/code_graph/treesitter.py`](file:///home/rock_dev/Code/Harness/src/sagiha/adapters/code_graph/treesitter.py), [`outer_loop/init/generator.py`](file:///home/rock_dev/Code/Harness/src/sagiha/outer_loop/init/generator.py) *(double-check path — file is **`generate.py`**, not `generator.py`)* | **CONDITIONAL**. Mechanism complete; `retrieval.enabled=false` default. 3 Pyright errors present on `Indexer` protocol signatures. |
 
 ---
 
 ## 1.4 Core Architectural Accomplishments
 
 ### 1. CAR Model & Microkernel Dispatch Isolation
-- Gated execution: All tool invocations must be authorized via [`PolicyEngine.authorize()`](file:///home/rock_dev/Code/Harness/src/sagiha/kernel/policy/engine.py#L48).
+- Gated execution: All tool invocations must be authorized via [`PolicyEngine.authorize()`](file:///home/rock_dev/Code/Harness/src/sagiha/kernel/policy/engine.py#L48). *(double-check line anchor — `authorize` is currently around **L138**, not L48.)*
 - Execution choke point: [`src/sagiha/kernel/dispatch.py`](file:///home/rock_dev/Code/Harness/src/sagiha/kernel/dispatch.py#L26) is the single entry point from Agency intent to Runtime effect. Unconditional point-of-effect grant verification [`policy.verify_grant()`](file:///home/rock_dev/Code/Harness/src/sagiha/kernel/dispatch.py#L85) prevents forged or expired grants.
 - TCB Containment: Verified clean separation via `lint-imports`. [`src/sagiha/kernel/policy/`](file:///home/rock_dev/Code/Harness/src/sagiha/kernel/policy) and [`src/sagiha/outer_loop/evaluator/`](file:///home/rock_dev/Code/Harness/src/sagiha/outer_loop/evaluator) remain untainted by agency logic.
 
 ### 2. Context Engine & Untrusted Data Protection
-- **TaintGate v1**: Tool results marked `trusted=False` emit `TaintIntroduced`. Taint is monotonic. Any tool attempt with `EffectClass.DESTRUCTIVE` in a tainted run triggers `requires_human=True` denial.
+- **TaintGate v1**: Tool results marked `trusted=False` emit `TaintIntroduced`. Taint is monotonic. Any tool attempt with `EffectClass.DESTRUCTIVE` in a tainted run triggers `requires_human=True` denial. *(double-check before treating as strict truth — code blocks only `_TAINT_BLOCKED_TOOLS = {apply_edit, write_file}`; **`run_command` is DESTRUCTIVE but not taint-denied**, by documented design so gates can still run git.)*
 - **Untrusted Envelope**: `<untrusted-data source="...">` envelope applied strictly at [`ContextAssembler`](file:///home/rock_dev/Code/Harness/src/sagiha/agency/context/assembler.py#L65) prompt generation, preserving clean byte structures for evaluation gates.
 - **Exchange Compactor**: [`ExchangeCompactor`](file:///home/rock_dev/Code/Harness/src/sagiha/agency/context/compactor.py) maintains atomic (tool_call, tool_result) exchange pairs while compacting long turns to fit within LLM token windows.
 - **Seed-Only Retrieval**: Retrieval hits are accepted only during [`ContextAssembler`](file:///home/rock_dev/Code/Harness/src/sagiha/agency/context/assembler.py) construction, guaranteeing prompt prefix cache stability (`prefix_digest`).
 
 ### 3. Container Perimeter & Isolation
-- **Rootless Podman Container Sandbox**: [`ContainerSandbox`](file:///home/rock_dev/Code/Harness/src/sagiha/adapters/sandbox/container.py) enforces full process and filesystem isolation.
+- **Rootless Podman Container Sandbox**: [`ContainerSandbox`](file:///home/rock_dev/Code/Harness/src/sagiha/adapters/sandbox/container.py) enforces full process and filesystem isolation. *(double-check — isolation claims assume Podman + runtime image available; default interactive CLI often uses `subprocess`.)*
 - **Network Proxy Allowlist**: Egress traffic drops direct connections and passes through an explicit HTTP CONNECT proxy allowlist.
 - **Autonomy Profile**: `--autonomy autonomous` is legally unlocked only when executing inside a container sandbox.
 
@@ -127,6 +131,7 @@ This chapter provides an exhaustive, uncompromising breakdown of every problem, 
   ```python
   db_path = self._fts5._db_path  # Line 52 & 78
   ```
+  *(double-check before treating as strict truth — live code uses `self._indexer._db_path`, not `self._fts5._db_path`; the encapsulation issue is real, the attribute name in this snippet is wrong.)*
 - **Why it is bad**:
   Reaching into private attributes (`_db_path`) violates object encapsulation and class privacy invariants. It couples `IndexService` tightly to the internal variable naming of `FTS5Indexer`, triggering Pyright `reportPrivateUsage` errors.
 - **How to fix it**:
@@ -136,7 +141,7 @@ This chapter provides an exhaustive, uncompromising breakdown of every problem, 
   def db_path(self) -> str:
       return self._db_path
   ```
-  Then update [`src/sagiha/adapters/indexer/service.py`](file:///home/rock_dev/Code/Harness/src/sagiha/adapters/indexer/service.py#L52) to read `self._fts5.db_path`.
+  Then update [`src/sagiha/adapters/indexer/service.py`](file:///home/rock_dev/Code/Harness/src/sagiha/adapters/indexer/service.py#L52) to read `self._fts5.db_path`. *(double-check — should be `self._indexer.db_path` to match the field name actually used.)*
 
 ---
 
@@ -172,6 +177,7 @@ This chapter provides an exhaustive, uncompromising breakdown of every problem, 
   Running `uv run ruff check` reveals 30 style violations across unit test modules:
   - `I001`: Unsorted/unformatted import blocks in [`tests/unit/test_gate_honesty.py`](file:///home/rock_dev/Code/Harness/tests/unit/test_gate_honesty.py), [`tests/unit/test_kernel_sprint2.py`](file:///home/rock_dev/Code/Harness/tests/unit/test_kernel_sprint2.py), [`tests/unit/test_openai_adapter.py`](file:///home/rock_dev/Code/Harness/tests/unit/test_openai_adapter.py), etc.
   - `E501`: Line length exceeds 110 characters.
+  *(double-check before treating as strict truth — re-run showed **14** total ruff issues on `src/sagiha tests`, not 30; confirm which paths were included in the original “30” count.)*
 - **Why it is bad**:
   Code style churn creates dirty git diffs, interferes with automated merging, and violates CI linting guidelines.
 - **How to fix it**:
@@ -189,9 +195,9 @@ This chapter provides an exhaustive, uncompromising breakdown of every problem, 
 - **What is bad**:
   [`adapters/mcp/driver.py`](file:///home/rock_dev/Code/Harness/src/sagiha/adapters/mcp/driver.py) and [`adapters/telemetry/otel.py`](file:///home/rock_dev/Code/Harness/src/sagiha/adapters/telemetry/otel.py) contain stub methods raising `NotImplementedError`.
 - **Why it is bad**:
-  While raising `NotImplementedError` is the correct **honest-stub behavior** implemented in `v2-S1` (replacing pre-v2 fabricated empty strings/success payloads), these stubs must remain strictly isolated from core execution. If an un-sandboxed component accidentally invokes an MCP tool, execution will crash with an unhandled exception rather than failing gracefully through policy denial.
+  While raising `NotImplementedError` is the correct **honest-stub behavior** implemented in `v2-S1` (replacing pre-v2 fabricated empty strings/success payloads), these stubs must remain strictly isolated from core execution. If an un-sandboxed component accidentally invokes an MCP tool, execution will crash with an unhandled exception rather than failing gracefully through policy denial. *(double-check before treating as a current production defect — MCP is not registered on the default tool path until S7; this is partly a speculative failure mode / hardening recommendation, not an observed crash in the S0–S6 default kernel.)*
 - **How to fix it**:
-  Ensure `ToolRegistry.dispatch()` catches `NotImplementedError` from scaffold adapters and wraps it in a standard `ToolResult(is_error=True, content=[TextBlock(text="Adapter not implemented")])`.
+  Ensure `ToolRegistry.dispatch()` catches `NotImplementedError` from scaffold adapters and wraps it in a standard `ToolResult(is_error=True, content=[TextBlock(text="Adapter not implemented")])`. *(double-check whether this matches CAR design intent — swallowing NIEs may hide mis-wiring; policy refusal of unregistered tools may already be the correct boundary.)*
 
 ---
 
@@ -207,7 +213,7 @@ This chapter provides an exhaustive, uncompromising breakdown of every problem, 
 - **How to fix it**:
   1. Construct a dedicated external benchmark dataset containing >=30 pinned tasks with reproducible base commits and test suites (e.g. SWE-bench Lite subset).
   2. Run `sagiha bench --compare single_shot,bon` against this suite.
-  3. Publish the empirical results in `docs/rationale/benchmarks/s4_bon_delta.md` and enable `search.enabled=true` once performance improvement is verified beyond the noise floor.
+  3. Publish the empirical results in `docs/rationale/benchmarks/s4_bon_delta.md` and enable `search.enabled=true` once performance improvement is verified beyond the noise floor. *(double-check — enabling by default should remain gated on measured delta; do not treat “publish then enable” as automatic.)*
 
 ---
 
@@ -217,7 +223,7 @@ This chapter provides an exhaustive, uncompromising breakdown of every problem, 
 - **Why it is bad**:
   `STATUS.md` specifically highlights live `--compare` as the highest-risk untested CLI path.
 - **How to fix it**:
-  Add an end-to-end fixture test in [`tests/unit/test_bench_compare.py`](file:///home/rock_dev/Code/Harness/tests/unit/test_bench_compare.py) that invokes `bench --compare` over a mocked multi-candidate cassette.
+  Add an end-to-end fixture test in [`tests/unit/test_bench_compare.py`](file:///home/rock_dev/Code/Harness/tests/unit/test_bench_compare.py) that invokes `bench --compare` over a mocked multi-candidate cassette. *(double-check — that test file may not exist yet; path is aspirational.)*
 
 ---
 
@@ -225,7 +231,7 @@ This chapter provides an exhaustive, uncompromising breakdown of every problem, 
 
 ### **Defect 5.1: Path Validation Logic Duplication between `cli.py` and `composition.py`**
 - **What is bad**:
-  Both [`src/sagiha/cli.py`](file:///home/rock_dev/Code/Harness/src/sagiha/cli.py) and [`src/sagiha/composition.py`](file:///home/rock_dev/Code/Harness/src/sagiha/composition.py) implement independent checks for workspace root existence, `.sagiha` directory initialization, and cassette file verification.
+  Both [`src/sagiha/cli.py`](file:///home/rock_dev/Code/Harness/src/sagiha/cli.py) and [`src/sagiha/composition.py`](file:///home/rock_dev/Code/Harness/src/sagiha/composition.py) implement independent checks for workspace root existence, `.sagiha` directory initialization, and cassette file verification. *(double-check before treating as strict truth — re-inspection showed shared **default path strings** and `composition` creating `.sagiha/` for retrieval wiring, but not clearly two parallel full “ensure_workspace_layout” validators; confirm with a targeted diff before mandating a domain helper as a hard rule.)*
 - **Why it is bad**:
   Duplicated validation logic violates the **DRY (Don't Repeat Yourself)** principle. Changes to configuration paths or directory structure require manual updates in multiple places, risking divergence.
 - **How to fix it**:
@@ -234,6 +240,7 @@ This chapter provides an exhaustive, uncompromising breakdown of every problem, 
   def ensure_workspace_layout(workspace_root: Path) -> Path:
       ...
   ```
+  *(double-check — putting filesystem I/O helpers in `domain/config.py` may violate domain purity (AGENTS.md); prefer `composition.py` or a small `runtime/` helper if the duplication is confirmed.)*
 
 ---
 
@@ -262,10 +269,10 @@ flowchart LR
 4. **Clean Code Style & Imports**:
    - Execute `uv run ruff check --fix && uv run ruff format`.
 5. **Verify Monotonicity & Import Layering**:
-   - Execute `uv run pytest` (verify 332/332 passed).
+   - Execute `uv run pytest` (verify 332/332 passed). *(double-check — expect **321 passed, 11 skipped** on a Podman-less host, or 321+podman tests when Podman/image is present; do not fail the gate solely because the count is not 332.)*
    - Execute `uv run lint-imports` (verify 5/5 contracts kept).
 6. **Populate Benchmark Suite**:
-   - Seed `tests/fixtures/benchmarks/s0-core.json` with >=30 verified tasks for future default-on ablation testing.
+   - Seed `tests/fixtures/benchmarks/s0-core.json` with >=30 verified tasks for future default-on ablation testing. *(double-check path — plan/STATUS often cite `benchmarks/definitions/s0-core.json`; confirm intended location before creating fixtures.)*
 
 ---
 
@@ -280,3 +287,5 @@ flowchart LR
 | **DRY & Reusability** | **88 / 100** | **94 / 100** | Centralize workspace layout validation in `domain/config.py` |
 | **Testing & Verification** | **95 / 100** | **98 / 100** | Monotonic suite (332 passed), import linter (5/5 kept) |
 | **OVERALL SYSTEM RATING** | **90.7 / 100** | **96.2 / 100** | **Production-Ready Autonomous Coding Harness** |
+
+*(double-check before treating as strict truth — all numeric “/100” scores above are **subjective auditor judgments**, not instrumented metrics. Do not use them as CI thresholds or release SLOs without an agreed scoring rubric. Also, “Production-Ready” conflicts with CONDITIONAL PASS + pyright/docs-budget red signals unless P0 is cleared first.)*

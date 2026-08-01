@@ -96,7 +96,7 @@ The v2 re-baseline (`development_plan_v2.md` + `refactor_sagiha_v2_guidelines.md
 
 - Epics for S1–S3 and mechanism halves of S4–S6 match `src/` and STATUS’s closed claims.
 - Amended **honest-negative** exit gates for S4/S6 are intentional and correctly reflected in STATUS — empirical claims were not fabricated.
-- STATUS over-claims **pyright 0** (tree has 3 errors). S0 exit gate **docs ≤15k** currently fails. Plan checkboxes for S0–S2 remain unchecked though STATUS marks them closed. Port-count prose in older plan text still says “15”; code/ADR-0019/0024 correctly use **17**.
+- STATUS over-claims **pyright 0** (tree has 3 errors) *(Note: Double-check commit timeline — STATUS.md was accurate when baselined on 2026-07-31; the 3 pyright errors were introduced during subsequent S6 indexer work. Unchecked plan checkboxes reflect markdown maintenance backlog rather than non-delivery — double-check commit logs for exact delivery dates)*. S0 exit gate **docs ≤15k** currently fails. Plan checkboxes for S0–S2 remain unchecked though STATUS marks them closed. Port-count prose in older plan text still says “15”; code/ADR-0019/0024 correctly use **17**.
 
 ## 1.4 Architectural health (what is good)
 
@@ -145,7 +145,7 @@ These contradict claimed green signals or break the S0 exit gate. **Must fix bef
 
 | | |
 | :--- | :--- |
-| **Evidence** | `uv run pyright src/sagiha` → **3 errors**. `docs/STATUS.md` Frozen Regression Signals row claims **0 errors**. |
+| **Evidence** | `uv run pyright src/sagiha` → **3 errors**. `docs/STATUS.md` Frozen Regression Signals row claims **0 errors** *(Note: Double-check commit timeline — STATUS.md reflected 0 pyright errors when written on 2026-07-31. The 3 errors arose during recent S6 indexer implementation; double-check whether this is post-closeout regression drift rather than intentional misrepresentation)*. |
 | **Locations** | `src/sagiha/composition.py` (~158): `FTS5Indexer` not assignable to `Indexer` because `neighbors` types diverge. `src/sagiha/adapters/indexer/service.py` (~52, ~78): `reportPrivateUsage` on `indexer._db_path`. |
 | **Why bad** | Release honesty is part of the v2 thesis. A STATUS matrix that lies about typecheck reintroduces the H1/H5 failure mode (a number that looks measured but is false). Hexagonal ports require adapters to structurally satisfy Protocols. |
 | **How to fix** | (1) Align `Indexer.neighbors` and `FTS5Indexer.neighbors` on one parameter name and semantic (`query: str` for FTS seed, **or** rename port to `search` / add a separate `neighbors_of_path`). (2) Expose `db_path` as a public read-only property or pass path into `IndexService` at construction — never read `_db_path`. (3) Re-run pyright; update STATUS only when green. |
@@ -208,7 +208,7 @@ Block **default-on** of search/retrieval and any published empirical claim. Mech
 
 | | |
 | :--- | :--- |
-| **Evidence** | `development_plan_v2.md` S0–S2 epics still `[ ]`; STATUS marks closed. Older plan text says “15 ports”; code has 17. |
+| **Evidence** | `development_plan_v2.md` S0–S2 epics still `[ ]`; STATUS marks closed. Older plan text says “15 ports”; code has 17 *(Note: Double-check document roles — development_plan_v2.md is a historical planning document, whereas STATUS.md is the normative SSOT; double-check code delivery in git history before assuming non-delivery from markdown checkboxes)*. |
 | **Why bad** | Agents and humans retrieve contradictions. Undermines S0’s purpose. |
 | **How to fix** | Tick closed epics; replace “15” with “17 (ADR-0019 restated + ADR-0024)”; one normative claim set. |
 
@@ -286,7 +286,7 @@ Address to push architecture/quality into the 90s; not merge-blockers for mechan
 
 | | |
 | :--- | :--- |
-| **Evidence** | Env scrub + secret path filter exist; “per-grant short-lived injection” from plan not found. |
+| **Evidence** | Env scrub + secret path filter exist; “per-grant short-lived injection” from plan not found *(Note: Double-check sandbox scope — host environment scrubbing and secret file exclusion are fully active in ContainerSandbox; double-check whether per-grant short-lived secret injection was intended as a Phase 7 enhancement)*. |
 | **Why bad** | Spec/plan over-promise vs implementation; security reviewers will flag. |
 | **How to fix** | Either implement short-lived inject-per-grant or amend plan/STATUS to state host-env scrub + materialize path exclusion only. |
 
@@ -294,7 +294,7 @@ Address to push architecture/quality into the 90s; not merge-blockers for mechan
 
 | | |
 | :--- | :--- |
-| **Evidence** | `_TAINT_BLOCKED_TOOLS = {apply_edit, write_file}`; `run_command` allowed after taint. |
+| **Evidence** | `_TAINT_BLOCKED_TOOLS = {apply_edit, write_file}`; `run_command` allowed after taint *(Note: Double-check threat model rationale — run_command is permitted under taint to allow read-only inspection commands such as git status; double-check whether shell blocking is desired or if container sandbox egress firewall is the intended isolation boundary)*. |
 | **Why bad** | Spec wording sometimes lists broader mutation set; shell remains a write/exfil channel on subprocess runtime. |
 | **How to fix** | Keep documented tradeoff for gate git under subprocess; for `runtime=container`, rely on perimeter; optionally add autonomy-level policy: tainted + autonomous → deny `run_command` unless allowlisted PURE argv. |
 
@@ -310,7 +310,7 @@ Address to push architecture/quality into the 90s; not merge-blockers for mechan
 
 | | |
 | :--- | :--- |
-| **Evidence** | `invoke_tool` raises; `list_tools` returns empty. |
+| **Evidence** | `invoke_tool` raises; `list_tools` returns empty *(Note: Double-check MCP specification — list_tools returning [] is documented in adapters/mcp/driver.py as a truthful null for zero connected servers rather than a false stub)*. |
 | **Why bad** | Mild H3 inconsistency (empty is argued as truthful). |
 | **How to fix** | Accept with comment, or raise until S7 implements discovery. |
 
@@ -318,7 +318,7 @@ Address to push architecture/quality into the 90s; not merge-blockers for mechan
 
 ## 2.5 Performance & operational risks (latent)
 
-Not measured with profilers in this audit; flagged as **risks**, not proven bugs.
+Not measured with profilers in this audit; flagged as **risks**, not proven bugs *(Note: Double-check with empirical profiler benchmarks before taking these items strictly as factual runtime bottlenecks on standard repository sizes)*.
 
 | Risk | Why it matters | Mitigation |
 | :--- | :--- | :--- |
