@@ -22,7 +22,7 @@ async def test_reindex_finds_symbols_and_skeleton(tmp_path: Path) -> None:
     skel = await idx.get_skeleton("pkg/util.py")
     assert "def greet" in skel
     assert "return f" not in skel
-    hits = await idx.neighbors("greet", limit=10)
+    hits = await idx.search("greet", limit=10)
     assert hits
     assert all(0.0 <= h.score <= 1.0 for h in hits)
 
@@ -31,9 +31,9 @@ async def test_reindex_finds_symbols_and_skeleton(tmp_path: Path) -> None:
 async def test_excluded_frontmatter_not_indexed(tmp_path: Path) -> None:
     idx = FTS5Indexer(db_path=str(tmp_path / "index.db"))
     await idx.reindex_root(FIXTURE)
-    hits = await idx.neighbors("UNIQUE_EXCLUDED_TOKEN_XYZ", limit=20)
+    hits = await idx.search("UNIQUE_EXCLUDED_TOKEN_XYZ", limit=20)
     assert hits == []
-    visible = await idx.neighbors("VISIBLE_DOC_TOKEN_ABC", limit=20)
+    visible = await idx.search("VISIBLE_DOC_TOKEN_ABC", limit=20)
     assert any("VISIBLE_DOC_TOKEN_ABC" in h.chunk for h in visible)
 
 
@@ -56,8 +56,8 @@ async def test_goal_shaped_query_returns_same_paths_as_bare_keyword(
     Before the fix, FTS5 parsed `greet()` as query syntax and raised
     `fts5: syntax error near ")"`, which a bare `except` turned into `[]`.
     """
-    bare = await indexed.neighbors("greet", limit=10)
-    goal = await indexed.neighbors("Fix the bug in greet() so it returns a name", limit=10)
+    bare = await indexed.search("greet", limit=10)
+    goal = await indexed.search("Fix the bug in greet() so it returns a name", limit=10)
 
     assert bare, "fixture must contain a `greet` chunk for this test to mean anything"
     assert goal, "goal-shaped query returned nothing — C-1 has regressed"
@@ -82,7 +82,7 @@ async def test_punctuated_queries_search_instead_of_erroring(
     `except` converted it to `[]`. Every one carries a token the fixture has,
     so a non-empty result is the only honest answer.
     """
-    assert await indexed.neighbors(query, limit=10)
+    assert await indexed.search(query, limit=10)
 
 
 @pytest.mark.asyncio
@@ -92,10 +92,10 @@ async def test_punctuation_only_query_returns_empty_without_touching_the_db(
     """A query with no usable token is a true empty — answer it without SQL."""
 
     def _no_connections(*args: Any, **kwargs: Any) -> Any:  # pragma: no cover - must not run
-        raise AssertionError("neighbors() opened the database for an unusable query")
+        raise AssertionError("search() opened the database for an unusable query")
 
     monkeypatch.setattr(sqlite3, "connect", _no_connections)
-    assert await indexed.neighbors("()  -- :: !", limit=10) == []
+    assert await indexed.search("()  -- :: !", limit=10) == []
 
 
 @pytest.mark.asyncio
@@ -109,7 +109,7 @@ async def test_real_operational_error_propagates_instead_of_returning_empty(
         conn.commit()
 
     with pytest.raises(sqlite3.OperationalError):
-        await indexed.neighbors("greet", limit=10)
+        await indexed.search("greet", limit=10)
 
 
 @pytest.mark.asyncio
@@ -118,7 +118,7 @@ async def test_cold_index_returns_empty_not_error(tmp_path: Path) -> None:
     with sqlite3.connect(idx._db_path) as conn:
         conn.execute("DROP TABLE chunks")
         conn.commit()
-    assert await idx.neighbors("greet", limit=10) == []
+    assert await idx.search("greet", limit=10) == []
 
 
 def test_fts_query_quotes_terms_and_drops_operators() -> None:

@@ -425,12 +425,12 @@ Each wave: steps → exit gate → commit. Tick boxes as you go.
 
 ---
 
-## ☐ Wave 2 — Port conformance and type check (C-3 → C-R1 → m-4)
+## ☑ Wave 2 — Port conformance and type check (C-3 → C-R1 → m-4)
 
 **Closes:** **C-3**, **C-R1**, **m-4** · **Order is mandatory:** the conformance test lands
 *first*, fails, and is then made to pass by the contract fix. That sequence proves the test works.
 
-- [ ] **2.1 (C-3)** Create `tests/contracts/test_adapter_conformance.py`. For each pair, a typed
+- [x] **2.1 (C-3)** Create `tests/contracts/test_adapter_conformance.py`. For each pair, a typed
       assignability assertion that pyright checks at the call site plus a pytest construction
       check. Cover all eight: `FTS5Indexer→Indexer`, `TreeSitterCodeGraph→CodeGraph`,
       `LocalWorkspace→Workspace`, `ContainerSandbox→Workspace`, `BestOfNSearch→CandidateSearch`,
@@ -441,27 +441,27 @@ Each wave: steps → exit gate → commit. Tick boxes as you go.
       def test_fts5_satisfies_indexer(tmp_path: Path) -> None:
           _accepts_indexer(FTS5Indexer(db_path=str(tmp_path / "i.db")))
       ```
-- [ ] **2.2** Confirm the new file makes `uv run pyright src/sagiha tests/contracts` report the
+- [x] **2.2** Confirm the new file makes `uv run pyright src/sagiha tests/contracts` report the
       `FTS5Indexer`/`Indexer` mismatch **at the new assertion site**. If it does not, the test is
       wrong — fix the test before proceeding.
-- [ ] **2.3 (C-R1, per D1)** In `src/sagiha/ports/indexer.py`: rename `neighbors` → `search`,
+- [x] **2.3 (C-R1, per D1)** In `src/sagiha/ports/indexer.py`: rename `neighbors` → `search`,
       parameter `path: str` → `query: str`. **Delete** `neighbors` from the Protocol.
-- [ ] **2.4** In `src/sagiha/adapters/indexer/fts5.py`: rename the method to `search`.
-- [ ] **2.5** Update `src/sagiha/composition.py:131` — `await indexer.search(goal, limit=top_k)`.
-- [ ] **2.6** Update the 7 test call sites: `tests/contracts/test_indexer_conformance.py` (×3),
+- [x] **2.4** In `src/sagiha/adapters/indexer/fts5.py`: rename the method to `search`.
+- [x] **2.5** Update `src/sagiha/composition.py:131` — `await indexer.search(goal, limit=top_k)`.
+- [x] **2.6** Update the 7 test call sites: `tests/contracts/test_indexer_conformance.py` (×3),
       `tests/unit/test_fts5_indexer.py` (×3), `tests/unit/test_index_service.py` (×2).
-- [ ] **2.7 (m-4)** Add public write methods to `FTS5Indexer`, mirroring the existing public
+- [x] **2.7 (m-4)** Add public write methods to `FTS5Indexer`, mirroring the existing public
       `chunk_count()`:
       ```python
       def replace_file_chunks(self, path: str, chunks: Sequence[Chunk],
                               symbols: Sequence[tuple[str, str, str, int, str]]) -> None: ...
       def clear_path(self, path: str) -> None: ...
       ```
-- [ ] **2.8** Rewrite `adapters/indexer/service.py` `_reindex_python` and `_reindex_markdown` to
+- [x] **2.8** Rewrite `adapters/indexer/service.py` `_reindex_python` and `_reindex_markdown` to
       call those methods. **Delete both `sqlite3.connect(self._indexer._db_path)` blocks.** No
       `db_path` property — that would silence pyright while leaving `IndexService` coupled to the
       FTS schema (explicitly rejected by the review).
-- [ ] **2.9** `tests/unit/test_index_service.py` reaches `index_service._indexer` directly at 4
+- [x] **2.9** `tests/unit/test_index_service.py` reaches `index_service._indexer` directly at 4
       sites. Leave those — a test reaching into the object under test is acceptable — but retarget
       them to the renamed `search`.
 
@@ -678,8 +678,8 @@ Fill one row per wave, at commit time, from real command output. **Do not pre-fi
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | *baseline* | — | `eae4c22` | 332 | 3 ❌ | 34 ❌ | 17 ❌ | 15,183 ❌ | 106 ❌ | ok | 5/5 | audit HEAD |
 | W0 | ☑ | `5a8ea4c` | 332 | 3 ❌ | 34 ❌ | 18 ❌ | 15,183 ❌ | 106 ❌ | ok | 5/5 | baseline reproduced; 5 red as expected (format 18, not 17) |
-| W1 | ☑ | `PENDING-W1` | 342 | 3 ❌ | 34 ❌ | 18 ❌ | 15,183 ❌ | 106 ❌ | ok | 5/5 | +10 tests; C-1 closed, other gates untouched by design |
-| W2 | ☐ | | | | | | | | | | pyright must be 0 |
+| W1 | ☑ | `52d4691` | 342 | 3 ❌ | 34 ❌ | 18 ❌ | 15,183 ❌ | 106 ❌ | ok | 5/5 | +10 tests; C-1 closed, other gates untouched by design |
+| W2 | ☑ | `PENDING-W2` | 358 | **0** ✅ | 34 ❌ | 18 ❌ | 15,183 ❌ | 106 ❌ | ok | 5/5 | C-3 test landed red first, then C-R1 fix made it green |
 | W3 | ☐ | | | | | | | | | | ruff + format must be 0 |
 | W4 | ☐ | | | | | | | | | | budget + links must be 0 |
 | W5 | ☐ | | | | | | | | | | **all 7 green — P0 done** |

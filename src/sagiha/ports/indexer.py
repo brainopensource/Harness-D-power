@@ -19,4 +19,10 @@ class Indexer(Protocol):
 
     async def get_skeleton(self, path: str) -> str: ...
 
-    async def neighbors(self, path: str, limit: int = 20) -> list[RetrievalHit]: ...
+    async def search(self, query: str, limit: int = 20) -> list[RetrievalHit]: ...
+    """Free-text search over indexed chunks.
+
+    Replaces `neighbors(path)`, which promised path-scoped graph expansion and
+    delivered full-text search — see ADR-0026. Graph expansion lives on
+    `CodeGraph.impacted_by`; it is not duplicated here.
+    """

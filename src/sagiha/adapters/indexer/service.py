@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import sqlite3
 from pathlib import Path
 
 from anyio.to_thread import run_sync
@@ -49,21 +48,7 @@ class IndexService:
         )
         edges, symbol_meta = self._graph.index_file_from_tree(rel, source_bytes, tree)
 
-        with sqlite3.connect(self._indexer._db_path) as conn:
-            conn.execute("DELETE FROM chunks WHERE path = ?", (rel,))
-            conn.execute("DELETE FROM symbols WHERE path = ?", (rel,))
-            for chunk in chunks:
-                conn.execute(
-                    "INSERT INTO chunks(path, chunk) VALUES (?, ?)",
-                    (rel, chunk.text),
-                )
-            for sym_path, name, kind, line, signature in symbols:
-                conn.execute(
-                    ("INSERT INTO symbols(path, name, kind, line, signature) VALUES (?, ?, ?, ?, ?)"),
-                    (sym_path, name, kind, line, signature),
-                )
-            conn.commit()
-
+        self._indexer.replace_file_chunks(rel, chunks, symbols)
         self._graph.replace_file_edges(rel, edges, symbol_meta)
 
     def _strip_frontmatter(self, text: str) -> str:
@@ -75,16 +60,8 @@ class IndexService:
         return text[end + 4 :].lstrip("\n")
 
     def _reindex_markdown(self, rel: str, source: str) -> None:
-        with sqlite3.connect(self._indexer._db_path) as conn:
-            conn.execute("DELETE FROM chunks WHERE path = ?", (rel,))
-            conn.execute("DELETE FROM symbols WHERE path = ?", (rel,))
-            if not is_retrieval_excluded(source):
-                body = self._strip_frontmatter(source)
-                conn.execute(
-                    "INSERT INTO chunks(path, chunk) VALUES (?, ?)",
-                    (rel, body),
-                )
-            conn.commit()
+        body = None if is_retrieval_excluded(source) else self._strip_frontmatter(source)
+        self._indexer.replace_file_text(rel, body)
 
     def _reindex_path(self, rel: str) -> None:
         file_path = self._root / rel

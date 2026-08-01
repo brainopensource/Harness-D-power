@@ -49,9 +49,9 @@ async def test_get_skeleton_strips_bodies(indexer: FTS5Indexer) -> None:
 
 
 @pytest.mark.asyncio
-async def test_neighbors_finds_indexed_chunks(indexer: FTS5Indexer) -> None:
+async def test_search_finds_indexed_chunks(indexer: FTS5Indexer) -> None:
     indexer.reindex_file("pkg/util.py", SAMPLE_PY)
-    hits = await indexer.neighbors("greet", limit=10)
+    hits = await indexer.search("greet", limit=10)
     assert hits
     assert all(0.0 <= h.score <= 1.0 for h in hits)
 
@@ -68,11 +68,11 @@ async def test_reindex_root_clears_excluded_markdown(tmp_path: Path) -> None:
     doc.write_text(f"---\nstatus: draft\n---\n{token}\n", encoding="utf-8")
 
     await indexer.reindex_root(root)
-    assert await indexer.neighbors(token, limit=10)
+    assert await indexer.search(token, limit=10)
 
     doc.write_text(
         f"---\nstatus: draft\nretrieval: excluded\n---\n{token}\n",
         encoding="utf-8",
     )
     await indexer.reindex_root(root)
-    assert await indexer.neighbors(token, limit=10) == []
+    assert await indexer.search(token, limit=10) == []

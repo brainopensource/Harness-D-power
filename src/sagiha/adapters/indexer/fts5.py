@@ -9,12 +9,13 @@ from __future__ import annotations
 import logging
 import re
 import sqlite3
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Final
 
 from anyio.to_thread import run_sync
 
-from sagiha.adapters.indexer.chunking import analyze_python_source
+from sagiha.adapters.indexer.chunking import Chunk, analyze_python_source
 from sagiha.adapters.indexer.frontmatter import is_retrieval_excluded
 from sagiha.domain.content import Symbol
 from sagiha.domain.graph import RetrievalHit, SymbolRef
@@ -87,6 +88,47 @@ class FTS5Indexer:
     def _clear_path(self, conn: sqlite3.Connection, path: str) -> None:
         conn.execute("DELETE FROM chunks WHERE path = ?", (path,))
         conn.execute("DELETE FROM symbols WHERE path = ?", (path,))
+
+    # --- public write surface (m-4) ------------------------------------------
+    # `IndexService` used to open `sqlite3.connect(indexer._db_path)` and issue
+    # its own DELETE/INSERT against the chunks/symbols schema. That coupled a
+    # coordinator to this adapter's private storage layout. These two methods
+    # are the whole surface it needs; the FTS schema stays in here.
+
+    def clear_path(self, path: str) -> None:
+        """Drop every chunk and symbol row recorded for *path*."""
+        with sqlite3.connect(self._db_path) as conn:
+            self._clear_path(conn, path)
+            conn.commit()
+
+    def replace_file_chunks(
+        self,
+        path: str,
+        chunks: Sequence[Chunk],
+        symbols: Sequence[tuple[str, str, str, int, str]],
+    ) -> None:
+        """Atomically replace all indexed content for *path*."""
+        with sqlite3.connect(self._db_path) as conn:
+            self._clear_path(conn, path)
+            for chunk in chunks:
+                conn.execute(
+                    "INSERT INTO chunks(path, chunk) VALUES (?, ?)",
+                    (path, chunk.text),
+                )
+            for sym_path, name, kind, line, signature in symbols:
+                conn.execute(
+                    "INSERT INTO symbols(path, name, kind, line, signature) VALUES (?, ?, ?, ?, ?)",
+                    (sym_path, name, kind, line, signature),
+                )
+            conn.commit()
+
+    def replace_file_text(self, path: str, body: str | None) -> None:
+        """Replace *path* with a single text chunk, or with nothing when `body` is None."""
+        with sqlite3.connect(self._db_path) as conn:
+            self._clear_path(conn, path)
+            if body is not None:
+                conn.execute("INSERT INTO chunks(path, chunk) VALUES (?, ?)", (path, body))
+            conn.commit()
 
     def _index_python(self, conn: sqlite3.Connection, path: str, source: str) -> None:
         chunks, symbols = analyze_python_source(path, source.encode("utf-8"), max_chunk_tokens=1024)
@@ -220,7 +262,7 @@ class FTS5Indexer:
 
         return await run_sync(_sync)
 
-    async def neighbors(self, query: str, limit: int = 20) -> list[RetrievalHit]:
+    async def search(self, query: str, limit: int = 20) -> list[RetrievalHit]:
         """Find chunks matching free-text *query*, scored 0–1."""
         match_expr = _fts_query(query)
         if not match_expr:

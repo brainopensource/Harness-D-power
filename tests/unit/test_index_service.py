@@ -40,10 +40,10 @@ async def test_reindex_fixture_populates_indexer_and_graph(index_service: IndexS
 async def test_reindex_skips_excluded_markdown(index_service: IndexService) -> None:
     await index_service.reindex(["docs/secret.md", "docs/visible.md"])
 
-    hits = await index_service._indexer.neighbors("UNIQUE_EXCLUDED_TOKEN_XYZ")
+    hits = await index_service._indexer.search("UNIQUE_EXCLUDED_TOKEN_XYZ")
     assert hits == []
 
-    visible_hits = await index_service._indexer.neighbors("VISIBLE_DOC_TOKEN_ABC")
+    visible_hits = await index_service._indexer.search("VISIBLE_DOC_TOKEN_ABC")
     assert len(visible_hits) >= 1
 
 

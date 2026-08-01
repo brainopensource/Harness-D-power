@@ -128,7 +128,7 @@ async def ensure_index(kernel: Kernel) -> None:
 
 async def build_retrieval_seed(indexer: Indexer, goal: str, top_k: int) -> tuple[RetrievalHit, ...]:
     """Query the indexer with a task goal and return construction-time retrieval hits."""
-    hits = await indexer.neighbors(goal, limit=top_k)
+    hits = await indexer.search(goal, limit=top_k)
     return tuple(hits)
 
 
