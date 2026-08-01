@@ -13,10 +13,11 @@ import anyio
 import typer
 
 from sagiha.agency.run_loop import RunLoop, RunLoopResult, make_task
-from sagiha.composition import build_kernel
+from sagiha.composition import build_kernel, build_retrieval_seed
 from sagiha.domain.config import Config, ModelConfig, SandboxConfig, TelemetryConfig, WorkspaceConfig
 from sagiha.domain.control import RunContext
 from sagiha.domain.events import ReplayVerified
+from sagiha.domain.graph import RetrievalHit
 
 if TYPE_CHECKING:
     from sagiha.adapters.tools.cassette import CassetteToolRegistry
@@ -89,13 +90,34 @@ async def _run_or_resume(
 
         async def _stream_event(ev: Event) -> None:
             try:
-                line = json.dumps({"type": "EVENT", "event": ev.event, "data": json.loads(ev.model_dump_json())})
+                line = json.dumps(
+                    {"type": "EVENT", "event": ev.event, "data": json.loads(ev.model_dump_json())}
+                )
                 sys.stdout.write(line + "\n")
                 sys.stdout.flush()
             except Exception:
                 pass
 
         kernel.bus.subscribe_observer(_stream_event)
+
+    if resume is not None:
+        existing = await kernel.trajectory_store.get_run(resume)
+        if existing is None:
+            return "no_such_run", resume
+        run_id = resume
+        task = existing.task
+    else:
+        assert goal is not None  # guaranteed by the early return above
+        run_id = str(uuid.uuid4())
+        task = make_task(goal, checks, task_id=run_id)
+
+    retrieval_seed: tuple[RetrievalHit, ...] = ()
+    if config.retrieval.enabled and kernel.indexer is not None:
+        retrieval_seed = await build_retrieval_seed(
+            kernel.indexer,
+            task.goal,
+            config.retrieval.top_k,
+        )
 
     loop = RunLoop(
         model_provider=kernel.model_provider,
@@ -110,18 +132,8 @@ async def _run_or_resume(
         workspace=kernel.workspace,
         pricing=kernel.config.pricing,
         context=kernel.config.context,
+        retrieval_seed=retrieval_seed,
     )
-
-    if resume is not None:
-        existing = await kernel.trajectory_store.get_run(resume)
-        if existing is None:
-            return "no_such_run", resume
-        run_id = resume
-        task = existing.task
-    else:
-        assert goal is not None  # guaranteed by the early return above
-        run_id = str(uuid.uuid4())
-        task = make_task(goal, checks, task_id=run_id)
 
     ctx = RunContext(
         run_id=run_id,

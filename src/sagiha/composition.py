@@ -16,13 +16,14 @@ from typing import TYPE_CHECKING
 from sagiha.adapters.memory.short_term import InMemoryMemory
 from sagiha.adapters.model.cassette import CassetteModelProvider
 from sagiha.adapters.sandbox.container import ContainerSandbox, secret_materialize_paths
-from sagiha.adapters.tools.builtins import BUILTIN_SCHEMAS, TOOL_DESCRIPTIONS, register_builtin_tools
+from sagiha.adapters.tools.builtins import TOOL_DESCRIPTIONS, register_builtin_tools
 from sagiha.adapters.tools.registry import DefaultToolRegistry
 from sagiha.adapters.trajectory.sqlite import SQLiteTrajectoryStore
 from sagiha.adapters.workspace.local import LocalWorkspace
 from sagiha.domain.config import Config
 from sagiha.domain.content import ToolSchema
 from sagiha.domain.control import RunContext
+from sagiha.domain.graph import RetrievalHit
 from sagiha.domain.work import TaskSpec
 from sagiha.kernel.bus import EventBus
 from sagiha.kernel.governor import DefaultResourceGovernor
@@ -110,6 +111,43 @@ def make_workspace(config: Config, *, root: str | None = None) -> Workspace:
     raise RuntimeError(f"unknown sandbox.runtime={runtime!r}")
 
 
+async def build_retrieval_seed(indexer: Indexer, goal: str, top_k: int) -> tuple[RetrievalHit, ...]:
+    """Query the indexer with a task goal and return construction-time retrieval hits."""
+    hits = await indexer.neighbors(goal, limit=top_k)
+    return tuple(hits)
+
+
+def _wire_retrieval(config: Config) -> tuple[Indexer, CodeGraph, object] | tuple[None, None, None]:
+    """Construct indexer/graph adapters when retrieval is enabled."""
+    if not config.retrieval.enabled:
+        return None, None, None
+
+    from sagiha.adapters.code_graph.treesitter import TreeSitterCodeGraph
+    from sagiha.adapters.indexer.fts5 import FTS5Indexer
+    from sagiha.adapters.indexer.service import IndexService
+
+    workspace_root = Path(config.workspace.root)
+    sagiha_dir = workspace_root / ".sagiha"
+    sagiha_dir.mkdir(parents=True, exist_ok=True)
+    indexer = FTS5Indexer(db_path=str(sagiha_dir / "index.db"))
+    code_graph = TreeSitterCodeGraph(
+        db_path=str(sagiha_dir / "code_graph.db"),
+        workspace_root=workspace_root,
+    )
+    index_service = IndexService(
+        workspace_root,
+        indexer,
+        code_graph,
+        max_chunk_tokens=config.retrieval.max_chunk_tokens,
+    )
+    index_db = sagiha_dir / "index.db"
+    if not index_db.exists():
+        import anyio
+
+        anyio.run(index_service.reindex, None)
+    return indexer, code_graph, index_service
+
+
 def build_kernel(
     config: Config,
     *,
@@ -141,16 +179,20 @@ def build_kernel(
     tool_registry: ToolRegistry = default_registry
     memory = InMemoryMemory()
     workspace = make_workspace(config)
-    schemas = register_builtin_tools(default_registry, workspace)
+    indexer, code_graph, _index_service = _wire_retrieval(config)
+    schemas = register_builtin_tools(
+        default_registry,
+        workspace,
+        indexer=indexer,
+        code_graph=code_graph,
+    )
     for tool_name, schema in schemas.items():
         policy_engine.register_tool_schema(tool_name, schema)
 
-    # Derived from BUILTIN_SCHEMAS in a fixed sorted() order — the manually-duplicated
-    # per-tool ToolSchema literals this replaced could (and once did) drift from the
-    # schemas actually registered on the tool registry.
+    # Derived from registered schemas in fixed sorted() order.
     tool_schemas = tuple(
-        ToolSchema(name=name, description=TOOL_DESCRIPTIONS[name], parameters=BUILTIN_SCHEMAS[name])
-        for name in sorted(BUILTIN_SCHEMAS)
+        ToolSchema(name=name, description=TOOL_DESCRIPTIONS[name], parameters=schemas[name])
+        for name in sorted(schemas)
     )
 
     path = cassette_path or ".sagiha/cassettes/default.json"
@@ -280,6 +322,8 @@ def build_kernel(
         evaluator=evaluator,
         worktree_manager=worktree_manager,
         candidate_search=candidate_search,
+        indexer=indexer,
+        code_graph=code_graph,
     )
 
 

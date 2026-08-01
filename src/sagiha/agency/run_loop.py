@@ -35,6 +35,7 @@ from sagiha.domain.events import (
     StepCompleted,
     StepStarted,
 )
+from sagiha.domain.graph import RetrievalHit
 from sagiha.domain.identity import StepId, utc_now
 from sagiha.domain.trajectory import RunRecord, TrajectoryStep
 from sagiha.domain.work import (
@@ -110,6 +111,7 @@ class RunLoop:
         compactor: ExchangeCompactor | None = None,
         branch_id: str = "main",
         temperature: float | None = None,
+        retrieval_seed: tuple[RetrievalHit, ...] = (),
     ) -> None:
         self._model = model_provider
         self._policy = policy_engine
@@ -135,6 +137,7 @@ class RunLoop:
         self._pricing = pricing or PricingConfig()
         self._context_config = context or ContextConfig()
         self._compactor = compactor
+        self._retrieval_seed = retrieval_seed
         #: RC-8: required, never default-constructed here. `agency` building its own
         #: `GateEvaluator` meant the layer being judged also chose its judge — a TCB object
         #: constructed outside the composition root, where the `tcb-isolation` contract cannot
@@ -167,6 +170,7 @@ class RunLoop:
             steps=existing_steps,
             config=self._context_config,
             compactor=self._compactor,
+            retrieval_seed=self._retrieval_seed,
         )
 
     def freeze(

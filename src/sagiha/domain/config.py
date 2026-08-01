@@ -263,6 +263,7 @@ class SandboxConfig(BaseModel):
 class RetrievalConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
 
+    enabled: bool = False
     chunk_strategy: Literal["ast_bounded", "fixed_window"] = "ast_bounded"
     max_chunk_tokens: int = 1024
     top_k: int = 20

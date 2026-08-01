@@ -15,6 +15,7 @@ from sagiha.domain.config import (
     GatesConfig,
     ModelConfig,
     ModelTierConfig,
+    RetrievalConfig,
     SandboxConfig,
     SearchConfig,
     TelemetryConfig,
@@ -109,6 +110,61 @@ def test_search_enabled_allowed_when_judge_and_execution_differ() -> None:
         sandbox=SandboxConfig(runtime="subprocess"),
     )
     assert config.search.enabled
+
+
+def test_build_kernel_retrieval_disabled_keeps_six_tools(tmp_path: Path) -> None:
+    cassette = tmp_path / "c.json"
+    cassette.write_text("[]", encoding="utf-8")
+    config = Config(
+        model=ModelConfig(mode="replay"),
+        telemetry=TelemetryConfig(trajectory_db=str(tmp_path / "t.db")),
+        workspace=WorkspaceConfig(root=str(tmp_path)),
+        sandbox=SandboxConfig(runtime="subprocess"),
+        retrieval=RetrievalConfig(enabled=False),
+    )
+    kernel = build_kernel(config, cassette_path=str(cassette))
+    assert kernel.indexer is None
+    assert kernel.code_graph is None
+    assert len(kernel.tool_schemas) == 6
+    assert "find_symbols" not in {s.name for s in kernel.tool_schemas}
+
+
+def test_build_kernel_retrieval_enabled_wires_indexer_and_tools(tmp_path: Path) -> None:
+    cassette = tmp_path / "c.json"
+    cassette.write_text("[]", encoding="utf-8")
+    (tmp_path / "demo.py").write_text("def hello():\n    pass\n", encoding="utf-8")
+    config = Config(
+        model=ModelConfig(mode="replay"),
+        telemetry=TelemetryConfig(trajectory_db=str(tmp_path / "t.db")),
+        workspace=WorkspaceConfig(root=str(tmp_path)),
+        sandbox=SandboxConfig(runtime="subprocess"),
+        retrieval=RetrievalConfig(enabled=True),
+    )
+    kernel = build_kernel(config, cassette_path=str(cassette))
+    assert kernel.indexer is not None
+    assert kernel.code_graph is not None
+    names = {s.name for s in kernel.tool_schemas}
+    assert "find_symbols" in names
+    assert "get_skeleton" in names
+    assert "impacted_by" in names
+    assert len(kernel.tool_schemas) == 9
+
+
+@pytest.mark.asyncio
+async def test_build_kernel_retrieval_enabled_find_symbols_trusted(tmp_path: Path) -> None:
+    cassette = tmp_path / "c.json"
+    cassette.write_text("[]", encoding="utf-8")
+    (tmp_path / "demo.py").write_text("def hello():\n    pass\n", encoding="utf-8")
+    config = Config(
+        model=ModelConfig(mode="replay"),
+        telemetry=TelemetryConfig(trajectory_db=str(tmp_path / "t.db")),
+        workspace=WorkspaceConfig(root=str(tmp_path)),
+        sandbox=SandboxConfig(runtime="subprocess"),
+        retrieval=RetrievalConfig(enabled=True),
+    )
+    kernel = build_kernel(config, cassette_path=str(cassette))
+    registry = kernel.tool_registry
+    assert await registry.trusted_output("find_symbols") is True
 
 
 def test_agency_never_constructs_a_tcb_evaluator() -> None:

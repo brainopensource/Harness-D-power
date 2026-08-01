@@ -10,6 +10,8 @@ from sagiha.adapters.tools.registry import DefaultToolRegistry
 from sagiha.adapters.workspace.local import grep_workspace, list_dir_entries
 from sagiha.domain.content import EffectClass, TextBlock, ToolResult
 from sagiha.domain.work import Edit, EditRequest
+from sagiha.ports.code_graph import CodeGraph
+from sagiha.ports.indexer import Indexer
 from sagiha.ports.workspace import Workspace
 
 
@@ -85,6 +87,32 @@ RUN_COMMAND_SCHEMA: dict[str, Any] = {
     "required": ["command"],
 }
 
+FIND_SYMBOLS_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "query": {"type": "string"},
+        "limit": {"type": "integer"},
+    },
+    "required": ["query"],
+}
+
+GET_SKELETON_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "path": {"type": "string", "x-sagiha-path": True},
+    },
+    "required": ["path"],
+}
+
+IMPACTED_BY_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "path": {"type": "string", "x-sagiha-path": True},
+        "hops": {"type": "integer"},
+    },
+    "required": ["path"],
+}
+
 TOOL_DESCRIPTIONS: dict[str, str] = {
     "read_file": "Read a text file from the workspace",
     "list_dir": "List directory entries",
@@ -92,6 +120,9 @@ TOOL_DESCRIPTIONS: dict[str, str] = {
     "apply_edit": "Apply a search/replace edit to a file",
     "write_file": "Write content to a file, creating it (and parent directories) if necessary",
     "run_command": "Run a command in the workspace",
+    "find_symbols": "Search indexed symbols by name",
+    "get_skeleton": "Return signatures and structure for a file",
+    "impacted_by": "List files impacted by changes to a path via the code graph",
 }
 
 BUILTIN_SCHEMAS: dict[str, dict[str, Any]] = {
@@ -107,8 +138,11 @@ BUILTIN_SCHEMAS: dict[str, dict[str, Any]] = {
 def register_builtin_tools(
     registry: DefaultToolRegistry,
     workspace: Workspace,
+    *,
+    indexer: Indexer | None = None,
+    code_graph: CodeGraph | None = None,
 ) -> dict[str, dict[str, Any]]:
-    """Register the five Sprint 3a tools. Returns schemas for policy path binding."""
+    """Register built-in tools. Code-intel tools register only when indexer/graph are provided."""
     # list_dir / grep need a host path; both LocalWorkspace and ContainerSandbox expose `.root`.
     rooted: _WorkspaceWithRoot = workspace  # type: ignore[assignment]
 
@@ -208,4 +242,39 @@ def register_builtin_tools(
     for name, schema, effect, handler, trusted in specs:
         registry.register_handler(name, schema, effect, handler, trusted_output=trusted)
 
-    return dict(BUILTIN_SCHEMAS)
+    schemas: dict[str, dict[str, Any]] = dict(BUILTIN_SCHEMAS)
+
+    if indexer is not None and code_graph is not None:
+
+        async def find_symbols(args: dict[str, Any]) -> ToolResult:
+            call_id = str(args.get("_call_id", ""))
+            query = str(args["query"])
+            limit = int(args.get("limit", 20))
+            symbols = await indexer.find_symbols(query, limit=limit)
+            payload = json.dumps([s.model_dump() for s in symbols])
+            return ToolResult(call_id=call_id, content=[TextBlock(text=payload)])
+
+        async def get_skeleton(args: dict[str, Any]) -> ToolResult:
+            call_id = str(args.get("_call_id", ""))
+            path = str(args["path"])
+            skeleton = await indexer.get_skeleton(path)
+            return ToolResult(call_id=call_id, content=[TextBlock(text=skeleton)])
+
+        async def impacted_by(args: dict[str, Any]) -> ToolResult:
+            call_id = str(args.get("_call_id", ""))
+            path = str(args["path"])
+            hops = int(args.get("hops", 2))
+            impacted = await code_graph.impacted_by(path, hops=hops)
+            payload = json.dumps(impacted)
+            return ToolResult(call_id=call_id, content=[TextBlock(text=payload)])
+
+        code_intel_specs: list[tuple[str, dict[str, Any], EffectClass, Any, bool]] = [
+            ("find_symbols", FIND_SYMBOLS_SCHEMA, EffectClass.PURE, find_symbols, True),
+            ("get_skeleton", GET_SKELETON_SCHEMA, EffectClass.PURE, get_skeleton, True),
+            ("impacted_by", IMPACTED_BY_SCHEMA, EffectClass.PURE, impacted_by, True),
+        ]
+        for name, schema, effect, handler, trusted in code_intel_specs:
+            registry.register_handler(name, schema, effect, handler, trusted_output=trusted)
+            schemas[name] = schema
+
+    return schemas
