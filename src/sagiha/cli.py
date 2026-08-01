@@ -13,7 +13,7 @@ import anyio
 import typer
 
 from sagiha.agency.run_loop import RunLoop, RunLoopResult, make_task
-from sagiha.composition import build_kernel, build_retrieval_seed
+from sagiha.composition import build_kernel, build_retrieval_seed, ensure_index
 from sagiha.domain.config import Config, ModelConfig, SandboxConfig, TelemetryConfig, WorkspaceConfig
 from sagiha.domain.control import RunContext
 from sagiha.domain.events import ReplayVerified
@@ -113,6 +113,7 @@ async def _run_or_resume(
 
     retrieval_seed: tuple[RetrievalHit, ...] = ()
     if config.retrieval.enabled and kernel.indexer is not None:
+        await ensure_index(kernel)
         retrieval_seed = await build_retrieval_seed(
             kernel.indexer,
             task.goal,

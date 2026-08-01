@@ -5,11 +5,15 @@ See docs/05-tech-stack/composition-and-configuration.md.
 
 from __future__ import annotations
 
+import json
+import shutil
 from pathlib import Path
 
 import pytest
 
 from sagiha import Config, Kernel, build_kernel
+from sagiha.adapters.indexer.fts5 import FTS5Indexer
+from sagiha.composition import ensure_index
 from sagiha.domain.config import (
     AutonomyConfig,
     GatesConfig,
@@ -21,6 +25,7 @@ from sagiha.domain.config import (
     TelemetryConfig,
     WorkspaceConfig,
 )
+from sagiha.domain.content import EffectClass, ToolCall
 
 
 def test_build_kernel_default_config(tmp_path: Path) -> None:
@@ -165,6 +170,42 @@ async def test_build_kernel_retrieval_enabled_find_symbols_trusted(tmp_path: Pat
     kernel = build_kernel(config, cassette_path=str(cassette))
     registry = kernel.tool_registry
     assert await registry.trusted_output("find_symbols") is True
+
+
+@pytest.mark.asyncio
+async def test_ensure_index_cold_start_populates_find_symbols(tmp_path: Path) -> None:
+    fixture_root = Path(__file__).resolve().parents[1] / "fixtures" / "retrieval_mini"
+    workspace = tmp_path / "workspace"
+    shutil.copytree(fixture_root, workspace)
+    cassette = tmp_path / "c.json"
+    cassette.write_text("[]", encoding="utf-8")
+    config = Config(
+        model=ModelConfig(mode="replay"),
+        telemetry=TelemetryConfig(trajectory_db=str(tmp_path / "t.db")),
+        workspace=WorkspaceConfig(root=str(workspace)),
+        sandbox=SandboxConfig(runtime="subprocess"),
+        retrieval=RetrievalConfig(enabled=True),
+    )
+    kernel = build_kernel(config, cassette_path=str(cassette))
+    assert kernel.indexer is not None
+    assert kernel.index_service is not None
+    assert isinstance(kernel.indexer, FTS5Indexer)
+    assert kernel.indexer.chunk_count() == 0
+
+    await ensure_index(kernel)
+    assert kernel.indexer.chunk_count() > 0
+
+    result = await kernel.tool_registry.dispatch(
+        ToolCall(
+            call_id="cold-1",
+            tool_name="find_symbols",
+            arguments={"query": "greet"},
+            effect=EffectClass.PURE,
+        )
+    )
+    assert not result.is_error
+    payload = json.loads(result.content[0].text)
+    assert any(item["ref"]["name"] == "greet" for item in payload)
 
 
 def test_agency_never_constructs_a_tcb_evaluator() -> None:

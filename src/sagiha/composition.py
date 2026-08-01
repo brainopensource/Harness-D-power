@@ -43,6 +43,7 @@ from sagiha.ports.trajectory import TrajectoryStore
 from sagiha.ports.workspace import Workspace, WorktreeManager
 
 if TYPE_CHECKING:
+    from sagiha.adapters.indexer.service import IndexService
     from sagiha.adapters.search.protocols import CandidateOutcome
     from sagiha.adapters.workspace.worktree import GitWorktreeManager
 
@@ -67,6 +68,7 @@ class Kernel:
     bus: EventBus = field(default_factory=EventBus)
     indexer: Indexer | None = None
     code_graph: CodeGraph | None = None
+    index_service: IndexService | None = None
     lsp_adapter: LSPAdapter | None = None
     worktree_manager: WorktreeManager | None = None
     candidate_search: CandidateSearch | None = None
@@ -111,13 +113,26 @@ def make_workspace(config: Config, *, root: str | None = None) -> Workspace:
     raise RuntimeError(f"unknown sandbox.runtime={runtime!r}")
 
 
+async def ensure_index(kernel: Kernel) -> None:
+    """Populate the retrieval index on cold start when retrieval is enabled."""
+    if kernel.index_service is None or kernel.indexer is None:
+        return
+
+    from sagiha.adapters.indexer.fts5 import FTS5Indexer
+
+    if isinstance(kernel.indexer, FTS5Indexer) and kernel.indexer.chunk_count() > 0:
+        return
+
+    await kernel.index_service.reindex()
+
+
 async def build_retrieval_seed(indexer: Indexer, goal: str, top_k: int) -> tuple[RetrievalHit, ...]:
     """Query the indexer with a task goal and return construction-time retrieval hits."""
     hits = await indexer.neighbors(goal, limit=top_k)
     return tuple(hits)
 
 
-def _wire_retrieval(config: Config) -> tuple[Indexer, CodeGraph, object] | tuple[None, None, None]:
+def _wire_retrieval(config: Config) -> tuple[Indexer, CodeGraph, IndexService] | tuple[None, None, None]:
     """Construct indexer/graph adapters when retrieval is enabled."""
     if not config.retrieval.enabled:
         return None, None, None
@@ -140,11 +155,6 @@ def _wire_retrieval(config: Config) -> tuple[Indexer, CodeGraph, object] | tuple
         code_graph,
         max_chunk_tokens=config.retrieval.max_chunk_tokens,
     )
-    index_db = sagiha_dir / "index.db"
-    if not index_db.exists():
-        import anyio
-
-        anyio.run(index_service.reindex, None)
     return indexer, code_graph, index_service
 
 
@@ -179,7 +189,7 @@ def build_kernel(
     tool_registry: ToolRegistry = default_registry
     memory = InMemoryMemory()
     workspace = make_workspace(config)
-    indexer, code_graph, _index_service = _wire_retrieval(config)
+    indexer, code_graph, index_service = _wire_retrieval(config)
     schemas = register_builtin_tools(
         default_registry,
         workspace,
@@ -324,6 +334,7 @@ def build_kernel(
         candidate_search=candidate_search,
         indexer=indexer,
         code_graph=code_graph,
+        index_service=index_service,
     )
 
 

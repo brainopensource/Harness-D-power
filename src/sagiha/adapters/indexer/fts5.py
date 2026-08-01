@@ -54,6 +54,12 @@ class FTS5Indexer:
             )
             conn.commit()
 
+    def chunk_count(self) -> int:
+        """Return the number of indexed chunks (sync; safe before async reindex)."""
+        with sqlite3.connect(self._db_path) as conn:
+            row = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()
+            return int(row[0]) if row else 0
+
     def _clear_path(self, conn: sqlite3.Connection, path: str) -> None:
         conn.execute("DELETE FROM chunks WHERE path = ?", (path,))
         conn.execute("DELETE FROM symbols WHERE path = ?", (path,))

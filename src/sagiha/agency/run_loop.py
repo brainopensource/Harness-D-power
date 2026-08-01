@@ -160,8 +160,8 @@ class RunLoop:
 
         It used to be four inline lines here plus a `_reconstruct_history` helper, which is
         exactly why there was nowhere to put a compaction check and no way to enforce the
-        seed-only Layer 6 rule. `retrieval_seed` is not passed today — there is no indexer
-        until `v2-S6` — but the seam it lands in is construction-time-only by shape.
+        seed-only Layer 6 rule. `retrieval_seed` is passed from `RunLoop.__init__` when
+        retrieval is enabled — construction-time-only by shape.
         """
         return ContextAssembler.from_trajectory(
             system_prompt=self._system_prompt,
