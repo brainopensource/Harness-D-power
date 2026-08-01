@@ -1,4 +1,4 @@
-"""ShortTermMemory & Memory — see docs/03-contracts-and-models/hexagonal-ports.md#memory--retrieval
+"""Memory — see docs/03-contracts-and-models/hexagonal-ports.md#memory--retrieval
 and docs/02-architecture/neural-symbolic-memory.md.
 """
 
@@ -8,18 +8,9 @@ from datetime import datetime
 from typing import Final, Protocol
 
 from sagiha.domain.memory import MemoryRecord, Recall, RecallQuery
-from sagiha.domain.trajectory import TrajectoryStep
 
 PORT_VERSION: Final = 1
 STABILITY: Final = "provisional"
-
-
-class ShortTermMemory(Protocol):
-    """Append and retrieve trajectory steps for the active session."""
-
-    async def append(self, run_id: str, step: TrajectoryStep) -> None: ...
-
-    async def recent(self, run_id: str, limit: int = 20) -> list[TrajectoryStep]: ...
 
 
 class Memory(Protocol):

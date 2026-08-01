@@ -34,7 +34,11 @@ def _iter_port_protocols() -> list[type]:
     for info in pkgutil.iter_modules(ports_pkg.__path__):
         module = importlib.import_module(f"sagiha.ports.{info.name}")
         for _name, obj in vars(module).items():
-            if isinstance(obj, type) and getattr(obj, "_is_protocol", False):
+            if (
+                isinstance(obj, type)
+                and getattr(obj, "_is_protocol", False)
+                and obj.__module__ == module.__name__
+            ):
                 protocols.append(obj)
     return protocols
 
@@ -89,6 +93,8 @@ def _is_permitted_payload(tp: object) -> bool:
         return len(args) == 2 and all(_is_permitted_payload(a) for a in args)
     if origin in (typing.Union, UnionType):
         return all(_is_permitted_payload(a) for a in args)
+    if origin is typing.Literal:
+        return all(type(a) in _PRIMITIVES for a in args)
     if origin is typing.AsyncIterator or (isinstance(origin, type) and origin.__name__ == "AsyncIterator"):
         return all(_is_permitted_payload(a) for a in args)
     return False
@@ -144,6 +150,20 @@ def test_no_grant_in_any_public_signature() -> None:
     assert not violations, f"Grant crossing a public port signature: {violations}"
 
 
+def test_no_grant_in_frozen_run_state() -> None:
+    """FrozenRunState must never serialize a Grant — freeze is not a reason to freeze permission."""
+    from sagiha.domain.control import FrozenRunState
+
+    violations = []
+    for name, field_info in FrozenRunState.model_fields.items():
+        hint = field_info.annotation
+        if hint is not None and _contains_grant(hint):
+            violations.append(name)
+    assert not violations, f"Grant-typed fields on FrozenRunState: {violations}"
+    # Also assert no field name suggests a grant payload.
+    assert "grant" not in {n.lower() for n in FrozenRunState.model_fields}
+
+
 def test_all_datetimes_are_aware() -> None:
     from sagiha.domain.events import Event
     from sagiha.domain.memory import MemoryRecord, Provenance
@@ -158,6 +178,10 @@ def test_all_datetimes_are_aware() -> None:
 
 
 def test_at_least_every_port_module_was_discovered() -> None:
-    """Guards against the walker silently finding zero ports (e.g. a broken pkgutil path)."""
+    """Guards against the walker silently finding zero ports (e.g. a broken pkgutil path).
+
+    17, not 19: ADR-0024 deleted `CommitReplayHarvester`/`TaskRunner` (`ports/benchmark.py`) —
+    the `layers` import contract forbids the adapter that port would have needed.
+    """
     protocols = _iter_port_protocols()
-    assert len(protocols) >= 20, f"expected at least 20 ports, found {len(protocols)}: {protocols}"
+    assert len(protocols) == 17, f"expected exactly 17 ports (ADR-0024), found {len(protocols)}: {protocols}"

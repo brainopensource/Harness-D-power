@@ -28,6 +28,7 @@ _GROUP_ORDER = (
     "Lifecycle",
     "Reasoning",
     "Tools",
+    "Context",
     "Workspace",
     "Evaluation & Control",
     "Steering",
@@ -60,6 +61,12 @@ _GROUP_INTRO = {
         "log containing capability tokens is a credential store with extra steps. "
         "`tool.call_authorized` carries the `Decision`, including the grant *id* for correlation — "
         "never the grant."
+    ),
+    "Context": (
+        "`context.compaction_applied` is replay-relevant: a replayed run must compact at the same "
+        "step or every subsequent request digests diverge from the recording. "
+        "`tainted_span` records whether the summarized middle carried untrusted content forward "
+        "under the `<untrusted-data>` envelope (T7 through compaction)."
     ),
     "Workspace": (
         "`edit.applied` carries per-hunk outcomes because `edit.hunk_failure_ratio` is a top-tier "

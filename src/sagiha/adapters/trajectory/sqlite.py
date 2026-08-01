@@ -10,9 +10,10 @@ from pathlib import Path
 
 from anyio.to_thread import run_sync
 
+from sagiha.domain.control import TaskStatus
 from sagiha.domain.events import ALL_EVENTS, Event
 from sagiha.domain.trajectory import RunRecord, TrajectoryStep
-from sagiha.domain.upcasters import upcast_event
+from sagiha.domain.upcasters import upcast_event, upcast_trajectory_step
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +99,11 @@ def _init_db(db_path: str) -> None:
             );
             """
         )
+        # `events_for_run`/`steps_for_run` were full table scans before this — fine at the
+        # smoke-test scale the tree ran at through v2-S3, not fine once the v2-S4 exporter
+        # (S4.4) starts scanning every eligible run's events on every export.
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_events_run_id ON events (run_id);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_runs_status_updated ON runs (status, updated_at);")
         conn.commit()
 
 
@@ -173,7 +179,9 @@ class SQLiteTrajectoryStore:
                     (run_id,),
                 )
                 rows = cursor.fetchall()
-                return [TrajectoryStep.model_validate_json(row[0]) for row in rows]
+                return [
+                    TrajectoryStep.model_validate(upcast_trajectory_step(json.loads(row[0]))) for row in rows
+                ]
 
         return await run_sync(_sync_fetch)
 
@@ -235,5 +243,36 @@ class SQLiteTrajectoryStore:
                         "updated_at": updated_at,
                     }
                 )
+
+        return await run_sync(_sync_fetch)
+
+    async def list_runs(
+        self, *, status: TaskStatus | None = None, limit: int | None = None
+    ) -> list[RunRecord]:
+        def _sync_fetch() -> list[RunRecord]:
+            query = "SELECT run_id, task_json, status, updated_at FROM runs"
+            params: list[object] = []
+            if status is not None:
+                query += " WHERE status = ?"
+                params.append(status)
+            query += " ORDER BY updated_at DESC"
+            if limit is not None:
+                query += " LIMIT ?"
+                params.append(limit)
+
+            with self._get_connection() as conn:
+                cursor = conn.execute(query, tuple(params))
+                rows = cursor.fetchall()
+                return [
+                    RunRecord.model_validate(
+                        {
+                            "run_id": run_id,
+                            "task": json.loads(task_json),
+                            "status": row_status,
+                            "updated_at": updated_at,
+                        }
+                    )
+                    for run_id, task_json, row_status, updated_at in rows
+                ]
 
         return await run_sync(_sync_fetch)

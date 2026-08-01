@@ -7,10 +7,10 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from sagiha.domain.content import ContentBlock, ReasoningBlock, ToolCall, ToolResult
+from sagiha.domain.content import ContentBlock, Message, ReasoningBlock, ToolCall, ToolResult
 from sagiha.domain.control import TaskStatus
 from sagiha.domain.identity import StepId, utc_now
-from sagiha.domain.work import TaskSpec
+from sagiha.domain.work import CostSummary, TaskSpec
 
 
 class RunRecord(BaseModel):
@@ -29,6 +29,16 @@ class RunRecord(BaseModel):
     updated_at: datetime = Field(default_factory=utc_now)
 
 
+class TokenUsage(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    input_tokens: int
+    output_tokens: int
+    cache_read_tokens: int = 0  # populated where the provider supplies it
+    cache_write_tokens: int = 0
+    reasoning_tokens: int = 0
+
+
 class TrajectoryStep(BaseModel):
     """Frozen: a mutated step is an audit record that no longer reconstructs what happened."""
 
@@ -39,6 +49,27 @@ class TrajectoryStep(BaseModel):
     summary: str = ""
     tool_calls: tuple[ToolCall, ...] = ()
     tool_results: tuple[ToolResult, ...] = ()
+    #: The complete assistant `Message` for this step — every content block the model
+    #: produced (text, reasoning, tool_use), not just the `ToolCall`s derived from it.
+    #: `None` for steps recorded before this field existed (`upcast_trajectory_step`
+    #: fills it from `tool_calls` on read, which loses any text/reasoning that
+    #: accompanied them — the reason this field exists at all).
+    message: Message | None = None
+    #: What this step's model call actually consumed. Additive with zero defaults, so
+    #: steps recorded before PR-1b load unchanged — and a zero here now means "not
+    #: measured", which for those rows is true.
+    usage: TokenUsage = Field(default_factory=lambda: TokenUsage(input_tokens=0, output_tokens=0))
+    cost: CostSummary = Field(
+        default_factory=lambda: CostSummary(
+            usd=0.0, input_tokens=0, output_tokens=0, wall_clock_s=0.0, model_calls=0
+        )
+    )
+    #: `AssembledPrompt.stable_prefix_digest` (layers 1-6) at the moment this step's request was
+    #: assembled — the machine-checkable form of "identical prefixes" the v2-S4 trace exporter
+    #: needs to group Best-of-N siblings into DPO pairs (`trace-distillation.md`). Empty for
+    #: steps recorded before this field existed; an empty digest never matches another empty
+    #: digest for pairing purposes (the exporter treats `""` as "no digest", not as a group).
+    prefix_digest: str = ""
     timestamp: datetime = Field(default_factory=utc_now)
 
 
@@ -73,14 +104,22 @@ class BlockEnd(BaseModel):
     block: ContentBlock  # the assembled, complete block
 
 
-class TokenUsage(BaseModel):
+class Completion(BaseModel):
+    """One model call's result: the message, what it cost in tokens, and who answered.
+
+    Usage is a property of the **call**, not of the message. The rejected alternative —
+    adding `usage` to `Message` — is recorded here so it is not re-proposed: it would
+    leak into conversation history and into cassette request digests, making replay
+    sensitive to token counts that have nothing to do with the request.
+    """
+
     model_config = ConfigDict(frozen=True)
 
-    input_tokens: int
-    output_tokens: int
-    cache_read_tokens: int = 0  # populated where the provider supplies it
-    cache_write_tokens: int = 0
-    reasoning_tokens: int = 0
+    message: Message
+    usage: TokenUsage
+    #: The model that actually answered, which is not always the one requested —
+    #: a fallback chain or a provider-side alias can substitute one.
+    model: str
 
 
 class UsageReported(BaseModel):

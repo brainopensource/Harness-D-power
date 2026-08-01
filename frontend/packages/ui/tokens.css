@@ -23,6 +23,13 @@
   --sg-neutral-11: #171718;
   --sg-neutral-12: #0a0a0b;
 
+  /* Cyber Dark palette & SOTA 2026 tokens */
+  --sg-cyber-dark: #0a0d14;
+  --sg-neon-violet: #8b5cf6;
+  --sg-taint-emerald: #10b981;
+  --sg-warning-amber: #f59e0b;
+  --sg-danger-crimson: #ef4444;
+
   /* Semantic colors — light */
   --sg-accent: #4f46e5;
   --sg-success: #16a34a;
@@ -30,6 +37,8 @@
   --sg-danger: #dc2626;
   --sg-info: #2563eb;
   --sg-pending: #7c3aed;
+  --sg-frozen: #0284c7;
+  --sg-tainted: #10b981;
   --sg-effect-pure: var(--sg-neutral-6);
   --sg-effect-idempotent: var(--sg-info);
   --sg-effect-destructive: var(--sg-danger);

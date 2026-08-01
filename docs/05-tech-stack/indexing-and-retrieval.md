@@ -1,8 +1,8 @@
 ---
-status: normative
+status: rationale
 updated: 2026-07-29
+retrieval: excluded
 ---
-
 # **AST Indexing & Retrieval**
 
 > [!NOTE]
@@ -43,7 +43,7 @@ A large repository chunks to roughly **10⁵–10⁶ vectors**. At 10⁵, an exh
 
 **Quantization therefore solves a problem this system does not yet have** — and the dense tier it would compress is itself deferred ([ADR-0014](../08-decisions/0014-defer-dense-retrieval.md)), so this is a deferral behind a deferral. When the dense tier does arrive it starts uncompressed (`sqlite-vec`, then LanceDB), and compression is adopted only against a **measured latency or memory ceiling** — at which point it is an adoption decision, not an implementation project: LanceDB embeds in-process with zero IPC, and Qdrant already ships a production TurboQuant engine. Building a bespoke quantization sidecar would duplicate mature work to solve a non-problem.
 
-The TurboQuant research remains catalogued in the [design derivation](../reference/design-derivation.md) for the day the trigger fires.
+The TurboQuant research remains catalogued in the [design derivation](../rationale/reference/design-derivation.md) for the day the trigger fires.
 
 ## **Skeletonization**
 

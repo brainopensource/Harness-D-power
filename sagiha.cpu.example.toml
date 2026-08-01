@@ -1,0 +1,35 @@
+# CPU-inference profile — sequential Best-of-N against a single-threaded local model.
+#
+# Illustrative, like config.example.toml: there is no TOML loader wired into `src/` yet
+# (Config is constructed directly as Pydantic objects). This file exists so the
+# recommended settings for a CPU host are recorded somewhere a human — or the harness's own
+# `sagiha init` cold-start, when it lands in v2-S6 — can read them, not so `sagiha` can parse
+# them today.
+#
+# Why sequential here: launching parallel candidates against a model server that can only
+# actually process one request at a time does not get more candidates — it gets one candidate,
+# served N times, with the extra context-switch cost of interleaved requests. Best-of-N's value
+# (diverse candidates, ranked by a real gate) is unaffected by launch_mode; only wall-clock
+# throughput changes.
+
+[model.tiers.local]
+provider    = "openai-compatible"
+model       = "qwen2.5-coder:7b"
+base_url    = "http://localhost:11434/v1"
+max_tokens  = 8192
+max_concurrent_requests = 1
+
+[model.roles]
+execution  = "local"
+candidates = "local"
+
+[search]
+# Off by default: empirical exit gate not met (s4-harvest-findings.md). Set true once a task corpus exists.
+enabled     = false
+candidates  = 3
+launch_mode = "sequential"
+stagger_s   = 0.0
+candidate_temperatures = [0.0, 0.6, 0.9]
+
+[governor]
+max_concurrent_sandboxes = 1

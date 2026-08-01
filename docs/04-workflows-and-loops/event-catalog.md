@@ -65,6 +65,7 @@ streamers · **HK** user hooks · **GV** ResourceGovernor · **MI** MetaImprover
 | `model.call_completed` | `usage`, `stop_reason`, `cost` | ModelProvider | TS OT UI GV MI | ✅ |
 | `step.completed` | `step` | Orchestrator | TS OT UI MI | ✅ |
 | `step.scored` | `scored` | Evaluator / Reviewer / AOI | TS MI | ❌ |
+| `model.provider_failover` | `from_provider`, `to_provider`, `reason`, `reasoning_dropped` | FallbackModelAdapter | TS OT UI MI | ✅ |
 
 `model.delta` is the one high-volume event and the only one observers are permitted to drop under backpressure — losing a rendering frame is acceptable; losing a step is not.
 
@@ -81,10 +82,19 @@ streamers · **HK** user hooks · **GV** ResourceGovernor · **MI** MetaImprover
 | `tool.call_denied` | `decision`, `reason`, `requires_human` | PolicyEngine | TS OT UI HK | ✅ |
 | `tool.call_completed` | `call_id`, `result`, `duration_ms` | Dispatch | TS OT UI HK MI | ✅ |
 | `tool.call_failed` | `call_id`, `error_kind`, `disposition` | Dispatch | TS OT UI HK | ✅ |
+| `tool.taint_introduced` | `call_id`, `tool_name`, `source` | Dispatch | TS OT UI HK MI | ✅ |
 
 The **requested / authorized** split is deliberate: it makes the policy decision independently observable, so an audit answers "what did the agent try to do" separately from "what was it allowed to do." Those are different questions and a single event cannot answer both.
 
 **No event ever carries a `Grant`.** Grants do not leave `kernel/dispatch.py`, and an audit log containing capability tokens is a credential store with extra steps. `tool.call_authorized` carries the `Decision`, including the grant *id* for correlation — never the grant.
+
+## **Context**
+
+| Event | Payload | Emitted by | Consumers | Replay |
+| :--- | :--- | :--- | :--- | :--- |
+| `context.compaction_applied` | `exchanges_before`, `exchanges_after`, `tail_tokens_before`, `tail_tokens_after`, `tainted_span` | ContextAssembler | TS OT UI MI | ✅ |
+
+`context.compaction_applied` is replay-relevant: a replayed run must compact at the same step or every subsequent request digests diverge from the recording. `tainted_span` records whether the summarized middle carried untrusted content forward under the `<untrusted-data>` envelope (T7 through compaction).
 
 ## **Workspace**
 
@@ -106,13 +116,14 @@ The **requested / authorized** split is deliberate: it makes the policy decision
 | `gate.evaluated` | `gate_report` | Evaluator | TS OT UI HK MI | ✅ |
 | `review.completed` | `review` | Reviewer | TS MI UI | ❌ |
 | `candidate.proposed` | `branch_id`, `strategy`, `budget_usd` | CandidateSearch | TS OT UI | ✅ |
-| `candidate.selected` | `branch_id`, `gate_report`, `selection_basis` | CandidateSearch | TS OT UI | ✅ |
+| `candidate.selected` | `branch_id`, `gate_report`, `selection_basis`, `diversity_ratio` | CandidateSearch | TS OT UI | ✅ |
 | `approval.requested` | `action`, `scope`, `rationale`, `blast_radius` | PolicyEngine | UI HK (blocking) | ✅ |
 | `approval.resolved` | `approved`, `resolved_by`, `note` | Entry point | TS OT UI | ✅ |
 | `budget.warning` | `spent_usd`, `remaining_usd`, `projected_usd` | ResourceGovernor | UI HK | ❌ |
 | `budget.exhausted` | `spent_usd`, `limit_usd`, `limit_kind` | ResourceGovernor | TS UI HK | ✅ |
 | `benchmark.task_harvested` | `task_id`, `repo` | Harvester | TS OT UI | ✅ |
 | `benchmark.task_completed` | `task_id`, `agent_id`, `resolved` | TaskRunner | TS OT UI MI | ✅ |
+| `replay.verified` | `replay_run_id` | CLI | TS OT | ✅ |
 
 `approval.requested` is the only event whose delivery blocks the run — it is a question, and the run cannot proceed without the answer. Every other event is fire-and-observe.
 

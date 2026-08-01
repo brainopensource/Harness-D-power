@@ -11,7 +11,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 from sagiha.domain.content import Message, ModelRequest
-from sagiha.domain.trajectory import StreamEvent
+from sagiha.domain.trajectory import Completion, StreamEvent, TokenUsage
 from sagiha.ports.model import ModelProvider
 
 
@@ -30,9 +30,25 @@ class CassetteEntry(BaseModel):
     request: ModelRequest
     response: Message
     digest: str = ""
+    #: Usage and model are OPTIONAL so that cassettes recorded before the
+    #: ModelProvider v2 bump (PR-1b) load unchanged — no migration pass is required.
+    #: A legacy entry replays as TokenUsage(0, 0), which is the truth: nobody measured
+    #: it. Newly recorded entries carry the real figures.
+    #:
+    #: Neither field enters `request_digest`, which hashes the REQUEST — so replay
+    #: determinism is unaffected by what a call happened to cost.
+    usage: TokenUsage | None = None
+    model: str | None = None
 
     def resolved_digest(self) -> str:
         return self.digest or request_digest(self.request)
+
+    def to_completion(self) -> Completion:
+        return Completion(
+            message=self.response,
+            usage=self.usage or TokenUsage(input_tokens=0, output_tokens=0),
+            model=self.model or "cassette",
+        )
 
 
 class CassetteModelProvider:
@@ -73,7 +89,7 @@ class CassetteModelProvider:
         data = [entry.model_dump(mode="json") for entry in self._entries]
         self._cassette_path.write_text(json.dumps(data, indent=2))
 
-    async def complete(self, request: ModelRequest) -> Message:
+    async def complete(self, request: ModelRequest) -> Completion:
         digest = request_digest(request)
 
         if self._mode == "replay":
@@ -85,17 +101,23 @@ class CassetteModelProvider:
                 raise CassetteMismatchError(f"Cassette exhausted or mismatch for digest {digest[:12]}…")
             entry = bucket[cursor]
             self._digest_cursors[digest] = cursor + 1
-            return entry.response
+            return entry.to_completion()
 
         if self._inner_provider is None:
             raise RuntimeError("CassetteModelProvider in record mode requires an inner_provider")
 
-        response = await self._inner_provider.complete(request)
-        entry = CassetteEntry(request=request, response=response, digest=digest)
+        completion = await self._inner_provider.complete(request)
+        entry = CassetteEntry(
+            request=request,
+            response=completion.message,
+            digest=digest,
+            usage=completion.usage,
+            model=completion.model,
+        )
         self._entries.append(entry)
         self._by_digest.setdefault(digest, []).append(entry)
         self._save_cassette()
-        return response
+        return completion
 
     async def stream(self, request: ModelRequest) -> AsyncIterator[StreamEvent]:
         raise NotImplementedError("Cassette streaming is deferred; use complete() (D15)")

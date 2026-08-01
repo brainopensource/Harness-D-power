@@ -12,33 +12,33 @@
           ]
         }
       ],
-      "system": "You are a careful coding agent. Use tools to fix the failing test.",
+      "system": "You are an autonomous software developer agent. To solve the task, you MUST use the provided tools (apply_edit, run_command). When creating or editing a file, call apply_edit directly instead of conversational text.\n\n## Acceptance criteria\nYou will be graded on exactly these:\n- true (check: `true`)",
       "tools": [
         {
-          "name": "read_file",
-          "description": "Read a text file from the workspace",
+          "name": "apply_edit",
+          "description": "Apply a search/replace edit to a file",
           "parameters": {
             "type": "object",
             "properties": {
               "path": {
+                "type": "string",
+                "x-sagiha-path": true
+              },
+              "old_string": {
                 "type": "string"
+              },
+              "new_string": {
+                "type": "string"
+              },
+              "expected_occurrences": {
+                "type": "integer"
               }
             },
             "required": [
-              "path"
+              "path",
+              "old_string",
+              "new_string"
             ]
-          }
-        },
-        {
-          "name": "list_dir",
-          "description": "List directory entries",
-          "parameters": {
-            "type": "object",
-            "properties": {
-              "path": {
-                "type": "string"
-              }
-            }
           }
         },
         {
@@ -51,7 +51,8 @@
                 "type": "string"
               },
               "path": {
-                "type": "string"
+                "type": "string",
+                "x-sagiha-path": true
               }
             },
             "required": [
@@ -60,25 +61,37 @@
           }
         },
         {
-          "name": "apply_edit",
-          "description": "Apply a search/replace edit to a file",
+          "name": "list_dir",
+          "description": "List directory entries",
           "parameters": {
             "type": "object",
             "properties": {
               "path": {
-                "type": "string"
+                "type": "string",
+                "x-sagiha-path": true
+              }
+            }
+          }
+        },
+        {
+          "name": "read_file",
+          "description": "Read a text file from the workspace",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "x-sagiha-path": true
               },
-              "old_string": {
-                "type": "string"
+              "offset": {
+                "type": "integer"
               },
-              "new_string": {
-                "type": "string"
+              "limit": {
+                "type": "integer"
               }
             },
             "required": [
-              "path",
-              "old_string",
-              "new_string"
+              "path"
             ]
           }
         },
@@ -99,6 +112,26 @@
               "command"
             ]
           }
+        },
+        {
+          "name": "write_file",
+          "description": "Write content to a file, creating it (and parent directories) if necessary",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "x-sagiha-path": true
+              },
+              "content": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "content"
+            ]
+          }
         }
       ],
       "max_tokens": null,
@@ -114,6 +147,8 @@
         }
       ]
     },
-    "digest": "09fde7e4e11bf3d81246085708c304cbe3ae213a101495b5badf25fad6a72b2b"
+    "digest": "79586d754ae32405082b32ba28fde8609a7c63efba1a8e5c321bc7f176d0df9c",
+    "usage": null,
+    "model": null
   }
 ]

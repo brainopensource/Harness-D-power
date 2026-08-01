@@ -1,8 +1,8 @@
 ---
-status: normative
+status: rationale
 updated: 2026-07-29
+retrieval: excluded
 ---
-
 # **LLM Provider Tiering, Economics & Task Routing**
 
 > [!NOTE]

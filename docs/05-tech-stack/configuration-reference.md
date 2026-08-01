@@ -1,8 +1,8 @@
 ---
-status: normative
+status: rationale
 updated: 2026-07-30
+retrieval: excluded
 ---
-
 # **Configuration Reference**
 
 > [!NOTE]
@@ -30,7 +30,7 @@ Precedence: CLI flags → environment (`SAGIHA_*`) → `config.toml` → default
 | `governor.max_spend_usd_per_run` | Yes | Wired into governor ctor | Spend recording Sprint 3 |
 | `governor.max_concurrent_sandboxes` | Yes | Stored; admission not enforced | Block 3 |
 | Other `governor.*` | Yes | No | Later |
-| `sandbox.*` | Yes (host/subprocess refuses) | No runtime adapter | Block 5 |
+| `sandbox.*` | Yes (host/subprocess refuses; container required for autonomous/scheduled) | Yes — rootless Podman `ContainerSandbox` + egress proxy (v2-S5) | — |
 | `retrieval.*` / `context.*` / `search.*` | Yes | No | Blocks 4 / later |
 | `gates.*` | Yes (`require_tests_unmodified` refuse) | No evaluator | Sprint 3 (acceptance); later for code gates |
 | `telemetry.trajectory_db` | Yes | Yes | — |
@@ -195,12 +195,14 @@ read_file_max_lines   = 2000
 
 # ─── Candidate search (System 2) ─────────────────────────────────────────────
 [search]
-enabled            = true
+# Off by default: empirical exit gate not met (s4-harvest-findings.md).
+enabled            = false
 candidates         = 3
 max_repair_rounds  = 2
-escalate_after_failures = 2         # System 1 → System 2 trigger
+escalate_after_failures = 3         # stop further repair after this many failed attempts
 escalate_on_files  = 3
 escalate_on_diff_lines = 150
+prune_on_first_gate_fail = false    # true = skip repair after first fail
 
 # ─── Gates ───────────────────────────────────────────────────────────────────
 [gates]

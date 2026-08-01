@@ -7,6 +7,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import pytest
+from tests.conftest import build_test_evaluator
 
 from sagiha.adapters.tools.registry import DefaultToolRegistry
 from sagiha.adapters.trajectory.sqlite import SQLiteTrajectoryStore
@@ -23,7 +24,7 @@ from sagiha.domain.content import (
 from sagiha.domain.control import Grant, RunContext
 from sagiha.domain.events import ToolCallCompleted, ToolCallRequested
 from sagiha.domain.identity import utc_now
-from sagiha.domain.trajectory import StreamEvent
+from sagiha.domain.trajectory import Completion, StreamEvent, TokenUsage
 from sagiha.kernel.bus import EventBus
 from sagiha.kernel.dispatch import dispatch
 from sagiha.kernel.governor import DefaultResourceGovernor
@@ -119,14 +120,22 @@ async def test_react_parses_tool_use_block(tmp_path: Path) -> None:
         def __init__(self) -> None:
             self.calls = 0
 
-        async def complete(self, request: ModelRequest) -> Message:
+        async def complete(self, request: ModelRequest) -> Completion:
             self.calls += 1
             if self.calls == 1:
-                return Message(
-                    role="assistant",
-                    content=[ToolUseBlock(call_id="tu-1", tool_name="echo", arguments={"msg": "hi"})],
+                return Completion(
+                    message=Message(
+                        role="assistant",
+                        content=[ToolUseBlock(call_id="tu-1", tool_name="echo", arguments={"msg": "hi"})],
+                    ),
+                    usage=TokenUsage(input_tokens=0, output_tokens=0),
+                    model="test",
                 )
-            return Message(role="assistant", content=[TextBlock(text="done")])
+            return Completion(
+                message=Message(role="assistant", content=[TextBlock(text="done")]),
+                usage=TokenUsage(input_tokens=0, output_tokens=0),
+                model="test",
+            )
 
         async def stream(self, request: ModelRequest) -> AsyncIterator[StreamEvent]:
             raise NotImplementedError
@@ -151,6 +160,7 @@ async def test_react_parses_tool_use_block(tmp_path: Path) -> None:
         tool_registry=registry,
         trajectory_store=store,
         bus=EventBus(),
+        evaluator=build_test_evaluator(policy, governor, registry),
     )
     ctx = RunContext(
         run_id="r-react",
@@ -159,13 +169,16 @@ async def test_react_parses_tool_use_block(tmp_path: Path) -> None:
         budget_remaining_usd=5.0,
     )
     result = await loop.run(make_task("edit", checks=[]), ctx)
-    assert len(result.steps) == 1
+    # Tool-use step + RC-4 text-only end_turn.
+    assert len(result.steps) == 2
     step = result.steps[0]
     assert len(step.tool_calls) == 1
     assert step.tool_calls[0].tool_name == "echo"
     assert step.tool_calls[0].effect == EffectClass.PURE
     assert len(step.tool_results) == 1
     assert not step.tool_results[0].is_error
+    assert result.steps[1].message is not None
+    assert not result.steps[1].tool_calls
 
 
 @pytest.mark.asyncio

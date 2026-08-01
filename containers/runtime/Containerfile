@@ -1,0 +1,13 @@
+# SAGIHA sandbox runtime image — rootless Podman perimeter (ADR-0016 / v2-S5).
+# Build: podman build -t sagiha/runtime:latest -f containers/runtime/Containerfile containers/runtime
+FROM docker.io/library/python:3.13-slim
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+
+# Keeps the container alive for `podman exec`. The harness starts an egress
+# forwarder (TCP → unix socket) after create when network=restricted.
+CMD ["sleep", "infinity"]

@@ -1,8 +1,8 @@
 ---
-status: normative
+status: rationale
 updated: 2026-07-29
+retrieval: excluded
 ---
-
 # **Neural-Symbolic Memory Subsystem**
 
 > [!NOTE]
@@ -87,7 +87,7 @@ The contract lives in **`src/sagiha/ports/memory.py`**: `remember` / `recall` / 
 > and reverse lookup (`backlinks(memory_id)`) are required by the knowledge-net design above but
 > are **not** on the port today. Adding them is an S2 port change (bumps `PORT_VERSION`), to be
 > made in `src/` when the first graph-capable adapter lands — not by editing this document.
-> Flagged by the [2026-07-29 Foundation Review](../reviews/doing/2026-07-29-foundation-review.md).
+> Flagged by the [2026-07-29 Foundation Review](../rationale/reviews/2026-07-29-foundation-review.md).
 
 `Provenance`, `MemoryRecord`, `RecallQuery`, and `Recall` are defined in
 `src/sagiha/domain/memory.py` (navigation copy in

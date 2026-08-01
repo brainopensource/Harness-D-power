@@ -55,6 +55,9 @@ packages = ["src/sagiha"]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 addopts = "--strict-markers"
+markers = [
+  "podman: requires rootless Podman and the sagiha/runtime:latest image (v2-S5 perimeter)",
+]
 
 [tool.pyright]
 # Scope matches the literal requirement in docs/implementation/contracts-to-code.md: "pyright

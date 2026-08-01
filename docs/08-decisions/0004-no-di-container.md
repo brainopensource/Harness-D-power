@@ -2,7 +2,6 @@
 status: normative
 updated: 2026-07-29
 ---
-
 # ADR-0004: Explicit Composition Root, No DI Container
 
 **Status**: Accepted — **amended by [ADR-0013](./0013-extension-registration.md)**

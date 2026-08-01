@@ -2,7 +2,6 @@
 status: normative
 updated: 2026-07-30
 ---
-
 # **Architecture Decision Records**
 
 > [!NOTE]
@@ -36,6 +35,13 @@ Binding decisions, each with the reasoning that produced it and the conditions t
 | [0016](./0016-container-runtime-podman.md) | Rootless Podman; egress allowlisted at an explicit proxy | Accepted |
 | [0017](./0017-execution-profiles.md) | Execution profiles compose ports; coding is one profile, not the only path | Accepted |
 | [0018](./0018-native-workflow-dag.md) | Macro workflow is a native `WorkflowStep` protocol in `agency/`; no LangGraph/LangChain/Temporal | Accepted |
+| [0019](./0019-port-consolidation.md) | Port consolidation 24 → 19 Protocols; deletions carry written re-promotion conditions | Accepted |
+| [0020](./0020-per-invocation-effect-classification.md) | Per-invocation effect classification; the PURE argv allowlist lives in the TCB | Accepted |
+| [0021](./0021-seed-only-layer-6-retrieval.md) | Layer-6 retrieval is seed-only; all later retrieval is agentic and tail-resident | Accepted |
+| [0022](./0022-rhi-economic-refounding.md) | RHI re-founded on economics: Tiers A/B scheduled, Tier C dormant behind a funding trigger | Accepted |
+| [0023](./0023-port-rent-rule.md) | Ports pay rent — zero non-test adapters for two phases ⇒ automatic demotion and deletion review | Accepted |
+| [0024](./0024-e0-is-a-tool-not-a-port.md) | `e0/` is a tool, not a port — `adapters/benchmark/` and `ports/benchmark.py` deleted; the `layers` contract forbids the adapter this port needed | Accepted |
+| [0025](./0025-candidate-search-seams.md) | `CandidateExecutor`/`CandidateScorer` are adapter-internal Protocols, not ports — same reasoning as ADR-0024, applied to Best-of-N's scoring ladder | Accepted |
 
 ## **Template**
 
@@ -57,6 +63,24 @@ What this makes easy, what it makes hard, what it forecloses.
 ## Reversal Conditions
 The specific evidence that would justify revisiting this.
 ```
+
+### The two `Status` fields are not a duplication
+
+Every ADR carries a status in **two** places, and an audit flagged this as drift. It is not — they
+are different axes, and collapsing them would lose information:
+
+| Where | Values | Means |
+| :--- | :--- | :--- |
+| Front matter `status:` | `normative` / `rationale` / `historical` | The **docs taxonomy** — is this file binding, and does it count against the word budget? Read by `scripts/docs_budget.py` and the `v2-S6` retrieval indexer. See [docs/README.md](../README.md) |
+| Body `**Status**:` | `Proposed` / `Accepted` / `Superseded by ADR-YYYY` | The **decision lifecycle** — has this call been made, and does it still stand? |
+
+An ADR is `status: normative` from the moment it is written, including while its decision is still
+`Proposed` — the file binds as the record of an open question. A `Superseded` ADR stays `normative`
+too: superseded decisions are still the authoritative account of what was decided and why, and
+demoting them would hide the reversal from exactly the reader who needs it.
+
+**ADRs are exempt from the normative word budget.** They are short, high-value, and each one
+*replaces* long-form derivation elsewhere.
 
 **Reversal Conditions is the section that matters most.** Most of these decisions trade capability for simplicity on the basis of current scale or current tooling. Writing down what would change our mind is what separates an engineering decision from an ideological one — and it is what lets a future maintainer (human or agent) re-open a question legitimately instead of either obeying or ignoring the record.
 

@@ -1,8 +1,8 @@
 ---
-status: normative
+status: rationale
 updated: 2026-07-29
+retrieval: excluded
 ---
-
 # **Entry Points & Multi-Channel Piloting**
 
 > [!NOTE]

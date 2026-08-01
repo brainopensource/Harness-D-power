@@ -17,7 +17,7 @@ from sagiha.adapters.model.openai import (
     OpenAIModelError,
 )
 from sagiha.composition import build_kernel
-from sagiha.domain.config import Config, ModelConfig
+from sagiha.domain.config import SandboxConfig, Config, ModelConfig
 from sagiha.domain.content import (
     Message,
     ModelRequest,
@@ -57,10 +57,10 @@ async def test_complete_text_response() -> None:
     request = ModelRequest(messages=[Message(role="user", content=[TextBlock(text="Hello")])])
     response = await adapter.complete(request)
 
-    assert response.role == "assistant"
-    assert len(response.content) == 1
-    assert isinstance(response.content[0], TextBlock)
-    assert response.content[0].text == "Hello, SAGIHA!"
+    assert response.message.role == "assistant"
+    assert len(response.message.content) == 1
+    assert isinstance(response.message.content[0], TextBlock)
+    assert response.message.content[0].text == "Hello, SAGIHA!"
 
 
 @pytest.mark.asyncio
@@ -94,13 +94,13 @@ async def test_complete_tool_calls_parsing() -> None:
     request = ModelRequest(messages=[Message(role="user", content=[TextBlock(text="Inspect main.py")])])
     response = await adapter.complete(request)
 
-    assert len(response.content) == 2
-    assert isinstance(response.content[0], TextBlock)
-    assert response.content[0].text == "Reading target file..."
-    assert isinstance(response.content[1], ToolUseBlock)
-    assert response.content[1].call_id == "call_12345"
-    assert response.content[1].tool_name == "read_file"
-    assert response.content[1].arguments == {"path": "src/main.py"}
+    assert len(response.message.content) == 2
+    assert isinstance(response.message.content[0], TextBlock)
+    assert response.message.content[0].text == "Reading target file..."
+    assert isinstance(response.message.content[1], ToolUseBlock)
+    assert response.message.content[1].call_id == "call_12345"
+    assert response.message.content[1].tool_name == "read_file"
+    assert response.message.content[1].arguments == {"path": "src/main.py"}
 
 
 @pytest.mark.asyncio
@@ -125,11 +125,11 @@ async def test_reasoning_content_parsing() -> None:
     request = ModelRequest(messages=[Message(role="user", content=[TextBlock(text="Think deeply")])])
     response = await adapter.complete(request)
 
-    assert len(response.content) == 2
-    assert isinstance(response.content[0], ReasoningBlock)
-    assert response.content[0].opaque == {"reasoning_content": "Deep reasoning trace here"}
-    assert isinstance(response.content[1], TextBlock)
-    assert response.content[1].text == "Final answer"
+    assert len(response.message.content) == 2
+    assert isinstance(response.message.content[0], ReasoningBlock)
+    assert response.message.content[0].opaque == {"reasoning_content": "Deep reasoning trace here"}
+    assert isinstance(response.message.content[1], TextBlock)
+    assert response.message.content[1].text == "Final answer"
 
 
 @pytest.mark.asyncio
@@ -186,7 +186,7 @@ async def test_message_history_and_tools_translation() -> None:
     )
 
     response = await adapter.complete(request)
-    assert response.content[0].text == "Done!"
+    assert response.message.content[0].text == "Done!"
 
     assert route.called
     sent_request = route.calls.last.request
@@ -280,8 +280,8 @@ async def test_malformed_json_arguments() -> None:
     request = ModelRequest(messages=[Message(role="user", content=[TextBlock(text="Test")])])
     response = await adapter.complete(request)
 
-    assert len(response.content) == 1
-    tool_block = response.content[0]
+    assert len(response.message.content) == 1
+    tool_block = response.message.content[0]
     assert isinstance(tool_block, ToolUseBlock)
     assert tool_block.arguments == {"raw": "{invalid json payload"}
 
@@ -297,7 +297,7 @@ async def test_generate_alias() -> None:
     adapter = OpenAIModelAdapter()
     request = ModelRequest(messages=[Message(role="user", content=[TextBlock(text="Test")])])
     response = await adapter.generate(request)
-    assert response.content[0].text == "Alias output"
+    assert response.message.content[0].text == "Alias output"
 
 
 @pytest.mark.asyncio
@@ -310,7 +310,7 @@ async def test_stream_deferred() -> None:
 
 @pytest.mark.asyncio
 async def test_composition_live_mode() -> None:
-    config = Config(model=ModelConfig(mode="live"))
+    config = Config(model=ModelConfig(mode="live"), sandbox=SandboxConfig(runtime="subprocess"))
     kernel = build_kernel(config)
     assert isinstance(kernel.model_provider, OpenAIModelAdapter)
 
@@ -318,6 +318,6 @@ async def test_composition_live_mode() -> None:
 @pytest.mark.asyncio
 async def test_composition_record_mode(tmp_path: Path) -> None:
     cassette_file = tmp_path / "cassette.json"
-    config = Config(model=ModelConfig(mode="record"))
+    config = Config(model=ModelConfig(mode="record"), sandbox=SandboxConfig(runtime="subprocess"))
     kernel = build_kernel(config, cassette_path=str(cassette_file))
     assert isinstance(kernel.model_provider, CassetteModelProvider)

@@ -7,16 +7,17 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 
 import pytest
+from tests.conftest import build_test_evaluator
 
 from sagiha import Config, build_kernel
 from sagiha.adapters.tools.registry import DefaultToolRegistry
 from sagiha.adapters.trajectory.sqlite import SQLiteTrajectoryStore
 from sagiha.agency.run_loop import RunLoop, make_task
-from sagiha.domain.config import ModelConfig, TelemetryConfig, WorkspaceConfig
+from sagiha.domain.config import SandboxConfig, ModelConfig, TelemetryConfig, WorkspaceConfig
 from sagiha.domain.content import EffectClass, Message, ModelRequest, TextBlock, ToolCall, ToolResult
 from sagiha.domain.control import Decision, RunContext
 from sagiha.domain.events import Event, ToolCallRequested
-from sagiha.domain.trajectory import StreamEvent
+from sagiha.domain.trajectory import Completion, StreamEvent, TokenUsage
 from sagiha.kernel.bus import EventBus
 from sagiha.kernel.dispatch import dispatch
 from sagiha.kernel.governor import DefaultResourceGovernor
@@ -111,8 +112,12 @@ async def test_run_loop_single_step_ends_turn_with_no_tool_calls() -> None:
     tool calls records exactly one step and stops without dispatching anything."""
 
     class EndTurnProvider:
-        async def complete(self, request: ModelRequest) -> Message:
-            return Message(role="assistant", content=[TextBlock(text="Hello back!")])
+        async def complete(self, request: ModelRequest) -> Completion:
+            return Completion(
+                message=Message(role="assistant", content=[TextBlock(text="Hello back!")]),
+                usage=TokenUsage(input_tokens=0, output_tokens=0),
+                model="test",
+            )
 
         async def stream(self, request: ModelRequest) -> AsyncIterator[StreamEvent]:
             raise NotImplementedError
@@ -120,13 +125,17 @@ async def test_run_loop_single_step_ends_turn_with_no_tool_calls() -> None:
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         store = SQLiteTrajectoryStore(db_path=str(Path(tmp_dir) / "traj.db"))
+        policy = DefaultPolicyEngine()
+        governor = DefaultResourceGovernor()
+        registry = DefaultToolRegistry()
         loop = RunLoop(
             model_provider=EndTurnProvider(),
-            policy_engine=DefaultPolicyEngine(),
-            resource_governor=DefaultResourceGovernor(),
-            tool_registry=DefaultToolRegistry(),
+            policy_engine=policy,
+            resource_governor=governor,
+            tool_registry=registry,
             trajectory_store=store,
             bus=EventBus(),
+            evaluator=build_test_evaluator(policy, governor, registry),
         )
         ctx = RunContext(
             run_id="r-react",
@@ -136,7 +145,9 @@ async def test_run_loop_single_step_ends_turn_with_no_tool_calls() -> None:
         )
 
         result = await loop.run(make_task("hello", checks=[]), ctx)
-        assert result.steps == []
+        # RC-4: a text-only end_turn is persisted — it is part of what happened.
+        assert len(result.steps) == 1
+        assert result.steps[0].message is not None
         assert result.run_id == "r-react"
 
 
@@ -149,6 +160,7 @@ async def test_build_kernel_wires_day_zero_adapters() -> None:
             model=ModelConfig(mode="replay"),
             telemetry=TelemetryConfig(trajectory_db=str(Path(tmp_dir) / "test_traj.db")),
             workspace=WorkspaceConfig(root=tmp_dir),
+            sandbox=SandboxConfig(runtime="subprocess"),
         )
 
         kernel = build_kernel(config, cassette_path=str(cassette))
@@ -163,8 +175,9 @@ async def test_build_kernel_wires_day_zero_adapters() -> None:
 def test_kernel_mandatory_ports_are_not_optional() -> None:
     """D14: model_provider, policy_engine, resource_governor, tool_registry, and
     trajectory_store are non-optional constructor arguments — a partially wired Kernel is not
-    representable. Profile-optional ports (evaluator, indexer, code_graph, lsp_adapter,
-    worktree_manager) may still default to None."""
+    representable. Profile-optional ports (indexer, code_graph, lsp_adapter, worktree_manager)
+    may still default to None. `evaluator` joined the mandatory set under RC-8: `RunLoop`
+    requires it, so an optional one only ever meant somebody built their own TCB object."""
     import dataclasses
 
     from sagiha.composition import Kernel
@@ -178,8 +191,9 @@ def test_kernel_mandatory_ports_are_not_optional() -> None:
         "trajectory_store",
         "memory",
         "workspace",
+        "evaluator",
     }
-    profile_optional = {"indexer", "code_graph", "lsp_adapter", "worktree_manager", "evaluator"}
+    profile_optional = {"indexer", "code_graph", "lsp_adapter", "worktree_manager"}
 
     for f in dataclasses.fields(Kernel):
         if f.name in mandatory_no_default:

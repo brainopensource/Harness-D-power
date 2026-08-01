@@ -1,0 +1,34 @@
+# GPU-inference profile — parallel Best-of-N against a concurrency-configured Ollama.
+#
+# Illustrative, like config.example.toml (see the note there — no TOML loader exists yet).
+#
+# Pair `model.tiers.local.max_concurrent_requests` with the actual Ollama server's own
+# concurrency setting (`OLLAMA_NUM_PARALLEL`) — this file's value only bounds the harness's
+# own launch scheduling. Setting it higher than the server actually supports reproduces the
+# CPU profile's problem (N launches served as fewer effective concurrent requests) with the
+# added confusion of looking like it should be faster.
+
+[model.tiers.local]
+provider    = "openai-compatible"
+model       = "qwen2.5-coder:14b"
+base_url    = "http://localhost:11434/v1"
+max_tokens  = 8192
+# Must match (or be <=) the server's OLLAMA_NUM_PARALLEL for this to be a real bound rather
+# than an aspirational one.
+max_concurrent_requests = 2
+
+[model.roles]
+execution  = "local"
+candidates = "local"
+
+[search]
+# Off by default: empirical exit gate not met (s4-harvest-findings.md). Set true once a task corpus exists.
+enabled     = false
+candidates  = 3
+launch_mode = "parallel"
+stagger_s   = 0.5
+cancel_on_clean_admit = true
+candidate_temperatures = [0.0, 0.6, 0.9]
+
+[governor]
+max_concurrent_sandboxes = 2

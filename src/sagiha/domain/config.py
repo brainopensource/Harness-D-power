@@ -6,6 +6,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from sagiha.domain.trajectory import TokenUsage
+
 
 class ThinkingConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
@@ -24,6 +26,15 @@ class ModelTierConfig(BaseModel):
     api_key_env: str = "ANTHROPIC_API_KEY"
     base_url: str | None = None
     thinking: ThinkingConfig = Field(default_factory=ThinkingConfig)
+    #: How many concurrent requests this tier's endpoint can actually serve. `1` (the safe
+    #: default) for a single-threaded local Ollama — launching N parallel Best-of-N candidates
+    #: against `max_concurrent_requests=1` gets one candidate, N times, plus context thrashing,
+    #: not N candidates. `SearchConfig.launch_mode="parallel"` limiters are bounded by this, not
+    #: just by sandbox concurrency.
+    max_concurrent_requests: int = 1
+    #: Local tiers may opt in to exporting reasoning blocks for distillation (S4.4); cloud
+    #: tiers default to excluded because provider terms often prohibit distillation export.
+    allow_reasoning_export: bool = False
 
 
 class ModelConfig(BaseModel):
@@ -44,7 +55,11 @@ class ModelConfig(BaseModel):
             ),
             "workhorse": ModelTierConfig(
                 provider="anthropic",
-                model="claude-3-5-sonnet-20241022",
+                # Deliberately not the same model as "frontier": the judge-separation
+                # refusal (Config.validate_security_invariants) requires 'judge' and
+                # 'execution' to differ when search is enabled — a judge that is also
+                # the generator cannot score its own candidate honestly.
+                model="claude-3-5-haiku-20241022",
                 max_tokens=8192,
                 api_key_env="ANTHROPIC_API_KEY",
                 thinking=ThinkingConfig(enabled=True, budget_tokens=4096),
@@ -185,6 +200,33 @@ class AutonomyConfig(BaseModel):
     )
 
 
+class PricingConfig(BaseModel):
+    """Per-million-token rates used to turn `TokenUsage` into dollars.
+
+    Defaults are `0.0` — the honest price of a local model. A non-zero default would
+    invent a cost figure for every user who never configured one, which is the same
+    class of defect as the zeroed telemetry it replaces (H2).
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    usd_per_1m_input: float = 0.0
+    usd_per_1m_output: float = 0.0
+    #: Cached input is billed at a discount by most providers. Falls back to the full
+    #: input rate when unset, which over-reports rather than under-reports.
+    usd_per_1m_cache_read: float | None = None
+
+    def cost_usd(self, usage: TokenUsage) -> float:
+        cache_rate = (
+            self.usd_per_1m_input if self.usd_per_1m_cache_read is None else self.usd_per_1m_cache_read
+        )
+        return (
+            usage.input_tokens * self.usd_per_1m_input
+            + usage.output_tokens * self.usd_per_1m_output
+            + usage.cache_read_tokens * cache_rate
+        ) / 1_000_000
+
+
 class GovernorConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -221,6 +263,7 @@ class SandboxConfig(BaseModel):
 class RetrievalConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
 
+    enabled: bool = False
     chunk_strategy: Literal["ast_bounded", "fixed_window"] = "ast_bounded"
     max_chunk_tokens: int = 1024
     top_k: int = 20
@@ -231,21 +274,76 @@ class ContextConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     max_context_tokens: int = 200_000
-    compact_at_headroom: float = 0.15
+    compact_at_headroom: float = 0.20
     cache_breakpoints: bool = True
     tool_output_max_chars: int = 30_000
     read_file_max_lines: int = 2000
+    #: Exchanges (user + assistant turn pairs) kept verbatim from the start of history
+    #: across compaction — the task statement and early context an agent re-orients from.
+    keep_first_exchanges: int = 2
+    #: Token budget of the most recent history kept verbatim, uncompacted, regardless
+    #: of `compact_at_headroom` — the immediate working context a compaction pass must
+    #: never touch.
+    keep_last_tokens: int = 24_000
+
+
+class ScoringConfig(BaseModel):
+    """S-0 deterministic composite weights, plus the backend selector for the scoring ladder
+    (`docs/implementation/sprint_v2_s4_options.md` §3). Ranks only — see `CandidateScorer`."""
+
+    model_config = ConfigDict(frozen=True)
+
+    backend: Literal["composite", "null", "judge", "learned"] = "composite"
+    w_pass: float = 1.0
+    #: Δcoverage placeholder until a `Toolchain` adapter lands (v2-S6). Zero by default so an
+    #: unmeasurable delta cannot silently move a ranking.
+    w_coverage: float = 0.0
+    w_diff: float = 0.2
+    #: `no_new_suppressions` is already a hard gate — a candidate that fails it is never
+    #: admitted, so scoring it here would double-count a decision admission already made.
+    #: Zero by default; kept configurable for a future profile that gates differently.
+    w_suppression: float = 0.0
 
 
 class SearchConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    enabled: bool = True
+    #: Off by default: the v2-S4 empirical exit gate was not met (no ≥30-task suite from this
+    #: repo's history — see `docs/rationale/benchmarks/s4-harvest-findings.md`). Protocol and
+    #: adapter stay; set `true` only with an explicit opt-in once a task corpus exists.
+    enabled: bool = False
     candidates: int = 3
+    #: Sequential repair revisions after the initial attempt. `0` disables repair entirely.
     max_repair_rounds: int = 2
-    escalate_after_failures: int = 2
+    #: Stop further repair when this many failed attempts have been observed (initial attempt
+    #: counts). Default `3` so `max_repair_rounds=2` is reachable under `n_policy="escalating"`
+    #: — with `2`, `failures=round_+1` stopped after a single repair round (audit defect #6).
+    escalate_after_failures: int = 3
     escalate_on_files: int = 3
     escalate_on_diff_lines: int = 150
+    #: When `True`, skip further repair after the first failed gate attempt (cheap / no-repair
+    #: profile). Does **not** control worktree release — release always runs in
+    #: `BestOfNSearch._run_and_release_one`'s `finally`. Default `False` so shipped
+    #: `max_repair_rounds` is not dead code.
+    prune_on_first_gate_fail: bool = False
+    #: `sequential` (default, CPU-inference safe) runs candidates one at a time in their own
+    #: worktree; `parallel` launches concurrently, bounded by inference capacity — see
+    #: `ModelTierConfig.max_concurrent_requests`. Config-driven rather than hardware-sniffed so
+    #: a run stays deterministic and replayable regardless of the host it executes on.
+    launch_mode: Literal["sequential", "parallel"] = "sequential"
+    #: Delay between candidate launches in `parallel` mode. `0.0` under `sequential` (unused).
+    stagger_s: float = 0.0
+    #: In `parallel` mode, cancel remaining launches once one candidate admits cleanly.
+    cancel_on_clean_admit: bool = True
+    #: `escalating` (default) **stops** repair when `should_escalate` fires (threshold stop,
+    #: not "widen search"); `fixed` always runs exactly `max_repair_rounds`. `"bandit"` is
+    #: deliberately absent — no learned router until label volume exists (ADR-0005).
+    n_policy: Literal["fixed", "escalating"] = "escalating"
+    #: Per-candidate sampling temperature, cycled by candidate index (`i % len(...)`). Without
+    #: this, N candidates from one local model at one temperature are near-identical diffs and
+    #: Best-of-N degenerates into single-shot at N× cost — see `diversity_ratio` (S4.2d).
+    candidate_temperatures: tuple[float, ...] = (0.0, 0.6, 0.9)
+    scoring: ScoringConfig = Field(default_factory=ScoringConfig)
 
 
 class GatesConfig(BaseModel):
@@ -254,7 +352,15 @@ class GatesConfig(BaseModel):
     require_tests_pass: bool = True
     require_tests_unmodified: bool = True
     require_no_new_suppressions: bool = True
-    require_coverage_not_decreased: bool = True
+    #: Defaults to False as of PR-1a, and the change is a correction, not a relaxation.
+    #: This gate previously "passed" because `GateEvaluator` returned a hardcoded `True`
+    #: (H1) — it was never evaluated. It now reports an honest `None`, because there is
+    #: no `Toolchain` adapter and no coverage baseline to compare against. Leaving the
+    #: default at True would mean every run fails closed on a gate nothing can compute,
+    #: which teaches operators to disable gates. Admission behaviour is unchanged; the
+    #: label is now true. Set it to True once a Toolchain adapter lands and the gate can
+    #: answer — at which point `None` correctly fails closed.
+    require_coverage_not_decreased: bool = False
     max_diff_lines: int = 1000
 
 
@@ -300,6 +406,20 @@ class HookConfig(BaseModel):
     kind: Literal["observer", "interceptor"] = "observer"
     module: str
     timeout_ms: int = 5000
+
+
+class ExportConfig(BaseModel):
+    """`sagiha export` hygiene defaults — see `docs/04-workflows-and-loops/trace-distillation.md`."""
+
+    model_config = ConfigDict(frozen=True)
+
+    #: Reasoning blocks are excluded by default: provider terms often prohibit
+    #: distillation-bearing export of extended-thinking content. Local-tier traces carry no
+    #: such restriction and may opt in explicitly (also gated per-tier by
+    #: `ModelTierConfig.allow_reasoning_export`).
+    include_reasoning: bool = False
+    #: The exported repo's SPDX identifier — `None` fails closed (`export/license.py`).
+    spdx_license: str | None = None
 
 
 class Config(BaseModel):
@@ -350,6 +470,7 @@ class Config(BaseModel):
     workspace: WorkspaceConfig = Field(default_factory=WorkspaceConfig)
     autonomy: AutonomyConfig = Field(default_factory=AutonomyConfig)
     governor: GovernorConfig = Field(default_factory=GovernorConfig)
+    pricing: PricingConfig = Field(default_factory=PricingConfig)
     sandbox: SandboxConfig = Field(default_factory=SandboxConfig)
     retrieval: RetrievalConfig = Field(default_factory=RetrievalConfig)
     context: ContextConfig = Field(default_factory=ContextConfig)
@@ -359,6 +480,7 @@ class Config(BaseModel):
     aoi: AOIConfig = Field(default_factory=AOIConfig)
     mcp_servers: list[MCPServerConfig] = Field(default_factory=lambda: list[MCPServerConfig]())
     hooks: list[HookConfig] = Field(default_factory=lambda: list[HookConfig]())
+    export: ExportConfig = Field(default_factory=ExportConfig)
 
     @model_validator(mode="after")
     def validate_security_invariants(self) -> Config:
@@ -367,8 +489,26 @@ class Config(BaseModel):
                 f"sandbox.runtime='subprocess' is refused when autonomy.level is '{self.autonomy.level}'"
             )
 
+        if self.autonomy.level in ("autonomous", "scheduled") and self.sandbox.runtime not in (
+            "container",
+            "gvisor",
+        ):
+            raise ValueError(
+                f"autonomy.level='{self.autonomy.level}' requires sandbox.runtime "
+                f"in ('container', 'gvisor'); got {self.sandbox.runtime!r}"
+            )
+
         if self.sandbox.network == "host" and not self.sandbox.allow_unsafe:
             raise ValueError("sandbox.network='host' is refused without allow_unsafe=True")
+
+        if (
+            self.sandbox.network == "host"
+            and self.sandbox.allow_unsafe
+            and self.autonomy.level != "interactive"
+        ):
+            raise ValueError(
+                "sandbox.network='host' with allow_unsafe=True is refused unless autonomy.level='interactive'"
+            )
 
         if not self.gates.require_tests_unmodified:
             raise ValueError("gates.require_tests_unmodified=False is refused outright")
@@ -376,5 +516,21 @@ class Config(BaseModel):
         for role_name, tier_name in self.model.roles.items():
             if tier_name not in self.model.tiers:
                 raise ValueError(f"Model role '{role_name}' references undefined tier '{tier_name}'")
+
+        if self.search.enabled:
+            judge_tier_name = self.model.roles.get("judge")
+            execution_tier_name = self.model.roles.get("execution")
+            judge_tier = self.model.tiers.get(judge_tier_name) if judge_tier_name else None
+            execution_tier = self.model.tiers.get(execution_tier_name) if execution_tier_name else None
+            if (
+                judge_tier is not None
+                and execution_tier is not None
+                and (judge_tier.provider, judge_tier.model) == (execution_tier.provider, execution_tier.model)
+            ):
+                raise ValueError(
+                    "search.enabled=True is refused when the 'judge' role uses the same "
+                    f"(provider, model) tuple as 'execution' ({judge_tier.provider}, {judge_tier.model}) — "
+                    "a judge that is also the generator cannot score its own candidate honestly"
+                )
 
         return self

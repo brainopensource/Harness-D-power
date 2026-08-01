@@ -1,8 +1,8 @@
 ---
-status: normative
+status: rationale
 updated: 2026-07-29
+retrieval: excluded
 ---
-
 # **Port Stability & Versioning**
 
 > [!NOTE]
@@ -90,7 +90,7 @@ model calls.
 
 The *policy* below is the ADR-0012 target. The CLI gate that enforces it —
 `sagiha replay --verify-all` — is **Planned — Sprint 3** ([STATUS.md](../STATUS.md)); graded
-fidelity (L0/L1/L2) is defined in the [foundation review](../reviews/doing/2026-07-29-foundation-review.md#11-measurement-plan).
+fidelity (L0/L1/L2) is defined in the [foundation review](../rationale/reviews/2026-07-29-foundation-review.md#11-measurement-plan).
 
 `sagiha replay --verify-all` asserts byte-for-byte step-sequence equality against recorded cassettes
 at fidelity L2 for `replay_relevant` events; earlier Sprint 3 work targets L1 digest matching first.

@@ -46,9 +46,9 @@ async def test_run_or_resume_round_trip(tmp_path: Path) -> None:
     scripts/gen_replay_fixture.py uses to generate the committed replay fixture."""
     from sagiha.adapters.model.cassette import CassetteEntry, request_digest
     from sagiha.composition import build_kernel
-    from sagiha.domain.config import Config, ModelConfig, TelemetryConfig, WorkspaceConfig
+    from sagiha.domain.config import SandboxConfig, Config, ModelConfig, TelemetryConfig, WorkspaceConfig
     from sagiha.domain.content import Message, ModelRequest, TextBlock, ToolUseBlock
-    from sagiha.domain.trajectory import StreamEvent
+    from sagiha.domain.trajectory import Completion, StreamEvent, TokenUsage
 
     workspace = tmp_path / "ws"
     workspace.mkdir()
@@ -62,11 +62,11 @@ async def test_run_or_resume_round_trip(tmp_path: Path) -> None:
             self.i = 0
             self.recorded: list[tuple[ModelRequest, Message]] = []
 
-        async def complete(self, request: ModelRequest) -> Message:
+        async def complete(self, request: ModelRequest) -> Completion:
             msg = self._responses[self.i]
             self.i += 1
             self.recorded.append((request, msg))
-            return msg
+            return Completion(message=msg, usage=TokenUsage(input_tokens=0, output_tokens=0), model="test")
 
         async def stream(self, request: ModelRequest) -> AsyncIterator[StreamEvent]:
             raise NotImplementedError
@@ -76,6 +76,7 @@ async def test_run_or_resume_round_trip(tmp_path: Path) -> None:
         model=ModelConfig(mode="replay"),
         workspace=WorkspaceConfig(root=str(workspace)),
         telemetry=TelemetryConfig(trajectory_db=str(trajectory_db)),
+        sandbox=SandboxConfig(runtime="subprocess"),
     )
 
     # Phase 1: interrupted after one tool_use step (max_steps=1 caps it mid-flight).
@@ -114,6 +115,8 @@ async def test_run_or_resume_round_trip(tmp_path: Path) -> None:
 
     # Phase 2: what the resumed request will look like — reconstructed history plus an
     # end-turn response. Record it into the cassette so replay mode can serve it.
+    from sagiha.agency.context.assembler import ContextAssembler
+
     loop2_for_digest = RunLoop(
         model_provider=scripted1,  # unused for digest computation
         policy_engine=kernel1.policy_engine,
@@ -123,14 +126,17 @@ async def test_run_or_resume_round_trip(tmp_path: Path) -> None:
         bus=kernel1.bus,
         tool_schemas=list(kernel1.tool_schemas),
         evaluator=kernel1.evaluator,
+        context=kernel1.config.context,
     )
-    reconstructed = loop2_for_digest._reconstruct_history(task, phase1_result.steps)
-    resumed_request = ModelRequest(
-        system=loop2_for_digest._system_prompt,
-        messages=reconstructed,
-        tools=list(kernel1.tool_schemas),
-        role="execution",
+    assembler = ContextAssembler.from_trajectory(
+        system_prompt=loop2_for_digest._system_prompt,
+        tool_schemas=tuple(kernel1.tool_schemas),
+        task=task,
+        steps=phase1_result.steps,
+        config=kernel1.config.context,
     )
+    assembled = await assembler.assemble(role="execution")
+    resumed_request = assembled.request
     end_turn = Message(role="assistant", content=[TextBlock(text="All done.")])
     entries = [
         CassetteEntry(
@@ -155,13 +161,15 @@ async def test_run_or_resume_round_trip(tmp_path: Path) -> None:
 
     assert isinstance(payload, RunLoopResult)
     assert payload.run_id == run_id
-    assert len(payload.steps) == 1  # step 1 folded back in; step 2 ended the turn (no tool call)
+    assert len(payload.steps) == 2  # step 1 folded back in; step 2 is RC-4 text-only end_turn
+    assert payload.steps[1].message is not None
+    assert any(getattr(b, "text", None) == "All done." for b in payload.steps[1].message.content)
 
     from sagiha.adapters.trajectory.sqlite import SQLiteTrajectoryStore
 
     store = SQLiteTrajectoryStore(db_path=str(trajectory_db))
     all_steps = await store.steps_for_run(run_id)
-    assert [s.step_id.seq for s in all_steps] == [1]  # no seq collision on resume
+    assert [s.step_id.seq for s in all_steps] == [1, 2]  # no seq collision on resume
     final_record = await store.get_run(run_id)
     assert final_record is not None
     assert final_record.status == "completed"

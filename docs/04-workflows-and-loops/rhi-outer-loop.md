@@ -2,7 +2,6 @@
 status: normative
 updated: 2026-07-29
 ---
-
 # **Recursive Harness Self-Improvement (RHI) Outer Loop**
 
 > [!NOTE]
@@ -59,6 +58,32 @@ This yields an unbounded, uncontaminated, in-distribution benchmark that stays c
 * Acceptance threshold **corrected for multiple comparisons** — screening many candidates against one uncorrected threshold manufactures winners from noise
 * No increase in token consumption or latency; cache hit rate reported alongside
 
-## **Cost Reality**
+## **Cost Reality — and the Tier A/B/C Re-Founding**
 
-A few hundred tasks × several dollars × k repetitions × many candidates puts a single outer-loop iteration in the **thousands of dollars**. Two consequences: the AOI pre-filter exists specifically to keep this tractable, and the loop runs on a deliberate schedule rather than continuously. An outer loop that cannot pay for itself is a research project, not a feature.
+A few hundred tasks × several dollars × k repetitions × many candidates puts a single outer-loop
+iteration in the **thousands of dollars**. An outer loop that cannot pay for itself is a research
+project, not a feature.
+
+The cycle above treats "Mutation Proposal" as the loop's core. **It is not, and it must not be
+funded as though it were.** Mutation search is the single most expensive activity in this
+architecture and the one with the weakest evidence of return — because the gates that would prove
+the return were themselves fabricated until `v2-S1` (see [STATUS.md](../STATUS.md), H1/H2). The
+loop is therefore re-founded on what each tier actually costs versus what it actually returns:
+
+| Tier | Activity | Cost | Schedule |
+| :--- | :--- | :--- | :--- |
+| **A** | **Trajectory ingestion and measurement.** A/A noise floor, paired statistics, cost/latency/cache-hit accounting, failure-pattern reporting. Reads what already happened. | Near-zero — it is instrumentation on runs that were paid for anyway | **Always on.** Every run feeds it |
+| **B** | **Distillation and dataset export.** Turning admitted, replay-verified, untainted trajectories into SFT/DPO datasets; prompt and policy refinements a human authors and evaluates. | Bounded and predictable | **Scheduled.** Runs at phase close |
+| **C** | **Mutation search.** The Meta-Improver proposing harness changes, AOI ranking them, and Tiers 0–3 evaluating them. | Thousands of dollars per iteration | **Dormant.** Behind an explicit funding trigger |
+
+**Tier C is dormant by default and does not ship on a schedule.** It activates only when a human
+funds a specific iteration against a named hypothesis, with the A/A floor already measured on
+honest gates. `ports/meta_improver.py` stays in the tree — it costs 22 LOC and the port-rent rule
+([ADR-0023](../08-decisions/0023-port-rent-rule.md)) governs it — but it has no scheduled consumer.
+
+This is the economically honest ordering: **measurement is nearly free and compounds; mutation
+search is expensive and speculative.** The previous framing funded them as peers. The AOI
+pre-filter still exists to keep Tier C tractable *when it runs*; it is not a reason to run it.
+
+*Implements: `docs/rationale/reviews/agi_evolution_path.md` and `critical_gaps_analysis.md`.
+Recorded as [ADR-0022](../08-decisions/0022-rhi-economic-refounding.md).*

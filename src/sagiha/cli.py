@@ -3,17 +3,25 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import uuid
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal, cast
 
 import anyio
 import typer
 
+from sagiha.agency.context.system_prompt import resolve_system_prompt
 from sagiha.agency.run_loop import RunLoop, RunLoopResult, make_task
-from sagiha.composition import build_kernel
-from sagiha.domain.config import Config, ModelConfig, TelemetryConfig, WorkspaceConfig
+from sagiha.composition import build_kernel, build_retrieval_seed, ensure_index
+from sagiha.domain.config import Config, ModelConfig, SandboxConfig, TelemetryConfig, WorkspaceConfig
 from sagiha.domain.control import RunContext
+from sagiha.domain.events import ReplayVerified
+from sagiha.domain.graph import RetrievalHit
+
+if TYPE_CHECKING:
+    from sagiha.adapters.tools.cassette import CassetteToolRegistry
 
 app = typer.Typer(name="sagiha", help="SAGIHA — Super AGI Harness Agent")
 
@@ -38,18 +46,28 @@ async def _run_or_resume(
     mode: str = "replay",
     model_name: str = "qwen2.5-coder:7b",
     base_url: str = "http://localhost:11434/v1",
+    autonomy: Literal["interactive", "hybrid", "autonomous", "scheduled"] = "interactive",
+    stream_json: bool = False,
 ) -> tuple[str, RunLoopResult | str | None]:
     if resume is None and goal is None:
         return "missing_goal", None
 
     model_mode = "live" if mode == "live" else ("record" if mode == "record" else "replay")
-    from sagiha.domain.config import ModelTierConfig
+    from sagiha.domain.config import AutonomyConfig, ModelTierConfig, SandboxConfig
 
+    api_key_env = "OPENROUTER_API_KEY" if "openrouter" in base_url else ""
     local_tier = ModelTierConfig(
         provider="openai-compatible",
         model=model_name,
         base_url=base_url,
-        api_key_env="",
+        api_key_env=api_key_env,
+    )
+    # Autonomous/scheduled require the container perimeter (config validation). Interactive
+    # CLI defaults to subprocess so local cassette/replay work without Podman.
+    sandbox = (
+        SandboxConfig(runtime="container")
+        if autonomy in ("autonomous", "scheduled")
+        else SandboxConfig(runtime="subprocess")
     )
     config = Config(
         model=ModelConfig(
@@ -62,19 +80,26 @@ async def _run_or_resume(
         ),
         workspace=WorkspaceConfig(root=workspace),
         telemetry=TelemetryConfig(trajectory_db=trajectory_db),
+        autonomy=AutonomyConfig(level=autonomy),
+        sandbox=sandbox,
     )
     kernel = build_kernel(config, cassette_path=cassette_path)
-    loop = RunLoop(
-        model_provider=kernel.model_provider,
-        policy_engine=kernel.policy_engine,
-        resource_governor=kernel.resource_governor,
-        tool_registry=kernel.tool_registry,
-        trajectory_store=kernel.trajectory_store,
-        bus=kernel.bus,
-        max_steps=max_steps,
-        tool_schemas=list(kernel.tool_schemas),
-        evaluator=kernel.evaluator,
-    )
+
+    if stream_json:
+        import sys
+        from sagiha.domain.events import Event
+
+        async def _stream_event(ev: Event) -> None:
+            try:
+                line = json.dumps(
+                    {"type": "EVENT", "event": ev.event, "data": json.loads(ev.model_dump_json())}
+                )
+                sys.stdout.write(line + "\n")
+                sys.stdout.flush()
+            except Exception:
+                pass
+
+        kernel.bus.subscribe_observer(_stream_event)
 
     if resume is not None:
         existing = await kernel.trajectory_store.get_run(resume)
@@ -86,6 +111,34 @@ async def _run_or_resume(
         assert goal is not None  # guaranteed by the early return above
         run_id = str(uuid.uuid4())
         task = make_task(goal, checks, task_id=run_id)
+
+    retrieval_seed: tuple[RetrievalHit, ...] = ()
+    if config.retrieval.enabled and kernel.indexer is not None:
+        await ensure_index(kernel)
+        retrieval_seed = await build_retrieval_seed(
+            kernel.indexer,
+            task.goal,
+            config.retrieval.top_k,
+        )
+
+    system_prompt = await resolve_system_prompt(workspace)
+
+    loop = RunLoop(
+        model_provider=kernel.model_provider,
+        policy_engine=kernel.policy_engine,
+        resource_governor=kernel.resource_governor,
+        tool_registry=kernel.tool_registry,
+        trajectory_store=kernel.trajectory_store,
+        bus=kernel.bus,
+        max_steps=max_steps,
+        tool_schemas=list(kernel.tool_schemas),
+        evaluator=kernel.evaluator,
+        workspace=kernel.workspace,
+        pricing=kernel.config.pricing,
+        context=kernel.config.context,
+        retrieval_seed=retrieval_seed,
+        system_prompt=system_prompt,
+    )
 
     ctx = RunContext(
         run_id=run_id,
@@ -120,8 +173,21 @@ def run(
     base_url: str = typer.Option(
         "http://localhost:11434/v1", "--base-url", help="OpenAI-compatible endpoint URL"
     ),
+    autonomy: str = typer.Option(
+        "interactive",
+        "--autonomy",
+        help="Autonomy level: interactive|hybrid|autonomous|scheduled "
+        "(autonomous/scheduled require rootless Podman container perimeter)",
+    ),
+    stream_json: bool = typer.Option(
+        False, "--stream-json", help="Stream NDJSON event objects to stdout for frontend IPC integration"
+    ),
 ) -> None:
     """Run a coding task end-to-end (replay cassette by default in Sprint 3a)."""
+    level = cast(Literal["interactive", "hybrid", "autonomous", "scheduled"], autonomy)
+    if level not in ("interactive", "hybrid", "autonomous", "scheduled"):
+        typer.echo(f"invalid --autonomy={autonomy!r}")
+        raise SystemExit(2)
     checks = acceptance if acceptance else ["true"]
     cassette_path = cassette or ".sagiha/cassettes/default.json"
     outcome, payload = asyncio.run(
@@ -136,6 +202,8 @@ def run(
             mode=mode,
             model_name=model_name,
             base_url=base_url,
+            autonomy=level,
+            stream_json=stream_json,
         )
     )
 
@@ -153,6 +221,92 @@ def run(
     raise SystemExit(0 if payload.gate_report.admitted else 1)
 
 
+@dataclass
+class ReplayOutcome:
+    loop_result: RunLoopResult | None
+    cassette_tool_registry: CassetteToolRegistry | None
+    #: The real `run_id` whose recorded task this replay verified — `None` for the `"verify"`
+    #: sentinel path (no corresponding stored run) or when `run_id` was not found at all. Only
+    #: a non-`None` value is eligible for a `ReplayVerified` event: emitting one against the
+    #: sentinel would tag a run_id that does not exist in this trajectory store.
+    verified_run_id: str | None
+    run_not_found: bool = False
+
+
+async def _do_replay(
+    *,
+    run_id: str,
+    cassette: str,
+    workspace: str,
+    trajectory_db: str,
+    tool_cassette: str | None,
+) -> ReplayOutcome:
+    config = Config(
+        model=ModelConfig(mode="replay"),
+        workspace=WorkspaceConfig(root=workspace),
+        telemetry=TelemetryConfig(trajectory_db=trajectory_db),
+        sandbox=SandboxConfig(runtime="subprocess"),
+    )
+    kernel = build_kernel(config, cassette_path=cassette)
+
+    tool_registry = kernel.tool_registry
+    cassette_tool_registry = None
+    if tool_cassette is not None:
+        from sagiha.adapters.tools.cassette import CassetteToolRegistry
+
+        cassette_tool_registry = CassetteToolRegistry(kernel.tool_registry, tool_cassette, mode="replay")  # type: ignore[arg-type]
+        tool_registry = cassette_tool_registry
+
+    system_prompt = await resolve_system_prompt(workspace)
+
+    loop = RunLoop(
+        model_provider=kernel.model_provider,
+        policy_engine=kernel.policy_engine,
+        resource_governor=kernel.resource_governor,
+        tool_registry=tool_registry,
+        trajectory_store=kernel.trajectory_store,
+        bus=kernel.bus,
+        tool_schemas=list(kernel.tool_schemas),
+        evaluator=kernel.evaluator,
+        workspace=kernel.workspace,
+        pricing=kernel.config.pricing,
+        context=kernel.config.context,
+        system_prompt=system_prompt,
+    )
+    new_run_id = str(uuid.uuid4())
+    ctx = RunContext(
+        run_id=new_run_id,
+        autonomy_level="interactive",
+        workspace_root=str(await anyio.Path(workspace).resolve()),
+        budget_remaining_usd=config.governor.max_spend_usd_per_run,
+    )
+
+    verified_original_run_id: str | None = None
+    if run_id == "verify":
+        # No stored run to recover a goal from — the generic CI smoke path.
+        task = make_task("replay verification", ["true"], task_id=new_run_id)
+    else:
+        existing = await kernel.trajectory_store.get_run(run_id)
+        if existing is None:
+            return ReplayOutcome(
+                loop_result=None,
+                cassette_tool_registry=None,
+                verified_run_id=None,
+                run_not_found=True,
+            )
+        task = existing.task
+        verified_original_run_id = run_id
+
+    result = await loop.run(task, ctx)
+    if verified_original_run_id is not None:
+        await kernel.bus.emit(ReplayVerified(run_id=verified_original_run_id, replay_run_id=new_run_id))
+    return ReplayOutcome(
+        loop_result=result,
+        cassette_tool_registry=cassette_tool_registry,
+        verified_run_id=verified_original_run_id,
+    )
+
+
 @app.command()
 def replay(
     run_id: str = typer.Argument(..., help="Run id or 'verify' sentinel"),
@@ -160,44 +314,55 @@ def replay(
     cassette: str = typer.Option(".sagiha/cassettes/default.json", "--cassette", "-c"),
     workspace: str = typer.Option(".", "--workspace", "-w"),
     trajectory_db: str = typer.Option(".sagiha/trajectories.db", "--trajectory-db"),
+    tool_cassette: str | None = typer.Option(
+        None,
+        "--tool-cassette",
+        help="Also verify tool dispatch against a recorded tool cassette (ADR-0020): "
+        "PURE-classified calls re-execute, everything else is served from the recording.",
+    ),
 ) -> None:
-    """Replay a cassette-driven run and optionally verify gate admission."""
+    """Replay a cassette-driven run and optionally verify gate admission.
+
+    Against a real `run_id`, replays that run's own recorded goal (loaded via
+    `TrajectoryStore.get_run`) rather than a placeholder, and — on success — emits
+    `ReplayVerified` against the ORIGINAL `run_id`. That event is one of the exporter's four
+    eligibility criteria (v2-S4 Epic S4.4); without it, "replay-verified" was not expressible
+    for any run that was not the `"verify"` sentinel.
+    """
     if not verify and run_id != "verify":
         typer.echo("Pass --verify to execute digest-checked cassette replay")
-    config = Config(
-        model=ModelConfig(mode="replay"),
-        workspace=WorkspaceConfig(root=workspace),
-        telemetry=TelemetryConfig(trajectory_db=trajectory_db),
-    )
-    kernel = build_kernel(config, cassette_path=cassette)
-    # Verification: re-run with the same cassette; mismatch raises CassetteMismatchError.
     from sagiha.adapters.model.cassette import CassetteMismatchError
 
-    loop = RunLoop(
-        model_provider=kernel.model_provider,
-        policy_engine=kernel.policy_engine,
-        resource_governor=kernel.resource_governor,
-        tool_registry=kernel.tool_registry,
-        trajectory_store=kernel.trajectory_store,
-        bus=kernel.bus,
-        tool_schemas=list(kernel.tool_schemas),
-        evaluator=kernel.evaluator,
-    )
-    new_run_id = str(uuid.uuid4())
-    ctx = RunContext(
-        run_id=new_run_id,
-        autonomy_level="interactive",
-        workspace_root=str(Path(workspace).resolve()),
-        budget_remaining_usd=config.governor.max_spend_usd_per_run,
-    )
-    # Goal recovered from cassette is not stored yet — use a placeholder for verify smoke.
-    task = make_task("replay verification", ["true"], task_id=new_run_id)
     try:
-        result = asyncio.run(loop.run(task, ctx))
+        outcome = asyncio.run(
+            _do_replay(
+                run_id=run_id,
+                cassette=cassette,
+                workspace=workspace,
+                trajectory_db=trajectory_db,
+                tool_cassette=tool_cassette,
+            )
+        )
     except CassetteMismatchError as exc:
         typer.echo(f"replay verify FAILED: {exc}")
         raise SystemExit(2) from exc
+
+    if outcome.run_not_found or outcome.loop_result is None:
+        typer.echo(f"No run found for run_id={run_id} in {trajectory_db}")
+        raise SystemExit(1)
+
+    cassette_tool_registry = outcome.cassette_tool_registry
+    if cassette_tool_registry is not None:
+        total = cassette_tool_registry.re_executed + cassette_tool_registry.served_from_cassette
+        pct = (cassette_tool_registry.re_executed / total * 100) if total else 0.0
+        typer.echo(
+            f"tool_reexecution: {cassette_tool_registry.re_executed}/{total} steps ({pct:.1f}%) "
+            f"re-executed; {cassette_tool_registry.served_from_cassette} served from cassette"
+        )
+    result = outcome.loop_result
     typer.echo(f"replay_ok run_id={result.run_id} admitted={result.gate_report.admitted}")
+    if outcome.verified_run_id is not None:
+        typer.echo(f"ReplayVerified emitted for run_id={outcome.verified_run_id}")
     raise SystemExit(0)
 
 
@@ -208,8 +373,17 @@ def harvest(
         ".sagiha/benchmark/suite.json", "--output", "-o", help="Output path for BenchmarkSuite JSON"
     ),
     max_commits: int = typer.Option(200, "--max-commits", help="Maximum commits to inspect"),
-    test_cmd: str = typer.Option("pytest", "--test-cmd", help="Test command to run for tasks"),
+    test_cmd: str = typer.Option("python -m pytest", "--test-cmd", help="Test command to run for tasks"),
     suite_id: str = typer.Option("s0-baseline", "--suite-id", help="Suite identifier"),
+    validate: bool = typer.Option(
+        True, "--validate/--no-validate", help="Validate clean revert + reproducing failure per task"
+    ),
+    min_tasks: int = typer.Option(
+        30, "--min-tasks", help="Minimum valid tasks required (E0 slice gate); exits non-zero below it"
+    ),
+    k_determinism: int = typer.Option(
+        3, "--k-determinism", help="Reruns of the failing test to probe for flakiness"
+    ),
 ) -> None:
     """Harvest commit-replay evaluation tasks from git repository history (E0)."""
     from sagiha.e0.harvester import Harvester
@@ -217,9 +391,31 @@ def harvest(
     typer.echo(f"Harvesting tasks from {repo} (max {max_commits} commits)...")
     harvester = Harvester(repo, test_cmd=test_cmd, max_commits=max_commits)
     suite = asyncio.run(harvester.harvest_suite(suite_id=suite_id))
+    typer.echo(f"Harvested {len(suite.tasks)} candidate tasks")
 
-    harvester.save_suite(suite, output)
-    typer.echo(f"Harvested {len(suite.tasks)} tasks -> {output}")
+    if not validate:
+        harvester.save_suite(suite, output)
+        typer.echo(f"Harvested {len(suite.tasks)} tasks -> {output} (unvalidated: --no-validate)")
+        return
+
+    typer.echo(f"Validating {len(suite.tasks)} candidate tasks (k={k_determinism})...")
+    validated_suite, suite_validation = asyncio.run(
+        harvester.validate_suite(suite, min_tasks=min_tasks, k_determinism=k_determinism)
+    )
+    for result in suite_validation.task_results:
+        if not result.passed:
+            typer.echo(f"  reject {result.task_id}: {result.reason}")
+
+    harvester.save_suite(validated_suite, output)
+    typer.echo(
+        f"Validated {suite_validation.valid_tasks}/{suite_validation.total_tasks} tasks "
+        f"(need >= {min_tasks}) -> {output}"
+    )
+    if not suite_validation.passed:
+        typer.echo(
+            f"FAILED: only {suite_validation.valid_tasks} valid tasks, need >= {min_tasks} (E0 slice gate)"
+        )
+        raise SystemExit(1)
 
 
 @app.command()
@@ -235,10 +431,24 @@ def bench(
         ".sagiha/benchmark/report.md", "--output", "-o", help="Output report path (.md or .json)"
     ),
     aa: bool = typer.Option(False, "--aa", help="Run A/A noise floor calibration (2 passes)"),
+    runs: int = typer.Option(
+        1, "--runs", "-k", help="Repetitions per task, for reporting variance (k>=3 recommended)"
+    ),
+    compare: str = typer.Option(
+        "",
+        "--compare",
+        help="Two comma-separated arms to compare, e.g. 'single_shot,bon'. Runs both and reports "
+        "the paired delta. Requires --aa (or --noise-floor) so the delta is judged against a floor.",
+    ),
+    noise_floor_path: str = typer.Option(
+        "",
+        "--noise-floor",
+        help="Path to a previously written A/A report JSON, reused as the floor for --compare.",
+    ),
 ) -> None:
     """Run E0 evaluation benchmark over a harvested task suite."""
 
-    from sagiha.domain.benchmark import ComparisonResult, NoiseFloor
+    from sagiha.domain.benchmark import BenchmarkRun, ComparisonResult, NoiseFloor
     from sagiha.e0.harvester import Harvester
     from sagiha.e0.reporter import BenchmarkReporter
     from sagiha.e0.runner import BenchmarkRunner
@@ -255,37 +465,252 @@ def bench(
     mode_val: Literal["live", "replay", "record"] = (
         "live" if mode == "live" else ("record" if mode == "record" else "replay")
     )
-    runner = BenchmarkRunner(
-        suite=suite,
-        model_mode=mode_val,
-        cassette_path=cassette,
-        workspace_root=suite.repo,
-    )
 
-    run_a = asyncio.run(runner.run_suite(run_id="run-pass-1"))
+    def _runner(strategy: Literal["single_shot", "bon"]) -> BenchmarkRunner:
+        return BenchmarkRunner(
+            suite=suite,
+            model_mode=mode_val,
+            cassette_path=cassette,
+            workspace_root=suite.repo,
+            strategy=strategy,
+            agent_id=f"sagiha-{strategy}",
+        )
+
     nf: NoiseFloor | None = None
     comp: ComparisonResult | None = None
 
-    if aa:
-        typer.echo("Running second pass for A/A noise floor calibration...")
-        run_b = asyncio.run(runner.run_suite(run_id="run-pass-2"))
-        nf = StatisticalAnalyzer.compute_noise_floor(run_a, run_b)
-        comp = StatisticalAnalyzer.compare_runs(run_a, run_b)
-        typer.echo(
-            f"A/A Calibration mean_delta: {nf.mean_delta:.3f}, beats_noise_floor: {comp.beats_noise_floor}"
-        )
+    if compare:
+        arms = [a.strip() for a in compare.split(",") if a.strip()]
+        valid = {"single_shot", "bon"}
+        if len(arms) != 2 or not set(arms) <= valid or arms[0] == arms[1]:
+            typer.echo(f"--compare needs two distinct arms from {sorted(valid)}, got {compare!r}")
+            raise SystemExit(1)
+
+        control_arm = cast(Literal["single_shot", "bon"], arms[0])
+        treatment_arm = cast(Literal["single_shot", "bon"], arms[1])
+
+        # The floor comes first and from the *control* arm, run against itself. A treatment
+        # delta judged against no floor — or against a floor measured under a different
+        # launch_mode/arm — is the H5 failure shape: a number with nothing to beat.
+        if noise_floor_path:
+            nf = NoiseFloor.model_validate(json.loads(Path(noise_floor_path).read_text())["noise_floor"])
+            typer.echo(f"Reusing noise floor from {noise_floor_path} (n={nf.n_tasks})")
+        elif aa:
+            typer.echo(f"A/A calibration on the control arm ({control_arm})...")
+            floor_a = asyncio.run(_runner(control_arm).run_suite(run_id="aa-pass-1", k=runs))
+            floor_b = asyncio.run(_runner(control_arm).run_suite(run_id="aa-pass-2", k=runs))
+            nf = StatisticalAnalyzer.compute_noise_floor(floor_a, floor_b)
+            typer.echo(f"  floor mean_delta={nf.mean_delta:.4f} CI={nf.confidence_interval} n={nf.n_tasks}")
+        else:
+            typer.echo(
+                "--compare without --aa or --noise-floor would publish a delta with nothing to "
+                "judge it against; beats_noise_floor would be None. Re-run with --aa."
+            )
+            raise SystemExit(1)
+
+        typer.echo(f"Control arm: {control_arm}...")
+        run_control = asyncio.run(_runner(control_arm).run_suite(run_id=f"{control_arm}-run", k=runs))
+        typer.echo(f"Treatment arm: {treatment_arm}...")
+        run_treatment = asyncio.run(_runner(treatment_arm).run_suite(run_id=f"{treatment_arm}-run", k=runs))
+
+        comp = StatisticalAnalyzer.compare_runs(run_control, run_treatment, noise_floor=nf)
+        report_run = run_treatment
+        control_for_report: BenchmarkRun | None = run_control
+    else:
+        runner = _runner("single_shot")
+        run_a = asyncio.run(runner.run_suite(run_id="run-pass-1", k=runs))
+        control_for_report = None
+
+        if aa:
+            typer.echo("Running second pass for A/A noise floor calibration...")
+            run_b = asyncio.run(runner.run_suite(run_id="run-pass-2", k=runs))
+            nf = StatisticalAnalyzer.compute_noise_floor(run_a, run_b)
+            comp = StatisticalAnalyzer.compare_runs(run_a, run_b, noise_floor=nf)
+            typer.echo(
+                f"A/A Calibration mean_delta: {nf.mean_delta:.3f}, "
+                f"beats_noise_floor: {comp.beats_noise_floor}"
+            )
+        report_run = run_a
 
     if output.endswith(".json"):
-        report_content = BenchmarkReporter.render_json(run_a, noise_floor=nf, comparison=comp)
+        report_content = BenchmarkReporter.render_json(
+            report_run, noise_floor=nf, comparison=comp, control=control_for_report
+        )
     else:
-        report_content = BenchmarkReporter.render_markdown(run_a, noise_floor=nf, comparison=comp)
+        report_content = BenchmarkReporter.render_markdown(
+            report_run, noise_floor=nf, comparison=comp, control=control_for_report
+        )
 
     out_file = Path(output)
     out_file.parent.mkdir(parents=True, exist_ok=True)
     out_file.write_text(report_content)
 
-    pass_rate = StatisticalAnalyzer.compute_pass_rate(run_a)
+    pass_rate = StatisticalAnalyzer.compute_pass_rate(report_run)
     typer.echo(f"Benchmark complete! Pass rate: {pass_rate:.1%}. Report written to {output}")
+    if comp is not None and control_for_report is not None:
+        verdict = BenchmarkReporter.verdict(report_run, control_for_report, comp)
+        typer.echo(verdict)
+
+
+@dataclass
+class ExportOutcome:
+    ledger: list[str]
+    #: `SFTSample` or `DPOSample` objects, ready to serialize — empty when refused or nothing
+    #: was eligible.
+    samples: list[object]
+    refused: bool = False
+
+
+async def _do_export(
+    *,
+    format_: str,
+    trajectory_db: str,
+    spdx_license: str | None,
+    redact_patterns: list[str],
+    include_reasoning: bool,
+) -> ExportOutcome:
+    from sagiha.adapters.tools.builtins import BUILTIN_SCHEMAS, TOOL_DESCRIPTIONS
+    from sagiha.adapters.trajectory.sqlite import SQLiteTrajectoryStore
+    from sagiha.domain.content import ToolSchema
+    from sagiha.domain.trajectory import RunRecord, TrajectoryStep
+    from sagiha.outer_loop.export.dpo import export_dpo_pairs
+    from sagiha.outer_loop.export.eligibility import RunEligibility, assess
+    from sagiha.outer_loop.export.license import is_export_permitted
+    from sagiha.outer_loop.export.sft import export_sft_samples
+
+    ledger: list[str] = []
+    if not is_export_permitted(spdx_license):
+        ledger.append(f"REFUSED: export requires an allowlisted SPDX license, got {spdx_license!r}")
+        return ExportOutcome(ledger=ledger, samples=[], refused=True)
+
+    tool_schemas = tuple(
+        ToolSchema(name=name, description=TOOL_DESCRIPTIONS[name], parameters=BUILTIN_SCHEMAS[name])
+        for name in sorted(BUILTIN_SCHEMAS)
+    )
+    store = SQLiteTrajectoryStore(trajectory_db)
+    records: list[RunRecord] = await store.list_runs()
+    ledger.append(f"{len(records)} run(s) in {trajectory_db}")
+
+    steps_by_run: dict[str, list[TrajectoryStep]] = {}
+    eligibility_by_run: dict[str, RunEligibility] = {}
+    for record in records:
+        steps = await store.steps_for_run(record.run_id)
+        events = await store.events_for_run(record.run_id)
+        steps_by_run[record.run_id] = steps
+        elig = assess(record, steps, events)
+        eligibility_by_run[record.run_id] = elig
+        if elig.eligible:
+            ledger.append(f"  eligible {record.run_id}")
+        else:
+            ledger.append(f"  excluded {record.run_id}: {', '.join(elig.reasons())}")
+
+    if format_ == "sft":
+        all_samples: list[object] = []
+        total_hits = 0
+        for record in records:
+            elig = eligibility_by_run[record.run_id]
+            if not elig.eligible:
+                continue
+            samples, hits = await export_sft_samples(
+                record=record,
+                steps=steps_by_run[record.run_id],
+                tool_schemas=tool_schemas,
+                admitted=bool(elig.admitted),
+                redact_patterns=redact_patterns,
+                include_reasoning=include_reasoning,
+            )
+            all_samples.extend(samples)
+            total_hits += hits
+        ledger.append(f"SFT: {len(all_samples)} sample(s), {total_hits} redaction hit(s)")
+        return ExportOutcome(ledger=ledger, samples=all_samples)
+
+    pairs, hits = await export_dpo_pairs(
+        records=records,
+        steps_by_run=steps_by_run,
+        eligibility_by_run=eligibility_by_run,
+        tool_schemas=tool_schemas,
+        redact_patterns=redact_patterns,
+    )
+    ledger.append(f"DPO: {len(pairs)} pair(s), {hits} redaction hit(s)")
+    return ExportOutcome(ledger=ledger, samples=list(pairs))
+
+
+@app.command()
+def init(
+    workspace: str = typer.Option(".", "--workspace", "-w", help="Repository root to initialize"),
+    force: bool = typer.Option(False, "--force", help="Overwrite an existing AGENTS.md"),
+) -> None:
+    """Generate AGENTS.md from toolchain detection and repository layout."""
+    from sagiha.outer_loop.init.generate import generate_agents_md
+
+    root = Path(workspace).resolve()
+    try:
+        path = asyncio.run(generate_agents_md(root, graph=None, force=force))
+    except FileExistsError as exc:
+        typer.echo(str(exc))
+        raise SystemExit(1) from exc
+    typer.echo(f"Wrote {path}")
+    raise SystemExit(0)
+
+
+@app.command()
+def export(
+    format_: str = typer.Option("sft", "--format", help="Export format: 'sft' or 'dpo'"),
+    min_gate: str = typer.Option(
+        "admitted", "--min-gate", help="Eligibility floor (only 'admitted' is supported today)"
+    ),
+    trajectory_db: str = typer.Option(".sagiha/trajectories.db", "--trajectory-db"),
+    out: str = typer.Option("data/", "--out", "-o", help="Output directory for the JSONL file"),
+    spdx_license: str | None = typer.Option(
+        None, "--spdx-license", help="SPDX identifier of the exported repo (fails closed if omitted)"
+    ),
+    include_reasoning: bool = typer.Option(
+        False, "--include-reasoning", help="Include reasoning blocks (provider-policy permitting)"
+    ),
+) -> None:
+    """Export admitted, replay-verified, untainted, in-budget trajectories as SFT or DPO JSONL.
+
+    Prints an eligibility ledger — how many runs, and why each excluded run was excluded.
+    Honest negatives are deliverables: an export that finds nothing eligible says so, rather
+    than emitting an empty file silently.
+    """
+    import json
+
+    if format_ not in ("sft", "dpo"):
+        typer.echo(f"Unknown --format {format_!r}; expected 'sft' or 'dpo'")
+        raise SystemExit(2)
+    if min_gate != "admitted":
+        typer.echo(f"Unsupported --min-gate {min_gate!r}; only 'admitted' is implemented today")
+        raise SystemExit(2)
+
+    redact_patterns = TelemetryConfig().redact_patterns
+    outcome = asyncio.run(
+        _do_export(
+            format_=format_,
+            trajectory_db=trajectory_db,
+            spdx_license=spdx_license,
+            redact_patterns=redact_patterns,
+            include_reasoning=include_reasoning,
+        )
+    )
+
+    for line in outcome.ledger:
+        typer.echo(line)
+
+    if outcome.refused:
+        raise SystemExit(1)
+    if not outcome.samples:
+        typer.echo("No eligible samples exported.")
+        raise SystemExit(0)
+
+    out_dir = Path(out)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_file = out_dir / f"{format_}.jsonl"
+    with out_file.open("w", encoding="utf-8") as f:
+        for sample in outcome.samples:
+            f.write(json.dumps(sample.model_dump(mode="json")) + "\n")  # type: ignore[attr-defined]
+    typer.echo(f"Wrote {len(outcome.samples)} sample(s) to {out_file}")
+    raise SystemExit(0)
 
 
 if __name__ == "__main__":

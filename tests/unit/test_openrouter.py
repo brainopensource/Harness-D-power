@@ -38,7 +38,7 @@ async def test_openrouter_default_headers_injected() -> None:
     request = ModelRequest(messages=[Message(role="user", content=[TextBlock(text="Hi")])])
     response = await adapter.complete(request)
 
-    assert response.content[0].text == "Hello from OpenRouter!"
+    assert response.message.content[0].text == "Hello from OpenRouter!"
     assert route.called
     sent_request = route.calls.last.request
     assert sent_request.headers["Authorization"] == "Bearer sk-or-v1-testkey"

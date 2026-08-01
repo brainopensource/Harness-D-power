@@ -2,7 +2,6 @@
 status: normative
 updated: 2026-07-29
 ---
-
 # ADR-0017: Execution Profiles Over Task-Type Branching
 
 **Status**: Accepted

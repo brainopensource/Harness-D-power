@@ -218,6 +218,67 @@ class ToolCallFailed(Event):
     consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI", "HK")
 
 
+class TaintIntroduced(Event):
+    """An untrusted tool output entered the run, taints it monotonically (T7).
+
+    Emitted once per untrusted result, not once per run, so a trajectory shows exactly
+    which call introduced the taint that later refused a mutation.
+    """
+
+    event: Literal["tool.taint_introduced"] = "tool.taint_introduced"
+    call_id: str
+    tool_name: str
+    #: What the envelope's `source=` attribute was set to.
+    source: str
+
+    group: ClassVar[str] = "Tools"
+    emitted_by: ClassVar[str] = "Dispatch"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI", "HK", "MI")
+
+
+# --- Context ---
+
+
+class CompactionApplied(Event):
+    """The context window was compacted at a deliberate checkpoint.
+
+    Replay-relevant: a replayed run must compact at the same step, or its requests diverge
+    from the recording after that point.
+    """
+
+    event: Literal["context.compaction_applied"] = "context.compaction_applied"
+    exchanges_before: int
+    exchanges_after: int
+    tail_tokens_before: int
+    tail_tokens_after: int
+    #: Whether the summarized span contained untrusted content, and the summary therefore
+    #: carries the `<untrusted-data>` envelope forward (T7 through compaction).
+    tainted_span: bool = False
+
+    group: ClassVar[str] = "Context"
+    emitted_by: ClassVar[str] = "ContextAssembler"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI", "MI")
+
+
+class ProviderFailover(Event):
+    """The execution provider failed over to a role-level fallback (S3.4).
+
+    Replay-relevant as a checkpoint: a resumed run must know which provider served which
+    steps, and cross-provider resumes drop reasoning blocks whole-exchange.
+    """
+
+    event: Literal["model.provider_failover"] = "model.provider_failover"
+    from_provider: str
+    to_provider: str
+    reason: str
+    #: True when reasoning blocks were stripped from the request for the new provider.
+    reasoning_dropped: bool = False
+
+    group: ClassVar[str] = "Reasoning"
+    emitted_by: ClassVar[str] = "FallbackModelAdapter"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI", "MI")
+
+
 # --- Workspace ---
 
 
@@ -326,6 +387,11 @@ class CandidateSelected(Event):
     branch_id: str
     gate_report: GateReport
     selection_basis: str
+    #: `distinct_candidates / N` over the proposed batch (v2-S4 Epic S4.2d) — a validity
+    #: precondition on the Best-of-N exit gate, not a score. Reported here (rather than a
+    #: separate event) because `select()` is the one call site that already holds the full
+    #: `branch_ids` batch a diversity ratio is computed over.
+    diversity_ratio: float = 1.0
 
     group: ClassVar[str] = "Evaluation & Control"
     emitted_by: ClassVar[str] = "CandidateSearch"
@@ -425,6 +491,23 @@ class BenchmarkTaskCompleted(Event):
     consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI", "MI")
 
 
+class ReplayVerified(Event):
+    """The cassette-recorded requests of `run_id` reproduce exactly under digest-checked replay.
+
+    Emitted against the ORIGINAL run's `run_id` (the base `Event.run_id`), not the fresh
+    ephemeral run `sagiha replay --verify` mints to perform the check — `replay_run_id` carries
+    that one, for audit trail. Without this event, "replay-verified" (one of the exporter's four
+    eligibility criteria, v2-S4 Epic S4.4) has no durable signal to check for a real run.
+    """
+
+    event: Literal["replay.verified"] = "replay.verified"
+    replay_run_id: str
+
+    group: ClassVar[str] = "Evaluation & Control"
+    emitted_by: ClassVar[str] = "CLI"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "OT")
+
+
 ALL_EVENTS: tuple[type[Event], ...] = (
     RunStarted,
     RunCompleted,
@@ -442,6 +525,9 @@ ALL_EVENTS: tuple[type[Event], ...] = (
     ToolCallDenied,
     ToolCallCompleted,
     ToolCallFailed,
+    TaintIntroduced,
+    CompactionApplied,
+    ProviderFailover,
     EditApplied,
     CommandExecuted,
     DiagnosticsChanged,
@@ -460,5 +546,6 @@ ALL_EVENTS: tuple[type[Event], ...] = (
     TaskRevised,
     BenchmarkTaskHarvested,
     BenchmarkTaskCompleted,
+    ReplayVerified,
 )
 """Source of truth for docs/04-workflows-and-loops/event-catalog.md — see scripts/gen_event_catalog.py."""

@@ -2,7 +2,6 @@
 status: normative
 updated: 2026-07-29
 ---
-
 # **Security & Threat Model**
 
 > [!NOTE]
@@ -61,6 +60,39 @@ Replaying a trajectory that ran `git push` or `rm` would perform it again. Every
 ## **T6 — Resource Exhaustion**
 
 Parallel agents against a frontier API exhaust rate limits and burn wall-clock in retries; unbounded sandboxes and LSP servers exhaust host memory. The `ResourceGovernor` bounds concurrency, spend, sandbox count, and server pool size globally. A budget that is documented but not enforced at a call site is not a budget.
+
+## **T7 — Tainted-Context Mutation (TaintGate v1)**
+
+T1's mitigations label untrusted content and stop it laundering through *memory*. They do not stop
+the simpler path: the model reads a hostile README **in this run**, and three steps later writes a
+file. Nothing connects the read to the write. `<untrusted-data>` labelling is advice to the model,
+and advice is not a control.
+
+TaintGate closes that gap at the **existing** choke point. **No new module and no new gate class**
+— a separate gate would create a second authorization path, which is the one thing this
+architecture forbids.
+
+| Element | Rule |
+| :--- | :--- |
+| **Provenance at source** | `ToolResult.trusted: bool`, stamped by `dispatch` from the handler's `register_handler(..., trusted_output=)` registration. `read_file`/`list_dir`/`grep`/`run_command` → `False` (they surface repo content). `apply_edit`/`write_file` → `True`. Harness-derived tools (`find_symbols`, `get_skeleton`) → `True`. |
+| **Monotonic taint** | `DefaultPolicyEngine` holds `_tainted_runs`. Any untrusted result taints the run. **Nothing untaints it** until the run terminates — there is no "the model looked at it and decided it was fine". |
+| **The gate** | `authorize()` refuses pre-grant: tainted run **and** tool ∈ `MUTATION_TOOLS` → `Decision(allowed=False, requires_human=True)`, **at every autonomy level**. |
+| **Envelope at assembler prompt boundary** | `agency/context/assembler.result_message` wraps untrusted text in `<untrusted-data source=…>` when a `ToolResult` becomes prompt content. `dispatch()` emits `TaintIntroduced` but does **not** rewrite bytes — `GateEvaluator` and other machine consumers of `dispatch` must keep clean content. |
+| **Through compaction** | A tainted exchange's summary is tainted and re-wrapped. See [exchange-granular compaction](./prompt-architecture.md). |
+
+Taint state is **Control-internal**: `is_tainted(run_id)` is a concrete-class helper, deliberately
+*not* on the `PolicyEngine` Protocol, so no adapter can read or influence it.
+
+Until the CLI approval loop exists (`v2-S7`), `requires_human=True` denials flow back as
+`is_error` tool results the model can see, and tainted mutations **fail closed**. That is the
+correct pre-sandbox posture: the alternative is an autonomous write path fed by attacker-controlled
+text.
+
+**Proving test — injection canary:** a planted hostile README instructs a write; the mutation is
+denied with `requires_human=True`; zero tainted diffs land unapproved.
+
+*Implements: `docs/rationale/reviews/next_gen_architecture_specs.md`. Lands `v2-S3` (PR-3.3), TCB,
+human-authored.*
 
 ## **Autonomy Levels and Human Gates**
 

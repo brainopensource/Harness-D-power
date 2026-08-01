@@ -6,13 +6,14 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 
 import pytest
+from tests.conftest import build_test_evaluator
 
 from sagiha.adapters.tools.registry import DefaultToolRegistry
 from sagiha.adapters.trajectory.sqlite import SQLiteTrajectoryStore
 from sagiha.agency.run_loop import RunLoop, make_task
 from sagiha.domain.content import EffectClass, Message, ModelRequest, TextBlock, ToolResult, ToolUseBlock
 from sagiha.domain.control import RunContext
-from sagiha.domain.trajectory import StreamEvent
+from sagiha.domain.trajectory import Completion, StreamEvent, TokenUsage
 from sagiha.kernel.bus import EventBus
 from sagiha.kernel.governor import DefaultResourceGovernor
 from sagiha.kernel.policy.engine import DefaultPolicyEngine
@@ -30,11 +31,11 @@ class _ScriptedProvider:
         self.i = 0
         self.seen_message_counts: list[int] = []
 
-    async def complete(self, request: ModelRequest) -> Message:
+    async def complete(self, request: ModelRequest) -> Completion:
         self.seen_message_counts.append(len(request.messages))
         msg = self._responses[min(self.i, len(self._responses) - 1)]
         self.i += 1
-        return msg
+        return Completion(message=msg, usage=TokenUsage(input_tokens=0, output_tokens=0), model="test")
 
     async def stream(self, request: ModelRequest) -> AsyncIterator[StreamEvent]:
         raise NotImplementedError
@@ -82,6 +83,7 @@ async def test_resume_continues_seq_without_collision(tmp_path: Path) -> None:
         tool_registry=registry,
         trajectory_store=store,
         bus=EventBus(),
+        evaluator=build_test_evaluator(policy, governor, registry),
         max_steps=2,
     )
     first_result = await first_loop.run(task, ctx)
@@ -104,6 +106,7 @@ async def test_resume_continues_seq_without_collision(tmp_path: Path) -> None:
         tool_registry=registry,
         trajectory_store=store,
         bus=EventBus(),
+        evaluator=build_test_evaluator(policy, governor, registry),
         max_steps=5,
     )
     resumed_result = await second_loop.run(task, ctx, resume=True)
@@ -111,10 +114,11 @@ async def test_resume_continues_seq_without_collision(tmp_path: Path) -> None:
     # No collision: append_step would have raised sqlite3.IntegrityError on a duplicate
     # (run_id, branch_id, seq) primary key, which it did not.
     all_steps = await store.steps_for_run(ctx.run_id)
-    assert [s.step_id.seq for s in all_steps] == [1, 2]  # step 3 ended the turn with no tool call
+    # Steps 1–2 from phase 1; step 3 is the text-only end_turn on resume (RC-4 persisted).
+    assert [s.step_id.seq for s in all_steps] == [1, 2, 3]
 
-    # Prior steps are folded back into the result.
-    assert len(resumed_result.steps) == 2
+    # Prior steps are folded back into the result, plus the new end turn.
+    assert len(resumed_result.steps) == 3
     assert resumed_result.steps[0].step_id.seq == 1
 
     # The model on resume saw the reconstructed history (goal + 2 prior tool round-trips), not

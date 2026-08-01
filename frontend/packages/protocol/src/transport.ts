@@ -17,12 +17,7 @@ export interface EventSource {
   submitTask(task: TaskSpec): Promise<{ runId: string }>;
 
   /** Resolve a pending ApprovalRequested. Mirrors the CLI's rendering of that event as a decision. */
-  resolveApproval(
-    runId: string,
-    callId: string,
-    approved: boolean,
-    note?: string,
-  ): Promise<void>;
+  resolveApproval(runId: string, callId: string, approved: boolean, note?: string): Promise<void>;
 
   /** Resume from a step (mirrors SSE `?since=<step_id>` resumability). */
   subscribeSince(

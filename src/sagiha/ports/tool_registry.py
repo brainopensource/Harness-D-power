@@ -14,7 +14,7 @@ from typing import Any, Final, Protocol
 
 from sagiha.domain.content import EffectClass, ToolCall, ToolResult
 
-PORT_VERSION: Final = 1
+PORT_VERSION: Final = 2
 STABILITY: Final = "provisional"
 
 
@@ -25,3 +25,11 @@ class ToolRegistry(Protocol):
     async def dispatch(self, call: ToolCall) -> ToolResult: ...
 
     async def get_effect_class(self, tool_name: str) -> EffectClass: ...
+
+    async def effect_for_call(self, call: ToolCall) -> EffectClass:
+        """Per-invocation refinement of `get_effect_class` (ADR-0020).
+
+        Defaults to `get_effect_class` narrowed by `kernel.policy.effects.classify_command`
+        for `run_command`. The narrowing rules live in the TCB; this seam only calls them.
+        """
+        ...

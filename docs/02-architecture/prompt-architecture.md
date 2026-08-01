@@ -2,7 +2,6 @@
 status: normative
 updated: 2026-07-29
 ---
-
 # **Prompt Architecture**
 
 > [!NOTE]
@@ -85,29 +84,50 @@ Compaction rewrites layer 8 into a summary and resets the cache **once**, delibe
 
 Triggered at task boundaries or when remaining headroom crosses a threshold — never on a per-turn schedule, which would pay the reset cost continuously while saving nothing.
 
-### The Three Numbers (R9)
+### Exchange-Granular Compaction *(supersedes R9's three numbers)*
 
 Prose ("when headroom crosses a threshold") is not an algorithm — the first implementer to hit
 this invents ad-hoc truncation and breaks the stable-prefix ordering the layout above exists to
-protect. Three numbers are normative, not tunable per-call:
+protect. But the original R9 spec (headroom 20% / keep-first-N=2 / keep-last-M=6, all counted in
+**turns**) carried two latent structural bugs, and both are fatal in a tool-using loop:
+
+1. **Turn-count policies have unbounded token variance.** Six turns can be 2k tokens or 60k
+   depending on what the tools returned. A count-based keep budget cannot bound the thing it
+   exists to bound.
+2. **A boundary can fall inside a `tool_use`/`tool_result` pair.** Summarizing across one produces
+   an orphan `tool_result` id and a **provider-rejected request** — the loop dies at exactly the
+   moment compaction was supposed to save it.
+
+The unit of compaction is therefore the **exchange**: one assistant message plus all its paired
+`tool_result`s and any signed reasoning block. Boundaries never fall inside an exchange, so
+provider block-pairing is preserved *by construction* rather than by discipline.
 
 | Name | Value | Meaning |
 | :--- | :--- | :--- |
-| **Headroom %** | `20%` | Compaction triggers when remaining context budget (model context window minus stable-prefix layers 1–7) drops below 20% of the model's total context window — checked once per step, before prompt assembly, never mid-turn. |
-| **Keep-first-N** | `2` | The first 2 turns of the append-only tail (layer 8) — the original task framing and the model's first plan/attempt — survive compaction verbatim, uncompressed. Early turns anchor intent; summarizing them away loses the "why" a later turn depended on. |
-| **Keep-last-M** | `6` | The most recent 6 turns survive verbatim. Recent tool output is the highest-value context for the model's immediate next action; compacting it forces a re-read the model just paid for. |
+| **Headroom %** | `20%` | Compaction triggers when remaining budget (context window minus stable-prefix layers 1–7) drops below 20% — checked once per step, before prompt assembly, never mid-turn. Raised from R9's 15%. |
+| **`keep_first_exchanges`** | `2` | The first 2 exchanges survive verbatim. Early exchanges anchor intent; summarizing them away loses the "why" a later step depended on. |
+| **`keep_last_tokens`** | `24_000` | The most recent **whole exchanges** that fit in 24k tokens survive verbatim. Token-budgeted, not count-budgeted — this is the fix for (1). |
 
-Everything strictly between turn N and turn (total − M) is what compaction rewrites into a
-summary. If total turns ≤ N + M, compaction is a no-op — there is nothing in the middle to
-discard. The summary itself becomes a single synthetic turn inserted at the boundary, tagged
-with the compaction event so a trajectory replay can distinguish "the model said this" from "the
-compactor summarized this."
+Everything strictly between becomes **one synthetic tagged summary turn**, emitting
+`CompactionApplied`, so a trajectory replay can distinguish "the model said this" from "the
+compactor summarized this". If the total already fits the keep budgets, compaction is a no-op.
 
-These three numbers are config, not code — sourced from the same profile mechanism as
-`max_steps_per_run`, so tuning them does not require a harness release; but the default values
-above are what a fresh profile gets, and a profile that omits them inherits these defaults rather
-than failing closed, since compaction absence (not compaction misconfiguration) is the failure
-mode this guards against.
+**Taint survives compaction.** An exchange carries a `tainted` flag, and the summary of a tainted
+span is itself tainted and re-wrapped in the `<untrusted-data>` envelope. A compactor that
+summarizes untrusted content into clean-looking prose is a laundering channel — see
+[T7](./security-and-threat-model.md).
+
+**Anchored artifacts live outside the transcript.** The task spec, acceptance criteria, plan
+state, the open-file set, and unresolved diagnostics are structured state re-rendered on every
+assembly — never entrusted to a summary, because a summary is lossy by definition and these are
+the things a long run cannot afford to lose.
+
+Two implementations: **`TruncatingCompactor`** (deterministic, no model call — the v1 default) and
+**`ModelCompactor`** (uses the `compaction` role). These values are config sourced from the same
+profile mechanism as `max_steps_per_run`; a profile that omits them inherits these defaults rather
+than failing closed, since compaction *absence* is the failure mode this guards against.
+
+*Implements: `docs/rationale/reviews/next_gen_architecture_specs.md`. Lands `v2-S3` (PR-3.2).*
 
 ## **Sub-Agent Prompts**
 

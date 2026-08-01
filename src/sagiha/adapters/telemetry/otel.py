@@ -23,4 +23,4 @@ class OTelEventObserver:
 
     async def on_event(self, event: Event) -> None:
         """Handle incoming EventBus event and export to OTel collector."""
-        pass
+        raise NotImplementedError("v2-S7 — see docs/STATUS.md")

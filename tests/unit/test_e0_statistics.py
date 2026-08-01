@@ -32,7 +32,10 @@ def test_compute_noise_floor() -> None:
     assert noise_floor.mean_delta == 0.5
 
 
-def test_compare_runs() -> None:
+def test_compare_runs_single_task_is_underpowered() -> None:
+    """H5 fix: a single-task comparison has exactly one discordant pair — not enough for an
+    honest McNemar verdict (n < 2). `beats_noise_floor` must stay `None`, never the old hardcoded
+    `True`; a full statistical rewrite with known-answer fixtures lands in the S4 test pass."""
     res1_a = BenchmarkResult(task_id="t1", agent_id="a1", resolved=False)
     run_control = BenchmarkRun(run_id="r1", suite_id="s1", agent_id="a1", results=(res1_a,))
 
@@ -41,7 +44,8 @@ def test_compare_runs() -> None:
 
     comp = StatisticalAnalyzer.compare_runs(run_control, run_treatment)
     assert comp.delta_pass_rate == 1.0
-    assert comp.beats_noise_floor is True
+    assert comp.p_value is None
+    assert comp.beats_noise_floor is None
 
 
 def test_benchmark_reporter_markdown_and_json() -> None:

@@ -1,8 +1,8 @@
 ---
-status: normative
+status: rationale
 updated: 2026-07-29
+retrieval: excluded
 ---
-
 # **Running Benchmarks & Evaluating Trajectories**
 
 > [!NOTE]
