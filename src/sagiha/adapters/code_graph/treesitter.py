@@ -10,19 +10,29 @@ import logging
 import sqlite3
 import subprocess
 from collections.abc import Iterable
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
 from anyio.to_thread import run_sync
-from tree_sitter import Node
-from tree_sitter_language_pack import get_parser
+from tree_sitter import Node, Tree
 
+from sagiha.adapters.indexer.chunking import parse_python
 from sagiha.domain.graph import CoChange, GraphEdge, SymbolRef
 
 logger = logging.getLogger(__name__)
 
 _SKIP_DIRS = frozenset({".git", ".venv", "venv", "node_modules", "__pycache__", ".sagiha"})
 _SYMBOL_NODE_TYPES = frozenset({"function_definition", "async_function_definition", "class_definition"})
+
+
+@dataclass(frozen=True)
+class _SymbolMeta:
+    symbol_path: str
+    path: str
+    name: str
+    kind: str
+    line: int
 
 
 def _module_name(path: str) -> str:
@@ -56,23 +66,39 @@ def _symbol_path(module: str, name: str, *, class_name: str | None = None) -> st
     return f"{module}.{class_name}.{name}"
 
 
-def _parse_symbol_ref(symbol_path: str) -> SymbolRef | None:
+def _parse_symbol_ref(symbol_path: str, *, module: str | None = None) -> SymbolRef | None:  # pyright: ignore[reportUnusedFunction]
+    """Resolve a dotted symbol path to a ``SymbolRef`` using an optional module prefix."""
     parts = symbol_path.split(".")
     if len(parts) < 2:
         return None
     name = parts[-1]
-    path = "/".join(parts[:-1]) + ".py"
-    kind: str = "function"
-    if len(parts) >= 3:
+    if module is None:
+        return None
+    module_parts = module.split(".")
+    if len(parts) <= len(module_parts) or parts[: len(module_parts)] != module_parts:
+        return None
+    rest = parts[len(module_parts) :]
+    file_path = "/".join(module_parts) + ".py"
+    if len(rest) == 1 and rest[0][0].isupper():
+        kind = "class"
+    elif len(rest) > 1:
         kind = "method"
-    return SymbolRef(path=path, name=name, kind=kind, line=1)  # type: ignore[arg-type]
+    else:
+        kind = "function"
+    return SymbolRef(path=file_path, name=name, kind=kind, line=1)  # type: ignore[arg-type]
 
 
 class TreeSitterCodeGraph:
     """SQLite-backed code graph with Tree-sitter AST edge extraction."""
 
-    def __init__(self, db_path: str = ".sagiha/code_graph.db") -> None:
+    def __init__(
+        self,
+        db_path: str = ".sagiha/code_graph.db",
+        *,
+        workspace_root: Path | None = None,
+    ) -> None:
         self._db_path = db_path
+        self._workspace_root = workspace_root
         self._init_db()
 
     def _init_db(self) -> None:
@@ -101,12 +127,46 @@ class TreeSitterCodeGraph:
                 );
                 """
             )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS symbol_refs (
+                    symbol_path TEXT PRIMARY KEY,
+                    path TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    kind TEXT NOT NULL,
+                    line INTEGER NOT NULL
+                );
+                """
+            )
             conn.commit()
 
     def _clear_edges(self) -> None:
         with sqlite3.connect(self._db_path) as conn:
             conn.execute("DELETE FROM edges")
             conn.execute("DELETE FROM symbols")
+            conn.execute("DELETE FROM symbol_refs")
+            conn.commit()
+
+    def _upsert_symbol_refs_sync(self, symbol_meta: Iterable[_SymbolMeta]) -> None:
+        rows = [
+            (m.symbol_path, m.path, m.name, m.kind, m.line)
+            for m in symbol_meta
+        ]
+        if not rows:
+            return
+        with sqlite3.connect(self._db_path) as conn:
+            conn.executemany(
+                """
+                INSERT INTO symbol_refs (symbol_path, path, name, kind, line)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(symbol_path) DO UPDATE SET
+                    path = excluded.path,
+                    name = excluded.name,
+                    kind = excluded.kind,
+                    line = excluded.line
+                """,
+                rows,
+            )
             conn.commit()
 
     def _upsert_edges_sync(self, edges: Iterable[GraphEdge]) -> None:
@@ -124,19 +184,29 @@ class TreeSitterCodeGraph:
             )
             conn.commit()
 
-    def replace_file_edges(self, path: str, edges: list[GraphEdge]) -> None:
+    def replace_file_edges(
+        self,
+        path: str,
+        edges: list[GraphEdge],
+        symbol_meta: dict[str, _SymbolMeta] | None = None,
+    ) -> None:
         """Replace all edges and symbols associated with a single file."""
         module = _module_name(path)
+        meta = list(symbol_meta.values()) if symbol_meta else []
         with sqlite3.connect(self._db_path) as conn:
             conn.execute(
                 """
                 DELETE FROM edges
-                WHERE src = ? OR dst = ?
+                WHERE src = ?
                    OR src LIKE ? OR dst LIKE ?
                 """,
-                (path, path, f"{module}.%", f"{module}.%"),
+                (path, f"{module}.%", f"{module}.%"),
             )
             conn.execute("DELETE FROM symbols WHERE path = ?", (path,))
+            conn.execute(
+                "DELETE FROM symbol_refs WHERE path = ?",
+                (path,),
+            )
             for edge in edges:
                 conn.execute(
                     """
@@ -146,28 +216,33 @@ class TreeSitterCodeGraph:
                     """,
                     (edge.src, edge.dst, edge.kind, edge.weight),
                 )
-                if edge.kind == "defines":
-                    symbol_path = edge.dst
-                    parts = symbol_path.split(".")
-                    name = parts[-1]
-                    kind = "method" if len(parts) > 2 and parts[-2][0].isupper() else "function"
-                    if len(parts) == 2 and parts[-1][0].isupper():
-                        kind = "class"
-                    conn.execute(
-                        """
-                        INSERT OR REPLACE INTO symbols(path, name, kind, line)
-                        VALUES (?, ?, ?, ?)
-                        """,
-                        (path, name, kind, 1),
-                    )
+            for m in meta:
+                conn.execute(
+                    """
+                    INSERT OR REPLACE INTO symbols(path, name, kind, line)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (m.path, m.name, m.kind, m.line),
+                )
+                conn.execute(
+                    """
+                    INSERT OR REPLACE INTO symbol_refs(symbol_path, path, name, kind, line)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (m.symbol_path, m.path, m.name, m.kind, m.line),
+                )
             conn.commit()
 
-    def index_file(self, path: str, source: bytes) -> list[GraphEdge]:
-        """Extract import/define/call edges from a Python source file."""
-        parser = get_parser("python")
-        tree = parser.parse(source)
+    def index_file_from_tree(
+        self,
+        path: str,
+        source: bytes,
+        tree: Tree,
+    ) -> tuple[list[GraphEdge], dict[str, _SymbolMeta]]:
+        """Extract import/define/call edges from an already-parsed Python tree."""
         module = _module_name(path)
         edges: list[GraphEdge] = []
+        symbol_meta: dict[str, _SymbolMeta] = {}
         local_defs: dict[str, str] = {}
         imported_names: dict[str, str] = {}
         current_symbol: str | None = None
@@ -182,21 +257,21 @@ class TreeSitterCodeGraph:
                     if child.type in {"dotted_name", "aliased_import"}:
                         name_node = child.child_by_field_name("name") or child
                         if name_node.type == "dotted_name" or name_node.type == "identifier":
-                            module = _node_text(source, name_node)
-                            target = _resolve_import(path, module, 0)
+                            module_name = _node_text(source, name_node)
+                            target = _resolve_import(path, module_name, 0)
                             if target:
                                 add_edge(path, target, "imports")
             elif node.type == "import_from_statement":
                 module_node = node.child_by_field_name("module_name")
-                module = _node_text(source, module_node) if module_node else None
+                module_name = _node_text(source, module_node) if module_node else None
                 level = 0
                 for child in node.children:
                     if child.type == "relative_import":
                         level = sum(1 for c in child.children if c.type == ".")
-                target = _resolve_import(path, module, level)
+                target = _resolve_import(path, module_name, level)
                 if target:
                     add_edge(path, target, "imports")
-                import_module = _module_name(target) if target else module
+                import_module = _module_name(target) if target else module_name
                 for child in node.children:
                     if child.type == "dotted_name" or child.type == "aliased_import":
                         imported = child.child_by_field_name("name") or child
@@ -208,9 +283,23 @@ class TreeSitterCodeGraph:
             for child in node.children:
                 walk_imports(child)
 
-        def register_def(name: str, *, class_name: str | None) -> str:
+        def register_def(name: str, *, class_name: str | None, node: Node) -> str:
             sym = _symbol_path(module, name, class_name=class_name)
+            line = node.start_point[0] + 1
+            if node.type == "class_definition":
+                kind = "class"
+            elif class_name is not None:
+                kind = "method"
+            else:
+                kind = "function"
             local_defs[name] = sym
+            symbol_meta[sym] = _SymbolMeta(
+                symbol_path=sym,
+                path=path,
+                name=name,
+                kind=kind,
+                line=line,
+            )
             add_edge(path, sym, "defines")
             return sym
 
@@ -222,7 +311,7 @@ class TreeSitterCodeGraph:
                     return
                 name = _node_text(source, name_node)
                 if node.type == "class_definition":
-                    sym = register_def(name, class_name=class_name)
+                    sym = register_def(name, class_name=class_name, node=node)
                     body = node.child_by_field_name("body")
                     if body is not None:
                         prev_symbol, prev_class = current_symbol, current_class
@@ -231,7 +320,7 @@ class TreeSitterCodeGraph:
                             walk_defs(child, class_name=name)
                         current_symbol, current_class = prev_symbol, prev_class
                     return
-                sym = register_def(name, class_name=class_name)
+                sym = register_def(name, class_name=class_name, node=node)
                 prev_symbol = current_symbol
                 current_symbol = sym
                 body = node.child_by_field_name("body")
@@ -277,6 +366,12 @@ class TreeSitterCodeGraph:
 
         walk_imports(tree.root_node)
         walk_defs(tree.root_node)
+        return edges, symbol_meta
+
+    def index_file(self, path: str, source: bytes) -> list[GraphEdge]:
+        """Extract import/define/call edges from a Python source file."""
+        tree = parse_python(source)
+        edges, _ = self.index_file_from_tree(path, source, tree)
         return edges
 
     async def upsert_edges(self, edges: list[GraphEdge]) -> None:
@@ -297,8 +392,10 @@ class TreeSitterCodeGraph:
                     continue
                 rel = file_path.relative_to(root).as_posix()
                 source = file_path.read_bytes()
-                edges = self.index_file(rel, source)
+                tree = parse_python(source)
+                edges, symbol_meta = self.index_file_from_tree(rel, source, tree)
                 self._upsert_edges_sync(edges)
+                self._upsert_symbol_refs_sync(symbol_meta.values())
                 count += 1
             return count
 
@@ -352,11 +449,25 @@ class TreeSitterCodeGraph:
                     "SELECT src FROM edges WHERE kind = 'calls' AND dst = ?",
                     (target,),
                 ).fetchall()
-            callers: list[SymbolRef] = []
-            for (src,) in rows:
-                ref = _parse_symbol_ref(src)
-                if ref is not None:
-                    callers.append(ref)
+                callers: list[SymbolRef] = []
+                for (src,) in rows:
+                    row = conn.execute(
+                        """
+                        SELECT path, name, kind, line
+                        FROM symbol_refs
+                        WHERE symbol_path = ?
+                        """,
+                        (src,),
+                    ).fetchone()
+                    if row is not None:
+                        callers.append(
+                            SymbolRef(
+                                path=row[0],
+                                name=row[1],
+                                kind=row[2],  # type: ignore[arg-type]
+                                line=row[3],
+                            )
+                        )
             return callers
 
         return await run_sync(_sync)
@@ -365,6 +476,7 @@ class TreeSitterCodeGraph:
         """Mine git history for files that change alongside *path*."""
 
         def _sync() -> list[CoChange]:
+            git_cwd = str(self._workspace_root) if self._workspace_root is not None else None
             try:
                 result = subprocess.run(
                     [
@@ -378,6 +490,7 @@ class TreeSitterCodeGraph:
                     capture_output=True,
                     text=True,
                     check=False,
+                    cwd=git_cwd,
                 )
             except OSError:
                 return []

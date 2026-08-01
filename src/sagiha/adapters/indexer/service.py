@@ -9,7 +9,7 @@ from pathlib import Path
 from anyio.to_thread import run_sync
 
 from sagiha.adapters.code_graph.treesitter import TreeSitterCodeGraph
-from sagiha.adapters.indexer.chunking import analyze_python_source
+from sagiha.adapters.indexer.chunking import analyze_python_tree, parse_python
 from sagiha.adapters.indexer.frontmatter import is_retrieval_excluded
 from sagiha.adapters.indexer.fts5 import FTS5Indexer
 
@@ -40,8 +40,14 @@ class IndexService:
 
     def _reindex_python(self, rel: str, source: str) -> None:
         source_bytes = source.encode("utf-8")
-        chunks, symbols = analyze_python_source(rel, source_bytes, max_chunk_tokens=self._max_chunk_tokens)
-        edges = self._graph.index_file(rel, source_bytes)
+        tree = parse_python(source_bytes)
+        chunks, symbols = analyze_python_tree(
+            rel,
+            source_bytes,
+            tree,
+            max_chunk_tokens=self._max_chunk_tokens,
+        )
+        edges, symbol_meta = self._graph.index_file_from_tree(rel, source_bytes, tree)
 
         with sqlite3.connect(self._indexer._db_path) as conn:
             conn.execute("DELETE FROM chunks WHERE path = ?", (rel,))
@@ -58,7 +64,7 @@ class IndexService:
                 )
             conn.commit()
 
-        self._graph.replace_file_edges(rel, edges)
+        self._graph.replace_file_edges(rel, edges, symbol_meta)
 
     def _strip_frontmatter(self, text: str) -> str:
         if not text.startswith("---"):
@@ -87,7 +93,7 @@ class IndexService:
         source = file_path.read_text(encoding="utf-8")
         if rel.endswith(".py"):
             self._reindex_python(rel, source)
-        elif rel.endswith(_TEXT_EXTENSIONS):
+        elif rel.endswith(tuple(_TEXT_EXTENSIONS)):
             self._reindex_markdown(rel, source)
 
     def _reindex_all(self) -> None:
@@ -95,7 +101,7 @@ class IndexService:
             if not file_path.is_file() or self._should_skip(file_path):
                 continue
             rel = file_path.relative_to(self._root).as_posix()
-            if rel.endswith(".py") or rel.endswith(_TEXT_EXTENSIONS):
+            if rel.endswith(".py") or rel.endswith(tuple(_TEXT_EXTENSIONS)):
                 self._reindex_path(rel)
 
     async def reindex(self, paths: list[str] | None = None) -> None:

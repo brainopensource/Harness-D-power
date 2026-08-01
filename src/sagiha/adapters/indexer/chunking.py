@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from tree_sitter import Node
+from tree_sitter import Node, Tree
 from tree_sitter_language_pack import get_parser
 
 _SYMBOL_NODE_TYPES = frozenset(
@@ -110,16 +110,23 @@ def _walk_symbols(
         )
 
 
-def analyze_python_source(
-    path: str, source: bytes, *, max_chunk_tokens: int
+def parse_python(source: bytes) -> Tree:
+    """Parse Python source once; shared by indexer chunking and code-graph extraction."""
+    return get_parser("python").parse(source)
+
+
+def analyze_python_tree(
+    path: str,
+    source: bytes,
+    tree: Tree,
+    *,
+    max_chunk_tokens: int,
 ) -> tuple[list[Chunk], list[tuple[str, str, str, int, str]]]:
-    """Chunk Python source and collect symbol rows for indexing.
+    """Chunk an already-parsed Python tree and collect symbol rows for indexing.
 
     Returns chunks and symbol rows ``(path, name, kind, line, signature)``.
     """
     del max_chunk_tokens  # reserved for oversized-chunk splitting
-    parser = get_parser("python")
-    tree = parser.parse(source)
     module = _module_name(path)
     chunks: list[Chunk] = []
     signatures: list[tuple[str, str, str, int, str]] = []
@@ -133,6 +140,17 @@ def analyze_python_source(
         path=path,
     )
     return chunks, signatures
+
+
+def analyze_python_source(
+    path: str, source: bytes, *, max_chunk_tokens: int
+) -> tuple[list[Chunk], list[tuple[str, str, str, int, str]]]:
+    """Chunk Python source and collect symbol rows for indexing.
+
+    Returns chunks and symbol rows ``(path, name, kind, line, signature)``.
+    """
+    tree = parse_python(source)
+    return analyze_python_tree(path, source, tree, max_chunk_tokens=max_chunk_tokens)
 
 
 def chunk_python_source(path: str, source: bytes, *, max_chunk_tokens: int) -> list[Chunk]:

@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 
-from sagiha.adapters.code_graph.treesitter import TreeSitterCodeGraph
+from sagiha.adapters.code_graph.treesitter import TreeSitterCodeGraph, _parse_symbol_ref
+from sagiha.adapters.indexer.chunking import parse_python
 from sagiha.domain.graph import GraphEdge, SymbolRef
 
 FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "retrieval_mini"
@@ -69,7 +71,38 @@ async def test_callers_of_same_file(code_graph: TreeSitterCodeGraph) -> None:
     await code_graph.rebuild_from_root(FIXTURE)
     target = SymbolRef(path="pkg/util.py", name="greet", kind="function", line=3)
     callers = await code_graph.callers_of(target)
-    assert any(c.name == "shout" for c in callers)
+    shout = next(c for c in callers if c.name == "shout")
+    assert shout.path == "pkg/util.py"
+    assert shout.kind == "method"
+    assert shout.line > 1
+
+
+def test_parse_symbol_ref_nested_method_resolves_module_path() -> None:
+    ref = _parse_symbol_ref("pkg.util.Greeter.shout", module="pkg.util")
+    assert ref is not None
+    assert ref.path == "pkg/util.py"
+    assert ref.name == "shout"
+    assert ref.kind == "method"
+
+
+@pytest.mark.asyncio
+async def test_index_file_stores_class_kind(code_graph: TreeSitterCodeGraph) -> None:
+    source = (
+        b"class Greeter:\n"
+        b"    def shout(self, name: str) -> str:\n"
+        b"        return name.upper()\n"
+    )
+    tree = parse_python(source)
+    edges, symbol_meta = code_graph.index_file_from_tree("pkg/util.py", source, tree)
+    code_graph.replace_file_edges("pkg/util.py", edges, symbol_meta)
+    with sqlite3.connect(code_graph._db_path) as conn:
+        row = conn.execute(
+            "SELECT kind, line FROM symbols WHERE path = ? AND name = ?",
+            ("pkg/util.py", "Greeter"),
+        ).fetchone()
+    assert row is not None
+    assert row[0] == "class"
+    assert row[1] == 1
 
 
 @pytest.mark.asyncio

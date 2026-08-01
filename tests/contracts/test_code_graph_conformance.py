@@ -20,8 +20,13 @@ async def test_import_edges_and_impacted_by(tmp_path: Path) -> None:
     g = TreeSitterCodeGraph(db_path=str(tmp_path / "g.db"))
     n = await g.rebuild_from_root(FIXTURE)
     assert n >= 1
+
+    with sqlite3.connect(str(tmp_path / "g.db")) as conn:
+        imports = set(conn.execute("SELECT src, dst FROM edges WHERE kind = 'imports'").fetchall())
+    assert ("pkg/client.py", "pkg/util.py") in imports
+
     impacted = await g.impacted_by("pkg/util.py", hops=2)
-    assert isinstance(impacted, list)
+    assert "pkg/client.py" in impacted
 
 
 @pytest.mark.asyncio
