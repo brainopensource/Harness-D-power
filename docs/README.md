@@ -159,7 +159,7 @@ Nothing here is binding. It is preserved reasoning: the *why* behind decisions t
 5. [Hexagonal Ports](./03-contracts-and-models/hexagonal-ports.md) — the contracts everything else depends on.
 6. [ADR Log](./08-decisions/README.md) — every binding decision, with what would reverse it.
 7. [Phased Migration Matrix](./07-roadmap/phased-migration-matrix.md) — vertical slices, gates, and deliberate deferrals.
-8. [Foundation Review](rationale/reviews/2026-07-29-foundation-review.md) — current audit of record until Sprint 3 closes.
+8. [Foundation Review](rationale/done/2026-07-29-foundation-review.md) — current audit of record until Sprint 3 closes.
 
 ---
 

@@ -496,26 +496,26 @@ Each wave: steps → exit gate → commit. Tick boxes as you go.
 
 ---
 
-## ☐ Wave 4 — Docs governance green (C-2b, C-3d, m-12)
+## ☑ Wave 4 — Docs governance green (C-2b, C-3d, m-12)
 
 **Closes:** **C-2b**, **C-3d**, **m-12**
 
-- [ ] **4.1 (C-2b, per D10)** Retag `docs/implementation/contracts-to-code.md` →
+- [x] **4.1 (C-2b, per D10)** Retag `docs/implementation/contracts-to-code.md` →
       `status: rationale` + `retrieval: excluded`. Verify: `docs_budget.py --max 15000` → exit 0,
       expect ≈ **14,474**.
-- [ ] **4.2 (m-12, per D8)** Add the eight `status:`/`retrieval:` frontmatter blocks per the D8
+- [x] **4.2 (m-12, per D8)** Add the eight `status:`/`retrieval:` frontmatter blocks per the D8
       table. Re-run the budget — the count must not rise (none is tagged `normative`).
-- [ ] **4.3 (m-12)** Modify `scripts/docs_budget.py` to **exit non-zero** when any file under
+- [x] **4.3 (m-12)** Modify `scripts/docs_budget.py` to **exit non-zero** when any file under
       `docs/` lacks a `status:` tag, instead of merely listing them. Ordering matters: 4.2 first,
       or the build goes red mid-wave.
-- [ ] **4.4 (C-3d, per D11 batch 1)** Repoint all `refactor_sagiha_v2_guidelines.md` references
+- [x] **4.4 (C-3d, per D11 batch 1)** Repoint all `refactor_sagiha_v2_guidelines.md` references
       to `docs/implementation/refactor_sagiha_v2_guidelines.md` at the correct relative depth.
       Known sites include `docs/STATUS.md` and `docs/08-decisions/0024-e0-is-a-tool-not-a-port.md`.
-- [ ] **4.5 (batch 2)** Remove the ~4 links to the deleted
+- [x] **4.5 (batch 2)** Remove the ~4 links to the deleted
       `rationale/reviews/2026-07-29-foundation-review.md`, keeping surrounding prose intact.
-- [ ] **4.6 (batch 3)** Convert every `file:///home/rock_dev/...` URL under `docs/` to a
+- [x] **4.6 (batch 3)** Convert every `file:///home/rock_dev/...` URL under `docs/` to a
       repo-relative path.
-- [ ] **4.7** Iterate `python3 scripts/check_links.py` until it reports **0**. Fix targets, not the
+- [x] **4.7** Iterate `python3 scripts/check_links.py` until it reports **0**. Fix targets, not the
       checker.
 
 **Exit gate:** `docs_budget.py --max 15000` → exit 0 · `check_links.py` → exit 0 ·
@@ -682,8 +682,8 @@ Fill one row per wave, at commit time, from real command output. **Do not pre-fi
 | W0 | ☑ | `5a8ea4c` | 332 | 3 ❌ | 34 ❌ | 18 ❌ | 15,183 ❌ | 106 ❌ | ok | 5/5 | baseline reproduced; 5 red as expected (format 18, not 17) |
 | W1 | ☑ | `52d4691` | 342 | 3 ❌ | 34 ❌ | 18 ❌ | 15,183 ❌ | 106 ❌ | ok | 5/5 | +10 tests; C-1 closed, other gates untouched by design |
 | W2 | ☑ | `7438718` | 358 | **0** ✅ | 34 ❌ | 18 ❌ | 15,183 ❌ | 106 ❌ | ok | 5/5 | C-3 test landed red first, then C-R1 fix made it green |
-| W3 | ☑ | `PENDING-W3` | 358 | 0 ✅ | **0** ✅ | **0** ✅ | 15,183 ❌ | 106 ❌ | ok | 5/5 | vendored trees excluded (16 errs); 18 project errs fixed, none suppressed |
-| W4 | ☐ | | | | | | | | | | budget + links must be 0 |
+| W3 | ☑ | `36e1a8f` | 358 | 0 ✅ | **0** ✅ | **0** ✅ | 15,183 ❌ | 106 ❌ | ok | 5/5 | vendored trees excluded (16 errs); 18 project errs fixed, none suppressed |
+| W4 | ☑ | `PENDING-W4` | 358 | 0 ✅ | 0 ✅ | 0 ✅ | **14,474** ✅ | **0** ✅ | ok | 5/5 | 526-word margin; 106→0 links; untagged now fails closed |
 | W5 | ☐ | | | | | | | | | | **all 7 green — P0 done** |
 | W6 | ☐ | | | | | | | | | | |
 | W7 | ☐ | | | | | | | | | | |
@@ -709,6 +709,8 @@ Append-only. Record (a) decisions already made during planning that changed a re
 | L-8 | 2026-08-01 | W0 | **Baseline format count is 18, not the 17 the plan predicted.** All other four red gates match exactly | D0: numbers come from commands, not from the plan's prediction. Recorded as measured; the audit ran on a different working tree state |
 | L-9 | 2026-08-01 | W0 | **Branch is `refactor_aether_V210`, not `refactor_aether_v2`** as the plan header states | The branch was renamed before execution began; all other rules (never push, no tags, no PRs) apply unchanged |
 | L-10 | 2026-08-01 | W1 | **Step 1.2's `find_symbols` half is not applied.** Only `neighbors` routes through `_fts_query` | D0. Verified premise error: `find_symbols` queries the `symbols` table with `name LIKE '%q%'` (`fts5.py:152`), not `chunks MATCH`. It never parses FTS5 syntax, so it cannot exhibit C-1, and forcing a `"a" OR "b"` expression through `LIKE` would *introduce* a defect. Its contract is documented substring-by-name search and its caller is the agent-facing tool, which passes symbol names, not goals |
+| L-12 | 2026-08-01 | W4 | **D11 batch 2 repointed instead of deleted.** Both "deleted" targets — `2026-07-29-foundation-review.md` and `2026-07-28-architecture-and-documentation-review.md` — still exist, under `docs/rationale/done/`, not `docs/rationale/reviews/` | D0: a working link to the real document is more honest than deleting the reference. The plan assumed deletion; verification found a move. Prose kept, links repointed |
+| L-13 | 2026-08-01 | W4 | **One genuine link deletion:** `[findings](...)` in `sprint_v2_s4_feedback.md` | `...` is a truncation artifact, not a path. Per D11 the link was dropped and the prose kept; inventing a plausible target would be fabrication |
 | L-11 | 2026-08-01 | W1 | **Step 1.5's "all three must return ≥1 hit" holds for two of three.** `"handle user's input"` returns 0 against the snippet's one-line corpus (`def greet(name): return 1`) | Not a regression — that is now a *true* empty: the corpus contains none of `handle`/`user`/`input`. Verified by re-running with a file containing those tokens, which returns 1 hit. The C-1 symptom (a swallowed `OperationalError` masquerading as no-matches) is gone; the two goal-shaped queries with matching tokens both return hits |
 | | | | | |
 

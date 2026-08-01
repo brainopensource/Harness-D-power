@@ -73,4 +73,4 @@ exactly the promotion path ADR-0019 already establishes for deleted ports.
 
 [ADR-0019](./0019-port-consolidation.md) (port consolidation and the re-promotion pattern) ·
 [ADR-0023](./0023-port-rent-rule.md) (why an unbacked port is not free) ·
-[`refactor_sagiha_v2_guidelines.md` §11 Q3](../../refactor_sagiha_v2_guidelines.md#11-open-questions-for-the-tech-lead)
+[`refactor_sagiha_v2_guidelines.md` §11 Q3](../implementation/refactor_sagiha_v2_guidelines.md#11-open-questions-for-the-tech-lead)

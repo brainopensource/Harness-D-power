@@ -14,7 +14,7 @@ retrieval: excluded
 | [FE-D](./sprints/FE-D.md) | pending | DAG / Context / Memory / Skills / Models mock UIs |
 | [FE-E](./sprints/FE-E.md) | pending | Polish, LIVE/MOCK labels, verification, bridge checklist |
 
-**Design:** [`docs/superpowers/specs/2026-07-31-frontend-hybrid-live-mock-design.md`](../../../superpowers/specs/2026-07-31-frontend-hybrid-live-mock-design.md)
+**Design:** [`docs/superpowers/specs/2026-07-31-frontend-hybrid-live-mock-design.md`](../../superpowers/specs/2026-07-31-frontend-hybrid-live-mock-design.md)
 
 **Matrices:** [LIVE_VS_MOCK.md](./LIVE_VS_MOCK.md) · [BRIDGE_CONTRACT.md](./BRIDGE_CONTRACT.md)
 

@@ -25,7 +25,7 @@ PY
 rg <symbol> src/            # dead-code confirmations (get_effect_class, record_spend, min_provenance, schemas)
 ```
 
-**Finding IDs** follow the convention in [reviews/README](./README.md): `D` defect, `G` gap,
+**Finding IDs** follow the convention in [reviews/README](../reviews/README.md): `D` defect, `G` gap,
 `U` unproven assumption, `X` documentation remediation. IDs are stable;
 Sprint 3 references them.
 
@@ -386,7 +386,7 @@ in `src/`; a `Protocol` or `BaseModel` defined in a `.md` file is a bug* (AGENTS
 | X4 | `car-model.md` dispatch pseudocode still showed `registry.dispatch(call, decision.grant)` — the grant-crossing pattern superseded after 2026-07-28/D1 and contradicted by both `ports/tool_registry.py` and the shipped `kernel/dispatch.py`. | **Fixed 2026-07-29** — now describes the actual choke-point sequence; grant never crosses the registry. |
 | X5 | `security-and-threat-model.md` T2 said the container perimeter is "required from the first slice," contradicting ADR-0006, the migration matrix (container lands in S1), getting-started, and the config validator that explicitly permits dev-mode subprocess at `interactive` autonomy. | **Fixed 2026-07-29** — states S1 timing and the config-enforced pre-S1 constraint. |
 | X6 | Sprint sequencing contradicted the project's own E0-first strategy, and Sprint 2's remaining scope (MCP, OTel) extended periphery over core. | **Addressed 2026-07-29** — Sprint 2 closed with a scope-change note; Sprint 3 closes the loop; measurement (E0-lite) is Block 2, immediately after — a deliberate deviation from strict E0-first, recorded in §9: a measured loop needs a loop to measure. |
-| X7 | The 2026-07-28 review's remediation table is stale in places (e.g., G6 still shows ADR-0015 pending sign-off; ADR-0015 is Accepted with the target repo named). | **Not edited** — reviews are historical per [reviews/README](./README.md); recorded here instead. |
+| X7 | The 2026-07-28 review's remediation table is stale in places (e.g., G6 still shows ADR-0015 pending sign-off; ADR-0015 is Accepted with the target repo named). | **Not edited** — reviews are historical per [reviews/README](../reviews/README.md); recorded here instead. |
 | X8 | `reference/design-derivation.md` retains superseded narratives (TurboQuant/tqdb et al.) under warning banners. Safe for humans; hazardous for retrieval — a chunker that strips the banner serves reversed decisions as current. | **Fixed 2026-07-30** — strengthened `status: rationale` banners; agent retrieval must exclude `docs/reference/` and `docs/reviews/`. |
 | X9 | `README.md` / getting-started describe a runnable Day-Zero story (`sagiha run`, replay) that does not exist; the real surface is `sagiha version`. | **Fixed 2026-07-30** — [STATUS.md](../../STATUS.md); Planned banners on CLI examples; getting-started / v0.1 retargeted to Sprint 3. |
 | X10 | `config.example.toml` documents a surface composition ignores (G10 details). | **Fixed 2026-07-30** — consumption table in [configuration-reference.md](../../05-tech-stack/configuration-reference.md); Sprint 3 must shrink it. |

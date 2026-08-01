@@ -7,13 +7,13 @@ retrieval: excluded
 
 **Basis (audited, cross-referenced):**
 `i-want-to-implement-temporal-tarjan.md` (authoritative plan) ·
-[development_plan_v2.md](file:///home/rock_dev/Code/Harness/docs/implementation/development_plan_v2.md) ·
-[refactor_sagiha_v2_guidelines.md §8](file:///home/rock_dev/Code/Harness/refactor_sagiha_v2_guidelines.md#8-phases-47--condensed-briefs) ·
-[rhi-outer-loop.md](file:///home/rock_dev/Code/Harness/docs/04-workflows-and-loops/rhi-outer-loop.md) ·
-[trace-distillation.md](file:///home/rock_dev/Code/Harness/docs/04-workflows-and-loops/trace-distillation.md) ·
-[ADR-0005](file:///home/rock_dev/Code/Harness/docs/08-decisions/0005-best-of-n-not-mcts.md) ·
-[ADR-0022](file:///home/rock_dev/Code/Harness/docs/08-decisions/0022-rhi-economic-refounding.md) ·
-[ADR-0023](file:///home/rock_dev/Code/Harness/docs/08-decisions/0023-port-rent-rule.md)
+[development_plan_v2.md](development_plan_v2.md) ·
+[refactor_sagiha_v2_guidelines.md §8](refactor_sagiha_v2_guidelines.md#8-phases-47--condensed-briefs) ·
+[rhi-outer-loop.md](../04-workflows-and-loops/rhi-outer-loop.md) ·
+[trace-distillation.md](../04-workflows-and-loops/trace-distillation.md) ·
+[ADR-0005](../08-decisions/0005-best-of-n-not-mcts.md) ·
+[ADR-0022](../08-decisions/0022-rhi-economic-refounding.md) ·
+[ADR-0023](../08-decisions/0023-port-rent-rule.md)
 
 ---
 

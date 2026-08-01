@@ -188,6 +188,24 @@ def main(argv: list[str] | None = None) -> int:
     if args.max is None:
         return 0
 
+    failed = False
+
+    # An untagged file is invisible to the budget, which makes "no `status:` key"
+    # a loophole that evades the ceiling entirely (defect m-12). Listing them was
+    # not enough — the gate has to fail.
+    undeclared = [e for e in entries if e.status not in DECLARED_STATUSES]
+    if undeclared:
+        print(
+            f"\nFAIL: {len(undeclared)} file(s) under `{args.docs_root}` declare no `status:`.\n"
+            f"An untagged doc is not counted against the normative ceiling, so leaving one "
+            f"untagged is a way to add normative words for free. Tag every file with one of "
+            f"{sorted(DECLARED_STATUSES)}.",
+            file=sys.stderr,
+        )
+        for e in undeclared:
+            print(f"  {e.path}", file=sys.stderr)
+        failed = True
+
     budgeted_words = sum(e.words for e in entries if e.budgeted)
     if budgeted_words > args.max:
         print(
@@ -197,9 +215,10 @@ def main(argv: list[str] | None = None) -> int:
             f"a PR adding N normative words deletes N. ADRs are exempt by convention.",
             file=sys.stderr,
         )
-        return 1
-    print(f"\nOK: normative word count {budgeted_words:,} is within ceiling {args.max:,}.")
-    return 0
+        failed = True
+    else:
+        print(f"\nOK: normative word count {budgeted_words:,} is within ceiling {args.max:,}.")
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

@@ -1,3 +1,8 @@
+---
+status: rationale
+retrieval: excluded
+updated: 2026-08-01
+---
 # AI Recommendation Mapping by Wave & Sprint
 
 ## Recommendation Mapping

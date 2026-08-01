@@ -1,3 +1,8 @@
+---
+status: rationale
+retrieval: excluded
+updated: 2026-08-01
+---
 V2-S4 review — work-in-progress audit
 
 State: S4.0–S4.3 + 4.4a are written; outer_loop/export/ is being authored right now. Signals: 188 pytest passed, ruff clean, lint-imports 5/5, event catalog in sync, pyright 6 errors — all 6 in the in-flight export/__init__.py (importing schema.py that doesn't exist yet), so that's your WIP, not a defect.

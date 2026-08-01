@@ -13,7 +13,7 @@ updated: 2026-07-31
 > rewritten against a line-level audit of `src/sagiha` rather than sprint intent. **Several rows
 > moved backwards** — the previous version reported capability the code did not support.
 
-Authority: [`refactor_sagiha_v2_guidelines.md`](../refactor_sagiha_v2_guidelines.md) §2 (verified
+Authority: [`refactor_sagiha_v2_guidelines.md`](implementation/refactor_sagiha_v2_guidelines.md) §2 (verified
 baseline) · [ADR log](./08-decisions/README.md) · historical audits under [`reviews/`](./rationale/reviews/README.md).
 
 ## **Sprint Numbering**

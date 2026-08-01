@@ -414,7 +414,7 @@ Concrete, small, and each with a named target file.
 ## 9. 🔗 **Cross-References**
 
 * Harness vs. SAGIHA — Comparative Analysis — the evidence base; Tier A/B/C items and §7 verdicts
-* [2026-07-29 Foundation Review](2026-07-29-foundation-review.md) — D1–D18, G1–G10, U1–U5
+* [2026-07-29 Foundation Review](../done/2026-07-29-foundation-review.md) — D1–D18, G1–G10, U1–U5
 * [STATUS.md](../../STATUS.md) — implementation truth · Sprint 3 — the near-term contract
 * [ADR-0018](../../08-decisions/0018-native-workflow-dag.md) — native workflow DAG · [ADR Log](../../08-decisions/README.md)
 * [CAR Model](../../02-architecture/car-model.md) · [Remoteable Ports](../../02-architecture/remoteable-ports.md) · [Neural-Symbolic Memory](../../02-architecture/neural-symbolic-memory.md)
