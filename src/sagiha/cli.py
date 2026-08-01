@@ -53,11 +53,12 @@ async def _run_or_resume(
     model_mode = "live" if mode == "live" else ("record" if mode == "record" else "replay")
     from sagiha.domain.config import AutonomyConfig, ModelTierConfig, SandboxConfig
 
+    api_key_env = "OPENROUTER_API_KEY" if "openrouter" in base_url else ""
     local_tier = ModelTierConfig(
         provider="openai-compatible",
         model=model_name,
         base_url=base_url,
-        api_key_env="",
+        api_key_env=api_key_env,
     )
     # Autonomous/scheduled require the container perimeter (config validation). Interactive
     # CLI defaults to subprocess so local cassette/replay work without Podman.

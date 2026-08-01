@@ -29,7 +29,7 @@ runs as a fresh series, **`v2-S0` … `v2-S7`**, mapping to the phases in the v2
 | `v2-S3` | Context engine (`ContextAssembler`, `ExchangeCompactor`) + TaintGate v1 + FrozenRunState — **closed** |
 | `v2-S4` | Measurement re-baseline + Best-of-N — **closed** (honest-negative empirical half) |
 | `v2-S5` | Container perimeter, egress allowlist — **closed** |
-| `v2-S6` | Retrieval, code graph, cold-start |
+| `v2-S6` | Retrieval, code graph, cold-start — **in progress** (mechanism-first) |
 | `v2-S7` | Story-DAG, MCP, interactive surface |
 
 ## **The Honesty Caveat — read before citing any number from this repo**
@@ -157,7 +157,11 @@ Every PR holds or improves all of these. The test count is **monotonic** — it 
    CONNECT egress proxy with `--network=none` (direct outbound dropped); credential exclusion;
    `sagiha run --autonomy autonomous` legal with `sandbox.runtime=container`. CI Podman job
    is TCB — propose `podman-perimeter` job for human authorship (see `docs/implementation/ci-podman-perimeter.md`).
-7. **`v2-S6` (Phase 6)** — Retrieval, Code Graph & Cold-Start.
+7. **`v2-S6` (Phase 6)** — Retrieval, Code Graph & Cold-Start — **in progress**
+   (mechanism-first; ablations deferred). Design:
+   [`docs/superpowers/specs/2026-07-31-v2-s6-retrieval-code-graph-design.md`](./superpowers/specs/2026-07-31-v2-s6-retrieval-code-graph-design.md);
+   plan:
+   [`docs/superpowers/plans/2026-07-31-v2-s6-retrieval-code-graph.md`](./superpowers/plans/2026-07-31-v2-s6-retrieval-code-graph.md).
    Dependencies: seed-only assembler (S3) + E0 to ablate against (S4).
 ### Known open item (Resolved in v2-S1)
 
