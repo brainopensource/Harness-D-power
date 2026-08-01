@@ -379,6 +379,7 @@ class KernelCandidateExecutor:
         repair_round: int = 0,
     ) -> CandidateOutcome:
         from sagiha.adapters.search.protocols import CandidateOutcome
+        from sagiha.agency.context.system_prompt import resolve_system_prompt
         from sagiha.agency.run_loop import RunLoop
 
         manager = self.worktree_manager
@@ -398,6 +399,8 @@ class KernelCandidateExecutor:
         )
         run_id = str(uuid.uuid4())
 
+        system_prompt = await resolve_system_prompt(worktree_path)
+
         loop = RunLoop(
             model_provider=kernel.model_provider,
             policy_engine=kernel.policy_engine,
@@ -412,6 +415,7 @@ class KernelCandidateExecutor:
             context=kernel.config.context,
             branch_id=branch_id,
             temperature=temperature,
+            system_prompt=system_prompt,
         )
 
         candidate_task = task.model_copy(update={"parent_task_id": task.task_id})

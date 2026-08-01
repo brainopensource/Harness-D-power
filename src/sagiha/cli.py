@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Literal, cast
 import anyio
 import typer
 
+from sagiha.agency.context.system_prompt import resolve_system_prompt
 from sagiha.agency.run_loop import RunLoop, RunLoopResult, make_task
 from sagiha.composition import build_kernel, build_retrieval_seed, ensure_index
 from sagiha.domain.config import Config, ModelConfig, SandboxConfig, TelemetryConfig, WorkspaceConfig
@@ -120,6 +121,8 @@ async def _run_or_resume(
             config.retrieval.top_k,
         )
 
+    system_prompt = await resolve_system_prompt(workspace)
+
     loop = RunLoop(
         model_provider=kernel.model_provider,
         policy_engine=kernel.policy_engine,
@@ -134,6 +137,7 @@ async def _run_or_resume(
         pricing=kernel.config.pricing,
         context=kernel.config.context,
         retrieval_seed=retrieval_seed,
+        system_prompt=system_prompt,
     )
 
     ctx = RunContext(
@@ -253,6 +257,8 @@ async def _do_replay(
         cassette_tool_registry = CassetteToolRegistry(kernel.tool_registry, tool_cassette, mode="replay")  # type: ignore[arg-type]
         tool_registry = cassette_tool_registry
 
+    system_prompt = await resolve_system_prompt(workspace)
+
     loop = RunLoop(
         model_provider=kernel.model_provider,
         policy_engine=kernel.policy_engine,
@@ -265,6 +271,7 @@ async def _do_replay(
         workspace=kernel.workspace,
         pricing=kernel.config.pricing,
         context=kernel.config.context,
+        system_prompt=system_prompt,
     )
     new_run_id = str(uuid.uuid4())
     ctx = RunContext(
@@ -626,6 +633,24 @@ async def _do_export(
     )
     ledger.append(f"DPO: {len(pairs)} pair(s), {hits} redaction hit(s)")
     return ExportOutcome(ledger=ledger, samples=list(pairs))
+
+
+@app.command()
+def init(
+    workspace: str = typer.Option(".", "--workspace", "-w", help="Repository root to initialize"),
+    force: bool = typer.Option(False, "--force", help="Overwrite an existing AGENTS.md"),
+) -> None:
+    """Generate AGENTS.md from toolchain detection and repository layout."""
+    from sagiha.outer_loop.init.generate import generate_agents_md
+
+    root = Path(workspace).resolve()
+    try:
+        path = asyncio.run(generate_agents_md(root, graph=None, force=force))
+    except FileExistsError as exc:
+        typer.echo(str(exc))
+        raise SystemExit(1) from exc
+    typer.echo(f"Wrote {path}")
+    raise SystemExit(0)
 
 
 @app.command()

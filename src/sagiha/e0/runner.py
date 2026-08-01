@@ -10,6 +10,7 @@ from typing import Literal, cast
 import anyio
 
 from sagiha.adapters.search.best_of_n import BestOfNSearch
+from sagiha.agency.context.system_prompt import resolve_system_prompt
 from sagiha.agency.run_loop import RunLoop, make_task
 from sagiha.composition import build_kernel
 from sagiha.domain.benchmark import BenchmarkResult, BenchmarkRun, BenchmarkSuite, HarvestedTask
@@ -196,6 +197,8 @@ class BenchmarkRunner:
             # `GitWorktreeManager`, and the "control" arm is no longer the thing it controls for.
             kernel = build_kernel(config, cassette_path=self._cassette_path, include_search=False)
 
+            system_prompt = await resolve_system_prompt(task_root)
+
             loop = RunLoop(
                 model_provider=kernel.model_provider,
                 policy_engine=kernel.policy_engine,
@@ -209,6 +212,7 @@ class BenchmarkRunner:
                 workspace=kernel.workspace,
                 pricing=kernel.config.pricing,
                 context=kernel.config.context,
+                system_prompt=system_prompt,
             )
 
             task_spec = make_task(

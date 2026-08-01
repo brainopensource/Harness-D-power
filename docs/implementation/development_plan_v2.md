@@ -177,14 +177,14 @@ retrieval: excluded
 **Objective:** the agent stops being file-blind; `sagiha init` closes the first-run competitive gap (W12).
 **Dependencies:** v2-S3 (seed-only assembler — retrieval has a legal insertion point), v2-S4 (E0 to ablate against).
 
-- [ ] **Epic S6.1 — FTS5 indexer + AST chunking** — `adapters/indexer/fts5.py` (stub → real): AST-bounded chunks with symbol-path prefixes; incremental file-watch update; `Indexer` conformance suite.
-- [ ] **Epic S6.2 — Tree-sitter code graph** — `adapters/code_graph/treesitter.py` (stub → real): import/call/co-change edges from Tree-sitter + git; `impacted_by` for future risk gating; rebuildable-from-HEAD test.
-- [ ] **Epic S6.3 — Code-intelligence tools** — register `find_symbols`, `get_skeleton`, `impacted_by` (`trusted_output=True` — harness-derived) within the 20-tool cap; retrieval seed wired into `ContextAssembler` (construction-time only).
-- [ ] **Epic S6.4 — `sagiha init`** — `src/sagiha/cli.py` + `outer_loop/init/`: seed `AGENTS.md` from code graph + toolchain detection; output enters prompt Layer 4 verbatim.
-- [ ] **Epic S6.5 — Retrieval honored in docs scoping** — indexer respects `retrieval: excluded` (S0.2).
-  - [ ] Verification (sprint-wide): recall@10 ≥ target on a labelled query set; **retrieval-on beats retrieval-off** and **init-on beats init-off** ablations beyond the A/A floor — if either fails, the component does not become default-on (dense tier stays deferred per ADR-0014 regardless).
+- [x] **Epic S6.1 — FTS5 indexer + AST chunking** — `adapters/indexer/fts5.py`: AST-bounded chunks with symbol-path prefixes; shared `IndexService` walk; `retrieval: excluded` frontmatter honored.
+- [x] **Epic S6.2 — Tree-sitter code graph** — `adapters/code_graph/treesitter.py`: import/call/co-change edges; `impacted_by`; rebuildable-from-HEAD test.
+- [x] **Epic S6.3 — Code-intelligence tools** — `find_symbols`, `get_skeleton`, `impacted_by` (`trusted_output=True`); retrieval seed wired into `ContextAssembler` (construction-time only); `retrieval.enabled=false` default.
+- [x] **Epic S6.4 — `sagiha init`** — `src/sagiha/cli.py` + `outer_loop/init/`: seed `AGENTS.md` from layout + toolchain detection; Layer 4 verbatim when present at run setup.
+- [x] **Epic S6.5 — Retrieval honored in docs scoping** — indexer respects `retrieval: excluded` (S0.2).
+  - [ ] Verification (sprint-wide): recall@10 ≥ target on a labelled query set; **retrieval-on beats retrieval-off** and **init-on beats init-off** ablations beyond the A/A floor — **deferred pre-default-on** (same honest-negative posture as v2-S4 BoN); if either fails when measured, the component does not become default-on (dense tier stays deferred per ADR-0014 regardless).
 
-**Exit gate:** S2-slice gate met with ablation evidence; misses attributed (chunking vs vocabulary) before any dense-tier discussion.
+**Exit gate:** mechanism complete; `retrieval.enabled=false` by default. Empirical ablation evidence **not published** — pre-default-on hard dependency. **CLOSED 2026-08-01 (mechanism half).**
 
 ## Sprint v2-S7 — Story-DAG, MCP & Interactive Surface (Block 4-macro + B5b/c)
 

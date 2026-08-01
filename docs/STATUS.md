@@ -29,7 +29,7 @@ runs as a fresh series, **`v2-S0` … `v2-S7`**, mapping to the phases in the v2
 | `v2-S3` | Context engine (`ContextAssembler`, `ExchangeCompactor`) + TaintGate v1 + FrozenRunState — **closed** |
 | `v2-S4` | Measurement re-baseline + Best-of-N — **closed** (honest-negative empirical half) |
 | `v2-S5` | Container perimeter, egress allowlist — **closed** |
-| `v2-S6` | Retrieval, code graph, cold-start — **in progress** (mechanism-first) |
+| `v2-S6` | Retrieval, code graph, cold-start — **closed** (honest-negative empirical half) |
 | `v2-S7` | Story-DAG, MCP, interactive surface |
 
 ## **The Honesty Caveat — read before citing any number from this repo**
@@ -95,7 +95,7 @@ reported as block-level progress; they are re-stated here honestly.
 
 | Block 2 — E0 benchmark | Real harness in `e0/`. `adapters/benchmark/` and `ports/benchmark.py` deleted ([ADR-0024](./08-decisions/0024-e0-is-a-tool-not-a-port.md)) — the layers contract forbade the adapter this port needed | `v2-S4` |
 | Block 3 — Best-of-N search | **Mechanism complete; shipped off by default** (`search.enabled=false`). `BestOfNSearch` over real worktrees; sequential + parallel; `diversity_ratio`; rank-never-admit `select()`; `bench --compare single_shot,bon` with cost-per-resolved-task and machine-checked verdict. **Never measured against a real suite** — 0/23 tasks validate ([findings](./rationale/benchmarks/s4-harvest-findings.md)). Protocol and adapter retained; suite + any default-on flip are explicit **pre-S6** hard dependencies for ablation gates | `v2-S4` (closed) |
-| Block 4 — retrieval / code graph | Ports only. No indexer, no FTS5, no Tree-sitter | `v2-S6` |
+| Block 4 — retrieval / code graph | **Mechanism complete; shipped off by default** (`retrieval.enabled=false`). FTS5 indexer with AST-bounded chunks; Tree-sitter code graph with import/call/co-change edges; `find_symbols`/`get_skeleton`/`impacted_by` tools; construction-time Layer-6 seed; `sagiha init` generates `AGENTS.md`. **Never measured against a labelled recall@10 set or ablation suite** — empirical claims (recall@10, retrieval-on beats retrieval-off, init-on beats init-off) **not made**; `retrieval.enabled` defaults to **`false`**; ablation gates are explicit **pre-default-on** hard dependencies | `v2-S6` (closed) |
 | Block 4 — Workflow DAG (ADR-0018) | Protocol only; gated on an E0 ablation that cannot be trusted until `v2-S1` | `v2-S7` |
 | Block 5 — container sandbox | **Real** — rootless Podman `ContainerSandbox`; Workspace conformance ×2; egress allowlist proxy; `sagiha run --autonomy autonomous` legal with container | `v2-S5` (closed) |
 | Block 5 — MCP driver | Stub — `invoke_tool()` raises; `list_tools()` returns `[]`, a truthful null (PR-1d) | `v2-S7` |
@@ -116,7 +116,7 @@ Every PR holds or improves all of these. The test count is **monotonic** — it 
 
 | Signal | Baseline (2026-07-31) | Command |
 | :--- | :--- | :--- |
-| Tests | **303 passed** (292 without Podman + 11 `@pytest.mark.podman`; 287 at prior closeout) | `uv run pytest -q` |
+| Tests | **321 passed** (310 without Podman + 11 `@pytest.mark.podman`; 303 at prior closeout) | `uv run pytest -q` |
 | Port count | **17 Protocols / 16 files** (ADR-0019 restated count; `CommitReplayHarvester`/`TaskRunner` deleted per [ADR-0024](./08-decisions/0024-e0-is-a-tool-not-a-port.md)) | `grep -rn "(Protocol)" src/sagiha/ports/ \| wc -l` |
 | Type check | 0 errors, strict | `uv run pyright src/sagiha` |
 | Lint | clean | `uv run ruff check && uv run ruff format --check` |
@@ -136,7 +136,7 @@ Every PR holds or improves all of these. The test count is **monotonic** — it 
 | `sagiha harvest [--repo …]` | **Available now** |
 | `sagiha bench [--suite …] [--aa]` | **Available now** — post-honesty baseline at `docs/rationale/benchmarks/s1_honest_baseline.md` |
 | `sagiha export --format sft\|dpo` | **Available now** — eligibility (admitted ∧ ¬tainted ∧ within-budget ∧ replay-verified), redaction, license gate |
-| `sagiha init` | Planned — `v2-S6` |
+| `sagiha init` | **Available now** — generates `AGENTS.md` from toolchain + layout (`--force` to overwrite) |
 
 ## **Next Items, In Order**
 
@@ -157,12 +157,18 @@ Every PR holds or improves all of these. The test count is **monotonic** — it 
    CONNECT egress proxy with `--network=none` (direct outbound dropped); credential exclusion;
    `sagiha run --autonomy autonomous` legal with `sandbox.runtime=container`. CI Podman job
    is TCB — propose `podman-perimeter` job for human authorship (see `docs/implementation/ci-podman-perimeter.md`).
-7. **`v2-S6` (Phase 6)** — Retrieval, Code Graph & Cold-Start — **in progress**
-   (mechanism-first; ablations deferred). Design:
-   [`docs/superpowers/specs/2026-07-31-v2-s6-retrieval-code-graph-design.md`](./superpowers/specs/2026-07-31-v2-s6-retrieval-code-graph-design.md);
-   plan:
-   [`docs/superpowers/plans/2026-07-31-v2-s6-retrieval-code-graph.md`](./superpowers/plans/2026-07-31-v2-s6-retrieval-code-graph.md).
-   Dependencies: seed-only assembler (S3) + E0 to ablate against (S4).
+7. ~~**`v2-S6` (Phase 6)**~~ — **closed 2026-08-01 (honest-negative empirical half).** Mechanism
+   complete (Epics S6.1–S6.5): FTS5 indexer + AST chunking + `retrieval: excluded` frontmatter;
+   Tree-sitter code graph + shared `IndexService` walk + rebuild-from-HEAD; code-intelligence
+   tools (`find_symbols`, `get_skeleton`, `impacted_by`) with `trusted_output=True`; construction-time
+   Layer-6 retrieval seed; `sagiha init` generates `AGENTS.md` (Layer 4 verbatim when present).
+   Empirical claims (recall@10 ≥ target, retrieval-on beats retrieval-off, init-on beats init-off)
+   **not made** — no labelled query set or pinned ablation suite exists yet; `retrieval.enabled`
+   defaults to **`false`**; dense tier stays deferred per ADR-0014. Closeout design:
+   [`2026-07-31-v2-s6-retrieval-code-graph-design.md`](./superpowers/specs/2026-07-31-v2-s6-retrieval-code-graph-design.md).
+   Labelled recall set + populated ablation suite are **pre-default-on** hard dependencies.
+8. **`v2-S7` (Phase 7)** — Story-DAG, MCP, interactive surface
+
 ### Known open item (Resolved in v2-S1)
 
 `sagiha replay verify` against the committed fixture is **passing** post-cassette-migration (`scripts/migrate_cassettes_v2.py`) and workspace git initialization (`scripts/gen_replay_fixture.py`).
