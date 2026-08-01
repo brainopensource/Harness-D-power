@@ -379,11 +379,11 @@ Each wave: steps → exit gate → commit. Tick boxes as you go.
 
 ---
 
-## ☐ Wave 1 — Retrieval honesty (C-1)
+## ☑ Wave 1 — Retrieval honesty (C-1)
 
 **Closes:** **C-1** *(Critical — do this before anything that measures retrieval)*
 
-- [ ] **1.1** In `src/sagiha/adapters/indexer/fts5.py`, add a module-level helper:
+- [x] **1.1** In `src/sagiha/adapters/indexer/fts5.py`, add a module-level helper:
       ```python
       _FTS_OPERATORS: Final = frozenset({"AND", "OR", "NOT", "NEAR"})
 
@@ -397,10 +397,10 @@ Each wave: steps → exit gate → commit. Tick boxes as you go.
           tokens = [t for t in re.findall(r"\w+", text) if len(t) >= 2 and t.upper() not in _FTS_OPERATORS]
           return " OR ".join(f'"{t}"' for t in tokens)
       ```
-- [ ] **1.2** Route `neighbors` (renamed to `search` in W2) **and** `find_symbols` through
+- [x] **1.2** Route `neighbors` (renamed to `search` in W2) **and** `find_symbols` through
       `_fts_query`. If `_fts_query` returns `""` (no usable tokens), return `[]` **without**
       touching the database — that empty is a true empty and may be returned honestly.
-- [ ] **1.3** Narrow the swallow. Replace the bare
+- [x] **1.3** Narrow the swallow. Replace the bare
       `except sqlite3.OperationalError: return []` with:
       ```python
       except sqlite3.OperationalError as exc:
@@ -410,13 +410,13 @@ Each wave: steps → exit gate → commit. Tick boxes as you go.
           raise
       ```
       Apply the same treatment to every other `except sqlite3.OperationalError` in the file.
-- [ ] **1.4** Add regression tests to `tests/contracts/test_indexer_conformance.py`:
+- [x] **1.4** Add regression tests to `tests/contracts/test_indexer_conformance.py`:
       - `neighbors/search("Fix the bug in greet() so it returns a name")` returns the **same
         paths** as `("greet")`;
       - queries containing `'`, `-`, `:` and `()` all return non-empty against the fixture;
       - a query of only punctuation returns `[]` and issues **no** SQL;
       - a genuinely malformed internal state raises rather than returning `[]`.
-- [ ] **1.5** Re-run the review's C-1 reproduction snippet (Appendix A). All three goal-shaped
+- [x] **1.5** Re-run the review's C-1 reproduction snippet (Appendix A). All three goal-shaped
       queries must now return ≥1 hit.
 
 **Exit gate:** `uv run pytest -q` green with the new tests; the C-1 reproduction returns hits.
@@ -677,8 +677,8 @@ Fill one row per wave, at commit time, from real command output. **Do not pre-fi
 | Wave | Status | Commit SHA | pytest | pyright | ruff | format | budget | links | catalog | imports | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | *baseline* | — | `eae4c22` | 332 | 3 ❌ | 34 ❌ | 17 ❌ | 15,183 ❌ | 106 ❌ | ok | 5/5 | audit HEAD |
-| W0 | ☑ | `PENDING-W0` | 332 | 3 ❌ | 34 ❌ | 18 ❌ | 15,183 ❌ | 106 ❌ | ok | 5/5 | baseline reproduced; 5 red as expected (format 18, not 17) |
-| W1 | ☐ | | | | | | | | | | |
+| W0 | ☑ | `5a8ea4c` | 332 | 3 ❌ | 34 ❌ | 18 ❌ | 15,183 ❌ | 106 ❌ | ok | 5/5 | baseline reproduced; 5 red as expected (format 18, not 17) |
+| W1 | ☑ | `PENDING-W1` | 342 | 3 ❌ | 34 ❌ | 18 ❌ | 15,183 ❌ | 106 ❌ | ok | 5/5 | +10 tests; C-1 closed, other gates untouched by design |
 | W2 | ☐ | | | | | | | | | | pyright must be 0 |
 | W3 | ☐ | | | | | | | | | | ruff + format must be 0 |
 | W4 | ☐ | | | | | | | | | | budget + links must be 0 |
@@ -706,6 +706,8 @@ Append-only. Record (a) decisions already made during planning that changed a re
 | L-7 | 2026-08-01 | W0 | **Step 0.3 is a no-op.** The two review documents and this plan were already committed at `1fd9ff9`; there was nothing unstaged to stage | Verified with `git status --short` (clean tree) before starting W0 |
 | L-8 | 2026-08-01 | W0 | **Baseline format count is 18, not the 17 the plan predicted.** All other four red gates match exactly | D0: numbers come from commands, not from the plan's prediction. Recorded as measured; the audit ran on a different working tree state |
 | L-9 | 2026-08-01 | W0 | **Branch is `refactor_aether_V210`, not `refactor_aether_v2`** as the plan header states | The branch was renamed before execution began; all other rules (never push, no tags, no PRs) apply unchanged |
+| L-10 | 2026-08-01 | W1 | **Step 1.2's `find_symbols` half is not applied.** Only `neighbors` routes through `_fts_query` | D0. Verified premise error: `find_symbols` queries the `symbols` table with `name LIKE '%q%'` (`fts5.py:152`), not `chunks MATCH`. It never parses FTS5 syntax, so it cannot exhibit C-1, and forcing a `"a" OR "b"` expression through `LIKE` would *introduce* a defect. Its contract is documented substring-by-name search and its caller is the agent-facing tool, which passes symbol names, not goals |
+| L-11 | 2026-08-01 | W1 | **Step 1.5's "all three must return ≥1 hit" holds for two of three.** `"handle user's input"` returns 0 against the snippet's one-line corpus (`def greet(name): return 1`) | Not a regression — that is now a *true* empty: the corpus contains none of `handle`/`user`/`input`. Verified by re-running with a file containing those tokens, which returns 1 hit. The C-1 symptom (a swallowed `OperationalError` masquerading as no-matches) is gone; the two goal-shaped queries with matching tokens both return hits |
 | | | | | |
 
 ---

@@ -7,8 +7,10 @@ v1 retrieval is lexical + graph; dense tier deferred until recall@10 misses.
 from __future__ import annotations
 
 import logging
+import re
 import sqlite3
 from pathlib import Path
+from typing import Final
 
 from anyio.to_thread import run_sync
 
@@ -21,6 +23,28 @@ logger = logging.getLogger(__name__)
 
 _SKIP_DIRS = frozenset({".git", ".venv", "venv", "node_modules", "__pycache__", ".sagiha"})
 _TEXT_EXTENSIONS = frozenset({".md", ".mdx"})
+
+_FTS_OPERATORS: Final = frozenset({"AND", "OR", "NOT", "NEAR"})
+
+
+def _fts_query(text: str) -> str:
+    """Convert free text into a safe FTS5 MATCH expression.
+
+    FTS5 parses its argument as *query syntax*, not as literal text, so raw goal
+    text containing `(`, `)`, `'`, `-` or `:` is a syntax error rather than a
+    search (defect C-1). Tokenize on word characters, drop 1-char noise and bare
+    boolean operators, quote every surviving term, and OR them together — seed
+    retrieval is recall-oriented, so a disjunction is the right default.
+
+    Returns `""` when no usable token survives; callers must treat that as a
+    true empty and must not touch the database.
+    """
+    tokens = [
+        token
+        for token in re.findall(r"\w+", text)
+        if len(token) >= 2 and token.upper() not in _FTS_OPERATORS
+    ]
+    return " OR ".join(f'"{token}"' for token in tokens)
 
 
 class FTS5Indexer:
@@ -197,7 +221,12 @@ class FTS5Indexer:
         return await run_sync(_sync)
 
     async def neighbors(self, query: str, limit: int = 20) -> list[RetrievalHit]:
-        """Find chunks matching an FTS query, scored 0–1."""
+        """Find chunks matching free-text *query*, scored 0–1."""
+        match_expr = _fts_query(query)
+        if not match_expr:
+            # No usable token survived tokenization. That is a true empty, and
+            # answering it without a round-trip is honest, not a swallow.
+            return []
 
         def _sync() -> list[RetrievalHit]:
             with sqlite3.connect(self._db_path) as conn:
@@ -210,11 +239,14 @@ class FTS5Indexer:
                         ORDER BY rank
                         LIMIT ?
                         """,
-                        (query, limit),
+                        (match_expr, limit),
                     )
                     rows = cursor.fetchall()
-                except sqlite3.OperationalError:
-                    return []
+                except sqlite3.OperationalError as exc:
+                    if "no such table" in str(exc):
+                        return []  # cold index — a true empty
+                    logger.warning("FTS5 query failed for %r: %s", query, exc)
+                    raise
                 if not rows:
                     return []
                 ranks = [row[2] for row in rows]
