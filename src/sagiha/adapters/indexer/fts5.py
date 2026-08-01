@@ -12,7 +12,7 @@ from pathlib import Path
 
 from anyio.to_thread import run_sync
 
-from sagiha.adapters.indexer.chunking import analyze_python_source, chunk_python_source
+from sagiha.adapters.indexer.chunking import analyze_python_source
 from sagiha.adapters.indexer.frontmatter import is_retrieval_excluded
 from sagiha.domain.content import Symbol
 from sagiha.domain.graph import RetrievalHit, SymbolRef
@@ -133,13 +133,12 @@ class FTS5Indexer:
                     count += 1
                 elif file_path.suffix in _TEXT_EXTENSIONS:
                     source = file_path.read_text(encoding="utf-8")
-                    if file_path.suffix in _TEXT_EXTENSIONS and is_retrieval_excluded(source):
-                        continue
                     with sqlite3.connect(self._db_path) as conn:
                         self._clear_path(conn, rel)
                         self._index_markdown(conn, rel, source)
                         conn.commit()
-                    count += 1
+                    if not is_retrieval_excluded(source):
+                        count += 1
             return count
 
         return await run_sync(_sync)
