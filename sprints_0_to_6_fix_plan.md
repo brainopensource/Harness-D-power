@@ -687,7 +687,7 @@ Fill one row per wave, at commit time, from real command output. **Do not pre-fi
 | W5 | ☑ | `0389f89` | 358 | 0 ✅ | 0 ✅ | 0 ✅ | 14,899 ✅ | 0 ✅ | ok ✅ | 5/5 ✅ | **verify.sh exits 0 — P0 COMPLETE** |
 | W6 | ☑ | `9d6d3d2` | 361 | 0 ✅ | 0 ✅ | 0 ✅ | 14,899 ✅ | 0 ✅ | ok ✅ | 5/5 ✅ | retrieval stays enabled=false — W9 gates any flip |
 | W7 | ☑ | `06f716d` | 358 | 0 ✅ | 0 ✅ | 0 ✅ | 14,899 ✅ | 0 ✅ | ok ✅ | 5/5 ✅ | 361→358: 4 deleted tests asserted M-8 fabrications (see L-19) |
-| W8 | ◐ | `PENDING-W8` | 358 | 0 ✅ | 0 ✅ | 0 ✅ | 14,899 ✅ | 0 ✅ | ok ✅ | 5/5 ✅ | 8.2/8.3/8.4 landed; **8.1 ci.yml is TCB — proposal written, human authors it. M-2 stays OPEN** |
+| W8 | ◐ | `3c576e8` | 358 | 0 ✅ | 0 ✅ | 0 ✅ | 14,899 ✅ | 0 ✅ | ok ✅ | 5/5 ✅ | 8.2/8.3/8.4 landed; **8.1 ci.yml is TCB — proposal written, human authors it. M-2 stays OPEN** |
 | W9 | ☐ | | | | | | | | | | |
 
 ---
