@@ -153,7 +153,6 @@ def _wire_retrieval(config: Config) -> tuple[Indexer, CodeGraph, IndexService] |
         workspace_root,
         indexer,
         code_graph,
-        max_chunk_tokens=config.retrieval.max_chunk_tokens,
     )
     return indexer, code_graph, index_service
 

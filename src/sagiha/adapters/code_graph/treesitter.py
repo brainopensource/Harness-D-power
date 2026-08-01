@@ -18,11 +18,11 @@ from anyio.to_thread import run_sync
 from tree_sitter import Node, Tree
 
 from sagiha.adapters.indexer.chunking import parse_python
+from sagiha.adapters.indexer.walk import SKIP_DIRS, module_name
 from sagiha.domain.graph import CoChange, GraphEdge, SymbolRef
 
 logger = logging.getLogger(__name__)
 
-_SKIP_DIRS = frozenset({".git", ".venv", "venv", "node_modules", "__pycache__", ".sagiha"})
 _SYMBOL_NODE_TYPES = frozenset({"function_definition", "async_function_definition", "class_definition"})
 
 
@@ -33,13 +33,6 @@ class _SymbolMeta:
     name: str
     kind: str
     line: int
-
-
-def _module_name(path: str) -> str:
-    stem = path
-    if stem.endswith(".py"):
-        stem = stem[:-3]
-    return stem.replace("/", ".")
 
 
 def _node_text(source: bytes, node: Node) -> str:
@@ -188,7 +181,7 @@ class TreeSitterCodeGraph:
         symbol_meta: dict[str, _SymbolMeta] | None = None,
     ) -> None:
         """Replace all edges and symbols associated with a single file."""
-        module = _module_name(path)
+        module = module_name(path)
         meta = list(symbol_meta.values()) if symbol_meta else []
         with sqlite3.connect(self._db_path) as conn:
             conn.execute(
@@ -237,7 +230,7 @@ class TreeSitterCodeGraph:
         tree: Tree,
     ) -> tuple[list[GraphEdge], dict[str, _SymbolMeta]]:
         """Extract import/define/call edges from an already-parsed Python tree."""
-        module = _module_name(path)
+        module = module_name(path)
         edges: list[GraphEdge] = []
         symbol_meta: dict[str, _SymbolMeta] = {}
         local_defs: dict[str, str] = {}
@@ -254,21 +247,23 @@ class TreeSitterCodeGraph:
                     if child.type in {"dotted_name", "aliased_import"}:
                         name_node = child.child_by_field_name("name") or child
                         if name_node.type == "dotted_name" or name_node.type == "identifier":
-                            module_name = _node_text(source, name_node)
-                            target = _resolve_import(path, module_name, 0)
+                            # The module *as written in the source*, not a path-derived
+                            # name — do not conflate with walk.module_name().
+                            written_module = _node_text(source, name_node)
+                            target = _resolve_import(path, written_module, 0)
                             if target:
                                 add_edge(path, target, "imports")
             elif node.type == "import_from_statement":
                 module_node = node.child_by_field_name("module_name")
-                module_name = _node_text(source, module_node) if module_node else None
+                written_module = _node_text(source, module_node) if module_node else None
                 level = 0
                 for child in node.children:
                     if child.type == "relative_import":
                         level = sum(1 for c in child.children if c.type == ".")
-                target = _resolve_import(path, module_name, level)
+                target = _resolve_import(path, written_module, level)
                 if target:
                     add_edge(path, target, "imports")
-                import_module = _module_name(target) if target else module_name
+                import_module = module_name(target) if target else written_module
                 for child in node.children:
                     if child.type == "dotted_name" or child.type == "aliased_import":
                         imported = child.child_by_field_name("name") or child
@@ -383,7 +378,7 @@ class TreeSitterCodeGraph:
             for file_path in sorted(root.rglob("*")):
                 if not file_path.is_file():
                     continue
-                if any(part in _SKIP_DIRS for part in file_path.parts):
+                if any(part in SKIP_DIRS for part in file_path.parts):
                     continue
                 if file_path.suffix != ".py":
                     continue
@@ -402,7 +397,7 @@ class TreeSitterCodeGraph:
         """Hop-limited BFS over dependents (reverse edge traversal)."""
 
         def _sync() -> list[str]:
-            module = _module_name(file_path)
+            module = module_name(file_path)
             with sqlite3.connect(self._db_path) as conn:
                 rows = conn.execute("SELECT src, dst FROM edges").fetchall()
 
@@ -439,7 +434,7 @@ class TreeSitterCodeGraph:
         """Find symbols that call the given symbol (best-effort, same-file and imports)."""
 
         def _sync() -> list[SymbolRef]:
-            module = _module_name(symbol.path)
+            module = module_name(symbol.path)
             target = _symbol_path(module, symbol.name)
             with sqlite3.connect(self._db_path) as conn:
                 rows = conn.execute(

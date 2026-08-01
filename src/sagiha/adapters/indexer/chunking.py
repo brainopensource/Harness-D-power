@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from tree_sitter import Node, Tree
 from tree_sitter_language_pack import get_parser
 
+from sagiha.adapters.indexer.walk import module_name
+
 _SYMBOL_NODE_TYPES = frozenset({"function_definition", "async_function_definition", "class_definition"})
 
 
@@ -16,14 +18,22 @@ class Chunk:
     symbol_path: str
     start_line: int
     end_line: int
+    #: What gets indexed and what gets shown: the envelope followed by `body`.
     text: str
+    #: The raw AST span, unenveloped, for consumers that need clean bytes.
+    body: str = ""
 
 
-def _module_name(path: str) -> str:
-    stem = path.rsplit("/", 1)[-1]
-    if stem.endswith(".py"):
-        stem = stem[:-3]
-    return stem.replace("/", ".")
+def _envelope(path: str, symbol_path: str, signature: str, body: str) -> str:
+    """Prefix a chunk with the context needed to read it standalone (M-5).
+
+    BM25 cannot match a query on a file path or a dotted symbol name unless
+    those strings are *in* the indexed text — and a goal usually mentions one or
+    the other. Without this, a recall miss caused by chunking gets misattributed
+    to "lexical retrieval is weak", which is the trigger ADR-0014 uses to justify
+    the dense tier. Wrong cause, expensive cure.
+    """
+    return f"{path}\n{symbol_path}\n{signature}\n---\n{body}"
 
 
 def _node_text(source: bytes, node: Node) -> str:
@@ -63,7 +73,8 @@ def _walk_symbols(
                     symbol_path=symbol_path,
                     start_line=start_line,
                     end_line=end_line,
-                    text=text,
+                    text=_envelope(path, symbol_path, sig, text),
+                    body=text,
                 )
             )
             signatures.append((path, name, kind, start_line, sig))
@@ -90,7 +101,8 @@ def _walk_symbols(
                 symbol_path=symbol_path,
                 start_line=start_line,
                 end_line=end_line,
-                text=text,
+                text=_envelope(path, symbol_path, sig, text),
+                body=text,
             )
         )
         signatures.append((path, name, kind, start_line, sig))
@@ -117,15 +129,12 @@ def analyze_python_tree(
     path: str,
     source: bytes,
     tree: Tree,
-    *,
-    max_chunk_tokens: int,
 ) -> tuple[list[Chunk], list[tuple[str, str, str, int, str]]]:
     """Chunk an already-parsed Python tree and collect symbol rows for indexing.
 
     Returns chunks and symbol rows ``(path, name, kind, line, signature)``.
     """
-    del max_chunk_tokens  # reserved for oversized-chunk splitting
-    module = _module_name(path)
+    module = module_name(path)
     chunks: list[Chunk] = []
     signatures: list[tuple[str, str, str, int, str]] = []
     _walk_symbols(
@@ -141,17 +150,17 @@ def analyze_python_tree(
 
 
 def analyze_python_source(
-    path: str, source: bytes, *, max_chunk_tokens: int
+    path: str, source: bytes
 ) -> tuple[list[Chunk], list[tuple[str, str, str, int, str]]]:
     """Chunk Python source and collect symbol rows for indexing.
 
     Returns chunks and symbol rows ``(path, name, kind, line, signature)``.
     """
     tree = parse_python(source)
-    return analyze_python_tree(path, source, tree, max_chunk_tokens=max_chunk_tokens)
+    return analyze_python_tree(path, source, tree)
 
 
-def chunk_python_source(path: str, source: bytes, *, max_chunk_tokens: int) -> list[Chunk]:
+def chunk_python_source(path: str, source: bytes) -> list[Chunk]:
     """Chunk Python source at function/class boundaries."""
-    chunks, _ = analyze_python_source(path, source, max_chunk_tokens=max_chunk_tokens)
+    chunks, _ = analyze_python_source(path, source)
     return chunks

@@ -125,3 +125,65 @@ def test_fts_query_quotes_terms_and_drops_operators() -> None:
     assert _fts_query("call greet() twice") == '"call" OR "greet" OR "twice"'
     assert _fts_query("()  -- ::") == ""
     assert _fts_query("a bc") == '"bc"'  # 1-char tokens dropped as noise
+
+
+# --- W6: shared symbol namespace (M-3) and chunk envelope (M-5) ---
+
+
+@pytest.mark.asyncio
+async def test_chunk_symbol_paths_match_graph_defines(tmp_path: Path) -> None:
+    """M-3: the indexer and the code graph must name the same symbol identically.
+
+    They previously did not: `chunking._module_name` took the last path segment
+    (`pkg/util.py` → `util`) while `treesitter._module_name` took the full dotted
+    path (`pkg.util`). The same function was `util.greet` in an FTS `symbol_path`
+    and `pkg.util.greet` in a graph `defines` edge, so cross-referencing a
+    retrieval hit to a graph node silently failed.
+    """
+    from sagiha.adapters.code_graph.treesitter import TreeSitterCodeGraph
+    from sagiha.adapters.indexer.chunking import analyze_python_source, parse_python
+
+    rel = "pkg/util.py"
+    source = (FIXTURE / rel).read_bytes()
+
+    chunks, _symbols = analyze_python_source(rel, source)
+    graph = TreeSitterCodeGraph(db_path=str(tmp_path / "graph.db"), workspace_root=FIXTURE)
+    edges, _meta = graph.index_file_from_tree(rel, source, parse_python(source))
+    defines = {e.dst for e in edges if e.kind == "defines"}
+
+    assert chunks, "fixture produced no chunks"
+    assert defines, "graph recorded no `defines` edges for the fixture"
+
+    chunk_symbols = {c.symbol_path for c in chunks}
+    assert chunk_symbols <= defines, (
+        f"indexer and graph disagree on symbol naming — indexer-only: {sorted(chunk_symbols - defines)}"
+    )
+
+
+def test_chunk_text_carries_path_symbol_signature_envelope() -> None:
+    """M-5: an indexed chunk must be readable standalone and matchable by path."""
+    from sagiha.adapters.indexer.chunking import analyze_python_source
+
+    rel = "pkg/util.py"
+    chunks, _ = analyze_python_source(rel, (FIXTURE / rel).read_bytes())
+    greet = next(c for c in chunks if c.symbol_path.endswith(".greet"))
+
+    header, _, body = greet.text.partition("\n---\n")
+    assert header.splitlines() == [rel, "pkg.util.greet", "def greet(name: str) -> str:"]
+    assert body == greet.body, "the raw span must survive intact after the envelope"
+
+
+@pytest.mark.asyncio
+async def test_search_matches_on_path_fragment_and_on_dotted_symbol(
+    indexed: FTS5Indexer,
+) -> None:
+    """M-5's payoff: BM25 can only match what is in the indexed text.
+
+    A goal usually names a file or a dotted symbol, neither of which appeared in
+    a raw AST span. Both must now retrieve the chunk.
+    """
+    by_path = await indexed.search("util", limit=20)
+    by_symbol = await indexed.search("pkg.util.greet", limit=20)
+
+    assert any(h.path == "pkg/util.py" for h in by_path), "path fragment did not retrieve"
+    assert any(h.path == "pkg/util.py" for h in by_symbol), "dotted symbol did not retrieve"

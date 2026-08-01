@@ -567,31 +567,31 @@ Each wave: steps → exit gate → commit. Tick boxes as you go.
 
 ---
 
-## ☐ Wave 6 — Retrieval quality bundle (m-3, M-3, M-5, M-4)
+## ☑ Wave 6 — Retrieval quality bundle (m-3, M-3, M-5, M-4)
 
 **Closes:** **m-3**, **M-3**, **M-5**, **M-4** · P1 — prerequisites for ever enabling retrieval
 
-- [ ] **6.1 (m-3)** Create `src/sagiha/adapters/indexer/walk.py` exporting `SKIP_DIRS`,
+- [x] **6.1 (m-3)** Create `src/sagiha/adapters/indexer/walk.py` exporting `SKIP_DIRS`,
       `TEXT_EXTENSIONS`, `MAX_CHUNK_TOKENS` (per D2), and `module_name(path) -> str`.
-- [ ] **6.2 (m-3)** Import from it in all four duplication sites and delete the local copies:
+- [x] **6.2 (m-3)** Import from it in all four duplication sites and delete the local copies:
       `indexer/fts5.py:22`, `indexer/service.py:18`, `code_graph/treesitter.py`,
       `outer_loop/init/generate.py:12`.
-- [ ] **6.3 (M-3)** `walk.module_name` uses the **full dotted path** form
+- [x] **6.3 (M-3)** `walk.module_name` uses the **full dotted path** form
       (`pkg/util.py → "pkg.util"`), matching today's `treesitter._module_name`. Delete both local
       `_module_name` definitions. This changes indexer `symbol_path` values — expect
       `tests/unit/test_fts5_indexer.py` and the chunking tests to need updated expectations.
-- [ ] **6.4 (M-3)** Add a conformance assertion: for a fixture file, every chunk `symbol_path`
+- [x] **6.4 (M-3)** Add a conformance assertion: for a fixture file, every chunk `symbol_path`
       prefix matches a graph `defines` name for the same path.
-- [ ] **6.5 (M-4, per D2)** Delete `RetrievalConfig.max_chunk_tokens`; remove the parameter from
+- [x] **6.5 (M-4, per D2)** Delete `RetrievalConfig.max_chunk_tokens`; remove the parameter from
       `IndexService.__init__`, `analyze_python_tree`, `analyze_python_source`,
       `chunk_python_source`, and the `composition.py:157` call site. Delete the
       `del max_chunk_tokens` line. Replace `fts5.py:68`'s literal `1024` with
       `walk.MAX_CHUNK_TOKENS`.
-- [ ] **6.6 (M-5)** In `chunking.py`, prepend the envelope to indexed chunk text:
+- [x] **6.6 (M-5)** In `chunking.py`, prepend the envelope to indexed chunk text:
       `f"{path}\n{symbol_path}\n{signature}\n---\n"` + body. Keep `Chunk.text` carrying the
       envelope (it is what gets indexed and what gets shown); if any consumer needs the raw span,
       add a separate field rather than stripping at read time.
-- [ ] **6.7 (M-5)** Update conformance assertions: a search for a **path fragment** and a search
+- [x] **6.7 (M-5)** Update conformance assertions: a search for a **path fragment** and a search
       for a **dotted symbol name** must both return the chunk.
 
 **Exit gate:** `scripts/verify.sh` exits 0. **Retrieval stays `enabled=false`** — this wave
@@ -684,8 +684,8 @@ Fill one row per wave, at commit time, from real command output. **Do not pre-fi
 | W2 | ☑ | `7438718` | 358 | **0** ✅ | 34 ❌ | 18 ❌ | 15,183 ❌ | 106 ❌ | ok | 5/5 | C-3 test landed red first, then C-R1 fix made it green |
 | W3 | ☑ | `36e1a8f` | 358 | 0 ✅ | **0** ✅ | **0** ✅ | 15,183 ❌ | 106 ❌ | ok | 5/5 | vendored trees excluded (16 errs); 18 project errs fixed, none suppressed |
 | W4 | ☑ | `51cfa24` | 358 | 0 ✅ | 0 ✅ | 0 ✅ | **14,474** ✅ | **0** ✅ | ok | 5/5 | 526-word margin; 106→0 links; untagged now fails closed |
-| W5 | ☑ | `PENDING-W5` | 358 | 0 ✅ | 0 ✅ | 0 ✅ | 14,899 ✅ | 0 ✅ | ok ✅ | 5/5 ✅ | **verify.sh exits 0 — P0 COMPLETE** |
-| W6 | ☐ | | | | | | | | | | |
+| W5 | ☑ | `0389f89` | 358 | 0 ✅ | 0 ✅ | 0 ✅ | 14,899 ✅ | 0 ✅ | ok ✅ | 5/5 ✅ | **verify.sh exits 0 — P0 COMPLETE** |
+| W6 | ☑ | `PENDING-W6` | 361 | 0 ✅ | 0 ✅ | 0 ✅ | 14,899 ✅ | 0 ✅ | ok ✅ | 5/5 ✅ | retrieval stays enabled=false — W9 gates any flip |
 | W7 | ☐ | | | | | | | | | | |
 | W8 | ☐ | | | | | | | | | | |
 | W9 | ☐ | | | | | | | | | | |
@@ -714,6 +714,8 @@ Append-only. Record (a) decisions already made during planning that changed a re
 | L-14 | 2026-08-01 | W5 | **15 epics ticked, not 18.** S0.1–S0.5, S1.1–S1.5, S2.1–S2.5 (56 checkboxes incl. subtasks) were each verified against code before ticking | The review's "18" counted differently. Left unchecked on purpose: the three v2-S7 epics (out of scope) and the three deferred *empirical* verification lines at :149, :152, :185 — those are genuinely unmeasured, and ticking them to tidy a document is the M-6 defect inverted |
 | L-15 | 2026-08-01 | W5 | **The docs budget is self-referential.** Writing the measured word count into `STATUS.md` changes the word count | Resolved by iterating to a fixed point (14,899 in both the tree and the table) and keeping the digit count stable on the final edit. Noted so the next editor does not chase it |
 | L-16 | 2026-08-01 | W5 | **W5 added ~425 net normative words** (m-9 rationale, the `file://` rule, the STATUS provenance note) against a docs-shrink rule that asks for equal deletions. Margin is 101 words, not the 526 D10 bought | Every addition was a mandated P0 deliverable (5.5–5.7, 5.9). Own prose was tightened twice rather than deleting content nobody asked to change (D10's own reasoning). Flagged: the next docs PR should ratchet back toward 14,474 |
+| L-17 | 2026-08-01 | W6 | **Existing tests did not need the expectation updates 6.3 predicted.** All 358 passed unchanged after `module_name` moved to the full dotted form | No test asserted a bare `symbol_path` value, so the namespace change was invisible to them — which is precisely why M-3 survived to be found by audit. The new 6.4 assertion closes that hole |
+| L-18 | 2026-08-01 | W6 | **`Chunk` gained a `body` field** rather than the envelope being stripped at read time | 6.6 mandated keeping the envelope on `Chunk.text` and adding a separate field if a consumer needs the raw span. `body` is that field; the conformance test asserts the span survives byte-identical |
 | L-11 | 2026-08-01 | W1 | **Step 1.5's "all three must return ≥1 hit" holds for two of three.** `"handle user's input"` returns 0 against the snippet's one-line corpus (`def greet(name): return 1`) | Not a regression — that is now a *true* empty: the corpus contains none of `handle`/`user`/`input`. Verified by re-running with a file containing those tokens, which returns 1 hit. The C-1 symptom (a swallowed `OperationalError` masquerading as no-matches) is gone; the two goal-shaped queries with matching tokens both return hits |
 | | | | | |
 

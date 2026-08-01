@@ -7,9 +7,8 @@ from pathlib import Path
 
 from anyio import Path as APath
 
+from sagiha.adapters.indexer.walk import SKIP_DIRS
 from sagiha.ports.code_graph import CodeGraph
-
-_SKIP_DIRS = frozenset({".git", ".venv", "venv", "node_modules", "__pycache__", ".sagiha"})
 
 
 async def generate_agents_md(root: Path, *, graph: CodeGraph | None, force: bool) -> Path:
@@ -47,7 +46,7 @@ def _detect_toolchains(root: Path) -> list[str]:
 def _discover_python_modules(root: Path) -> list[str]:
     modules: list[str] = []
     for file_path in sorted(root.rglob("*.py")):
-        if any(part in _SKIP_DIRS for part in file_path.parts):
+        if any(part in SKIP_DIRS for part in file_path.parts):
             continue
         rel = file_path.relative_to(root).as_posix()
         if rel.endswith("__init__.py"):

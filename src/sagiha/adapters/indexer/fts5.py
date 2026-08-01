@@ -17,13 +17,12 @@ from anyio.to_thread import run_sync
 
 from sagiha.adapters.indexer.chunking import Chunk, analyze_python_source
 from sagiha.adapters.indexer.frontmatter import is_retrieval_excluded
+from sagiha.adapters.indexer.walk import SKIP_DIRS, TEXT_EXTENSIONS
 from sagiha.domain.content import Symbol
 from sagiha.domain.graph import RetrievalHit, SymbolRef
 
 logger = logging.getLogger(__name__)
 
-_SKIP_DIRS = frozenset({".git", ".venv", "venv", "node_modules", "__pycache__", ".sagiha"})
-_TEXT_EXTENSIONS = frozenset({".md", ".mdx"})
 
 _FTS_OPERATORS: Final = frozenset({"AND", "OR", "NOT", "NEAR"})
 
@@ -129,7 +128,7 @@ class FTS5Indexer:
             conn.commit()
 
     def _index_python(self, conn: sqlite3.Connection, path: str, source: str) -> None:
-        chunks, symbols = analyze_python_source(path, source.encode("utf-8"), max_chunk_tokens=1024)
+        chunks, symbols = analyze_python_source(path, source.encode("utf-8"))
         for chunk in chunks:
             conn.execute(
                 "INSERT INTO chunks(path, chunk) VALUES (?, ?)",
@@ -168,7 +167,7 @@ class FTS5Indexer:
                 self._index_markdown(conn, path, source)
             conn.commit()
 
-    async def reindex_root(self, root: Path, *, max_chunk_tokens: int = 1024) -> int:
+    async def reindex_root(self, root: Path) -> int:
         """Walk *root* and index supported source files. Returns file count."""
 
         def _sync() -> int:
@@ -176,16 +175,14 @@ class FTS5Indexer:
             for file_path in sorted(root.rglob("*")):
                 if not file_path.is_file():
                     continue
-                if any(part in _SKIP_DIRS for part in file_path.parts):
+                if any(part in SKIP_DIRS for part in file_path.parts):
                     continue
                 rel = file_path.relative_to(root).as_posix()
                 if file_path.suffix == ".py":
                     source = file_path.read_text(encoding="utf-8")
                     with sqlite3.connect(self._db_path) as conn:
                         self._clear_path(conn, rel)
-                        chunks, symbols = analyze_python_source(
-                            rel, source.encode("utf-8"), max_chunk_tokens=max_chunk_tokens
-                        )
+                        chunks, symbols = analyze_python_source(rel, source.encode("utf-8"))
                         for chunk in chunks:
                             conn.execute(
                                 "INSERT INTO chunks(path, chunk) VALUES (?, ?)",
@@ -201,7 +198,7 @@ class FTS5Indexer:
                             )
                         conn.commit()
                     count += 1
-                elif file_path.suffix in _TEXT_EXTENSIONS:
+                elif file_path.suffix in TEXT_EXTENSIONS:
                     source = file_path.read_text(encoding="utf-8")
                     with sqlite3.connect(self._db_path) as conn:
                         self._clear_path(conn, rel)

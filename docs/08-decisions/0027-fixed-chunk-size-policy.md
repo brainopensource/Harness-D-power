@@ -57,7 +57,7 @@ configured value can no longer disagree, because there is only one of them.
 existing `sagiha.toml` carrying `max_chunk_tokens` continues to load without error. It simply stops
 pretending to do something.
 
-**Index invalidation.** The shared-vocabulary refactor that lands `walk.py` also unifies
+**Index invalidation — a reindex is required after this change.** The shared-vocabulary refactor that lands `walk.py` also unifies
 `module_name()` on the full dotted form, which changes indexer `symbol_path` values. The on-disk
 index is a rebuildable cache ([ADR-0011](./0011-split-code-and-episodic-graphs.md)), so a reindex is
 required and **no migration is owed for a cache**.

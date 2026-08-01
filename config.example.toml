@@ -135,7 +135,6 @@ env_passthrough  = ["LANG", "TZ"]
 # ─── Retrieval ───────────────────────────────────────────────────────────────
 [retrieval]
 chunk_strategy    = "ast_bounded"   # ast_bounded | fixed_window
-max_chunk_tokens  = 1024
 top_k             = 20
 graph_expansion_hops = 2
 # v1 retrieval is lexical (BM25/FTS5) + graph expansion. The dense tier and its
