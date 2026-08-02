@@ -97,8 +97,7 @@ def to_task(row: dict[str, object]) -> dict[str, object]:
         # is used as an honest opaque reference.
         "target_commit": f"reference-patch:{instance_id}",
         "diff_summary": (
-            f"{len(source)} source file(s), {len(tested)} test file(s); "
-            f"{len(tests)} FAIL_TO_PASS test(s)"
+            f"{len(source)} source file(s), {len(tested)} test file(s); {len(tests)} FAIL_TO_PASS test(s)"
         ),
         "failing_test_cmd": " ".join(["pytest", "-q", *tests[:8]]) if tests else "pytest -q",
         "files_changed": source + [t for t in tested if t not in source],

@@ -72,9 +72,8 @@ def ensure_repo(
     logger.info("repo-cache: fetching %s@%s", repo, base_commit[:10])
     fetch = _run(["git", "fetch", "--depth", "1", "-q", "origin", base_commit], root)
     if fetch.returncode != 0 or not commit_present(root, base_commit):
-        raise RepoCacheError(
-            f"could not fetch {repo}@{base_commit}: {fetch.stderr.strip() or 'commit not present after fetch'}"
-        )
+        err = fetch.stderr.strip() or "commit not present after fetch"
+        raise RepoCacheError(f"could not fetch {repo}@{base_commit}: {err}")
     return root
 
 
@@ -87,10 +86,13 @@ def resolve_task_root(
 ) -> Path:
     """Pick the repository a task's worktree should be cut from.
 
-    A harvested task's base commit is in the harness repo and is used directly —
+    A harvested task's base commit is in the harness repo or a local directory and is used directly —
     so the local-suite path is unchanged and pays no network cost. Anything else
     is an imported task and comes from the cache.
     """
+    repo_path = Path(repo)
+    if repo_path.is_absolute() and repo_path.exists():
+        return repo_path
     local = Path(workspace_root)
     if commit_present(local, base_commit):
         return local
