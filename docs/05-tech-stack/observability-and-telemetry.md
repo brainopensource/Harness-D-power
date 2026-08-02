@@ -6,84 +6,75 @@ retrieval: excluded
 # **Observability & Telemetry**
 
 > [!NOTE]
-> **Working Proposal Disclaimer**: A working architectural proposal, refined iteratively as practical evaluation progresses.
+> **Working Proposal Disclaimer**: Architectural proposal refined iteratively during evaluation.
 
-## **One Truth, Two Views**
+## **Architecture: EventBus Subscribers**
 
-The trajectory store and the OTel span log record the same facts. Maintaining them independently guarantees drift, so:
-
-**The [EventBus](../02-architecture/event-bus-and-hooks.md) is the single source. The `TrajectoryStore` and the OTel exporter are both subscribers.** Neither is derived from the other, and no component writes to both.
+The [EventBus](../02-architecture/event-bus-and-hooks.md) acts as the single source of truth; `TrajectoryStore` and the OpenTelemetry (OTel) exporter subscribe independently to avoid state drift.
 
 ```
-Kernel ──→ EventBus ──┬──→ TrajectoryStore  (durable, queryable, replayable)
-                      └──→ OTel exporter    (traces, metrics, dashboards)
+Kernel ──→ EventBus ──┬──→ TrajectoryStore  (Durable, queryable, replayable)
+                      └──→ OTel Exporter    (Traces, metrics, dashboards)
 ```
 
-## **Span Model — GenAI Semantic Conventions**
+## **OTel GenAI Span Model**
 
-Standard OTel GenAI conventions are used rather than a bespoke schema, so existing tracing backends understand SAGIHA traces without adapters.
+Uses standard OpenTelemetry GenAI semantic conventions:
 
 ```
-run                                        (root, run_id)
+run                                        (root: run_id, config_hash)
 ├── step                                   (step_id, branch_id)
-│   ├── gen_ai.chat                        model call
-│   ├── execute_tool                       one per dispatch
+│   ├── gen_ai.chat                        (model call)
+│   ├── execute_tool                       (tool dispatch)
 │   │   ├── policy.authorize
 │   │   └── tool.<name>
 │   └── hook.<point>
-├── candidate.evaluate                     System 2 only
+├── candidate.evaluate                     (System 2 only)
 │   └── gate.evaluate
 └── checkpoint.commit
 ```
 
-### Key Attributes
+### Key Span Attributes
 
-| Span | Attributes |
+| Span | Key Attributes |
 | :--- | :--- |
 | `gen_ai.chat` | `gen_ai.system`, `gen_ai.request.model`, `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`, `gen_ai.usage.cache_read_tokens`, `gen_ai.usage.cache_creation_tokens`, `sagiha.cost_usd`, `sagiha.prompt_version` |
 | `execute_tool` | `sagiha.tool.name`, `sagiha.tool.effect`, `sagiha.grant.id`, `sagiha.tool.truncated`, `sagiha.tool.trusted_output` |
 | `policy.authorize` | `sagiha.policy.decision`, `sagiha.policy.reason`, `sagiha.policy.requires_human` |
-| `gate.evaluate` | one boolean per gate, plus `sagiha.gate.admitted` |
+| `gate.evaluate` | Per-gate booleans, `sagiha.gate.admitted` |
 | `run` | `sagiha.task_id`, `sagiha.autonomy_level`, `sagiha.config_hash`, `sagiha.harness_version` |
 
-`cache_read_tokens` is not an optional nicety. It is the primary evidence that the [cache-stable prompt layout](../02-architecture/context-and-cache-engineering.md) is working, and a cache hit rate collapse is usually the first visible symptom of a prompt-assembly regression — often before task success moves at all.
+* `cache_read_tokens` tracks [cache-stable prompt layout](../02-architecture/context-and-cache-engineering.md) performance.
 
-`sagiha.config_hash` and `sagiha.prompt_version` on every root span are what make a months-old run explicable.
+## **Key Telemetry Metrics**
 
-## **Metrics**
-
-| Metric | Type | Why it matters |
+| Metric | Type | Purpose |
 | :--- | :--- | :--- |
-| `sagiha.run.duration` | histogram | Wall-clock per run |
-| `sagiha.run.outcome` | counter (by result) | Success rate |
-| `sagiha.tokens.total` | counter (by kind) | Input/output/cache split |
-| `sagiha.cache.hit_ratio` | gauge | Cost-efficiency leading indicator |
-| `sagiha.cost.usd` | counter (by model) | Spend, cross-checked against governor |
-| `sagiha.tool.calls` | counter (by tool, outcome) | Tool selection distribution |
-| `sagiha.tool.duration` | histogram (by tool) | Feedback-loop latency |
-| `sagiha.edit.hunk_failure_ratio` | gauge | **Edit reliability — a top-tier quality signal** |
-| `sagiha.gate.failures` | counter (by gate) | Where candidates die |
-| `sagiha.retrieval.recall_at_k` | gauge | Retrieval quality, independent of task success |
-| `sagiha.degradation` | counter (by component) | Silent capability loss |
-| `sagiha.retry.count` | counter (by class) | Transient-failure burden |
-| `sagiha.approval.wait` | histogram | Human-gate latency |
-| `sagiha.lsp.servers_active` | gauge | Pool pressure under parallel search |
+| `sagiha.run.duration` | Histogram | Wall-clock execution time. |
+| `sagiha.run.outcome` | Counter | Success vs. failure counts. |
+| `sagiha.tokens.total` | Counter | Token distribution (input, output, cache). |
+| `sagiha.cache.hit_ratio` | Gauge | Cost-efficiency leading indicator. |
+| `sagiha.cost.usd` | Counter | Total spend cross-checked against ResourceGovernor. |
+| `sagiha.tool.calls` | Counter | Tool utilization breakdown. |
+| `sagiha.tool.duration` | Histogram | Tool execution latency. |
+| `sagiha.edit.hunk_failure_ratio` | Gauge | **Patch quality indicator**. |
+| `sagiha.gate.failures` | Counter | Gate rejection breakdown. |
+| `sagiha.retrieval.recall_at_k` | Gauge | Standalone code retrieval accuracy. |
+| `sagiha.degradation` | Counter | Silent component fallback tracking. |
+| `sagiha.retry.count` | Counter | Transient error frequency. |
+| `sagiha.approval.wait` | Histogram | Human-in-the-loop wait times. |
+| `sagiha.lsp.servers_active` | Gauge | Active LSP pool pressure. |
 
-Two of these deserve dashboard placement most teams wouldn't predict. `edit.hunk_failure_ratio` is the earliest indicator that a model or prompt change degraded patch quality — it moves before task success does. And `degradation` catches the failure mode where a benchmark run silently lost retrieval and produced a number that means nothing.
+## **Redaction Policy**
 
-## **Redaction**
+Redaction runs **once at the EventBus boundary**:
+* **Redacted**: Secret-scoped grant data, env vars matching `redact_patterns`, `Authorization` headers, high-entropy tokens.
+* **Preserved**: Tool names, effect classes, policy decisions, file paths, token counts.
+* Content payload exports (`sagiha.capture_content`) default to `false` to keep repository code local.
 
-Applied **once, at the event boundary**, before any subscriber sees an event — never per-subscriber, which guarantees eventual inconsistency.
+## **Trajectory Store Schema**
 
-Redacted: env values matching `redact_patterns`, `Authorization` headers, anything from a secret-scoped grant, and high-entropy strings matching known key formats.
-
-**Never redacted**: tool names, effect classes, policy decisions, file paths, token counts. Redacting the audit trail to protect secrets that were never in it costs the ability to answer what happened.
-
-Prompt and completion text are **not exported by default** (`sagiha.capture_content = false`). They live in the trajectory store locally. Turning capture on ships source code to a telemetry backend, which is a decision an operator makes deliberately.
-
-## **Trajectory Store**
-
-Append-only SQLite-WAL. Events are the write unit; scores arrive as separate `StepScored` rows rather than updates, which keeps the append-only guarantee true rather than aspirational.
+Append-only SQLite-WAL (`events` table):
 
 ```sql
 CREATE TABLE events (
@@ -92,47 +83,30 @@ CREATE TABLE events (
   run_id         TEXT NOT NULL,
   branch_id      TEXT NOT NULL,
   step_seq       INTEGER,
-  parent_seq     INTEGER,             -- DAG ancestry, not a linear counter
+  parent_seq     INTEGER,             -- DAG ancestry link
   kind           TEXT NOT NULL,
-  payload        TEXT NOT NULL,       -- serialized event model
+  payload        TEXT NOT NULL,       -- Serialized event payload
   ts             TEXT NOT NULL        -- ISO-8601, aware UTC
 );
 CREATE INDEX idx_run_step ON events(run_id, step_seq);
 CREATE INDEX idx_kind ON events(run_id, kind);
 ```
 
-It serves four consumers with different needs: replay (ordered read), audit (policy decisions), RHI training data (outcomes and features), and debugging (`sagiha trajectory show`).
+## **Inspection Commands**
 
-## **Schema Versioning**
-
-Both the `events` table and cassette headers include a `schema_version: int` field. 
-
-**Upgrade policy**:
-* Replay compatibility window of one major version.
-* Migration scripts for older cassettes.
-* Or explicit re-record.
-
-Note: the first change to any event model without this will orphan every cassette.
-
-## **Inspection**
-
-> **Planned — Sprint 3** for `replay`; trajectory inspection commands land with or after the run loop ([STATUS.md](../STATUS.md)). Trajectory *storage* exists today; these CLIs do not.
+CLI utilities for debugging and replay (see [STATUS.md](../STATUS.md)):
 
 ```bash
-sagiha trajectory show <run-id>              # steps, tools, diagnostics, scores
-sagiha trajectory diff <id-a> <id-b>         # where two runs diverged
+sagiha trajectory show <run-id>              # View steps, tools, diagnostics, scores
+sagiha trajectory diff <id-a> <id-b>         # Locate execution step divergence
 sagiha trajectory grep <run-id> --tool apply_edit
-sagiha trajectory cost <run-id>              # spend breakdown by step
-sagiha replay --run-id <id>                  # deterministic, zero API calls
+sagiha trajectory cost <run-id>              # Detailed cost breakdown by step
+sagiha replay --run-id <id>                  # Deterministic offline replay
 ```
 
-`trajectory diff` is the workhorse for outer-loop analysis: given a mutation that helped on some tasks and hurt on others, it locates the exact step where behavior changed.
+## **Operational Baselines**
 
-## **What Good Looks Like**
-
-Baselines to alert against, not aspirations:
-
-* Cache hit ratio **> 0.80** on multi-step runs. Below that, inspect prompt assembly for prefix churn.
-* Edit hunk failure ratio **< 0.15**. Above that, the edit format or anchoring strategy needs work.
-* Degradation events **= 0** in benchmark runs. Any nonzero count invalidates the run's numbers.
-* Retry share of total tokens **< 0.10**.
+* **Cache Hit Ratio**: $> 0.80$ on multi-step cloud runs.
+* **Edit Hunk Failure Ratio**: $< 0.15$.
+* **Degradation Events**: $= 0$ in benchmark runs.
+* **Retry Token Share**: $< 0.10$.

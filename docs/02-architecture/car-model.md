@@ -9,23 +9,14 @@ updated: 2026-07-29
 
 ## **Architectural Layering**
 
-CAR isolates responsibilities into **three** layers:
+CAR isolates responsibilities into three strict layers:
 
-1. **Control Layer**: security policy, token and spend budgets, context allocation, verification gates. Authorizes every effect before it happens and mints the capability tokens that permit it.
-2. **Agency Layer**: deliberation, reasoning loops, context synthesis, sub-task decomposition, delegation. Holds **no reference to Runtime objects** and emits intents only.
-3. **Runtime Layer**: sandboxed execution, worktree management, terminal capture, MCP tool drivers. Returns structured observations without touching agent memory or policy state.
+1. **Control Layer**: Security policy, token/spend budgets, context allocation, verification gates. Authorizes effects and mints capability tokens.
+2. **Agency Layer**: Deliberation, reasoning, context synthesis, task decomposition. Emits intents only; holds no references to Runtime objects.
+3. **Runtime Layer**: Sandboxed execution, worktree management, terminal capture, MCP tool drivers. Returns structured observations without touching agent memory or policy state.
 
 > [!IMPORTANT]
-> **The Runtime layer has no code yet (R5).** `src/sagiha/runtime/` is an intentionally empty
-> package reserved for the sandboxed executor — it is filled in starting Block 5, per
-> [ADR-0006](../08-decisions/0006-sandbox-is-the-perimeter.md). Today's tool execution
-> (`adapters/tools/`, `adapters/workspace/local.py`) runs an unsandboxed dev-mode subprocess
-> confined only by path containment, not a container/gVisor boundary — this is why `autonomous`
-> autonomy stays refused until Block 5 lands (**R10**). The `import-linter` `car-layering`
-> contract already forbids `agency/` from importing either `sagiha.runtime` or `sagiha.adapters`,
-> so the boundary this diagram describes is mechanically enforced against both the future
-> sandboxed path and today's dev-mode one — the empty package does not weaken that contract, it
-> just has nothing in it to violate yet.
+> **Runtime Layer Status (R5)**: `src/sagiha/runtime/` is an intentionally empty package reserved for the sandboxed executor landing in Block 5 ([ADR-0006](../08-decisions/0006-sandbox-is-the-perimeter.md)). Today's execution (`adapters/tools/`, `adapters/workspace/local.py`) runs in dev-mode subprocesses confined by path containment, keeping `autonomous` autonomy disabled (**R10**). The `import-linter` `car-layering` contract forbids `agency/` from importing `sagiha.runtime` or `sagiha.adapters`.
 
 ```mermaid
 graph TD
@@ -56,41 +47,27 @@ graph TD
     Workspace -->|Returns Structured Observation| DMARTIC
 ```
 
-**Native sidecars are not a fourth layer.** They are a deployment topology — an implementation detail of where a port's adapter happens to run — available to the Indexer and Runtime layers once measurement justifies them. Listing them as a peer of Control, Agency, and Runtime conflates logical architecture with physical process placement and obscures both.
+*Note: Sidecars represent process deployment topology, not a architectural fourth layer.*
 
-## **Why Prose Is Not Enough**
-
-Control must evaluate every agent tool request against a security policy before authorizing execution. An interception point must exist in the type system; a boundary that exists only in a document is bypassed by the first contributor in a hurry, and by the outer loop the moment it starts editing adapters.
-
-## **Three Enforcement Mechanisms**
+## **Enforcement Mechanisms**
 
 ### 1. Capability Grants
-
-Every side-effecting Runtime method executes only if backed by a `Grant` — minted only by `PolicyEngine.authorize()` and re-checked at the point of effect via `verify_grant`, never passed across a port signature. The contracts live in **`src/sagiha/ports/policy.py`** and **`src/sagiha/ports/workspace.py`**; the `Grant` model in **`src/sagiha/domain/control.py`**.
-
-Grants are scoped to specific paths and tools, and they expire. Policy becomes non-bypassable by construction rather than by review.
+Side-effecting Runtime methods execute only when backed by a path/tool-scoped `Grant`, minted by `PolicyEngine.authorize()` and checked via `verify_grant`.
+* Contracts: [`src/sagiha/ports/policy.py`](../../src/sagiha/ports/policy.py) and [`src/sagiha/ports/workspace.py`](../../src/sagiha/ports/workspace.py).
+* Models: [`src/sagiha/domain/control.py`](../../src/sagiha/domain/control.py).
 
 ### 2. Import-Graph Contracts
+CI enforces via `import-linter` that `agency/` cannot import `runtime/` or `adapters/`.
 
-CI enforces that `agency/` cannot import `runtime/` or `adapters/`, via `import-linter` layer contracts. A violation fails the build. Architectural boundaries that are not mechanically checked erode silently, and this one is load-bearing for the entire security model.
-
-### 3. A Single Dispatch Choke Point
-
-Agency emits a `ToolCall`. The kernel resolves authorization, acquires a lease from the `ResourceGovernor`, dispatches, records the outcome, and returns an observation. There is exactly one path from intent to effect, which is also the single place where audit logging, budget accounting, effect classification, and secret redaction attach.
-
-Grants never escape this dispatch choke point. The authoritative implementation is
-**`src/sagiha/kernel/dispatch.py`**: authorize → verify a `grant_id` was minted → acquire lease →
-`registry.dispatch(call)` → release lease → `record_outcome(grant_id, result)`. Note the registry
-**never receives the `Grant`** — only the kernel-internal choke point correlates it by id
-(supersedes the earlier `registry.dispatch(call, decision.grant)` sketch; see 2026-07-28 review
-finding D1 and `src/sagiha/ports/tool_registry.py`).
+### 3. Single Dispatch Choke Point
+Agency emits a `ToolCall`. The kernel choke point ([`src/sagiha/kernel/dispatch.py`](../../src/sagiha/kernel/dispatch.py)) executes: `authorize` → verify `grant_id` → acquire lease → `registry.dispatch(call)` → release lease → `record_outcome(grant_id, result)`. The registry never receives the `Grant` object directly (see [`src/sagiha/ports/tool_registry.py`](../../src/sagiha/ports/tool_registry.py)).
 
 ## **Admission Control**
 
-The `ResourceGovernor` bounds concurrency, spend, and sandbox count globally. Without it, parallel candidate exploration against a frontier API exhausts provider rate limits and spends wall-clock in retries — a budget stated in a document but never enforced at a call site is not a budget.
+`ResourceGovernor` globally bounds concurrency, spend, and sandbox counts.
 
 ## **Cross-References**
 
-* [Security & Threat Model](./security-and-threat-model.md) — what the sandbox boundary must actually stop.
-* [Hexagonal Ports](../03-contracts-and-models/hexagonal-ports.md) — `PolicyEngine`, `Grant`, `ResourceGovernor` definitions.
-* [Microkernel & Bus](./microkernel-and-bus.md) — where dispatch and replay live.
+* [Security & Threat Model](./security-and-threat-model.md)
+* [Hexagonal Ports](../03-contracts-and-models/hexagonal-ports.md)
+* [Microkernel & Bus](./microkernel-and-bus.md)

@@ -4,40 +4,29 @@ updated: 2026-07-31
 ---
 # **Trace Distillation**
 
-Every run already writes a complete, typed, replayable trajectory. Distillation is the exporter
-that turns those trajectories into training data — the Tier B activity in the
-[RHI outer loop](./rhi-outer-loop.md).
+Distillation exports typed, replayable trajectories into SFT/DPO training datasets (Tier B in [RHI outer loop](./rhi-outer-loop.md)).
 
-## Interface
+## **Interface**
 
-`sagiha export --format sft|dpo`. The exporter reads the `TrajectoryStore`; it defines no schema of
-its own. Step and message shapes live in `src/sagiha/domain/trajectory.py`.
+CLI command: `sagiha export --format sft|dpo`. Reads from `TrajectoryStore` using step/message schemas from `src/sagiha/domain/trajectory.py`.
 
-## Eligibility — all four, no exceptions
+## **Eligibility Criteria**
 
-A trajectory is exportable **iff**:
+A trajectory is eligible for export **iff** all four conditions are met:
 
-| Criterion | Why |
+| Criterion | Requirement & Rationale |
 | :--- | :--- |
-| **`admitted`** | The gates passed. Post-`v2-S1` this means something; before it, nothing |
-| **replay-verified** | The trajectory reproduces. An unverifiable trace is not evidence of anything |
-| **¬`tainted`** | The run never ingested untrusted content (see [T7](../02-architecture/security-and-threat-model.md)). Training on attacker-influenced trajectories is a persistence mechanism for prompt injection — the one failure mode that survives the run that caused it |
-| **within-budget** | The run did not hit its cap. A truncated run is not a demonstration of success |
+| **`admitted`** | Gate evaluation passed. |
+| **Replay-verified** | Trajectory reproduces accurately. |
+| **$\neg$`tainted`** | Untrusted content was never ingested (prevents prompt injection persistence; see [T7](../02-architecture/security-and-threat-model.md)). |
+| **Within-budget** | Run completed without budget cap truncation. |
 
-The taint criterion is the one most likely to be dropped under dataset-size pressure. It is the
-one least safe to drop.
+## **DPO Preference Pairs**
 
-## DPO pairs
+DPO preference pairs are constructed from **Best-of-N siblings on identical prefixes** (`v2-S4`): identical task and context prefix, paired between one admitted candidate and one rejected candidate.
 
-Preference pairs come from **Best-of-N siblings on identical prefixes** (`v2-S4`): same task, same
-context up to the divergence point, one admitted candidate and one rejected. Shared prefixes are
-what make the pair a clean signal about the decision rather than about the setup — which is why
-this waits for BoN rather than pairing across unrelated runs.
+## **Dependencies**
 
-## Dependency
+Requires full assistant `Message` persistence on `TrajectoryStep` (`v2-S2` / PR-2.5) to capture text-only turns alongside tool calls and results.
 
-Requires the full assistant `Message` on `TrajectoryStep` — today steps persist only `tool_calls`
-and `tool_results`, dropping text-only turns. That gap is fixed in `v2-S2` (PR-2.5) for resume and
-replay correctness; the exporter is its second consumer, which is why it is done once, there.
-
-*Lands `v2-S4`.*
+*Lands in `v2-S4`.*

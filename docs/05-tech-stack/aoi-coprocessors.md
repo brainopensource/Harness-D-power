@@ -6,53 +6,34 @@ retrieval: excluded
 # **Auxiliary Optimization Intelligence (AOI) Co-processors**
 
 > [!NOTE]
-> **Working Proposal Disclaimer**: A working architectural proposal, refined iteratively as practical evaluation progresses.
+> **Working Proposal Disclaimer**: Architectural proposal refined iteratively during evaluation.
 
-Lightweight non-LLM models that make the harness sample-efficient. **Advisory only**: they rank and filter; they never admit or reject. Hard gates remain deterministic.
+Lightweight non-LLM models for sample efficiency. **Advisory only**: they rank and filter, but hard gates remain deterministic.
 
 ## **Models**
 
-* **Trajectory Failure Predictor (CatBoost)** — estimates the probability a run fails or enters an unrecoverable loop, from early tool-call sequences and error patterns.
-* **Step Process Reward Scorer (XGBoost / LightGBM)** — scores steps from diffs, diagnostic deltas, and test metrics without an expensive LLM judge.
-* **Dynamic Context Budget Router** — routes across local, mid-tier, and frontier models by task complexity and context length.
+* **Trajectory Failure Predictor (CatBoost)** — Predicts run failure/looping from early tool sequences and error patterns.
+* **Step Process Reward Scorer (XGBoost / LightGBM)** — Scores steps from diffs, LSP diagnostic deltas, and test metrics without LLM calls.
+* **Dynamic Context Budget Router** — Routes across model tiers based on task complexity and context length.
 
-## **Every Prediction Is Calibrated, Never a Bare Float**
+## **Prediction Schema & Calibration**
 
-The contract lives in **`src/sagiha/domain/work.py`** (`Prediction`: `value`, `confidence`,
-`calibrated`, `shadow_mode` — all required, no defaults; the port surface is
-`src/sagiha/ports/advisory.py`). Uncalibrated predictions may never gate; shadow mode means
-predict-and-log, never act.
+Domain contract defined in `src/sagiha/domain/work.py` (`Prediction`: `value`, `confidence`, `calibrated`, `shadow_mode`; port in `src/sagiha/ports/advisory.py`).
 
-A scalar carries no way to express uncertainty, and therefore no basis for deciding whether it may be acted upon.
+* Uncalibrated predictions cannot gate execution.
+* Shadow mode (`predict-and-log`) is mandatory prior to activation.
 
-## **Three Binding Constraints**
+## **Binding Constraints**
 
-Each closes a specific way that learned advisory models go wrong in practice.
+1. **Shadow Mode & Calibration** — Models require reliability diagrams and Brier score validation on held-out trajectories before promotion.
+2. **Exploration vs. Selection Bias** — Fixed exploration fraction runs to completion regardless of predicted risk; censored runs are never trained as negative labels; uses inverse-propensity weighting on halted runs.
+3. **OOD Fallback** — Reverts control to deterministic policies when confidence drops or repository structures are unfamiliar.
 
-### 1. Shadow mode before gating
+## **Cold-Start Strategy**
 
-Every model ships predicting-and-logging, and is promoted to acting only when a reliability diagram and Brier score on held-out runs justify it. **No fixed halt threshold is specified anywhere in this tree**, deliberately: a threshold chosen before calibration data exists is not a decision rule, it is a guess with a decimal point. The number comes from the reliability diagram or it does not exist.
+Initial execution relies on deterministic escalation ladders. Recorded trajectories form the training corpus for learned AOI models.
 
-### 2. Exploration against self-confirmation
+## **Outer Loop Integration & Observability**
 
-A failure predictor that halts runs it expects to fail **destroys its own training signal**: halted runs never produce success labels, so its false positives are never observed and the model confirms itself indefinitely. This is the standard selection-bias trap in learned early stopping.
-
-* A **fixed exploration fraction always runs to completion**, regardless of predicted risk.
-* Censored outcomes are **never trained as negatives**.
-* Where halting occurs, training corrects the selection with inverse-propensity weighting.
-
-### 3. Out-of-distribution fallback
-
-On unfamiliar repository layouts, the model abstains and control reverts to deterministic policy. Degradation is always toward the safe default — an unavailable or low-confidence model must never stall a run.
-
-## **The Cold Start**
-
-AOI needs trajectories it does not have on day one. The bootstrap is the **deterministic escalation ladder**: hand-written routing policy runs first, and its decisions plus their outcomes become the labelled dataset the learned router later trains on. Hand-written policy first, learned policy second, is the only ordering that resolves this.
-
-## **Interaction With the Outer Loop**
-
-AOI ranks candidate mutations so that only promising ones reach expensive held-out evaluation — which is what keeps an outer-loop iteration affordable. Evaluation results feed back into training, with a portion of data **never** used to train models that influence the loop, preserving evaluation integrity.
-
-## **Observability**
-
-Every prediction, promotion, and update is logged to the Trajectory Store, so a model's real-world hit rate is auditable after the fact rather than assumed from its validation score.
+* Pre-filters and ranks candidate mutations to minimize outer-loop evaluation costs.
+* Predictions, model promotions, and performance metrics are logged to `TrajectoryStore` for auditing.

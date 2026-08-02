@@ -3,30 +3,26 @@ status: rationale
 updated: 2026-07-29
 retrieval: excluded
 ---
-# **Executive Summary: SAGIHA Meta-Harness**
+# Executive Summary: SAGIHA Meta-Harness
 
 > [!NOTE]
-> **Working Proposal Disclaimer**: A working architectural proposal, refined iteratively as practical evaluation progresses.
+> Working architectural proposal, refined iteratively.
 
-## **Overview**
-SAGIHA (Super AGI Harness Agent) is a meta-harness that turns frontier LLMs into an autonomous software engineering agent, operating independently or with a human in the loop. It is **measured** as a coding harness: every capability claim is stated as a benchmark with a threshold. Coding is the default [execution profile](../02-architecture/execution-profiles.md), not the only one — analysis, review, and conversational work run on the same kernel with fewer ports mounted.
+## Overview
+SAGIHA (Super AGI Harness Agent) turns frontier LLMs into autonomous software engineering agents operating independently or with human oversight. All capabilities are benchmark-measured. Coding is the default [execution profile](../02-architecture/execution-profiles.md).
 
-## **Key Architectural Pillars**
+## Key Architectural Pillars
+- **CAR Structure**: Control (policy/budget), Agency (deliberation), Runtime (execution). Agency holds no Runtime references; actions pass through a single dispatch choke point requiring a PolicyEngine `Grant`. Enforced via CI import rules.
+- **Dual-Process Execution**: System 1 (fast ReAct) for local tasks; System 2 (best-of-N + sequential repair) across parallel worktrees for complex tasks.
+- **Epistemic Memory Split**: Tree-sitter/git for deterministic code graphs; bi-temporal SQLite for episodic memory.
+- **Protocols**: MCP for vertical tools; A2A for remote peer agents.
+- **Bounded Self-Improvement (RHI)**: Outer loop optimizes prompts, parameters, and adapters—never evaluators, policy, gates, or benchmarks. Requires human sign-off.
 
-* **CAR with structural enforcement**: Control (policy, budget, gates), Agency (deliberation, no shell access), Runtime (sandboxed execution). Agency holds no reference to Runtime objects; every effect passes through one dispatch choke point where the Policy Engine mints a capability `Grant` that Runtime methods require. Enforced by construction and by CI import contracts, not by convention. Sidecars are a deployment topology, not a layer.
-* **Dual-Process Execution**:
-  * **System 1 (Fast):** direct ReAct for localized, low-complexity tasks.
-  * **System 2 (Deliberate):** verifier-guided **best-of-N with sequential repair** across parallel worktrees. Deliberately not MCTS — tree search with backpropagation is deferred until a calibrated value model exists, since each expansion costs a full agent run plus a test suite.
-* **Memory split by epistemics**: deterministic code structure (imports, calls, ownership, co-change) derived exactly from Tree-sitter and git; episodic and decision memory, where facts genuinely age, modelled bi-temporally. SQLite baseline throughout.
-* **Protocol standardized**: MCP for vertical tool integration; A2A adopted when a genuinely remote peer agent exists.
-* **Bounded self-improvement (RHI)**: the outer loop optimizes prompts, retrieval parameters, and non-Control adapters — never the evaluator, policy engine, gates, or benchmark definitions. Deployment requires human sign-off.
+## Non-Negotiable Invariants
+1. **Sandbox Perimeter**: Security rests on sandbox boundaries, not command blocklists.
+2. **Data vs Instruction**: Repo/web content is data, never instruction.
+3. **Pristine Injection**: Candidates run against read-only injected test suites and cannot edit graders.
+4. **Typed Port Contracts**: No `Dict[str, Any]` across ports; contracts verified via per-port conformance suites.
+5. **Trigger-Based Migration**: Components migrate based on empirical triggers, not calendar dates.
 
-## **Non-Negotiable Invariants**
-
-1. **The sandbox is the security perimeter.** Command-string blocklisting is a usability guardrail; if the agent has a shell, it has whatever the sandbox grants that shell.
-2. **Repository and web content is data, never instruction.** Indirect prompt injection is the primary threat to an autonomous agent holding a shell and credentials.
-3. **A candidate never scores itself.** Evaluation runs against a pristine, read-only injected copy of the test suite; modifying test files is a hard gate failure.
-4. **No `Dict[str, Any]` crosses a port**, and no port speaks storage language. Contracts are verified by per-port conformance suites parametrized over every adapter.
-5. **Measure before replacing.** Every advanced component carries a trigger condition, not a calendar slot.
-
-See [Phased Migration Matrix](../07-roadmap/phased-migration-matrix.md) for the vertical slice plan and [Hexagonal Ports](../03-contracts-and-models/hexagonal-ports.md) for the domain contracts.
+*See [Phased Migration Matrix](../07-roadmap/phased-migration-matrix.md) and [Hexagonal Ports](../03-contracts-and-models/hexagonal-ports.md).*

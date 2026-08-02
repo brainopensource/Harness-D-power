@@ -214,7 +214,7 @@ An earlier draft of this document proposed five overengineering findings and a u
 `src/sagiha/` and the normative docs. **Three were confirmed, one was rejected, one was not a
 finding, and one was right about the design but wrong about the status.** Recording the rejections
 matters as much as the confirmations — per
-[reviews/README.md](./README.md), a rejected finding is recorded, never deleted.
+[reviews/README.md](../reviews/README.md), a rejected finding is recorded, never deleted.
 
 | Claim | Verdict | Disposition |
 | :--- | :--- | :--- |
@@ -405,7 +405,7 @@ Concrete, small, and each with a named target file.
 | 2 | Add `PRDSpec` / `StoryBoard` / `StorySpec` lifecycle schemas | [task-and-acceptance.md](../../03-contracts-and-models/task-and-acceptance.md) | The macro layer's payloads are domain models and must live with `TaskSpec`. Note Sprint 3 D3 simultaneously **removes** duplicated code fences from this file — add references to `src/`, not fences |
 | 3 | Add a resilience section: journal-mode probe, crash/sleep-wake, interjection queue | [composition-and-configuration.md](../../05-tech-stack/composition-and-configuration.md) + [error-taxonomy.md](../../03-contracts-and-models/error-taxonomy.md) | §1 dimension 9 is the weakest *specified* dimension, not merely the weakest built one |
 | 4 | Generate the port stability table from `STABILITY` declarations and `--check` in CI | `scripts/`, [port-stability-and-versioning.md](../../03-contracts-and-models/port-stability-and-versioning.md) | The doc names five Stable ports; the code marks eight. Same drift class the event catalog already solved |
-| 5 | Document the `todo/` → `doing/` → `done/` convention and log the three `todo/` reviews | [reviews/README.md](./README.md) | The convention exists on disk and nowhere in prose; the log table omits these documents entirely |
+| 5 | Document the `todo/` → `doing/` → `done/` convention and log the three `todo/` reviews | [reviews/README.md](../reviews/README.md) | The convention exists on disk and nowhere in prose; the log table omits these documents entirely |
 | 6 | Fix the foundation-review link path repo-wide (`reviews/` → `reviews/doing/`) | [README.md](../../README.md), [STATUS.md](../../STATUS.md), sprint-2.md, sprint-3.md | The file moved into `doing/`; every inbound link still points at the old path |
 | 7 | Add `docs/sprints/` to the README sitemap | [README.md](../../README.md) | Sprints are referenced in "Start Here" but absent from the sitemap table |
 
