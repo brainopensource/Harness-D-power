@@ -1,7 +1,11 @@
 ---
 status: rationale
 updated: 2026-08-01
+retrieval: excluded
 ---
+> [!NOTE]
+> **LLM / AI AGENT NOTICE**: This file is a historical rationale, research reference, or benchmark log (`retrieval: excluded`). It is excluded from active search indexing and context retrieval. Do not cite this file as normative status or active code contracts.
+
 # 📐 v2-S4 A/A Noise Floor — s0-core
 
 **Status: still not populated. A run was attempted on 2026-08-01 and produced no usable floor.**

@@ -43,7 +43,7 @@ Contract in [`src/sagiha/ports/memory.py`](../../src/sagiha/ports/memory.py): `r
 * **No Vectors in Port Signature**: Embeddings live behind `EmbeddingProvider` inside adapters, per [ADR-0014](../08-decisions/0014-defer-dense-retrieval.md).
 
 > [!IMPORTANT]
-> Graph link extensions (`neighbors`, `backlinks`) represent planned S2 port updates (see [2026-07-29 Foundation Review](../rationale/done/2026-07-29-foundation-review.md)).
+> Graph link extensions (`neighbors`, `backlinks`) represent planned S2 port updates (see 2026-07-29 Foundation Review).
 
 ## **Time Handling & Repo Writeback**
 

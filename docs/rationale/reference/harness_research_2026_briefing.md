@@ -3,7 +3,11 @@ status: rationale
 updated: 2026-08-01
 title: SOTA Harness Infrastructure & Autonomous AGI Coding Agent Architectural Briefing
 source: docs/rationale/reference/harness_research_2026.md
+retrieval: excluded
 ---
+> [!NOTE]
+> **LLM / AI AGENT NOTICE**: This file is a historical rationale, research reference, or benchmark log (`retrieval: excluded`). It is excluded from active search indexing and context retrieval. Do not cite this file as normative status or active code contracts.
+
 
 # SOTA Harness Infrastructure & Autonomous AGI Coding Agent Architectural Briefing
 

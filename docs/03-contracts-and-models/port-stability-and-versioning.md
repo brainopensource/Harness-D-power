@@ -41,7 +41,7 @@ Adding methods to a `Protocol` breaks existing implementers.
 * **`PORT_VERSION`**: Each port module exports an integer `PORT_VERSION`. Composition root rejects version mismatches at startup.
 * **`schema_version`**: Event payloads and cassettes use per-event integer versioning.
 * **Upcasters**: Pure transformations (`v(n) → v(n+1)`) in `sagiha/domain/upcasters.py` upcast append-only records on read without mutating history. Upcasters are retained for **two major versions**.
-* **Replay Gate**: `sagiha replay --verify-all` verifies replay equality (see [STATUS.md](../STATUS.md) and [foundation review](../rationale/done/2026-07-29-foundation-review.md#11-measurement-plan)).
+* **Replay Gate**: `sagiha replay --verify-all` verifies replay equality (see [STATUS.md](../STATUS.md) and foundation review).
 
 ## **Stability Tiers**
 

@@ -7,6 +7,9 @@ purpose: External Principal Engineer review — foundation audit + forward manda
 basis: pitch.md · prompt_review.md · docs/STATUS.md · docs/reviews/doing/2026-07-29-foundation-review.md · docs/sprints/sprint-3.md · src/sagiha/ (~2,804 LOC) · ADRs 0001–0018
 method: Code-verified against HEAD; prior D1–D18 accepted unless challenged; new findings carry file:line. §§1–10 initial pass; §11 deep pass over docs/01–06, shipping-harness refs, link/SSOT audit.
 ---
+> [!NOTE]
+> **LLM / AI AGENT NOTICE**: This file is a historical rationale, research reference, or benchmark log (`retrieval: excluded`). It is excluded from active search indexing and context retrieval. Do not cite this file as normative status or active code contracts.
+
 # Final Review — SAGIHA Concept & Plan
 
 ## 0. Plain-Language Summary
