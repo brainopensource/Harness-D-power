@@ -1,3 +1,8 @@
+---
+status: historical
+retrieval: excluded
+---
+
 # SAGIHA v2 Series Comprehensive Audit & Review (Sprints v2-S0 to v2-S6)
 **Document ID:** `sprints_0-6_review_001.md`  
 **Date:** August 1, 2026  

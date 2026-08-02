@@ -89,6 +89,7 @@ src = ["src", "tests"]
 # alone). Project files are never excluded to make a gate green — keep_alive.py
 # and scripts/extract_gemini_share.py were fixed, not silenced.
 extend-exclude = [
+    ".sagiha",
     "aether_examples",
     "src/claude_code",
     "src/grok_build",

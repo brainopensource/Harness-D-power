@@ -24,21 +24,21 @@ retrieval: excluded
 
 | Document | Role in audit |
 | :--- | :--- |
-| [`docs/implementation/development_plan_v2.md`](docs/implementation/development_plan_v2.md) | Normative sprint sequence, epics, exit gates (v2-S0…S7) |
-| [`docs/implementation/refactor_sagiha_v2_guidelines.md`](docs/implementation/refactor_sagiha_v2_guidelines.md) | Phase guidelines, H-series baseline, verification commands |
-| [`docs/implementation/sprint_v2_s4_options.md`](docs/implementation/sprint_v2_s4_options.md) | E0 / BoN / scoring / export trade-offs (S4) |
-| [`docs/implementation/sprints_tasks_order_deps_plan.md`](docs/implementation/sprints_tasks_order_deps_plan.md) | Wave mapping, dependency DAG, developer prompts |
-| [`docs/STATUS.md`](docs/STATUS.md) | Single source of **implementation** truth (claimed state) |
-| [`AGENTS.md`](AGENTS.md) | CAR invariants, TCB definition, port-adapter rules |
+| [`docs/implementation/development_plan_v2.md`](../../implementation/development_plan_v2.md) | Normative sprint sequence, epics, exit gates (v2-S0…S7) |
+| [`docs/implementation/refactor_sagiha_v2_guidelines.md`](../../implementation/refactor_sagiha_v2_guidelines.md) | Phase guidelines, H-series baseline, verification commands |
+| [`docs/implementation/sprint_v2_s4_options.md`](../../implementation/sprint_v2_s4_options.md) | E0 / BoN / scoring / export trade-offs (S4) |
+| [`docs/implementation/sprints_tasks_order_deps_plan.md`](../../implementation/sprints_tasks_order_deps_plan.md) | Wave mapping, dependency DAG, developer prompts |
+| [`docs/STATUS.md`](../../STATUS.md) | Single source of **implementation** truth (claimed state) |
+| [`AGENTS.md`](../../../AGENTS.md) | CAR invariants, TCB definition, port-adapter rules |
 
 ### Vision / review corpus (rationale)
 
 | Document | Role in audit |
 | :--- | :--- |
-| [`docs/rationale/reviews/next_gen_architecture_specs.md`](docs/rationale/reviews/next_gen_architecture_specs.md) | Seed-only L6, compaction, TaintGate, FrozenRunState, B5a perimeter |
-| [`docs/rationale/reviews/critical_gaps_analysis.md`](docs/rationale/reviews/critical_gaps_analysis.md) | Pre-v2 gap taxonomy |
-| [`docs/rationale/reviews/codebase_delta_refactor.md`](docs/rationale/reviews/codebase_delta_refactor.md) | H1–H4 delta findings |
-| [`docs/rationale/reviews/agi_evolution_path.md`](docs/rationale/reviews/agi_evolution_path.md) | Conductor roadmap — **future reference only** (not scored) |
+| [`docs/rationale/reviews/next_gen_architecture_specs.md`](next_gen_architecture_specs.md) | Seed-only L6, compaction, TaintGate, FrozenRunState, B5a perimeter |
+| [`docs/rationale/reviews/critical_gaps_analysis.md`](critical_gaps_analysis.md) | Pre-v2 gap taxonomy |
+| [`docs/rationale/reviews/codebase_delta_refactor.md`](codebase_delta_refactor.md) | H1–H4 delta findings |
+| [`docs/rationale/reviews/agi_evolution_path.md`](agi_evolution_path.md) | Conductor roadmap — **future reference only** (not scored) |
 
 ### Contracts & decisions
 
