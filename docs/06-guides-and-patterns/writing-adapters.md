@@ -20,6 +20,7 @@ retrieval: excluded
 from sagiha.ports.memory import Memory
 from sagiha.domain.memory import MemoryRecord, RecallQuery, Recall
 
+
 class MyStore:  # Structural typing; no base class required
     async def remember(self, record: MemoryRecord) -> str: ...
     async def recall(self, query: RecallQuery) -> list[Recall]: ...

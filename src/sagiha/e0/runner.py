@@ -14,7 +14,14 @@ from sagiha.agency.context.system_prompt import resolve_system_prompt
 from sagiha.agency.run_loop import RunLoop, make_task
 from sagiha.composition import build_kernel
 from sagiha.domain.benchmark import BenchmarkResult, BenchmarkRun, BenchmarkSuite, HarvestedTask
-from sagiha.domain.config import Config, ModelConfig, SearchConfig, TelemetryConfig, WorkspaceConfig
+from sagiha.domain.config import (
+    Config,
+    ModelConfig,
+    SandboxConfig,
+    SearchConfig,
+    TelemetryConfig,
+    WorkspaceConfig,
+)
 from sagiha.domain.control import RunContext
 from sagiha.domain.identity import utc_now
 from sagiha.domain.work import GateReport
@@ -65,6 +72,7 @@ class BenchmarkRunner:
         strategy: Literal["single_shot", "bon"] = "single_shot",
         search: SearchConfig | None = None,
         model_config: ModelConfig | None = None,
+        sandbox: SandboxConfig | None = None,
     ) -> None:
         self._suite = suite
         self._agent_id = agent_id
@@ -84,12 +92,23 @@ class BenchmarkRunner:
         #: base_url was configured, so a local Ollama endpoint was asked for a
         #: Claude model and returned 404 on every task.
         self._model_config = model_config
+        #: `None` preserves `Config`'s own default (`runtime="container"`, the ADR-0016
+        #: security posture for real runs). A worktree's `.git` file points *outside* the
+        #: worktree directory (`<repo>/.git/worktrees/<id>`), which a container mounting only
+        #: the worktree leaf cannot resolve — every coding-profile gate then reports `None`
+        #: ("could not evaluate"), not a security failure, just an unmet mount requirement.
+        #: Callers that don't need the perimeter (a cheap CI smoke check, a local dev run
+        #: without Podman) pass `SandboxConfig(runtime="subprocess")` explicitly.
+        self._sandbox = sandbox
 
     def _model_for_run(self) -> ModelConfig:
         mode_val = cast(Literal["live", "replay", "record"], self._model_mode)
         if self._model_config is not None:
             return self._model_config.model_copy(update={"mode": mode_val})
         return ModelConfig(mode=mode_val)
+
+    def _sandbox_for_run(self) -> SandboxConfig:
+        return self._sandbox if self._sandbox is not None else SandboxConfig()
 
     def _repo_root_for(self, task: HarvestedTask) -> str:
         """The repository this task's worktree is cut from.
@@ -129,6 +148,7 @@ class BenchmarkRunner:
                 workspace=WorkspaceConfig(root=task_repo_root),
                 telemetry=TelemetryConfig(trajectory_db=self._trajectory_db),
                 search=self._search,
+                sandbox=self._sandbox_for_run(),
             )
             kernel = build_kernel(config, cassette_path=self._cassette_path)
             search = kernel.candidate_search
@@ -215,6 +235,7 @@ class BenchmarkRunner:
                 model=self._model_for_run(),
                 workspace=WorkspaceConfig(root=task_root),
                 telemetry=TelemetryConfig(trajectory_db=self._trajectory_db),
+                sandbox=self._sandbox_for_run(),
             )
             # The control arm must not build search machinery it will never call — otherwise
             # every single-shot task pays construction cost for a `BestOfNSearch` and a second

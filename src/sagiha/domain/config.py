@@ -343,6 +343,13 @@ class SearchConfig(BaseModel):
     #: Best-of-N degenerates into single-shot at N× cost — see `diversity_ratio` (S4.2d).
     candidate_temperatures: tuple[float, ...] = (0.0, 0.6, 0.9)
     scoring: ScoringConfig = Field(default_factory=ScoringConfig)
+    #: Total gate evaluations allowed across **all** candidates combined in one `propose()` call
+    #: (not per-candidate). `candidates=4` with `max_repair_rounds=3` is up to 4 * (1 + 3) = 16
+    #: full agent runs plus test-suite executions for a single task — unbounded, this makes the
+    #: N=4 Best-of-N ablation cell unaffordable once v2-S7f's in-place `RepairConfig` is also
+    #: active on each candidate. Once the running total hits this cap, remaining candidates skip
+    #: further repair rounds and are graded as-is.
+    max_total_gate_evaluations: int = 12
 
 
 class GatesConfig(BaseModel):

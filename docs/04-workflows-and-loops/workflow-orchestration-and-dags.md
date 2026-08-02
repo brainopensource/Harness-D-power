@@ -41,8 +41,8 @@ flowchart LR
 Protocols in `ports/workflow.py` ([ADR-0018](../08-decisions/0018-native-workflow-dag.md)):
 
 ```python
-WorkflowStep[In: BaseModel, Out: BaseModel]   # name, async execute(ctx, input_data) -> Out
-PipelineRunner                                # composes steps, emits events, persists state
+WorkflowStep[In:BaseModel, Out:BaseModel]  # name, async execute(ctx, input_data) -> Out
+PipelineRunner  # composes steps, emits events, persists state
 ```
 
 * Steps cannot hold tool references, mint `Grant` tokens, or invoke providers directly outside `ModelProvider`.

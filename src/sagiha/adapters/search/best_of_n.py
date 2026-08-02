@@ -8,6 +8,15 @@ constructs this class). Everything mechanism-shaped is delegated to an injected
 selection) lives here, which is what lets the sequential and parallel launch strategies
 (`docs/implementation/development_plan_v2.md` v2-S4 Epic S4.2) share one policy path and differ
 only in how launches are scheduled.
+
+`max_repair_rounds` here is **candidate-level revision**: a failing candidate is revised into a
+new attempt under the *same* `branch_id`, competing against the other N-1 candidates once ranked.
+This is a different axis from `RepairConfig` (`domain/config.py`, v2-S7f), which is **in-place
+repair** inside a single `RunLoop` trajectory — the gate's failure re-enters the same transcript
+rather than producing a new candidate to rank. When both are active, each candidate's own
+`RunLoop` exhausts its in-place repair first; `should_escalate` only sees a candidate that still
+fails after that. `SearchConfig.max_total_gate_evaluations` bounds the product of the two (N
+candidates × repair attempts each) so enabling both does not multiply cost unboundedly.
 """
 
 from __future__ import annotations
@@ -102,6 +111,10 @@ class BestOfNSearch:
         #: context that shape omits (task, gate reports, reviews) actually lives.
         self._outcomes: dict[str, CandidateOutcome] = {}
         self._tasks: dict[str, TaskSpec] = {}
+        #: Running total of gate evaluations across every candidate in the current `propose()`
+        #: call, reset at the start of each `propose()`. Bounds the N-candidates x repair-rounds
+        #: product against `SearchConfig.max_total_gate_evaluations` — see that field's docstring.
+        self._total_gate_evaluations = 0
 
     async def _run_one_candidate(
         self, task: TaskSpec, context: RunContext, branch_id: str, *, temperature: float | None
@@ -117,6 +130,7 @@ class BestOfNSearch:
             temperature=temperature,
             repair_round=round_,
         )
+        self._total_gate_evaluations += 1
 
         # `prune_on_first_gate_fail`: cheap profile — skip further repair after the first
         # failed attempt. Worktree release is independent (always in `_run_and_release_one`).
@@ -131,6 +145,7 @@ class BestOfNSearch:
             outcome.gate_report is not None
             and not outcome.gate_report.admitted
             and round_ < self._config.max_repair_rounds
+            and self._total_gate_evaluations < self._config.max_total_gate_evaluations
             and not should_escalate(
                 failures=round_ + 1,
                 files_changed=outcome.files_changed,
@@ -148,6 +163,7 @@ class BestOfNSearch:
                 temperature=temperature,
                 repair_round=round_,
             )
+            self._total_gate_evaluations += 1
 
         return outcome
 
@@ -201,6 +217,7 @@ class BestOfNSearch:
 
         `launch_mode` selects the schedule; pruning, repair, and ranking are identical either way.
         """
+        self._total_gate_evaluations = 0
         branch_ids = [f"{task.task_id}-c{i}-{uuid.uuid4().hex[:6]}" for i in range(n)]
         for branch_id in branch_ids:
             self._tasks[branch_id] = task

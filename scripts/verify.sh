@@ -71,6 +71,7 @@ run format      "ruff format --check"    -- uv run ruff format --check .
 run budget      "docs budget"            -- python3 scripts/docs_budget.py --max 15000
 run links       "link integrity"         -- python3 scripts/check_links.py
 run catalog     "event catalog"          -- python3 scripts/gen_event_catalog.py --check
+run bench_aa    "bench A/A smoke"        -- uv run python3 scripts/bench_aa_smoke.py
 
 # ------------------------------------------------------------- derived facts
 PORT_COUNT="$(grep -rn "(Protocol)" src/sagiha/ports/ | wc -l | tr -d ' ')"
@@ -135,6 +136,7 @@ Host: $PY_VERSION · $PODMAN_VERSION
 | Docs budget | ${BUDGET_WORDS} normative words (ceiling 15,000) | $(mark "$(rc_of budget)") | \`python3 scripts/docs_budget.py --max 15000\` |
 | Link integrity | ${DEAD_LINKS} dead relative links | $(mark "$(rc_of links)") | \`python3 scripts/check_links.py\` |
 | Event catalog | $([ "$(rc_of catalog)" -eq 0 ] && echo "in sync" || echo "out of sync") | $(mark "$(rc_of catalog)") | \`python3 scripts/gen_event_catalog.py --check\` |
+| Bench A/A smoke | $([ "$(rc_of bench_aa)" -eq 0 ] && echo "pipeline OK" || echo "FAILED") | $(mark "$(rc_of bench_aa)") | \`python3 scripts/bench_aa_smoke.py\` |
 
 **Ports:** ${PORT_COUNT} Protocols across ${PORT_FILES} files (\`grep -rn "(Protocol)" src/sagiha/ports/\`).
 **Podman on this host:** ${PODMAN_PRESENT}.
