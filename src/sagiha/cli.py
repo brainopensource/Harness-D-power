@@ -40,7 +40,7 @@ async def _run_or_resume(
     checks: list[str],
     workspace: str,
     cassette_path: str,
-    max_steps: int,
+    max_steps: int | None,
     trajectory_db: str,
     resume: str | None,
     mode: str = "replay",
@@ -131,7 +131,7 @@ async def _run_or_resume(
         tool_registry=kernel.tool_registry,
         trajectory_store=kernel.trajectory_store,
         bus=kernel.bus,
-        max_steps=max_steps,
+        max_steps=max_steps if max_steps is not None else kernel.config.governor.max_steps_per_run,
         tool_schemas=list(kernel.tool_schemas),
         evaluator=kernel.evaluator,
         workspace=kernel.workspace,
@@ -139,6 +139,7 @@ async def _run_or_resume(
         context=kernel.config.context,
         retrieval_seed=retrieval_seed,
         system_prompt=system_prompt,
+        repair=kernel.config.repair,
     )
 
     ctx = RunContext(
@@ -162,7 +163,9 @@ def run(
     ),
     workspace: str = typer.Option(".", "--workspace", "-w"),
     cassette: str | None = typer.Option(None, "--cassette", "-c"),
-    max_steps: int = typer.Option(20, "--max-steps"),
+    max_steps: int | None = typer.Option(
+        None, "--max-steps", help="Override GovernorConfig.max_steps_per_run for this run"
+    ),
     trajectory_db: str = typer.Option(".sagiha/trajectories.db", "--trajectory-db"),
     resume: str | None = typer.Option(
         None, "--resume", help="Continue an interrupted run_id instead of starting a new task"
@@ -267,12 +270,14 @@ async def _do_replay(
         tool_registry=tool_registry,
         trajectory_store=kernel.trajectory_store,
         bus=kernel.bus,
+        max_steps=kernel.config.governor.max_steps_per_run,
         tool_schemas=list(kernel.tool_schemas),
         evaluator=kernel.evaluator,
         workspace=kernel.workspace,
         pricing=kernel.config.pricing,
         context=kernel.config.context,
         system_prompt=system_prompt,
+        repair=kernel.config.repair,
     )
     new_run_id = str(uuid.uuid4())
     ctx = RunContext(
@@ -453,11 +458,18 @@ def bench(
         "--noise-floor",
         help="Path to a previously written A/A report JSON, reused as the floor for --compare.",
     ),
+    sandbox_runtime: str = typer.Option(
+        "container",
+        "--sandbox-runtime",
+        help="'container' (ADR-0016 perimeter, default) or 'subprocess' (no Podman; a worktree's "
+        ".git file points outside the container's mounted leaf, so 'container' cannot yet resolve "
+        "a worktree's gitdir — use 'subprocess' until that mount gap is fixed).",
+    ),
 ) -> None:
     """Run E0 evaluation benchmark over a harvested task suite."""
 
     from sagiha.domain.benchmark import BenchmarkRun, ComparisonResult, NoiseFloor
-    from sagiha.domain.config import ModelConfig, ModelTierConfig
+    from sagiha.domain.config import ModelConfig, ModelTierConfig, SandboxConfig
     from sagiha.e0.harvester import Harvester
     from sagiha.e0.reporter import BenchmarkReporter
     from sagiha.e0.runner import BenchmarkRunner
@@ -491,6 +503,10 @@ def bench(
         roles={"execution": "local"},
     )
 
+    if sandbox_runtime not in ("container", "subprocess"):
+        typer.echo(f"--sandbox-runtime must be 'container' or 'subprocess', got {sandbox_runtime!r}")
+        raise SystemExit(1)
+
     def _runner(strategy: Literal["single_shot", "bon"]) -> BenchmarkRunner:
         return BenchmarkRunner(
             suite=suite,
@@ -500,6 +516,7 @@ def bench(
             strategy=strategy,
             agent_id=f"sagiha-{strategy}",
             model_config=bench_model,
+            sandbox=SandboxConfig(runtime=sandbox_runtime),
         )
 
     nf: NoiseFloor | None = None

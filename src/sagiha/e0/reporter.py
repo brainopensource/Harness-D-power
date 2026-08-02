@@ -43,6 +43,51 @@ def cost_per_resolved_task(run: BenchmarkRun) -> float | None:
     return sum(costs) / resolved
 
 
+def _percentile(values: list[float], p: float) -> float:
+    """Linear-interpolation percentile, `p` in `[0, 1]`. `[]` -> `0.0`."""
+    if not values:
+        return 0.0
+    ordered = sorted(values)
+    rank = (len(ordered) - 1) * p
+    lo = int(rank)
+    hi = min(lo + 1, len(ordered) - 1)
+    if lo == hi:
+        return ordered[lo]
+    return ordered[lo] + (ordered[hi] - ordered[lo]) * (rank - lo)
+
+
+def per_task_cost_stats(run: BenchmarkRun) -> dict[str, dict[str, float]] | None:
+    """Mean/p50/p95 of `$`, wall-clock seconds, and model calls — **per task attempted**, not
+    per task resolved (`cost_per_resolved_task` above answers a different question: what a
+    *win* costs). A SAGIHA+free-model number is only comparable to a competitor's on more than
+    pass rate if both cost and latency are published alongside it (v2-S7f, rev2 §4.2.8).
+
+    `None` when no result carries a cost — an unset run should not publish `$0.0000`.
+    """
+    costs = [r.cost.usd for r in run.results if r.cost is not None]
+    walls = [r.wall_clock_s for r in run.results]
+    calls = [float(r.cost.model_calls) for r in run.results if r.cost is not None]
+    if not costs:
+        return None
+    return {
+        "usd": {
+            "mean": sum(costs) / len(costs),
+            "p50": _percentile(costs, 0.5),
+            "p95": _percentile(costs, 0.95),
+        },
+        "wall_clock_s": {
+            "mean": sum(walls) / len(walls) if walls else 0.0,
+            "p50": _percentile(walls, 0.5),
+            "p95": _percentile(walls, 0.95),
+        },
+        "model_calls": {
+            "mean": sum(calls) / len(calls) if calls else 0.0,
+            "p50": _percentile(calls, 0.5),
+            "p95": _percentile(calls, 0.95),
+        },
+    }
+
+
 def _mean_diversity_ratio(run: BenchmarkRun) -> float | None:
     ratios = [r.diversity_ratio for r in run.results if r.diversity_ratio is not None]
     return sum(ratios) / len(ratios) if ratios else None
@@ -169,6 +214,14 @@ class BenchmarkReporter:
             lines.append(f"**Wall/success:** {avg_wall:.1f}s")
         if cache_hits:
             lines.append(f"**Cache hit:** {sum(cache_hits) / len(cache_hits):.2f}")
+        per_task = per_task_cost_stats(run)
+        if per_task:
+            u, w, c = per_task["usd"], per_task["wall_clock_s"], per_task["model_calls"]
+            lines.append(
+                f"**$/task:** ${u['mean']:.4f} (p50 ${u['p50']:.4f}, p95 ${u['p95']:.4f}) · "
+                f"**Wall/task:** {w['mean']:.1f}s (p50 {w['p50']:.1f}s, p95 {w['p95']:.1f}s) · "
+                f"**Calls/task:** {c['mean']:.1f} (p50 {c['p50']:.1f}, p95 {c['p95']:.1f})"
+            )
         lines.append("")
 
         if gate_failures:
@@ -264,6 +317,7 @@ class BenchmarkReporter:
             "n_results": len(run.results),
             "cost_per_success_usd": (sum(costs) / len(costs)) if costs else None,
             "cost_per_resolved_task_usd": cost_per_resolved_task(run),
+            "per_task_cost_stats": per_task_cost_stats(run),
             "diversity_ratio": _mean_diversity_ratio(run),
             "cache_hit_rate": (sum(cache_hits) / len(cache_hits)) if cache_hits else None,
             "gate_failures": dict(gate_failures),

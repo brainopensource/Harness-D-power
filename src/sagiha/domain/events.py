@@ -355,10 +355,39 @@ class GateEvaluated(Event):
 
     event: Literal["gate.evaluated"] = "gate.evaluated"
     gate_report: GateReport
+    #: 1-based. `1` is the initial gate evaluation; `2` and above are v2-S7f repair re-checks.
+    #: Defaults `1` so an unmodified caller's events are unchanged.
+    attempt: int = 1
 
     group: ClassVar[str] = "Evaluation & Control"
     emitted_by: ClassVar[str] = "Evaluator"
     consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI", "HK", "MI")
+
+
+class RepairAttemptStarted(Event):
+    """A failed gate is re-entering the same trajectory (v2-S7f `RepairConfig`) — not a new
+    candidate (compare `CandidateProposed`, which is Best-of-N's candidate-level revision)."""
+
+    event: Literal["repair.attempt_started"] = "repair.attempt_started"
+    attempt: int
+    failed_gates: tuple[str, ...] = ()
+
+    group: ClassVar[str] = "Evaluation & Control"
+    emitted_by: ClassVar[str] = "Orchestrator"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI", "HK")
+
+
+class RepairAbandoned(Event):
+    """Repair stopped before `RepairConfig.max_attempts` — either it was reached, or two
+    consecutive attempts reported the identical failure signature (no progress)."""
+
+    event: Literal["repair.abandoned"] = "repair.abandoned"
+    reason: Literal["no_progress", "max_attempts"]
+    attempt: int
+
+    group: ClassVar[str] = "Evaluation & Control"
+    emitted_by: ClassVar[str] = "Orchestrator"
+    consumers: ClassVar[tuple[str, ...]] = ("TS", "OT", "UI", "HK")
 
 
 class ReviewCompleted(Event):

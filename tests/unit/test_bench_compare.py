@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from sagiha.domain.benchmark import BenchmarkResult, BenchmarkRun, NoiseFloor
 from sagiha.domain.work import CostSummary
-from sagiha.e0.reporter import BenchmarkReporter, cost_per_resolved_task
+from sagiha.e0.reporter import BenchmarkReporter, cost_per_resolved_task, per_task_cost_stats
 from sagiha.e0.statistics import StatisticalAnalyzer
 
 
@@ -63,6 +63,45 @@ def test_cost_per_resolved_task_counts_failed_attempts_in_the_numerator() -> Non
     only successful-run cost by successes would make an expensive, flaky arm look cheap."""
     run = _run("a", [("t1", True, 1.0), ("t2", False, 3.0)])
     assert cost_per_resolved_task(run) == 4.0  # $4 total / 1 resolved, not $1/1
+
+
+def test_per_task_cost_stats_counts_every_result_not_just_resolved() -> None:
+    run = BenchmarkRun(
+        run_id="r",
+        suite_id="s0-core",
+        agent_id="a",
+        results=(
+            BenchmarkResult(
+                task_id="t1",
+                agent_id="a",
+                resolved=True,
+                cost=CostSummary(usd=1.0, input_tokens=0, output_tokens=0, wall_clock_s=0.0, model_calls=2),
+                wall_clock_s=10.0,
+            ),
+            BenchmarkResult(
+                task_id="t2",
+                agent_id="a",
+                resolved=False,
+                cost=CostSummary(usd=3.0, input_tokens=0, output_tokens=0, wall_clock_s=0.0, model_calls=4),
+                wall_clock_s=20.0,
+            ),
+        ),
+    )
+    stats = per_task_cost_stats(run)
+    assert stats is not None
+    assert stats["usd"]["mean"] == 2.0  # (1.0 + 3.0) / 2 tasks, not just the resolved one
+    assert stats["wall_clock_s"]["mean"] == 15.0
+    assert stats["model_calls"]["mean"] == 3.0
+
+
+def test_per_task_cost_stats_none_when_no_result_has_cost() -> None:
+    run = BenchmarkRun(
+        run_id="r",
+        suite_id="s0-core",
+        agent_id="a",
+        results=(BenchmarkResult(task_id="t1", agent_id="a", resolved=True, cost=None),),
+    )
+    assert per_task_cost_stats(run) is None
 
 
 def test_cost_per_resolved_task_is_none_when_nothing_resolved() -> None:
