@@ -9,8 +9,17 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-URL = "https://gemini.google.com/share/a80e0c8ea417?skid=36bb015e-1bb8-44dc-95a8-85fbc12ccb85"
-OUT = Path(sys.argv[1] if len(sys.argv) > 1 else "gemini_share_a80e0c8ea417.md")
+URL = (
+    sys.argv[1]
+    if len(sys.argv) > 1 and sys.argv[1].startswith("http")
+    else "https://gemini.google.com/share/a80e0c8ea417?skid=36bb015e-1bb8-44dc-95a8-85fbc12ccb85"
+)
+out_arg = (
+    sys.argv[2]
+    if len(sys.argv) > 2
+    else (sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].startswith("http") else "gemini_share_a80e0c8ea417.md")
+)
+OUT = Path(out_arg)
 
 
 def clean_body(text: str) -> str:
@@ -77,7 +86,7 @@ def main() -> None:
             "status: rationale",
             "updated: 2026-08-01",
             "retrieval: excluded",
-            "source: https://gemini.google.com/share/a80e0c8ea417?skid=36bb015e-1bb8-44dc-95a8-85fbc12ccb85",
+            f"source: {URL}",
             "---",
             "",
             "# Gemini Share Export — Advanced Agent Architecture Design",
