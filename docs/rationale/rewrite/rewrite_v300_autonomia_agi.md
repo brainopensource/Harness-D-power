@@ -375,6 +375,138 @@ so the constraint is mechanical, not aspirational.
 
 ---
 
+## 8b. Revision-A amendments from the competitor review
+
+### 8b.1 Hibernation: autonomy must be re-earned on thaw, not restored
+
+§1 gets the hard part right — grants are re-minted, never restored, and the exclusion is enforced by
+reflection. One thing `FrozenRunState` still restores that it probably should not: **the run's own
+drive state.**
+
+Grok Build's goal state machine deserializes **any** unknown or forward-version persisted status to
+*paused*, never *active*, with the invariant stated: a status this build cannot interpret must restore
+as a resumable paused run, never a self-driving one. A corrupt snapshot, a snapshot written by a newer
+build, or a partially-flushed write must not resurrect as an autonomous agent burning tokens
+unattended — which is precisely the scenario T5 creates and nothing else in this document covers.
+
+Cost: one enum with an explicit `from_wire` fallback and one deserializer test. It is the same posture
+as the grant rule, applied one level up.
+
+Companion: an **atomic** freeze. A `FrozenRunState` written non-atomically over an existing file can be
+truncated by the very process death it exists to survive. Write-to-temp-then-rename, plus a content
+hash in a sidecar and a startup scan that verifies before admitting a resume — the reference pattern
+counts recovery losses by reason (`missing_tmp` / `sha_mismatch` / `io_error` / `parse_error`) so a
+silent loss rate cannot hide.
+
+### 8b.2 Self-modification: three properties that compose into a safe loop
+
+§2.1's curator has the shape. The reference adds two constraints and one workflow rule that together
+make the loop safe by construction rather than by care:
+
+| Property | Rule |
+| :--- | :--- |
+| **Provenance-scoped** | The loop may only touch artifacts **it authored**. Bundled and human-authored skills are off-limits, identified by a `created_by` field rather than by heuristic |
+| **Never destructive** | The maximum action is archive, and archive is recoverable. Pre-run snapshots before any batch |
+| **Human-pinnable** | A pinned artifact is exempt from **every** automatic transition *and* from the review pass — a human veto the loop cannot reason around |
+| **PR, never direct commit** | Every mutation lands as a reviewable change with before/after scores on train, validation **and** holdout, the full diff, and the cost of the optimization run |
+
+The four-phase consolidation structure is worth carrying too: orient → **targeted grep** of transcripts
+(*"look only for things you already suspect matter"*, not exhaustive reads — this is what keeps the
+pass affordable) → consolidate, **converting relative dates to absolute** and dropping contradicted
+facts → prune and re-index under a hard cap. Relative dates are the single most common form of memory
+rot in a corpus written over weeks.
+
+Two documented quality gaps in the reference implementation, recorded so we design against them rather
+than reproduce them: it names memory files from session content rather than project identity (so a
+renamed project orphans its memories), and it **writes unverified facts without reading the source** —
+one cited example is *"18 of 21 items resolved"*, written without checking. The second is exactly what
+an evidence-ledger discipline ([edit mechanism §5b.1](./rewrite_v300_mecanismo_edicao.md)) prevents.
+
+### 8b.3 GEPA: adopt the architecture, refuse the evaluation
+
+§5 already names DSPy/GEPA as the candidate optimizer and defers it on corpus availability. The review
+adds a detailed reading of a shipped implementation, and the finding is worth stating plainly because
+it is a mirror of this project's own history.
+
+**The architecture is sound and worth reusing.** Reflective mutation driven by execution traces — GEPA
+reads *why* something failed, not merely that it did, so the judge emits a `feedback` string that feeds
+the mutation operator rather than only a scalar. Hard constraint gates. Train/val/holdout splits. Cost
+of roughly **$2–10 per optimization run**, no GPU, everything via API calls. Multi-dimensional fitness
+with an explicit anti-bloat term: a **length penalty ramping from zero at 90% of the size budget to
+0.3 at 100%**, which is the mechanism that stops the well-known failure of evolutionary prompt search
+— variants get longer every generation because more instructions look locally better.
+
+**The evaluation layer has the gap this project exists to close.** In the shipped reference:
+
+- The metric passed to the optimizer **is the same function** used to score the holdout — so whatever
+  the optimizer learns to exploit, the holdout rewards. A held-out *split* is not an independent
+  measurement when the *measure* is shared.
+- That metric is **keyword overlap**, described in its own comment as a fast proxy.
+- The default holdout is **~5 examples**.
+- There is **no noise floor and no significance test** — the result is `evolved − baseline` with a
+  green arrow.
+- If the baseline already violates a constraint, the run prints *"proceeding anyway"* and continues.
+
+None of that makes GEPA wrong. It means M5 should **reuse the architecture and refuse the evaluation**:
+
+| Property | Proposed for AETHER's M5 |
+| :--- | :--- |
+| Objective metric | Cheap, task-local, fast enough to run every generation |
+| **Acceptance metric** | **A different function** — the expensive, honest one (a real task outcome, or an LLM judge with a composite rubric) |
+| Acceptance test | Significance against the **measured A/A noise floor**, α = 0.05 after Holm–Bonferroni — not a positive delta |
+| Benchmarks | **Gates, not fitness.** A variant that improves the target 20% and drops the regression suite 5% is rejected |
+| Baseline violations | A gate that can be waived by a warning is not a gate |
+
+The last two rows come from the reference's own plan, which states the principle correctly even where
+the implementation does not follow it: *"Benchmarks are GATES, not fitness functions."*
+
+### 8b.4 Multi-agent topology: DAG decomposition, and what the market leader shipped instead
+
+§7.1's depth-1 constraint and never-inherited-context rule are confirmed by all three references and
+are not reopened. Two additions.
+
+**The market leader lifted its own constraint by a different route.** Claude Code documents depth = 1
+for the `Task` tool with four good reasons — and then ships **Agent Teams** (research preview,
+2026-02-05): a lead plus N independent instances, each with its own context, coordinating through
+**git-based task claiming** (lock files in a shared directory) and a **mailbox enabling true
+peer-to-peer messaging**. The constraint was on *nesting the delegation tool*, not on multi-agent
+structure as such.
+
+The property that makes it safe is worth stating because it is the same property our design already
+has: **messages are shared; context is not.** Every fact that crosses between agents exists as a
+discrete, loggable message rather than as implicit context inheritance we cannot reconstruct — which
+keeps each agent's prefix cacheable *and* keeps the information flow auditable.
+
+**Where a DAG earns its place in multi-agent work.** [A-024](./rewrite_v300_decisoes_adr.md) sequences
+the workflow DAG for the single-agent pipeline. For decomposition the graph carries something extra:
+task dependencies with **auto-unblocking**, so a worker's completion releases its dependents without a
+coordinator round-trip. That is a real reason for the graph beyond memoization, and it lands at M3
+alongside branching — worth noting because A-024's reversal condition asks whether the node
+abstraction is carrying weight, and this is a second load it can carry.
+
+Recorded against it, from the reference's own adoption data: **>5 agents costs more in coordination
+than it returns**, over-delegation's context-switching cost exceeds its gains, and the named blocker is
+*"monolithic codebase, weak test coverage"* — which is consistent with this project's position that the
+evaluator is load-bearing. §7.2's context-pressure framing remains the better decision rule.
+
+**One gap we could occupy deliberately.** As of March 2026 all agents in a Claude Code team run the
+**same model**; role-based selection (lead on the strongest tier, implementers cheaper, testers
+cheapest) is an open community request. Grok Build already assigns models per skeptic from a
+round-robin pool. Our `ModelProvider` port and the existing role→tier binding make this nearly free,
+and the market leader has not shipped it.
+
+### 8b.5 Budget under a tree of agents
+
+§7.1 gives a sub-agent "its own budget". The reference states the consequence that creates, and it
+should be stated here too: *"total iterations across parent + subagents can exceed the parent's cap."*
+
+Per-child budgets do not compose into a global cap. Two proposals: the run manifest records the **tree
+total**, and a **separate global ceiling** exists above the per-node budgets. Related and cheap:
+**refund iterations that consume no model call** — charging a code-mode step against a model-call
+budget makes the budget mean two things at once.
+
+---
+
 ## 9. Summary
 
 | Capability | Tier | Trigger / gate |

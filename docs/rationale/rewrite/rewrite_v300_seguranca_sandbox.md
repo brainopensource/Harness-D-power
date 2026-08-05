@@ -316,6 +316,113 @@ fail-closed provenance, applied to secrets.
 
 ---
 
+## 6b. Revision-A amendments from the competitor review
+
+### 6b.1 Shell AST analysis — compatible with ADR-0006, but only in one direction
+
+The review proposes an `ExecPolicy` that parses the syntax tree of a shell command before execution.
+That sits close to a line ADR-0006 deliberately drew, so the distinction has to be exact.
+
+**Not compatible:** using a shell parse as a *containment* mechanism — deciding whether a command is
+safe to run. That is command blocklisting with a better parser, and the argument against it is
+unchanged: there are unboundedly many spellings of any command (expansion, base64, an interpreter, a
+fetched script), and a control that looks like security invites the real security to be removed.
+
+**Already our design, and worth strengthening:** using a shell parse for **effect classification**.
+`kernel/policy/effects.py::classify_command` already re-classifies `run_command` per invocation so `ls`
+and `rm -rf /` cannot share one authorization. Today that classification is string-based. A real parse
+makes it sharper — segment splitting on `&&`/`||`/`;`, wrapper unwrapping (`env`, `nice`, `sudo`,
+`bash -c`), and identification of write targets inside the tree.
+
+The mechanism worth adopting is not the parser but the **outcome taxonomy** around it. Grok Build's
+gate returns `Reject | AskRuleMatch | AskFailClosed`, ranked so a rule match anywhere binds the whole
+script, where `AskFailClosed` means *"analysis could not decompose this — undecomposable script,
+exhausted wrappers, unpinnable operand."*
+
+> **Proposed rule.** Whatever analysis we perform, **"I could not decide" is a distinct, ranked,
+> escalating outcome** and never silently folds into `allow`. §1.4's three-valued model gains
+> provenance: `ask` because a rule matched, versus `ask` because the analysis failed closed. An
+> operator reading an audit log needs to tell those apart, and so does the ablation that tunes them.
+
+The honest framing for the review: Grok Build runs ~20,000 lines of shell decomposition **plus** an OS
+sandbox because its threat model is the user's own laptop with the user's own credentials, where a
+sandbox strong enough to be safe would also be useless. Ours is a container. Both positions are
+coherent for their context, and the taxonomy above is portable either way.
+
+### 6b.2 Auto-denial limits — a named autonomy failure with no current bound
+
+Nothing in §1–§6 bounds how many times an agent may be denied. Grok Build caps it at **3 consecutive /
+20 total**, and past the limit ends the loop. The denial message carries explicit anti-circumvention
+guidance: *"take a safer approach that stays within what the user asked for; do not retry this exact
+action or attempt to work around the denial."*
+
+The failure it closes is not a perimeter breach — **nothing is violated**. It is an autonomous agent
+spending its entire budget grinding against a permission boundary, or, worse, creatively routing around
+it. The perimeter model in §2 reasons about *what the agent may touch* and has nothing to say about
+*how many times it may be told no*.
+
+Consecutive and total limits are separate because they catch different pathologies: consecutive catches
+a stuck loop, total catches a run whose whole strategy is misaligned with its grants. Small addition to
+the dispatch choke point; **Grade A**, and the most clearly worth taking of the items in this section.
+
+### 6b.3 Trust and policy stores fail closed when their root is missing
+
+A store that cannot locate its root must **trust nothing**, never fall back to the working directory.
+The concrete failure the reference guards against is precise: in a minimal container or CI environment
+with no home directory, a cwd-relative fallback would let a **cloned repository ship a config file that
+self-trusts its own checkout.**
+
+This generalizes to any config-derived authority in AETHER — policy files, allowlists, grant defaults,
+extension entry points. If the configuration store cannot be located, the answer is deny-all, not
+locate-it-somewhere-else. One line of reasoning, and it prevents a supply-chain-shaped hole in exactly
+the environment (CI, container) where we will run every benchmark.
+
+### 6b.4 Two refinements to the lifecycle guard already in §3.4
+
+§3.4 records the self-DoS composition failure and the rule that harness lifecycle primitives are
+unreachable from agent-scheduled work. Two mechanical details from the reference implementation are
+worth carrying with it:
+
+- **Enforce at *creation* time as well as execution time.** The agent then gets an immediate,
+  informative rejection instead of scheduling a job that fails silently when it fires — which is both
+  better feedback and a smaller blast radius.
+- **Make the pattern command-shaped, not keyword-shaped.** The reference anchors on concrete command
+  identifiers *"so it cannot fire on prose. A cron prompt is fed to a future LLM, not a shell, so an
+  over-broad substring match on English ('Kong API gateway autoscaling and restart behavior') would
+  produce a high false-positive rate without preventing the actual foot-gun."* A guard with a high
+  false-positive rate gets disabled, which is the same outcome as not having one.
+
+### 6b.5 TaintGate: the boundary list is complete; two additions to the write scope
+
+§3.2's deterministic-rules-no-LLM-judge posture is unchanged and is right. Two additions:
+
+- **Per-role private scratch.** Each role in a run (implementer, judge, sub-agent) gets an owner-only
+  `0700` directory under a per-run root, referenced through a placeholder that **resolves per reader**
+  — so one frozen plan document can be read by several agents with different privileges without the
+  document knowing who is reading it. The reference's stated reason for the mode bits is specific: the
+  artifact names are predictable from a log-visible id, so a world-writable directory would let a local
+  attacker pre-plant a symlink and redirect the harness's writes.
+- **Scratch is never an environment root.** `HOME`, `CARGO_HOME`, `RUSTUP_HOME`, package-manager homes,
+  virtualenvs and cache directories must never be pointed at scratch, and no persisted config may
+  reference it — the directory is reaped when the run ends, and an agent that "helpfully" redirects a
+  package cache there leaves a broken environment behind. This belongs in the operating brief, not only
+  in the code.
+
+### 6b.6 A note on the delegated-agent surface
+
+§6 states sub-agents get scoped registries. The reference shape worth adopting is *how* the scope is
+computed: **capability mode filters on a declared property of the tool** (its effect class or kind)
+rather than on an enumerated per-role allowlist. Adding a tool then cannot silently widen a sub-agent's
+authority, which is the failure an enumerated list produces the first time someone forgets to update
+it.
+
+One documented soundness trade to inherit knowingly: tools whose kind is unknown — MCP, custom — are
+*preserved* rather than filtered in the reference, deliberately, to avoid breaking extensibility. For
+us the opposite default is probably correct given §6's "MCP tools are untrusted by default", and the
+divergence is worth stating rather than discovering.
+
+---
+
 ## 7. Summary
 
 | Decision | Choice | Enforcement |
@@ -338,3 +445,11 @@ fail-closed provenance, applied to secrets.
 | Capability composition | Re-entry capabilities reviewed against restart/resume capabilities | Required review item |
 | Sub-agents | Scoped registry, own budget; cannot widen authority. Delegated children scrub inherited identity | Policy test |
 | Credentials | Injected outside the perimeter | — |
+| **Shell AST analysis** | For **effect classification only**, never containment. ADR-0006 unchanged (§6b.1) | Architecture test on `classify_command` |
+| **Undecidable analysis** | A distinct, ranked, escalating outcome — `ask/fail-closed` never folds into `allow` (§6b.1) | Policy conformance suite |
+| **Auto-denial limits** | Bounded consecutive and total denials, with anti-circumvention guidance in the message (§6b.2) | Governor test |
+| **Config-derived authority** | Fails closed when its root cannot be located — trust nothing, never the cwd (§6b.3) | Store unit test with no `HOME` |
+| **Lifecycle guard** | Enforced at job *creation*; patterns are command-shaped, not keyword-shaped (§6b.4) | False-positive corpus in the guard test |
+| **Per-role scratch** | Owner-only `0700` under a per-run root, placeholder resolves per reader (§6b.5) | — |
+| **Scratch is not an environment root** | `HOME`/`CARGO_HOME`/virtualenv/cache never redirected there (§6b.5) | Operating brief + guard |
+| **Sub-agent capability scope** | Derived from a declared tool property, not an enumerated per-role list (§6b.6) | Registry contract |

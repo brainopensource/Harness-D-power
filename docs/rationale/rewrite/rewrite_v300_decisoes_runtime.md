@@ -207,6 +207,72 @@ and its rationale live in [reference teardowns §0](./rewrite_v300_reference_tea
 
 ---
 
+## 4b. Revision-A amendments from the competitor review
+
+### 4b.1 FFI versus IPC — the numbers, and why they do not change the recommendation
+
+The review proposes PyO3 in-process FFI (**<50 ns C-ABI**) over IPC/gRPC (**1.5–5.0 ms**) for
+tree-sitter parsing and FTS5 indexing. Both figures are plausible orders of magnitude and **neither is
+our measurement** — they are recorded as design targets with a named benchmark, per
+[measurement §1c.2](./rewrite_v300_measurement_strategy.md).
+
+The comparison is also the wrong axis for the decision this document makes. §1's argument is not that
+FFI is slow; it is that **the LLM round-trip dominates by four to seven orders of magnitude**. Against
+a 2–30 s model call, the difference between 50 ns and 5 ms is not a design input. The FFI-vs-IPC
+question becomes live only *after* a reversal trigger fires — and §3 already resolves it in the same
+direction the review proposes:
+
+> Response is a sidecar behind the existing port — **PyO3 in-process by default**, socket/gRPC only for
+> stateful or separately-supervised components.
+
+So: recommendation unchanged, and the review's preference is already the recorded default for the case
+where it matters. What the competitor study **does** add is confirmation of *where* the trigger is most
+likely to fire. Across three teardowns the one place a compiled language clearly earns its keep is the
+**incremental tree-sitter index over a large repository** — Grok Build's `xai-codebase-graph` uses
+rayon-parallel parsing, memory-mapped zero-copy reads, a disk cache surviving restart, and an actor
+answering queries in place without cloning the index. That is exactly the shape RT-1 and RT-3 point at.
+**Nothing else in three teardowns argues for a second toolchain.**
+
+### 4b.2 Copy-on-write worktrees are a filesystem question, not a language one
+
+The review proposes OverlayFS / Btrfs CoW mounts for `<10 ms` workspace clones and a pre-warmed
+container pool for `0 ms` allocation. Two observations before this is treated as a runtime decision:
+
+1. **It is not one.** `reflink` and `copy_file_range` are reachable from Python; Btrfs snapshots are
+   `subvolume snapshot`; OverlayFS is a mount. The port signature does not change — this is entirely a
+   `WorktreeManager` adapter concern, which is a point in its favour and why it belongs in
+   [the blueprint §8b.4](./rewrite_v300_blueprint_arquitetura.md) rather than here.
+2. **The benefit is filesystem-dependent and we do not know which case we are in.** Grok Build's own
+   pool module is macOS-only in production, with the reason stated: *"Linux has O(1) BTRFS snapshots;
+   the pool adds value only on macOS/APFS where worktree creation is O(file_count)."* On a Btrfs or
+   XFS-with-reflink host much of the claimed gain may already be free.
+
+The proposal that survives is the cheap one: **instrument worktree creation in M1a** — a timer on an
+existing operation — and decide at M2 with a number.
+
+### 4b.3 PTY and process-scope enrolment
+
+A PTY-backed execution adapter (blueprint §8b.6) is a Python question with a clean answer:
+`pty`/`ptyprocess` in stdlib and on PyPI, no second toolchain. The discipline worth importing is not the
+PTY itself but the surrounding rule — Grok Build's lint configuration **bans raw process spawning
+outright**, with the reason inline: *"an unenrolled child outlives the session that started it; use
+`ProcessScope::enroll`."* Every spawned process belongs to a scope that dies with the run.
+
+For an ≥8h unattended target that matters more than it does for an interactive session, and its
+runtime-relevant consequence is a T6 one: leaked child processes are the most common way a
+long-running Python service acquires a resident-memory trend that profiling attributes to the
+interpreter.
+
+### 4b.4 Prompt obfuscation, corroborated
+
+§4.1's position — compilation is a speed bump, not protection — is confirmed by an unusually direct
+data point. Grok Build ships a native binary and obfuscates exactly one thing: the **prompt text**,
+XOR-encrypted at build time by a Python script with a position-dependent key, trivially reversible, in
+a 139 KB generated file. A well-funded competitor shipping compiled code concluded that prompts were
+the only asset worth a speed bump, and that a speed bump was enough.
+
+---
+
 ## 5. Decision summary
 
 | Question | Decision | Reversal |

@@ -547,6 +547,135 @@ model available before concluding this.
 
 ---
 
+## Part IIb — Candidate records from the competitor and literature review
+
+**Status: proposed, not accepted.** These arise from the four teardowns in
+[`docs/competitors_research/tech_lead_A/`](../../competitors_research/tech_lead_A/rewrite_v300_synthesis_amendments.md)
+and the 2026 harness literature verified in
+[measurement §1c](./rewrite_v300_measurement_strategy.md). Each is stated at the density needed to be
+argued about; a record the review accepts gets promoted into Part II with full Context / Decision /
+Consequences / Reversal Conditions.
+
+### A-026 — Typed run outcome, pause taxonomy, and the Receptivity invariant
+
+**Context.** Five pause reasons exist across this document set and none share a type. An operator
+watching an 8-hour run cannot distinguish "waiting on you" from "backing off".
+
+**Proposed.** `RunOutcome = Completed | Paused{kind, message, clears_on} | BudgetLimited |
+MaxTurnsReached | Cancelled | Failed{classified_error}`, with
+`PauseKind = User | BackOff | NoProgress | Verification | Infra | Blocked`. Every terminal or degraded
+state declares the event that would clear it (invariant **I11**, Receptivity). `MaxTurnsReached` is a
+distinct variant — hitting a cap is not failing a task.
+
+**Cost.** Near-zero at M0; a breaking change to every producer and consumer afterwards.
+
+**Reversal.** If the taxonomy proves under-discriminating in practice, variants are additive; a closed
+sum type makes the exhaustiveness check catch every consumer.
+
+### A-027 — Effect replay provenance
+
+**Proposed.** Effect-carrying events gain `replayed: bool`, and each effect family is classified
+idempotent or not. A resumed run replays its journal; without the flag, every non-model effect fires
+twice.
+
+**Open question this forces.** We have not enumerated which of our effects are idempotent. That
+enumeration is the actual work; the flag is one field.
+
+### A-028 — Tool contract versioning; the version is a manifest field
+
+**Context.** The project's defensible claim is scaffold-attributable lift — a paired delta on a *fixed*
+model. That holds everything constant except the intervention. It does not currently hold the **tool
+contract** constant.
+
+**Proposed.** Tool descriptors carry a `contract_version`; a registry maps tool → supported versions
+with lifecycle (`Active` / `Deprecated` / `RemovalCandidate`) and a one-line summary of what each
+version's behaviour *is*. The active preset is recorded in every run manifest alongside model, effort
+and retry policy. Amends [A-006](#a-006--benchmark-targets-pro--80-verified--96-lift-reported-alongside)
+and measurement §7.
+
+**Why now.** Free at M0. **Impossible to retrofit onto historical results** — a measurement taken
+without it cannot be repaired later.
+
+### A-029 — The completion verification cascade, and anti-ratchet as a gate property
+
+**Context.** Our completion check is one `Evaluator.evaluate()`. Three references layer it at three
+price points, and one names the failure mode that makes an adversarial gate non-terminating.
+
+**Proposed.** A cost-ordered cascade (stop detector → evidence ledger → cheap structured evaluator →
+adversarial panel, [edit mechanism §5b.1](./rewrite_v300_mecanismo_edicao.md)), plus a structural
+**anti-ratchet** property: prior-round findings are passed forward and must be resolved, and novel
+objections are a separate lower-priority channel. On a ≥8h unattended target this is a termination
+property, not a quality one.
+
+**Open.** How many tiers we build, and where the `VerificationLedger` lives — port, `TrajectoryStore`
+table, or `Evaluator` internal. [A-010](#a-010--start-with-eight-ports-add-each-with-its-first-adapter)'s
+entry rule argues against making it a port on principle alone.
+
+### A-030 — Budget reservation under fan-out; tree-total accounting
+
+**Context.** `ResourceGovernor` records spend after the fact. Under Best-of-N, N candidates each check
+`remaining > 0`, all pass, all spend. Overrun bounded by N — the knob M4 increases.
+
+**Proposed.** `reserve` / `commit` / `release` alongside the existing lease; turn caps keyed to task
+class with `MaxTurnsReached` as a terminal state (A-026); the **tree total** recorded in the manifest,
+since per-child budgets do not compose into a global cap; and iterations that consume no model call are
+refunded.
+
+**Open policy question.** When a reservation cannot be met mid-fan-out: degrade to fewer candidates, or
+refuse the whole fan-out? That is policy, not mechanism.
+
+### A-031 — `RunProfile`: rules versus skills, path scoping, disclosed staleness
+
+**Context.** AETHER will answer "what kind of run is this?" in at least four forms — benchmark vs
+interactive, container vs host, Tier 0 vs frontier, single-language vs polyglot. Absent a seam, that
+question gets re-answered in eight places with eight slightly different answers, and a benchmark run
+cannot pin its profile in the manifest.
+
+**Proposed.** A resolved, **immutable** `RunProfile` where the profile is *data* — declaring toolset,
+operating brief, model hint, memory policy, sub-agent defaults. With it: the rules-versus-skills
+membership test, path-scoped instruction modules, and **disclosed staleness** for snapshot facts
+(*"true at prompt-build time; re-check before acting"*) instead of cache-hostile per-turn refresh.
+Detail in [context §5b.7](./rewrite_v300_contexto_memoria.md).
+
+**Counter-evidence to weigh.** arXiv 2602.11988 measured that repository context files do not improve
+resolve rate on average while costing >20% more, with generated files *hurting*. That is an argument
+for *less* always-on instruction, not more — and A-031 is the mechanism that makes "less" targeted
+rather than blunt.
+
+### A-032 — Auto-denial limits and fail-closed authorization provenance
+
+**Proposed.** Bounded consecutive and total auto-denials with explicit anti-circumvention guidance in
+the denial message; `ask` gains provenance (rule-matched versus **fail-closed**, ranked); and any
+config-derived authority store fails closed when its root cannot be located. Detail in
+[security §6b.2–§6b.3](./rewrite_v300_seguranca_sandbox.md).
+
+**Note.** ADR-0006 is **not** reopened. Shell AST analysis is proposed for *effect classification*
+only, never containment.
+
+### A-033 — Prefire compaction; rewriting sent history is cache-hostile
+
+**Proposed.** Background pass-1 summarization at trigger −10 pp, validated by a prefix fingerprint,
+with pass-2 synchronous over `NOTE₁` plus the tail; the split index snapped to tool boundaries
+(invariant **I10**, Parity). Plus the standing rule that any mechanism rewriting already-sent history
+converts cached reads into writes and must carry that multiplier into its ablation. Detail in
+[context §5b.2–§5b.3](./rewrite_v300_contexto_memoria.md).
+
+**Evidence.** Hermes ships the per-turn alternative **off by default** and documents why in its own
+user guide. Two teams, one problem, opposite answers, one documented as a mistake by its authors.
+
+### A-034 — OpenTelemetry as an export adapter, not a replacement surface
+
+**Proposed.** The typed event stream remains the only observable surface (§7 of the blueprint). An
+**export adapter** maps events to OTel spans — `run_id` as trace id, steps as spans, tool calls as
+child spans carrying effect class and grant outcome — over OTLP/HTTP, with no vendor SDK in the core
+(consistent with A-007(e)). Companion rule: every enum reaching telemetry declares a stable wire
+string, pinned by a test, so renaming a Python member cannot break a dashboard.
+
+**Why it is more than operational.** An 8-hour unattended run is unreadable as a flat event log. Span
+nesting is what makes *"where did the four hours go"* answerable.
+
+---
+
 ## Part III — Carrying forward the 27 existing ADRs
 
 Every record in [`docs/08-decisions/`](../../08-decisions/README.md) is explicitly re-affirmed,

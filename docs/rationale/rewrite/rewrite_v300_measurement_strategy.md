@@ -174,6 +174,72 @@ M4 boundary. Tiers 0 and 1 need no approval, no budget, and no vendor relationsh
 
 ---
 
+## 1c. The 2026 harness literature — and the one result that argues against part of this plan
+
+Added in the Revision-A competitor review. Four papers were verified against arXiv rather than cited
+from memory; two of them bear directly on decisions recorded in this document set, and one of them is
+a **measured result that challenges our prefix design**.
+
+| Paper | What it establishes | Bearing on AETHER |
+| :--- | :--- | :--- |
+| **arXiv 2605.26112** — *From Model Scaling to System Scaling: Scaling the Harness in Agentic AI* (Shangding Gu, UC Berkeley, May 2026) | Once models pass a capability threshold, further gains on long-horizon tasks depend increasingly on **how the system around the model is designed**. Three named bottlenecks: **context governance, trustworthy memory, dynamic skill routing**, plus the orchestration and governance that constrain them | The academic counter-thesis to *"less scaffolding, more model"*. It is the strongest external support for §1's lift framing — and the three bottlenecks it names are three of our own subsystems |
+| **arXiv 2602.11988** — *Evaluating AGENTS.md: Are Repository-Level Context Files Helpful for Coding Agents?* (Gloaguen, Mündler, Müller, Raychev, Vechev — SRI Lab, ETH Zürich) | Repository context files **do not generally improve task success rate** while increasing inference cost by **>20% on average**, across LLMs and agents. LLM-generated files *reduced* success ~3%; developer-written files improved it ~4% | **Directly challenges the always-on instruction layers** in our five-layer prefix. See §1c.1 |
+| **arXiv 2604.18071** — *Architectural Design Decisions in AI Agent Harnesses* (Hu Wei, Apr 2026) | Protocol-guided study of **70 public agent-system projects**; five recurring design dimensions: **subagent architecture, context management, tool systems, safety mechanisms, orchestration** | An external taxonomy to check our port catalog against. Our eight core ports cover four of the five; orchestration is deliberately not a port ([A-010](./rewrite_v300_decisoes_adr.md)) |
+| **arXiv 2605.18747** — *Code as Agent Harness* (Ning et al., May 2026) | Survey positioning code as the operational substrate for agent reasoning, action and verification. Organized as Harness Interface → Harness Mechanisms → Scaling the Harness | Supports code-mode orchestration ([autonomy §3](./rewrite_v300_autonomia_agi.md)) as a mechanism rather than a local optimization |
+
+### 1c.1 The AGENTS.md result, and why it does not simply invalidate the prefix
+
+This is the most consequential external finding in the set, and it deserves to be stated at full
+strength rather than softened: a controlled study found that adding a repository context file **did
+not improve resolve rate on average and cost more than 20% extra per task**. That is the opposite of
+what almost every practitioner guide asserts, including the field guide this document set draws its
+degradation figures from.
+
+Three observations before it is used:
+
+1. **The split matters more than the average.** Human-written files helped (~+4%); LLM-generated files
+   hurt (~−3%). The result is therefore better read as *"generated context is negative-value"* than as
+   *"context files are useless"* — which is a much more actionable claim, and it lands directly on any
+   design where the harness auto-generates its own repo context.
+2. **It measures a *static, always-on* context file.** AETHER's static repo layer is a tree-sitter
+   skeleton plus a retrieval seed, constructed rather than authored, and the bulk of context arrives
+   just-in-time through search and graph expansion. Those are different mechanisms and the result does
+   not transfer to them without measurement.
+3. **It is exactly the shape of claim §1 says we must re-measure.** It enters the backlog as a
+   hypothesis with a named experiment, like every other third-party number here.
+
+| Hypothesis from the literature | Our test |
+| :--- | :--- |
+| A static repository context file has zero or negative value at >20% cost | Ablate the static repo-context layer on/off at Tier 0; measure resolve rate, cost per resolved task, and cache hit rate separately |
+| Generated context is worse than authored context | Two arms: tree-sitter-generated skeleton vs. a hand-authored brief of the same token budget |
+| Gains concentrate in context governance, memory and skill routing (2605.26112) | These are M2/M3 subsystems; each already carries an ablation. The paper predicts where the lift comes from — recording the prediction *before* measuring is what makes the result meaningful |
+
+**If arm 1 shows the static layer is negative-value on our suites, that is a finding worth publishing,
+not a defect to hide** — and it would simplify the prefix rather than complicate it.
+
+### 1c.2 Provenance corrections carried from the review
+
+Recorded because a citation that drifts is worse than no citation:
+
+- **arXiv 2605.18747 is titled *Code as Agent Harness*, not "Managed Agents 2026".** The tri-layer
+  **Brain / Hands / Session Event Log** decomposition and the *Parity / Receptivity / Observability*
+  invariants proposed in [the blueprint](./rewrite_v300_blueprint_arquitetura.md) are adopted **on
+  their merits as an AETHER proposal**, not on that paper's authority. They should not be attributed
+  to it.
+- **The "Dumb Zone" figure (attention diffusion concentrated at 40–60% of the window) is unverified.**
+  It does not come from 2602.11988. It enters as a hypothesis with the same standing as the ~70%
+  cliff, and the compaction-trigger sweep in §1 tests both at once.
+- **Latency figures for PyO3 (<50 ns C-ABI), IPC/gRPC (1.5–5.0 ms), CoW clone (<10 ms) and
+  pre-warmed pool allocation (0 ms)** are plausible orders of magnitude and are **not our
+  measurements**. They are recorded as *design targets with a named benchmark* in
+  [runtime decisions](./rewrite_v300_decisoes_runtime.md), never as achieved figures.
+- **The competitor corpus contains four teardowns, not six.** `src/codex_cli/` (62 MB) and
+  `src/open_code/` (33 MB) are on disk and **unstudied**; OpenHands is not present in the tree. Any
+  claim in this set attributed to Codex or OpenCode currently rests on the earlier
+  [reference teardowns](./rewrite_v300_reference_teardowns.md), not on a dedicated audit.
+
+---
+
 ## 2. The blockers — what must be fixed before any number exists
 
 `docs/rationale/benchmarks/noise-floor.md` still reads **"Status: still not populated."** The A/A run
@@ -213,6 +279,9 @@ any "must not regress" rule is enforced rather than after.
 | Multiple comparisons | **Holm–Bonferroni** across the gate family |
 | Intervals | Seeded bootstrap CI |
 | Implementation | `e0/statistics.py` — pure stdlib, pinned JSON fixtures. **Ports verbatim** |
+| **Acceptance threshold** | **α = 0.05 after Holm–Bonferroni**, applied to the family of comparisons in the sweep — not per-test. A raw `p < 0.05` on the fifth of five arms is a 23% family-wise error rate |
+| **Effect size reported alongside** | A significant result on a trivial delta is not a reason to ship. Paired difference in resolve rate with its CI, plus cost per resolved task |
+| **Null results are recorded** | A mechanism that shows nothing at Tier 0 is recorded as *"no signal at this tier"* — a property of the measurement, not a verdict on the mechanism. It re-enters at Tier 1 |
 
 Published to `docs/rationale/benchmarks/noise-floor.md` as the M1b exit gate. Until that file
 contains a real number, **the project reports no results at all** — which is the current, correct

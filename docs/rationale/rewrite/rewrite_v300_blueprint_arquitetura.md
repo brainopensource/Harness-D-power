@@ -304,6 +304,174 @@ adapters — the TCB cannot reach *up* into what it judges).
 
 ---
 
+## 8b. Revision-A amendments from the competitor and literature review
+
+Proposals, with cost and phase stated. None is adopted; several would become ADRs if the review takes
+them. Sources: the four teardowns in
+[`docs/competitors_research/tech_lead_A/`](../../competitors_research/tech_lead_A/rewrite_v300_synthesis_amendments.md)
+and the 2026 harness literature verified in
+[measurement §1c](./rewrite_v300_measurement_strategy.md).
+
+### 8b.1 A tri-layer reading of the layer model, and three invariants it implies
+
+The five strata in §2 are an *ownership* decomposition — who may mutate what. A second, orthogonal
+reading groups them by **what fails when the process dies**:
+
+```
+   BRAIN            reasoning; stateless between calls; reconstructible from the log
+   ──────────────   ModelProvider · ContextAssembler · Compactor
+   HANDS            effects on the world; NOT reconstructible; must be idempotent or checkpointed
+   ──────────────   dispatch · ToolRegistry · Workspace · WorktreeManager · Sandbox
+   SESSION LOG      the only durable truth; everything above is derived from it
+   ──────────────   TrajectoryStore (SQLite WAL) · EventBus · FrozenRunState
+```
+
+**This is offered as an AETHER proposal, not as a citation.** The verified arXiv paper 2605.18747 is
+*Code as Agent Harness* and does not define this decomposition; attributing it there would be wrong
+(see [measurement §1c.2](./rewrite_v300_measurement_strategy.md)).
+
+What it buys is a **placement test** for every future component: *if the process dies here, is this
+state recoverable from the log?* Brain state must be; Hands state must be checkpointed or idempotent;
+anything else belongs in the log. That test is what makes T5 (≥8h, resumable across process death) a
+property of the architecture rather than a feature someone remembers to implement.
+
+Three invariants follow, proposed as siblings to I1–I9 rather than replacements:
+
+| # | Invariant | Mechanical enforcement |
+| :--- | :--- | :--- |
+| **I10 · Parity** | The transcript is always a well-formed `user → assistant → tool_use → tool_result` alternation. No compaction, rewind, fork or halt splits a `tool_use`/`tool_result` pair | `assert_parity()` in the assembler and the replay path; property test over the compactor |
+| **I11 · Receptivity** | Every terminal or degraded state names the event that would clear it. A run is never merely "stuck" — it is paused *for a reason*, and the reason implies who or what unblocks it | `RunOutcome` is a closed sum type (§8b.2); each variant declares a `clears_on` |
+| **I12 · Observability** | Every state transition emits exactly one typed event before the state changes. The event stream is sufficient to reconstruct the run without reading the code | Event-catalog drift check, already in CI; extended to assert one event per transition |
+
+I11 is the one with no current equivalent, and it comes from a real failure taxonomy: Grok Build's
+compaction-suppression states are distinguished not by *cause* but by *what would make retrying
+sensible* — self-heals next turn · needs the context budget to change · needs a successful call ·
+needs re-auth (**and specifically not a successful call, because waiting for one deadlocks when
+context is already over the window**). That last row is a production bug, not a review finding.
+
+### 8b.2 Domain types proposed for the M0 freeze
+
+All three are near-free before the schema freeze and breaking changes afterwards.
+
+**`RunOutcome` — a closed sum type.** Five pause reasons already exist across this document set and
+none of them share a type: the disposition ladder's rungs, the API taxonomy's `abort`, the `ask`
+permission state, `BudgetExhausted`, and `RepairAbandoned(no_progress)`.
+
+```
+RunOutcome = Completed
+           | Paused { kind: PauseKind, message, clears_on }
+           | BudgetLimited
+           | MaxTurnsReached          ← not a failure; the cap did its job
+           | Cancelled
+           | Failed { classified_error }
+
+PauseKind  = User | BackOff | NoProgress | Verification | Infra | Blocked
+```
+
+`MaxTurnsReached` as a distinct variant is the small piece that matters: hitting a cap and failing a
+task are different outcomes, and collapsing them makes every budget number noisier.
+
+**`replayed: bool` on effect-carrying events.** T8 determinism is about *model calls*. A resumed run
+replays its journal, and every non-model effect in that replay fires twice — duplicate telemetry,
+duplicate notifications, duplicate scratch writes. The flag lets each consumer decide, and it forces
+the useful question: *which of our effects are idempotent?* We have not enumerated that.
+
+**Fail-closed drive state.** An unknown or forward-version persisted status must deserialize to
+*paused*, never *active*. We already re-mint grants rather than restoring them
+([security §1.2](./rewrite_v300_seguranca_sandbox.md)); this applies the same posture to the run's own
+**autonomy**, and it is one enum plus one deserializer. A corrupt or newer snapshot must never resurrect
+as a self-driving run burning tokens unattended.
+
+### 8b.3 Port catalog amendments
+
+| Port | Proposed change | Phase |
+| :--- | :--- | :--- |
+| `ResourceGovernor` | `reserve` / `commit` / `release` alongside the existing lease. Today spend is recorded *after the fact*, so under Best-of-N all N candidates check `remaining > 0`, all pass, all spend — a race bounded by N, which is exactly the knob M4 increases | M1a |
+| `ResourceGovernor` | Turn cap **keyed to task class** (retrieval ~5 · multi-step coding ~20–30 · extended autonomous ~50), and the **tree total** recorded in the manifest — per-child budgets do not compose into a global cap | M1a |
+| `Workspace` | Checkpoint as a **composite of independently-enabled domains** with atomic restore, not a bare git ref. The moment an index, a memory store or a scratch dir joins run state, a git-only checkpoint silently stops being a complete rollback | M0 type, M2 build |
+| `WorktreeManager` | CoW-capable adapter where the filesystem supports reflinks, plus an optional pre-warmed pool. **The port signature does not change** — this is entirely an adapter concern, which is the point in its favour | M2, gated on §8b.4 |
+| `ToolRegistry` | Tool descriptors carry a `contract_version`; a registry maps tool → supported versions with lifecycle. Without it, a paired lift measurement does not hold the tool contract constant | M0 |
+| `ToolRegistry` | Capability mode for sub-agents derived from a **declared property of the tool**, not enumerated per role — adding a tool then cannot silently widen a sub-agent's authority | M3 |
+| *new* | `VerificationLedger` — see [edit mechanism §1.5](./rewrite_v300_mecanismo_edicao.md). **Open question:** a port, a `TrajectoryStore` table, or an `Evaluator` internal. [A-010](./rewrite_v300_decisoes_adr.md)'s entry rule argues against making it a port on principle alone | M2 |
+
+### 8b.4 Worktree materialization — instrument before building
+
+Best-of-N creates N worktrees per task, per benchmark run. On a large repository a plain
+`git worktree add` is a full checkout. The proposed ladder, cheapest first:
+
+| Tier | Mechanism | Claimed cost |
+| :--- | :--- | :--- |
+| 0 | `git worktree add` | seconds to tens of seconds on a large repo |
+| 1 | `git worktree add --no-checkout` + parallel CoW file clone (reflink) | — |
+| 2 | Btrfs / OverlayFS snapshot | claimed **O(1)**, <10 ms |
+| 3 | Pre-warmed pool, materialized ahead of the fan-out | claimed **0 ms** at allocation |
+
+**The `<10 ms` and `0 ms` figures are not our measurements** and are recorded as targets with a named
+benchmark (measurement §1c.2). The proposal for now is narrower and cheaper: **put a timer on worktree
+creation in M1a** — one instrument on an existing operation — so that by M2 we know whether any of this
+is worth building. Grok Build's own pool module carries a revealing note: it is macOS-only in
+production, because *"Linux has O(1) BTRFS snapshots; the pool adds value only on macOS/APFS where
+worktree creation is O(file_count)."* Whether we are in the O(1) case or the O(n) case is a property of
+our filesystem, and we do not currently know which.
+
+Two related storage decisions worth taking at M0, since both are painful to migrate:
+
+- **One content-addressed checkpoint store across all worktrees.** Hermes shipped a per-worktree shadow
+  git repo and documented the result — *"a dozen worktrees of the same repo burned ~40 MB each
+  (~500 MB total) storing the same blobs over and over"* — then migrated to a single shared store with
+  per-project refs so git's object DB deduplicates. **Our benchmark harness creates many worktrees of
+  the same upstream repository at higher multiplicity than any user ever would.** This is the
+  pathological case.
+- **Filesystem-aware SQLite journal mode.** WAL relies on an mmap'd `-shm` file and coherent POSIX
+  locks; on NFS it breaks. Our `TrajectoryStore` is SQLite, and an NFS-mounted home is common in
+  university and enterprise environments. A probe selecting journal mode is low effort, low
+  probability, high embarrassment.
+
+### 8b.5 Observability: OpenTelemetry as the export format
+
+§7's typed event stream stays the system's observable surface — that decision is not being reopened.
+The proposal is an **export adapter**, not a replacement:
+
+- Events map to OTel spans; the `run_id` is the trace id; each step is a span; tool calls are child
+  spans carrying effect class and grant outcome.
+- Exported over OTLP/HTTP to whatever the operator runs (Jaeger, Zipkin, a collector). **No vendor SDK
+  in the core** — one adapter behind the existing bus, consistent with A-007(e).
+- The benefit that is not merely operational: an 8-hour unattended run is *unreadable* as a flat event
+  log, and span nesting is what makes "where did the four hours go" answerable.
+
+Companion rule, cheap and easy to miss: **every enum that reaches telemetry declares a stable wire
+string, pinned by a test.** Renaming a Python enum member must not break a dashboard. Grok Build states
+this inline on the enums that matter (*"these are stable telemetry keys — don't rename the strings"*),
+and our generated event catalog is the natural place to enforce it.
+
+### 8b.6 A PTY-backed terminal adapter
+
+`Workspace.run_command` currently assumes a batch subprocess. Several real cases are not batch:
+interactive prompts, tools that detect a TTY and change output, long-running processes that must be
+observed rather than awaited, and REPLs.
+
+Proposal: a **PTY-backed execution adapter behind the existing `Workspace` port** — no signature change
+— providing non-blocking streamed output, TTY detection for tools that behave differently under one,
+and a documented process-scope discipline. Grok Build's lint file bans raw `Command::spawn` outright,
+with the reason stated: *"an unenrolled child outlives the session that started it."* The equivalent
+for us is that every spawned process is enrolled in a scope that dies with the run — which matters far
+more for an 8-hour unattended target than for an interactive session.
+
+**Grade B, M3.** It is not on the path to a benchmark number; it is on the path to not leaking
+processes across an overnight run.
+
+### 8b.7 A structural guard the references suggest we will need
+
+Grok Build's core crate is 372,000 lines; Hermes' gateway file is 26,877 lines. Both teams have strong,
+documented discipline, and both arrived at an unfactored core anyway — the leaf boundaries were drawn
+where a *second owner* appeared, and where none did, the module grew without bound.
+
+That pattern suggests a mechanical limit rather than an enforced one. Our `docs_budget.py` ratchet is
+the existing precedent in this repository: **a CI ceiling on single-module line count**, cheap to add
+at M0 and impossible to retrofit at M4.
+
+---
+
 ## 9. What is deliberately absent from v1
 
 | Absent | Returns |

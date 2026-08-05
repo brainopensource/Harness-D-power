@@ -288,6 +288,150 @@ work on editor sophistication.
 
 ---
 
+## 5b. Revision-A amendments from the competitor review
+
+### 5b.1 Completion verification is a single gate where three references have a ladder
+
+§3's T0–T3 ladder is cost-ordered and correct — but it validates **edits**. The question *"is this task
+actually done?"* is answered by one `Evaluator.evaluate()` producing a tri-state `GateReport`. All
+three references layer that question, at three price points:
+
+```
+  turn ends
+     │
+     ├─ [free]        stop detector — anchored regexes over the turn's last paragraph
+     │                  detects premature bail-out; swaps the generic continuation nudge
+     │                  for a bail-specific one; emits a labelled event so the panel's
+     │                  precision/recall is auditable
+     │
+     ├─ [~free]       evidence ledger lookup — is there fresh proof covering the changed
+     │                  scope, under the current tree digest?
+     │
+     ├─ [one call]    cheap structured evaluator — capped transcript, hard timeout,
+     │                  fixed JSON: continue | candidate_complete | blocked
+     │
+     └─ [N calls]     adversarial panel — only on candidate_complete. N independent
+                        skeptics, majority vote, auditing the implementer's evidence
+                        rather than authoring their own
+```
+
+**The evidence ledger is the piece with no equivalent in our design and the cheapest to build.** A
+table of `(run_id, root, canonical_command, kind, scope, status, exit_code, tree_digest)`, populated
+deterministically from terminal results:
+
+- Commands are split on `&&`, `||`, `;`, tokenized, and **canonicalized** — `pytest`,
+  `python -m pytest` and `uv run pytest` collapse to one key.
+- `kind` (test / build / lint / typecheck) derives from the canonical command; `scope` derives from
+  whether arguments name targets.
+- **A narrow pass is never promoted to "repo green."** `pytest tests/test_foo.py::test_bar` proves one
+  thing; `pytest` proves another.
+- Any workspace write **invalidates prior evidence.** Evidence is a claim about a tree state, not a
+  property of the session.
+
+It composes with §3 rather than competing: T3 can be *skipped* when fresh evidence already covers the
+changed scope, which is a direct cost saving on the most expensive tier.
+
+**Anti-ratchet is the property that matters most, and it is structural, not prompted.** Grok Build's
+verifier prompt states the failure plainly: *"Raising a fresh nitpick each round while the criteria
+hold is the failure mode that makes goals unfinishable."* The cheap implementation is to pass the
+previous round's findings into the current round and require each to be resolved, treating novel
+objections as a separate, lower-priority channel. **On an ≥8h unattended target a gate that can raise
+its own bar between rounds is not a quality issue — it is a non-termination bug**, and neither the
+progress signature nor the step cap in §1.2 prevents it.
+
+Two supporting properties:
+
+- **Policy-only guards.** The ledger *observes* and never decides; the guard *decides* and never
+  observes. Same split as `PolicyEngine` versus `dispatch`, applied to verification, and it makes both
+  halves testable in isolation.
+- **Cheapest-first as a house rule.** The shape appears in at least four unrelated subsystems across
+  the references — verification, memory consolidation, permission gating, benchmark tiering — which
+  reads as convention rather than coincidence: *a gate sequence is ordered by ascending cost, and each
+  stage's job is to make the next stage unnecessary.* §3 already follows it; naming it means the next
+  ladder does too.
+
+### 5b.2 Architect/Editor — the decision holds; one component of it separates out
+
+A-016 ships the split **off** behind an ablation gate. Nothing in the review changes that, and one
+finding sharpens it: the dominant failure mode in multi-agent coding pipelines is hand-off loss, and
+the Claude Code corpus states the general rule for delegation — *"context is never inherited
+automatically"*, a worker receives only its task string. An Architect/Editor split is that hand-off,
+with prose as the channel.
+
+What **does** separate cleanly from the split, and is worth taking regardless of how the ablation
+lands:
+
+**Syntactic pre-validation before persisting to disk.** §3's T1 tier parses *after* the write and rolls
+back on failure. Validating the *candidate* content before the write is strictly cheaper — no write,
+no checkpoint, no restore — and it turns a rollback into a rejected tool call whose error message the
+model can act on immediately. The proposal is to move tree-sitter validation from post-write to
+**pre-write on the candidate buffer**, keeping the post-write parse as a cross-check on batch
+application.
+
+On implementation: the review's suggestion of a Rust parser is a **performance** question, not a
+correctness one, and it is premature. Tree-sitter's Python bindings already call into C; a parse is
+~2 ms/file per §3. If pre-write validation ever shows up in a profile, that is an
+[RT-1/RT-3](./rewrite_v300_decisoes_runtime.md) trigger behind an existing port, not an architectural
+decision.
+
+### 5b.3 Anchor-sequence matching is already the decision — and it should be ablatable
+
+A-013 already specifies anchor-sequence matching and already cites Codex's `seek_sequence.rs` as the
+reference. Recorded here so the review does not adopt it twice.
+
+What the teardowns add is **method, not mechanism**. Grok Build implements **three** anchor schemes
+behind one trait — content-only hash · chunk fingerprint · checkpoint chain — declares the metrics
+(**read amplification**, ambiguity rate), names a starting favourite, and lets the harness decide. It
+also returns a three-valued result — `Found | Ambiguous | NotFound` over a bounded search radius —
+which matches Claude Code's documented exact → fuzzy-with-warning → error path.
+
+Two proposals follow:
+
+1. **Keep A-013's choice; make the edit representation a substitutable seam** so a second scheme is a
+   swap rather than a rewrite. Cheap at M0, a rewrite at M2.
+2. **Adopt the three-valued result explicitly.** `Ambiguous` is a distinct outcome from `NotFound` and
+   deserves a distinct message: "your anchor matched in three places after normalization" is
+   actionable; "not found" sends the model back to re-read the file.
+
+### 5b.4 Hunk-level authorship attribution
+
+Currently we have no answer to *"who changed this file"*. Three cases need one, and the third is the
+one that matters for measurement:
+
+- An operator edits a file in the TUI while a run is in flight.
+- A formatter, watcher or build step mutates files under the agent.
+- **`tests_unmodified` asks *whether* tests changed, not *by whom*.** Attribution turns "the diff is
+  unexpected" into "the diff is unexpected **and it wasn't us**", which is a materially stronger
+  statement for a hard gate that guards invariant I7.
+
+The reference shape is an actor owning hunk state on a dedicated task — no locks — receiving commands
+from both the edit tool and a filesystem-notify loop, tagging each hunk `Agent` or `External`, and
+supporting per-hunk revert. In Python that is a single `asyncio` task owning state, which is natural.
+
+**Grade B, M3.** It requires a filesystem watcher and an ownership discipline, and the container
+perimeter already reduces the surface for external mutation. It becomes necessary the moment a human
+can edit mid-run — which is exactly when the TUI grows a diff-review surface.
+
+### 5b.5 Retry policy: two non-obvious rows, and a clearing-condition axis
+
+§1.4's API taxonomy maps failures to `retry · rotate · failover · compress · abort`. Two entries from
+the reference retry tables are worth adopting because neither is intuitive:
+
+- **429 gets *fewer* retries, not more.** Grok Build caps rate-limit retries at 2 against a general
+  budget of 15, with the reason stated: *"rate-limit waits can be long and there is no point burning a
+  long backoff just to be rate-limited again."*
+- **413 / image-processing errors strip images and retry once, off-budget.** A recoverable failure with
+  a specific, cheap remedy should not consume the general retry budget.
+- Plus a **server hint channel** (`x-should-retry: false`) letting a provider mark a specific failure
+  non-retryable without a client release.
+
+And a re-framing of the taxonomy itself: key each degraded state by **what event would clear it**, not
+only by what caused it — self-heals next turn · needs the context budget to change · needs a successful
+call · needs re-auth. The last is the load-bearing one: waiting for a successful call deadlocks when
+context is already over the window, which is precisely the state where compaction most needs to run.
+
+---
+
 ## 6. Summary
 
 | Decision | Choice | Reversal condition |
@@ -304,5 +448,14 @@ work on editor sophistication.
 | Failure drift | Condensed task intent re-injected on failure; appended, constant, bounded | Ablation |
 | Blast radius per step | Prefer 1–3 files; decompose rather than widen the working set | Measurement on our own suites |
 | Disposition ladder | `rehydrate → replan → escalate → checkpoint+abort` | Ablation per rung |
-| Architect/Editor split | Seam built, **shipped off** | Ablation clearing the noise floor at acceptable cost |
+| Architect/Editor split | Seam built, **shipped off** (unchanged by the review; §5b.2) | Ablation clearing the noise floor at acceptable cost |
 | Streaming patch application | Deferred | Wall-clock per resolved task becomes the binding metric |
+| **Completion verification** | Proposed ladder: stop detector → evidence ledger → cheap evaluator → adversarial panel (§5b.1) | Per-tier ablation; the ledger is near-free and can precede the rest |
+| **Anti-ratchet** | Prior-round findings passed forward and required to be resolved; novel objections are a lower-priority channel (§5b.1) | None — it is a termination property |
+| **Evidence ledger** | `(run_id, root, canonical_command, kind, scope, status, tree_digest)`; narrow never promotes to repo-green; any write invalidates (§5b.1) | — |
+| **Syntax validation timing** | Pre-write on the candidate buffer, with the post-write parse kept as a batch cross-check (§5b.2) | Profile, if it ever appears in one |
+| **Anchor result** | Three-valued: `Found` / `Ambiguous` / `NotFound`, with distinct messages (§5b.3) | — |
+| **Edit representation** | A substitutable seam, so a second anchor scheme is a swap not a rewrite (§5b.3) | Read-amplification / ambiguity-rate ablation |
+| Hunk authorship attribution | `Agent` vs `External`, actor-owned, per-hunk revert (§5b.4) | Grade B; becomes necessary with a mid-run diff-review surface |
+| Retry policy | 429 gets fewer retries; 413 strips images and retries once off-budget; server hint honoured (§5b.5) | — |
+| Degraded-state taxonomy | Keyed by **clearing condition**, not only by cause (§5b.5) | — |

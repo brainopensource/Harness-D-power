@@ -370,6 +370,162 @@ why: pre-loading trades a fixed, growing attention cost for a saving that retrie
 
 ---
 
+## 5b. Revision-A amendments from the competitor and literature review
+
+Added after the four teardowns in [`docs/competitors_research/tech_lead_A/`](../../competitors_research/tech_lead_A/rewrite_v300_synthesis_amendments.md).
+Each item is a proposal with a stated cost and a phase, not a decision.
+
+### 5b.1 Exchange parity is a wire invariant, not a compaction preference
+
+§2 already states that compaction operates on whole exchanges. The amendment is to promote that from a
+*compactor property* to a **system-wide invariant with a name**, because at least four subsystems can
+violate it independently:
+
+> **Parity.** The transcript is always a well-formed alternation
+> `user → assistant → tool_use → tool_result`. No mechanism may leave a `tool_use` without its
+> matching `tool_result`, and no truncation, compaction, rewind, fork or halt may split that pair.
+
+Producers that can break it: the compactor (splitting mid-exchange), the repair loop (halting after a
+`tool_use` — already handled by the synthetic-error `ToolResult` rule in
+[edit mechanism §1.2](./rewrite_v300_mecanismo_edicao.md)), the rewind/checkpoint path, and any future
+context-editing pass. Grok Build enforces it in its two-pass split by snapping the split index to tool
+boundaries; the failure it prevents is a provider-level protocol error on the *next* request, which
+surfaces far from its cause.
+
+**Suggested enforcement:** a single `assert_parity(transcript)` invoked in the assembler and in the
+replay path, plus a property test over the compactor. Cheap at M1a; the class of bug it catches is
+expensive to diagnose.
+
+### 5b.2 Prefire two-pass compaction
+
+Compaction currently runs synchronously at the trigger. The alternative measured by Grok Build:
+
+| | Pass 1 | Pass 2 |
+| :--- | :--- | :--- |
+| Covers | ~95% of history **by estimated-token weight** | `NOTE₁` + the ~5% tail |
+| Runs | **in background, ~10 percentage points below the trigger** | synchronously, at compaction time |
+| Latency | off the critical path when it finishes in time | dominated by tail prefill — small by construction |
+
+Validity is a **cheap prefix fingerprint** — a hash over `(length, per-item tag, text)` of the items
+pass 1 covered. Pass 2 applies `NOTE₁` only if the live conversation still carries that exact prefix; an
+edit, rewind, branch or model switch invalidates it and pass 1 is simply wasted, never wrong. The split
+index snaps to tool boundaries per §5b.1.
+
+Grok Build records **seven distinct prefire outcomes as stable telemetry keys** (`cached`, `disabled`,
+`too_small`, `empty_split`, `sample_failed`, `empty_note1`, plus a debug arm), which makes the
+optimization's hit rate observable rather than assumed. That instrumentation is the part worth copying
+first — a speculative optimization with no hit-rate metric is a guess.
+
+### 5b.3 Rewriting sent history is cache-hostile until measured
+
+Hermes ships **micro-compaction** — folding the oldest un-absorbed exchange into a running summary
+after every turn — and its own documentation argues against enabling it: *"each pass rewrites
+already-sent history, which breaks the provider prompt-cache prefix every turn."* It is **off by
+default**.
+
+Two teams, one problem, opposite answers, one of them documented as a mistake by its own authors. The
+rule that follows, stated so it is not rediscovered:
+
+> Any mechanism that rewrites already-sent history converts every cached **read** on the rewritten
+> span into a **write**. At the 1.25×/0.1× asymmetry in §1.1 that is a ~12× swing on the affected
+> tokens. The multiplier must appear in the mechanism's ablation before it ships, and a per-turn
+> rewrite is presumed cache-hostile until a number says otherwise.
+
+**Context editing** (`clear_tool_uses_*`) is *not* covered by this rule when it clears a suffix rather
+than rewriting a prefix — the distinction is whether the change lands before or after the last
+breakpoint, and it is worth stating in the ablation design.
+
+### 5b.4 A cache hit-rate target, stated as a target
+
+§1.6 makes hit rate a first-class metric with a CI floor but never names a number. A **>92% hit rate on
+the stable prefix over a repeated-prefix replay** is proposed as the M2 floor — chosen because it is
+achievable when the five-layer prefix holds and is broken by exactly one class of defect (a silent
+invalidator above the last breakpoint). It is a *target to calibrate against our own replay*, not a
+figure taken from a reference, and the first measurement may move it.
+
+Related and easy to miss: the denominator matters. Hit rate computed over *total* prompt tokens is
+dominated by the dynamic tail and will never approach 92%; computed over the **stable prefix span**, it
+is a direct test of whether the prefix is actually stable. The metric definition belongs with the
+metric.
+
+### 5b.5 Attention diffusion — a second hypothesis alongside the ~70% cliff
+
+A figure circulating in 2026 places the sharpest attention diffusion in the **middle 40–60% of the
+occupied window** rather than at a utilization threshold — the "lost in the middle" effect given a
+range. **This is unverified** and, per [measurement §1c.2](./rewrite_v300_measurement_strategy.md), it
+does not come from the ETH Zürich paper it is sometimes attributed to.
+
+It is recorded here because it is *cheap to test alongside a sweep we are already running*, and because
+it implies a different remedy: a utilization cliff argues for compacting earlier, whereas mid-window
+diffusion argues for **placing high-salience content at the head and the tail** and treating the middle
+as the region to compact first. Those are different designs, and one sweep can distinguish them if the
+sweep records *where* in the window the retained content sat.
+
+### 5b.6 The AGENTS.md result lands on layer 4
+
+[Measurement §1c.1](./rewrite_v300_measurement_strategy.md) records the controlled finding that
+repository context files do not improve resolve rate on average while costing >20% more — with
+LLM-generated files *hurting* (~−3%) and human-written ones helping (~+4%).
+
+Our static repo-context layer (breakpoint 3) is machine-generated. The honest reading is that it sits
+on the wrong side of that split and **the burden of proof is on us**, not on the skeptic. The proposed
+response is not to remove it on a paper's authority but to make it the **first ablation of M2**, with a
+hand-authored brief of equal token budget as the second arm.
+
+### 5b.7 Rules versus skills, and path-scoped instruction modules
+
+§5.3 asks for a rule budget on the frozen prefix and notes that path-scoped instructions beat a global
+set. Two mechanisms make that actionable:
+
+**The membership test.** A constraint on any output is a **rule** — always on, counts against the rule
+budget. A procedure for a task type is a **skill** — loaded on invocation, costs nothing until used.
+Anything that fails both tests probably should not exist. *"Never expose raw database IDs"* is a rule;
+*"here is how to add an endpoint in this project"* is a skill, and putting the second in the first
+position pays 40 lines on every call.
+
+**Path scoping.** Instruction modules are keyed to path prefixes and resolve from the touched paths
+upward, so only the subsystem's rules are in context when working in that subsystem. The reported
+effect is a **40–50% reduction in always-on context with no loss of coverage** — another third-party
+number, another hypothesis, and one measured by the same ablation as §5b.6.
+
+**Disclosed staleness** is the third piece and the cheapest. A repo fact baked into the stable prefix —
+branch, dirty state, dependency versions — should carry an explicit *"this was true at prompt-build
+time; re-check before acting"* rather than being refreshed per turn. Refreshing is cache-hostile per
+§5b.3; letting it rot silently is wrong; disclosing it costs one sentence.
+
+### 5b.8 Diversity re-ranking, and hard caps on memory artifacts
+
+**MMR with token-set Jaccard.** Redundancy in retrieved context is a real cost: three near-identical
+chunks occupy budget a fourth, different chunk needed.
+`MMR(d) = λ·relevance(d) − (1−λ)·max_similarity(d, selected)`, with similarity computed as Jaccard over
+tokenized snippets rather than embedding cosine. It needs no model, works on the FTS-only path, is
+O(n²) over a candidate set of 6–18, and is roughly twenty lines. It is orthogonal to ADR-0014's dense
+tier and improves whichever retriever is running.
+
+**Hard caps with visible truncation.** Claude Code's auto-memory caps `MEMORY.md` at 200 lines and
+25 KB — line truncation first, byte truncation after — and the memory directory at 200 files, **with a
+warning comment appended at the truncation point**. The visible marker is the part that matters: silent
+truncation is worse than either keeping or dropping the content, because the model reasons over a
+fragment as though it were whole. The same rule applies to every injected block — repo map, skill
+listing, tool schemas.
+
+### 5b.9 A ceiling on the tool-schema share of the window
+
+Tool definitions render at position 0 and are paid on every call. Anthropic's published guidance —
+fewer than 10 MCP servers, fewer than 80 total tools, with 15–20K tokens on schemas alone past that —
+is a useful bound. The measured result behind lazy loading is more interesting than the cost saving:
+token overhead 55K → 8.7K (−85%) **and tool-selection accuracy 49% → 74% on Opus 4** (+25 points),
+falling to +8.6 on Opus 4.5.
+
+That accuracy gain says the eager baseline was not merely expensive, it was **confusing the model** —
+and the shrinking gain across one model generation is the signature of a scaffolding benefit, which
+implies it may matter *more* on the weak models Tier 0 uses. Proposed treatment: the always-on schema
+share carries a declared ceiling as a budget line item, and deferred loading enters as an **early
+ablation arm** rather than an M3 feature, with the `ToolRegistry` shaped so search-and-load is a
+substitution rather than a rewrite.
+
+---
+
 ## 6. Summary
 
 | Decision | Choice | Reversal / trigger |
@@ -380,7 +536,15 @@ why: pre-loading trades a fixed, growing attention cost for a saving that retrie
 | BoN fan-out | One request, await first token, then N−1 | — |
 | Mid-run state change | `role: "system"` message; never edit top-level `system` | Model capability flag |
 | Dynamic tool set | `defer_loading` + `tool_addition`, behind a capability flag; static registry default | — |
-| Cache hit rate | First-class metric with a CI floor | — |
+| Cache hit rate | First-class metric with a CI floor; **>92% over the stable-prefix span** proposed as the M2 floor (§5b.4) | First measurement may move it |
+| Transcript parity | `user → assistant → tool_use → tool_result` is a system invariant, asserted in the assembler and the replay path (§5b.1) | — |
+| Prefire compaction | Background pass 1 at trigger −10 pp, validated by prefix fingerprint; pass 2 synchronous (§5b.2) | Prefire hit rate, recorded as a stable telemetry key |
+| Rewriting sent history | Presumed cache-hostile; the read→write multiplier enters the ablation (§5b.3) | A number |
+| Static repo-context layer | **First ablation of M2**, against a hand-authored brief of equal budget (§5b.6) | arXiv 2602.11988 makes this the burden of proof |
+| Rules vs skills | Membership test; path-scoped instruction modules; disclosed staleness (§5b.7) | Always-on reduction measured |
+| Retrieval diversity | MMR with token-set Jaccard over the candidate set (§5b.8) | — |
+| Injected-block caps | Hard byte/line caps with a **visible** truncation marker (§5b.8) | — |
+| Tool-schema share | Declared ceiling as a budget line; deferred loading as an early ablation arm (§5b.9) | Accuracy gain, not only cost |
 | Compaction trigger | Config value defaulted near the reported ~70% cliff, **not** at overflow | Ablation. Shipped tools report 75/92/95% — the spread is why ours is a parameter |
 | Effective window | Plan against MECW (~92% of advertised), not the sticker number | Our own measurement |
 | Frozen-prefix rule budget | Tracked alongside the token budget; skills load progressively | Adherence measurement |

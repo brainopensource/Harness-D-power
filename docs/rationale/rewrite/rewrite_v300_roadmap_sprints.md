@@ -258,6 +258,27 @@ What replaces the old blocker as the thing to watch:
 
 ---
 
+## Revision-A amendments — proposed phase placement
+
+From the competitor review ([synthesis](../../competitors_research/tech_lead_A/rewrite_v300_synthesis_amendments.md))
+and the candidate records **A-026…A-034**. Ordered by the rule that governs everything else here:
+cheap-now-expensive-later first, because deferring those is itself a decision.
+
+| Phase | Proposed additions | Why here |
+| :--- | :--- | :--- |
+| **M0** | `RunOutcome` + `PauseKind` (A-026) · `replayed` flag (A-027) · tool `contract_version` (A-028) · `RunProfile` type (A-031) · composite-checkpoint type decision · one shared token estimator · stable wire strings on telemetry enums (A-034) · checkpoint-store layout decision · **CI ceiling on single-module line count** | All are domain types or layout decisions: near-free before the schema freeze, breaking changes after. A-028 additionally **cannot be retrofitted onto historical measurements** |
+| **M1a** | `reserve`/`commit`/`release` on the governor (A-030) · task-typed turn caps · `assert_parity()` in the assembler and replay path (I10) · **a timer on worktree creation** · hard deadlines on every read that can block in native code | Budget correctness is cheap while the governor is three functions. The worktree timer is one instrument on an existing operation and decides whether §8b.4 is worth building at all |
+| **M1b** | The **scaffolding-thesis ablation arm** · tool contract version in the manifest · noise floor established at a **representative trajectory length**, not a short one | The last is new and load-bearing: gate and judge models degrade with transcript length like generators do, so a floor measured on short runs understates the variance of the runs we care about |
+| **M2** | Completion cascade + anti-ratchet (A-029) · prefire compaction (A-033) · **static repo-context layer as the first ablation** · rules-vs-skills + path scoping (A-031) · MMR diversity re-rank · deferred tool schemas as an ablation arm · auto-denial limits (A-032) | The repo-context ablation is first because arXiv 2602.11988 puts the burden of proof on us; the rest each ship with their ablation as usual |
+| **M3** | Fail-closed drive state on thaw · atomic freeze + sidecar recovery · per-role scratch · CoW worktrees **if the M1a timer justified it** · PTY adapter · hunk authorship attribution · human-editable state index · OTel export adapter (A-034) | All are autonomy- or scale-shaped and land with hibernation and the private suite |
+| **M5** | Objective metric ≠ acceptance metric · the constraint set as hard gates · rejection log published alongside acceptance | Recorded now so the meta-loop is not designed against the metric it optimizes — the failure the reference implementation shipped |
+
+**One new risk row**, added to the table below in spirit: *"the verification gate ratchets and the loop
+never terminates."* Mitigated by A-029's anti-ratchet property. It is a **T5-blocking failure**, not a
+quality issue, and neither the progress signature nor the step cap prevents it.
+
+---
+
 ## Dependency graph
 
 ```

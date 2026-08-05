@@ -4,191 +4,233 @@ retrieval: excluded
 ---
 
 # REGISTRO DE DECISÕES DE ARQUITETURA (ADRs): MECANISMOS NÚCLEO DO AETHER v300B
+## Análise Aprofundada dos 15 Domínios Técnicos & Propostas de Nível PhD
 
-> **Autor:** Tech Lead 2 (PhD) / Principal Software Architect  
+> **Autor:** Tech Lead B (PhD) / Principal Software Architect  
 > **Data:** 05 de Agosto de 2026  
-> **Target:** `docs/rationale/rewrite_b/rewrite_v300_decisoes_adr_B.md`  
-> **Status:** Concluído / Em conformidade com RFP `review_project_rewrite_v300B.md`  
-> **Tom de Escrita:** Analítico, baseado em evidências empíricas e propositivo (sem imperativos), fornecendo diretrizes flexíveis para a avaliação do Tech Lead.
+> **Target Document:** `docs/rationale/rewrite_b/rewrite_v300_decisoes_adr_B.md`  
+> **Fonte Primária de Pesquisa:** Competitor Research (`docs/competitors_research/tech_lead_B/`) — Claude Code CLI (`claude_refs_B_gemini.md`), Grok Build (`grok_build_B_gemini.md`), Hermes Agent (`hermes_agent_B_gemini.md`), Hermes Self-Evolution (`hermes_self_evolution_B_gemini.md`).  
+> **Status:** Concluído / Em Conformidade Estrita com a REVISÃO B.
 
 ---
 
-## 1. ESTRUTURA DOS REGISTROS DE DECISÃO (ADRs)
+## ESTRUTURA DOS REGISTROS DE DECISÃO DE ARQUITETURA (ADRs)
 
-Este documento compila os Registros de Decisão de Arquitetura (ADRs) propostos para o **AETHER v3.0.0B**, sintetizando os avanços dos ecossistemas SOTA analisados (Claude Code / Ultimate Guide, paper arXiv 2605.18747, paper arXiv 2602.11988 da ETH Zürich, Sagiha CAR Engine, Hermes GEPA Self-Evolution, Grok Build Rust Core, OpenAI Codex CLI e OpenHands Engine), visando alcançar a meta de **90.0%+ em SWE-bench Verified** e **60.0%+ em SWE-bench Pro**.
+Este documento compila os nove Registros de Decisão de Arquitetura (ADRs) essenciais para o **AETHER v3.0.0B** (`src/aether/`), fundamentados na análise rigorosa dos 15 domínios técnicos em confronto direto com as melhores práticas extraídas do estudo de concorrentes SOTA (Claude Code, Grok Build, Hermes Agent, Hermes Self-Evolution) e da literatura acadêmica recente.
 
 ---
 
-## ADR-01: MECANISMO DE EDIÇÃO DE CÓDIGO, ARCHITECT/EDITOR SPLIT E TRUNCAÇÃO DE CoT EFÊMERO
+## ADR-01: ARCHITECT/EDITOR SPLIT, VALIDAÇÃO SINTÁTICA DE AST EM RUST E TRUNCAÇÃO DE CoT EFÊMERO (Domínios 1, 11)
 
-### Contexto
-Reescritas integrais de arquivos (*Full File Rewrite*) provocam elevado consumo de tokens, falhas de atenção em arquivos grandes (>300 LOC) e erros de sintaxe em refatorações multi-arquivo. Ademais, o raciocínio intermediário prolongado (*Chain-of-Thought - CoT*) polui o contexto de turnos subsequentes.
+### Contexto & Problema
+Reescritas integrais de arquivos (*Full File Rewrite*) causam elevado consumo de tokens, perdas de atenção em arquivos com mais de 300 linhas e alucinações de sintaxe. Além disso, o raciocínio intermediário verboso (*Chain-of-Thought - CoT*) retido no contexto de turnos passados degrada o tempo de resposta e consome a janela de contexto útil sem agregar valor informativo para os turnos futuros.
 
-### Parecer Técnico & Recomendação
-Propõe-se avaliar a adoção dos **Search/Replace Blocks com Validação AST em Rust & Rollback** associados à **Separação Arquiteto/Editor (Architect/Editor Split)** e à **Truncação de CoT Efêmero**.
+### Decisão & Mecanismo Proposto
+Adotar a **Separação Arquiteto/Editor (Architect/Editor Split)** acoplada à **Validação Sintática de AST em Rust** e à **Truncação de CoT Efêmero**:
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant LLM_Arch as Arquiteto (Opus 5)
-    participant Agent as RunLoop (In-Loop Repair)
+    participant Agent as RunLoop (In-Loop Repair Engine)
     participant LLM_Edit as Editor (Sonnet 3.5 / Haiku)
-    participant AST as Validador AST (Rust Core)
-    participant FS as Workspace FS
+    participant AST as Validador AST Tree-sitter (Rust Core <50ns)
+    participant FS as Workspace File System
 
-    LLM_Arch->>Agent: Proposta do Plano Conceitual de Refatoração (Sem Tool Calls)
-    Agent->>LLM_Edit: Solicita Bloco Search/Replace Cirúrgico
+    LLM_Arch->>Agent: Emite Plano Conceitual de Refatoração (Sem Tool Calls de Escrita)
+    Agent->>LLM_Edit: Solicita Bloco Search/Replace Cirúrgico para o Arquivo X
     LLM_Edit-->>Agent: Retorna Bloco <<<<<<< SEARCH ... ======= ... >>>>>>>
-    Agent->>AST: Valida Sintaxe (ast.parse) em Rust ANTES de Persistir
+    Agent->>AST: Valida Sintaxe (ast.parse) em Rust Core ANTES de Gravar no Disco
     alt Sintaxe Válida
-        AST-->>FS: Aplica Alteração no Disco
-        Agent-->>LLM_Arch: Sucesso na Edição + Trunca CoT Efêmero do Turno
+        AST-->>FS: Grava Alteração no Disco
+        Agent-->>LLM_Arch: Sucesso na Edição + Trunca CoT Efêmero do Turno Passado
     else Sintaxe Inválida (SyntaxError)
-        AST-->>Agent: Rejeição Determinística + Detalhes do Erro
-        Agent->>LLM_Edit: Reenvia Stack Trace no Loop (Rollback Zero-Touch)
+        AST-->>Agent: Rejeição Determinística + Detalhes do Erro e Linha
+        Agent->>LLM_Edit: Reinjeta Stack Trace no Loop (Zero-Touch In-Loop Repair)
     end
 ```
 
-### Mecanismos Propostos:
-1. **Architect/Editor Split (`guide/workflows/dual-instance-planning.md`):** O modelo Arquiteto (Opus 5) dedica-se ao raciocínio conceitual de alto nível sem emitir chamadas diretas de escrita. O modelo Editor (Sonnet 3.5 / Haiku) gera os blocos *Search/Replace* cirúrgicos.
-2. **Truncação de CoT Efêmero:** O histórico de contexto retém apenas as propostas de ferramentas e os resultados de execução (*observations*), descartando o raciocínio intermediário verboso de turnos passados.
-3. **Rollback Zero-Touch:** SyntaxErrors são reinjetados no contexto do Editor em tempo real sem descartar o cache de prefixo do sistema.
+### Especificações Técnicas:
+1. **Architect/Editor Split (`agency/architect.py` e `editor.py`):** O modelo Arquiteto (Opus 5) dedica-se ao raciocínio conceitual e planejamento de alto nível. O modelo Editor (Sonnet 3.5 / Haiku) gera os blocos cirúrgicos `<<<<<<< SEARCH ... ======= ... >>>>>>>`.
+2. **Pré-Validação Sintática AST em Rust (`core_rs/ast_treesitter.rs`):** O bloco Search/Replace é submetido ao parser Tree-sitter compilado em Rust (<50ns). Se a alteração introduzir um `SyntaxError`, o arquivo no disco é preservado intocado, e o erro é retornado no loop de reparo em tempo real.
+3. **Truncação de CoT Efêmero (`agency/context/compactor.py`):** O histórico de contexto preserva apenas as chamadas de ferramentas e seus resultados (*observations*), descartando o CoT verboso de turnos passados.
 
 ---
 
-## ADR-02: GESTÃO DE CONTEXTO, COMPACTAÇÃO GRANULAR E PREVENÇÃO DA "DUMB ZONE" (arXiv 2602.11988)
+## ADR-02: GESTÃO DE CONTEXTO, COMPACTAÇÃO GRANULAR POR TROCA E PREVENÇÃO DA "DUMB ZONE" (Domínio 2)
 
-### Contexto
-A pesquisa empírica da ETH Zürich (arXiv 2602.11988) e os estudos de atenção revelam que janelas de contexto longas (>100k tokens) sofrem atenuação de atenção par-a-par $O(n^2)$ na faixa intermediária dos 40%-60% da janela (**"Dumb Zone"**). Além disso, a geração automática de regras de configuração genéricas (`/init`) eleva os custos em **23%** e reduz a taxa de sucesso em **3%**.
+### Contexto & Problema
+Conforme demonstrado pelas pesquisas da ETH Zürich (arXiv 2602.11988), janelas de contexto longas (>100k tokens) sofrem atenuação de atenção par-a-par $O(n^2)$ na faixa intermediária dos 40%-60% da janela (**"Dumb Zone"**). Além disso, a inclusão de dumps automáticos de configuração eleva os custos em **23%** e reduz o sucesso em **3%**.
 
-### Parecer Técnico & Recomendação
-Recomenda-se examinar a implementação do **Exchange-Granular Compactor**, do **AST Skeleton Mapping (Agentless Pattern)**, do **Tool Search on Demand** e de **Regras Curadas de Contexto**.
+### Decisão & Mecanismo Proposto
+Implementar o **Exchange-Granular Compactor**, a **Fixação de 3 Marcadores de Cache de Prompt (>92% Hit Rate)** e o **AST Skeleton Mapping (Agentless Pattern)**:
 
 ```mermaid
 graph TD
-    subgraph ESTRUTURA DE CONTEXTO DO AETHER (>92% CACHE HIT RATE)
-        SP[System Prompt & Identity] -->|Cache Marker 1| Tools[Tool Definitions (Dynamic Tool Search)]
-        Tools -->|Cache Marker 2| RepoMap[AST Skeleton Map (Agentless)]
-        RepoMap -->|Cache Marker 3| History[Exchange History (User/Assistant/Tool Pairs)]
+    subgraph CONTEXT PAYLOAD ESTRUTURADO NO AETHER (>92% CACHE HIT RATE)
+        M1[Marker 1: System Identity & Base Rules] --> M2[Marker 2: Tool Definitions / Dynamic Search]
+        M2 --> M3[Marker 3: AST Skeleton Map do Repositório]
+        M3 --> Dynamic[Dynamic Conversation History - User/Assistant Exchanges]
     end
 
-    Compactor[Exchange-Granular Compactor] -->|Remove Trocas Antigas Inteiras| History
-    Compactor -->|Preserva Paridade user->assistant->tool->result| History
+    Compactor[Exchange-Granular Compactor] -->|Remove Trocas Inteiras Antigas| Dynamic
+    Compactor -->|Preserva Paridade: User -> Assistant -> Tool -> Result| Dynamic
 ```
 
-### Diretrizes de Contexto:
-1. **Exchange-Granular Compaction:** O compactador remove estritamente trocas completas (*user -> assistant -> tool_use -> tool_result*), garantindo a paridade da API e evitando corrupções no estado da LLM.
-2. **Prompt Cache Hit Rate Target (>92%):** Estruturação do payload em 3 marcadores fixos de cache (Identity, Tool Definitions e AST Skeleton Map).
-3. **Tool Search on Demand:** Carregamento dinâmico de esquemas de ferramentas diferidas, reduzindo os tokens de entrada iniciais em até 37%.
-4. **Curadoria Determinística de Regras (`AGENTS.md`):** Regras de instrução devem ser curadas e concisas, evitando dumps genéricos de código.
+### Especificações Técnicas:
+1. **Exchange-Granular Compactor (`agency/context/compactor.py`):** Compacta o histórico removendo estritamente trocas completas (*user -> assistant -> tool_use -> tool_result*), garantindo a paridade da API e evitando estados corrompidos na LLM.
+2. **Prompt Cache Alignment (>92% Target Hit Rate):** Payload organizado com 3 marcadores fixos. O prefixo contendo instruções, esquemas de ferramentas e o mapa sintático AST do repositório permanece 100% reutilizável entre turnos.
+3. **Curadoria Determinística de Regras (`AGENTS.md`):** Regras de instrução curadas e concisas sob a norma estrita do repositório.
 
 ---
 
-## ADR-03: SEGURANÇA CONTRA A TRIFETA LETAL, TAINTGATE E SANDBOXING NATIVO EM RUST
+## ADR-03: SEGURANÇA CONTRA A TRIFETA LETAL, TAINTGATE E EXECPOLICY SHELL AST (Domínios 6, 14)
 
-### Contexto
-Conforme documentado em `guide/security/security-hardening.md`, agentes autônomos que lêem dados externos estão expostos à **Trifeta Letal** (Dados Privados + Ingestão de Dados Externos Não-Confiáveis + Canal de Comunicação/Execução), abrindo vetor para **Prompt Injection Indireto**.
+### Contexto & Problema
+Agentes autônomos que consomem dados não-confiáveis (issues do GitHub, páginas web, READMEs de terceiros) estão sujeitos ao ataque de **Prompt Injection Indireto** quando combinados com acesso a dados privados e privilégios de execução no terminal (**A Trifeta Letal**).
 
-### Parecer Técnico & Recomendação
-Propõe-se avaliar a integração do **TaintGate Sanitizer**, do **Modelo CAR (Capability Authorization Register)** e do **Sandboxing Nativo em Nível de SO**.
+### Decisão & Mecanismo Proposto
+Integrar o sanitizador **TaintGate**, o modelo de autorização por capacidades **CAR (Capability Authorization Register)** e o validador de comandos **Shell AST ExecPolicy**:
 
 ```mermaid
 flowchart LR
-    ExternalData[External Data: Issue/Web/README] --> TaintGate[TaintGate Parser & Sanitizer]
-    TaintGate -->|Tag: UNTRUSTED_TAINTED| AgentContext[Agent Context Window]
-    AgentContext --> LLM[LLM Proposal Engine]
-    LLM -->|Tool Call Proposal| CARPolicy[PolicyEngine CAR]
-    CARPolicy -->|Check Authority & Taint| Dispatcher{É Privilegiada?}
-    Dispatcher -->|Nível de Risco Baixo| NativeSandbox[Native Sandbox: bwrap / Restricted Tokens]
-    Dispatcher -->|Manchada & Privilegiada| UserApproval[Escala para Aprovação do Usuário]
+    ExternalData[Entrada Externa: Issue/Web/README] --> TaintGate[TaintGate Parser & Sanitizer]
+    TaintGate -->|Tag: UNTRUSTED_TAINTED| ContextWindow[Janela de Contexto do Agente]
+    ContextWindow --> LLMProposal[Proposta de Chamada de Ferramenta]
+    LLMProposal --> CARPolicy[PolicyEngine CAR]
+    CARPolicy -->|Inspeciona Autorização & Taint| ShellAST[ExecPolicy Shell AST Inspector em Rust]
+    ShellAST -->|Sintaxe Válida & Segura| NativeSandbox[Sandboxing Nativo: bwrap / Job Tokens / Container Pool]
+    CARPolicy -->|Manchada & Privilegiada| UserApproval[Modal de Aprovação do Usuário]
 ```
 
-### Requisitos de Segurança:
-1. **Taint Tagging (`UNTRUSTED_TAINTED`):** Todo conteúdo lido da web ou de repositórios de terceiros é etiquetado. Ferramentas sensíveis (`git push`, execução shell arbitrária) são bloqueadas ou exigem confirmação quando recebem parâmetros manchados.
-2. **Sandboxing Nativo sem Docker:** Utilização de **Bubblewrap (`bwrap`)** no Linux (isolando namespaces de PID, rede e arquivos) e **Windows Restricted Tokens / Job Objects** no Windows nativamente em Rust (`core_rs`), reduzindo a latência de inicialização.
+### Especificações Técnicas:
+1. **Taint Tagging (`UNTRUSTED_TAINTED`):** Todo conteúdo ingerido de fontes externas é marcado com a tag `UNTRUSTED_TAINTED`. Ferramentas sensíveis (`git push`, execução shell arbitrária) são bloqueadas ou exigem confirmação quando alimentadas por dados manchados.
+2. **Declarative ExecPolicy Shell AST (`core_rs/exec_policy_ast.rs`):** Em vez de validações por expressões regulares (regex) suscetíveis a bypasses por substituição de variáveis ou encadeamento de comandos, o comando é analisado via parser de Árvore de Sintaxe Abstrata (AST) do Shell em Rust.
 
 ---
 
-## ADR-04: AUTONOMIA LONG-HORIZON, CONDUCTOR SYSTEM 3 E MEMÓRIA BITEMPORAL AUTO DREAM
+## ADR-04: AUTONOMIA LONG-HORIZON, CONDUCTOR SYSTEM 3 E HIBERNAÇÃO DURÁVEL `FrozenRunState` (Domínios 7, 9, 2)
 
-### Contexto
-Tarefas complexas em repositórios reais (SWE-bench Pro) exigem execuções autônomas de múltiplos dias imunes a falhas de rede, reboots ou esgotamento de taxa de API.
+### Contexto & Problema
+Tarefas de alta complexidade em repositórios corporativos exigem execuções autônomas que podem durar múltiplos dias, expostas a falhas de rede, reboots do sistema operacional ou esgotamento temporário de cota de APIs.
 
-### Parecer Técnico & Recomendação
-Recomenda-se analisar o desenvolvimento do **Conductor System 3** com **Hibernação Durável (`FrozenRunState`)**, **Auto Dream Memory Consolidation** e **Dataset Exporter (SFT/DPO)**.
+### Decisão & Mecanismo Proposto
+Implementar o **Conductor System 3 Multi-Agent Engine** com **Hibernação Durável (`FrozenRunState`)** e **Arquitetura de Memória de 3 Trilhas com Auto Dream**:
 
 ```mermaid
 graph TD
     subgraph CONDUCTOR_SYSTEM_3 [Conductor System 3 Multi-Agent Engine]
-        Task[Master Task] --> Conductor[Conductor Manager]
-        Conductor -->|DAG Decomposition| Sub1[Subagent 1: Spec]
-        Conductor -->|DAG Decomposition| Sub2[Subagent 2: Test Writer]
-        Conductor -->|DAG Decomposition| Sub3[Subagent 3: Implementation]
+        MasterTask[Tarefa Mestre] --> Conductor[Conductor Manager]
+        Conductor -->|Decomposição em DAG| Sub1[Subagente 1: Spec & Arquitetura]
+        Conductor -->|Decomposição em DAG| Sub2[Subagente 2: Escreve Testes Faltantes]
+        Conductor -->|Decomposição em DAG| Sub3[Subagente 3: Implementação Cirúrgica]
         
-        Sub1 -->|Serialized Run State| SQLiteDB[(SQLite Session Store WAL)]
-        Sub2 -->|Serialized Run State| SQLiteDB
-        Sub3 -->|Serialized Run State| SQLiteDB
+        Sub1 -->|Serialização Atômica| SQLiteDB[(SQLite SessionDB WAL Store)]
+        Sub2 -->|Serialização Atômica| SQLiteDB
+        Sub3 -->|Serialização Atômica| SQLiteDB
     end
 
-    SQLiteDB -->|Idle Time Worker| AutoDream[Auto Dream Memory Consolidation]
-    AutoDream -->|RRF Fusion: BM25 + SQLite-vec| CuratedMemory[Curated MEMORY.md]
+    SQLiteDB -->|Worker em Tempo Ocioso| AutoDream[Auto Dream Memory Consolidation Worker]
+    AutoDream -->|MMR Reranking: sqlite-vec + BM25| CuratedMemory[Curated MEMORY.md]
 ```
 
-### Mecanismos Propostos:
-1. **`FrozenRunState`:** Serialização atômica do estado do agente (pilha de execução, histórico de trocas e repositório) em SQLite. Permite suspender e retomar a execução sem perda de progresso.
-2. **Auto Dream Consolidation Engine:** Consolidação em segundo plano durante períodos ociosos (*idle time*), utilizando fusão RRF (Reciprocal Rank Fusion: BM25 + Vetores + Grafo de Conhecimento) e expiração temporal (TTL).
+### Especificações Técnicas:
+1. **`FrozenRunState` (`agency/freeze.py`):** Serialização atômica do estado do agente (pilha de execução, histórico de trocas e diffs pendentes) em banco SQLite WAL. O processo pode ser suspenso e retomado duravelmente a qualquer momento.
+2. **Memória de 3 Trilhas (Episódica, Semântica e Procedural):** Memória episódica em SQLite WAL, memória semântica em `MEMORY.md` workspace-scoped, e memória procedural em arquivos `SKILL.md`.
+3. **Auto Dream MMR Reranking (`adapters/search/`):** Consolidação em tempo ocioso (*idle time*) que re-ranqueia memórias utilizando a fórmula de Relevância Marginal Máxima (MMR, $\lambda=0.7$):
+$$\text{MMR} = \arg\max_{D_i \in R \setminus S} \left[ \lambda \cdot \text{Sim}_1(D_i, Q) - (1 - \lambda) \max_{D_j \in S} \text{Sim}_2(D_i, D_j) \right]$$
 
 ---
 
-## ADR-05: MOTOR DE AUTO-EVOLUÇÃO REFLEXIVA (GEPA & SESSION TRACE MINING)
+## ADR-05: MOTOR DE AUTO-EVOLUÇÃO REFLEXIVA (GEPA & SESSION TRACE MINING) (Domínio 8)
 
-### Contexto
-Inspirado no ecossistema *Hermes Self-Evolution*, o agente pode possuir a capacidade de auto-otimização textual contínua sem necessidade de retreinamento de pesos em GPU.
+### Contexto & Problema
+Otimizar o desempenho do agente em novos domínios através de fine-tuning tradicional de pesos de LLM em GPUs é extremamente custoso, demorado e rígido.
 
-### Parecer Técnico & Recomendação
-Propõe-se avaliar a viabilidade de inclusão do **GEPA Reflective Auto-Evolution Engine** e do **SessionDB Trace Mining**.
+### Decisão & Mecanismo Proposto
+Incorporar o **GEPA Reflective Auto-Evolution Engine** (`evolution/gepa_evolver.py`) e o **SessionDB Trace Miner** (`evolution/trace_miner.py`), inspirados no ecossistema *Hermes Self-Evolution*:
 
----
+```mermaid
+flowchart TD
+    SessionDB[(SessionDB Production Trajectories)] --> Miner[SessionDB Trace Miner]
+    Miner --> ErrorAnalys[Análise Reflexiva de Trajetórias de Erro]
+    ErrorAnalys --> GEPA[GEPA Engine via DSPy / MIPROv2]
+    GEPA -->|Mutação Textual Zero-GPU| CandidateSkills[Mutantes de Prompts & SKILL.md]
+    CandidateSkills --> AblationGate{Ablação Estatística p < 0.05?}
+    AblationGate -->|Aprovado| CommitProd[Commit Git Automático em Produção]
+    AblationGate -->|Reprovado| RejectMutant[Descarte do Mutante]
+```
 
-## ADR-06: RASTREAMENTO DE DIFFS ATRIBUÍDO POR AUTOR (ACTOR-BASED HUNK TRACKING)
-
-### Contexto
-Inspirado na arquitetura `xai-hunk-tracker` do Grok Build, edições de código podem ser rastreadas em nível de blocos de alteração (*hunks*), atribuindo a autoria exata do trecho (`AuthorType::Agent` vs `AuthorType::ExternalUser`).
-
-### Parecer Técnico & Recomendação
-Propõe-se examinar o design de um componente ator em Rust (`HunkTrackerActor`), operando assincronamente via canais Tokio acoplado a eventos do sistema de arquivos (`fs_notify`).
-
----
-
-## ADR-07: WORKTREES COPY-ON-WRITE & PTY TERMINAL HARNESS
-
-### Contexto
-Conforme demonstrado nas crates `xai-fast-worktree` e `xai-grok-pager-pty-harness` do Grok Build, a execução de subagentes concorrentes e comandos interativos de terminal beneficia-se de isolamento físico de ambiente com latência de criação de workspace em **< 10ms** e suporte a canais TTY/PTY.
-
-### Parecer Técnico & Recomendação
-Recomenda-se a avaliação da implementação do **Fast Copy-on-Write Worktree Engine** (OverlayFS/Btrfs CoW) e do **PTY Terminal Harness** em Rust (`PyO3`).
+### Especificações Técnicas:
+1. **Zero-GPU Text Mutation:** Prompts, instruções e habilidades (`SKILL.md`) são tratados como texto otimizável. O GEPA lê os logs de erros de execuções passadas para entender a causa raiz da falha e alterar a redação do prompt.
+2. **Dataset Exporter (`evolution/dataset_exporter.py`):** Exportação automatizada de trajetórias de produção sanitizadas nos formatos JSONL de SFT (Supervised Fine-Tuning) e DPO (Direct Preference Optimization).
 
 ---
 
-## ADR-08: BUSCA APROXIMADA DE HUNKS (FUZZY PATCH SEEKING) E POLÍTICA DE EXECUÇÃO POR AST SHELL (`EXECPOLICY`)
+## ADR-06: ACTOR HUNK TRACKING POR AUTORIA E BUSCA APROXIMADA FUZZY (Domínio 12)
 
-### Contexto
-Em repositórios dinâmicos, o deslocamento imprevisto de linhas em arquivos altera o ponto original indicado nos patches. Além disso, a validação de comandos de terminal por expressões regulares (*regex*) é suscetível a desvios de sintaxe.
+### Contexto & Problema
+Edições concorrentes no mesmo arquivo ou modificações externas realizadas pelo usuário no IDE provocam o deslocamento de números de linhas, fazendo com que patches exatos gerados pela LLM sejam rejeitados.
 
-### Parecer Técnico & Recomendação
-Propõe-se analisar os seguintes mecanismos inspirados no OpenAI Codex CLI (`src/codex_cli/codex-rs/apply-patch` e `execpolicy`):
-1. **Fuzzy Patch Sequence Seeking (`seek_sequence`):** Utilização de algoritmos de similaridade textual (`similar` TextDiff) para recalcular a nova posição exata de um *hunk* quando ocorre deslocamento de linhas.
-2. **Declarative ExecPolicy Shell AST:** Validação de comandos de terminal inspecionando a árvore de sintaxe abstrata (AST) da linha de comando shell.
+### Decisão & Mecanismo Proposto
+Implementar o **Actor Hunk Tracker** (`core_rs/hunk_tracker.rs`) e o algoritmo de **Fuzzy Hunk Sequence Seeking** (`core_rs/seek_sequence.rs`), inspirados no Grok Build:
+
+```mermaid
+flowchart LR
+    AgentEdit[Edit da LLM] --> HunkActor[Tokio Actor Hunk Tracker Handle]
+    UserEdit[Edit do Usuário no IDE] --> FSNotify[FSNotify File System Watcher]
+    FSNotify --> HunkActor
+    
+    HunkActor --> Attribution{Tag de Autoria}
+    Attribution --> TagAgent[AuthorType::Agent + Turn Index]
+    Attribution --> TagUser[AuthorType::ExternalUser]
+    
+    HunkActor --> FuzzySeeker[Fuzzy Sequence Seeking seek_sequence.rs]
+    FuzzySeeker -->|Calcula TextDiff & Alinhamento| ApplyHunk[Aplica Hunk Deslocado no Disco sem Erro]
+```
+
+### Especificações Técnicas:
+1. **Actor Hunk Tracking por Autoria:** O componente ator em Rust gerencia o estado das edições por bloco (*hunks*), atribuindo individualmente a autoria (`AuthorType::Agent` vs `AuthorType::ExternalUser`). Permite a reversão atômica de hunks de um autor sem afetar as edições do outro.
+2. **Fuzzy Sequence Seeking (`seek_sequence.rs`):** Emprega algoritmos de alinhamento textual para calcular a nova posição exata de um hunk quando ocorre deslocamento de linhas, eliminando rejeições de patches por variação de offset.
 
 ---
 
-## ADR-09: POOL DE CONTAINERS PRÉ-AQUECIDOS, EXECUÇÃO CODEMODE E UPCASTERS DE SCHEMA
+## ADR-07: WORKTREES COPY-ON-WRITE & PTY PSEUDO-TERMINAL HARNESS (Domínio 13, 15)
 
-### Contexto
-A inicialização de containers limpos do zero para subagentes pode introduzir latências de 3 a 5 segundos por instância.
+### Contexto & Problema
+A clonagem tradicional de diretórios para isolamento de subagentes consome segundos preciosos. Adicionalmente, a execução de comandos interativos no terminal (ex: `npm init`, `pytest` interativo) dentro de sub-processos padrão gera travamentos permanentes (*deadlocks*) aguardando entrada em `stdin`.
 
-### Parecer Técnico & Recomendação
-Sugere-se avaliar a incorporação das seguintes técnicas inspiradas no OpenHands/OpenCode (`src/open_code/packages/`):
-1. **Pre-Warmed Container Pool (`packages/containers`):** Pool de containers pré-inicializados em background, reduzindo a latência de alocação de subagentes para **0 ms de espera**.
-2. **Codemode Programmatic Tool Execution (`packages/codemode`):** Capacidade de a LLM gerar um pequeno script local em Python/TypeScript que executa múltiplas ferramentas em loop local em uma única chamada à API.
-3. **Schema Upcasters (`domain/upcasters.py`):** Migração transparente de versões antigas de arquivos de estado `FrozenRunState` para novas versões através de pipeline de *Upcasters*.
+### Decisão & Mecanismo Proposto
+Implementar o **Fast Copy-on-Write Worktree Engine** (`core_rs/fast_worktree_cow.rs`) e o **PTY Pseudo-Terminal Harness** (`core_rs/pty_harness.rs`):
+
+### Especificações Técnicas:
+1. **Worktrees CoW (<10ms):** Em sistemas Linux, utiliza montagens OverlayFS (camada inferior read-only + camada superior tmpfs) e Btrfs `reflink` copies, criando workspaces isolados em **menos de 10 milissegundos**.
+2. **PTY Pseudo-Terminal Harness:** Spawna comandos dentro de um par PTY master/slave real em Rust, capturando sequências ANSI, sinais de redimensionamento de janela (`SIGWINCH`) e permitindo execução não-bloqueante de ferramentas CLI interativas.
+
+---
+
+## ADR-08: POOL DE CONTAINERS PRÉ-AQUECIDOS & EXECUÇÃO CODEMODE PROGRAMÁTICA (Domínios 4, 13)
+
+### Contexto & Problema
+Subagentes que exigem ambientes de container isolados sofrem com a latência de inicialização do Docker/Podman (3 a 5 segundos por instância). Além disso, tarefas repetitivas de leitura/escrita provocam dezenas de idas e voltas à API de LLM.
+
+### Decisão & Mecanismo Proposto
+Adotar um **Pool de Containers Pré-Aquecidos (0ms)** e a **Execução Programática Codemode**:
+
+### Especificações Técnicas:
+1. **Pre-Warmed Container Pool (`adapters/sandbox/`):** O sistema mantém um pool de containers previamente inicializados e aquecidos em background. A alocação de um container limpo para um subagente ocorre em **0 ms de espera**.
+2. **Codemode Programmatic Tool Execution (`agency/codemode.py`):** Permite que a LLM gere um script conciso em Python que executa um conjunto de chamadas de ferramentas em loop local em uma única requisição à API.
+
+---
+
+## ADR-09: METROLOGIA, VALIDAÇÃO EMPÍRICA & ADMISSÃO POR ABLAÇÃO ESTATÍSTICA (Domínio 10)
+
+### Contexto & Problema
+Alterações não-validadas em prompts ou heurísticas do harness frequentemente causam regressões silenciosas de desempenho ou inflação de custos monetários.
+
+### Decisão & Mecanismo Proposto
+Estabelecer a **Governança por Ablação Estatística Comprovada ($p < 0.05$)** gerenciada por `ports/evaluator.py`:
+
+### Especificações Técnicas:
+1. **Protocolo de Validação:** Nenhuma alteração é incorporada à branch principal sem passar por avaliação em no mínimo 50 instâncias de teste do SWE-bench Verified/Pro.
+2. **Critério de Admissão:** Demonstração de aumento estatisticamente significante ($p < 0.05$) na taxa de resolução (*pass rate*), com manutenção ou redução no custo financeiro e no consumo de tokens por tarefa.
