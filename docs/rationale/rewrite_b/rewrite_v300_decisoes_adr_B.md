@@ -3,127 +3,119 @@
 > **Autor:** Tech Lead 2 (PhD) / Principal Software Architect  
 > **Data:** 05 de Agosto de 2026  
 > **Target:** `docs/rationale/rewrite_b/rewrite_v300_decisoes_adr_B.md`  
-> **Status:** Concluído / Em conformidade com RFP `review_project_rewrite_v300B.md`
+> **Status:** Concluído / Em conformidade com RFP `review_project_rewrite_v300B.md`  
+> **Tom de Escrita:** Analítico, baseado em evidências empíricas e propositivo (sem imperativos).
 
 ---
 
 ## 1. ESTRUTURA DOS REGISTROS DE DECISÃO (ADRs)
 
-Este documento compila os Registros de Decisão de Arquitetura (ADRs) fundamentais do **AETHER v3.0.0B**, detalhando o contexto, as opções consideradas, a decisão tomada e as consequências quantitativas para alcançar a meta de **90% em SWE-bench Verified**.
+Este documento compila os Registros de Decisão de Arquitetura (ADRs) propostos para o **AETHER v3.0.0B**, fundamentando as escolhas de engenharia necessárias para alcançar a meta de **90.0%+ em SWE-bench Verified** e **60.0%+ em SWE-bench Pro**.
 
 ---
 
 ## ADR-01: MECANISMO DE EDIÇÃO DE CÓDIGO & RESILIÊNCIA A FALHAS
 
 ### Contexto
-Modificações integrais de arquivos (*Full File Rewrite*) causam alto consumo de tokens, falhas de atenção em arquivos grandes (>300 LOC) e alta taxa de erros de sintaxe em refatorações multi-arquivo.
+Reescritas integrais de arquivos (*Full File Rewrite*) provocam elevado consumo de tokens, falhas de atenção em arquivos grandes (>300 LOC) e erros de sintaxe em refatorações multi-arquivo.
 
 ### Opções Avaliadas
 1. **Full File Rewrite:** Reescrita total do arquivo contendo as alterações.
 2. **Unified Diffs / Patch Tools:** Aplicação de patches no formato `git diff`.
-3. **Search/Replace Blocks (Aider-Style) com AST-Validation & Rollback Implicito:** Blocos cirúrgicos contendo o texto exato a ser localizado e o texto de substituição, pré-validados sintaticamente.
+3. **Search/Replace Blocks (Aider-Style) com AST-Validation & Architect/Editor Split:** Edições cirúrgicas propostas por um modelo Editor a partir do plano conceitual de um modelo Arquiteto.
 
-### Decisão
-Adoptar a **Opção 3 (Search/Replace Blocks com Validação AST & Rollback)** associada à **Separação Arquiteto/Editor (Architect/Editor Split)**.
+### Parecer Técnico & Recomendação
+Propõe-se a adoção dos **Search/Replace Blocks com Validação AST & Rollback** associados à **Separação Arquiteto/Editor (Architect/Editor Split)**.
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant LLM_Arch as Arquiteto (Opus 5)
-    participant Agent as RunLoop Executando
+    participant Agent as RunLoop (In-Loop Repair)
     participant LLM_Edit as Editor (Sonnet 3.5 / Haiku)
     participant AST as Validador AST (Rust Core)
     participant FS as Workspace FS
 
-    LLM_Arch->>Agent: Proposta do Plano de Refatoração (Sem Tool Calls)
+    LLM_Arch->>Agent: Proposta do Plano Conceitual de Refatoração (Sem Tool Calls)
     Agent->>LLM_Edit: Solicita Bloco Search/Replace Cirúrgico
     LLM_Edit-->>Agent: Retorna Bloco <<<<<<< SEARCH ... ======= ... >>>>>>>
-    Agent->>AST: Valida Sintaxe (ast.parse) ANTES de Salvar
+    Agent->>AST: Valida Sintaxe (ast.parse) em Rust ANTES de Persistir
     alt Sintaxe Válida
         AST-->>FS: Aplica Alteração no Disco
         Agent-->>LLM_Arch: Sucesso na Edição
     else Sintaxe Inválida (SyntaxError)
-        AST-->>Agent: Rejeição Determinística + Error Line
-        Agent->>LLM_Edit: Reenvia Stack Trace de Erro (Rollback Zero-Touch)
+        AST-->>Agent: Rejeição Determinística + Detalhes do Erro
+        Agent->>LLM_Edit: Reenvia Stack Trace no Loop (Rollback Zero-Touch)
     end
 ```
 
-### Consequências
-* **Redução de Consumo de Tokens:** Redução de 78% no custo de entrada/saída durante edições.
-* **Resiliência:** Zero degradação de arquivos por corrupção de sintaxe.
+### Consequências Esperadas:
+* **Eficiência de Tokens:** Redução de 78% no custo de entrada/saída durante edições de código.
+* **Resiliência:** Eliminação de corrupções de sintaxe durante edições concorrentes.
 
 ---
 
 ## ADR-02: GESTÃO DE CONTEXTO, COMPACTAÇÃO E ALINHAMENTO DE PROMPT CACHE
 
 ### Contexto
-A perda de atenção intermediária (*Loss in the Middle*) e a quebra frequente de cache de contexto reduzem a precisão em benchmarks de longo horizonte e elevam os custos de execução de APIs em até 5x.
+A perda de atenção intermediária (*Loss in the Middle* / *Dumb Zone*) e a quebra frequente de cache de contexto elevam os custos de execução de APIs em até 5x e reduzem a precisão em tarefas de longo horizonte.
 
-### Decisão
-Implementar o **Exchange-Granular Compactor** e a técnica de **AST Skeleton Mapping (Agentless Pattern)**.
+### Parecer Técnico & Recomendação
+Recomenda-se a implementação do **Exchange-Granular Compactor**, do **AST Skeleton Mapping (Agentless Pattern)** e do **Tool Search on Demand**.
 
 ```mermaid
 graph TD
-    subgraph ESTRUTURA DO CONTEXTO AETHER
-        SP[System Prompt & Identity] -->|Cache Boundary 1| Tools[Tool Definitions & CAR Specs]
+    subgraph ESTRUTURA DE CONTEXTO DO AETHER
+        SP[System Prompt & Identity] -->|Cache Boundary 1| Tools[Tool Definitions (Dynamic Tool Search)]
         Tools -->|Cache Boundary 2| RepoMap[AST Skeleton Map (Agentless)]
         RepoMap -->|Cache Boundary 3| History[Exchange History (User/Assistant/Tool Pairs)]
     end
 
     Compactor[Exchange-Granular Compactor] -->|Remove Trocas Antigas Inteiras| History
-    Compactor -->|NÃO Quebra Sequência de Tool Call/Result| History
+    Compactor -->|NÃO Quebra Sequência Tool Call/Result| History
 ```
 
-### Regras do Exchange Compactor:
-1. **Preservação de Trocas Inteiras:** Nunca descartar uma `tool_use` sem descartar também seu respectivo `tool_result` e o prompt do usuário associado.
-2. **Preservação dos Extremos:** As primeiras $N$ mensagens (contexto inicial da issue) e as últimas $M$ mensagens são estritamente imutáveis.
-3. **Prompt Cache Hit Rate Target:** Manter o alinhamento das 3 primeiras fronteiras de cache de modo a atingir **>92% de reutilização de tokens** na Anthropic e OpenAI.
+### Diretrizes de Contexto:
+1. **Exchange-Granular Compaction:** Preservação estrita da paridade de trocas inteiras (`user -> assistant -> tool_use -> tool_result`).
+2. **Tool Search on Demand:** Carregamento dinâmico de esquemas de ferramentas sob demanda, proporcionando até 37% de redução no consumo de tokens de entrada.
+3. **Prompt Cache Hit Rate Target:** Fixação dos 3 primeiros prefixos de cache de modo a atingir **>92% de reutilização de tokens** nos provedores de LLM.
 
 ---
 
 ## ADR-03: SEGURANÇA, ISOLAMENTO E PROTEÇÃO TAINTGATE
 
 ### Contexto
-Agentes autônomos que lêem dados não-confiáveis (e.g. issues do GitHub, READMEs de terceiros, resultados de busca na web) estão expostos a ataques de **Prompt Injection Indireto** (OWASP LLM Top 10), podendo executar comandos maliciosos no sistema host.
+Agentes autônomos que lêem dados não-confiáveis (issues do GitHub, READMEs de terceiros, web search) estão expostos a ataques de **Prompt Injection Indireto** (*The Lethal Trifecta*).
 
-### Decisão
-Adotar **Git Worktrees + Containers Rootless (Docker/Podman)** e o filtro de sanitização **TaintGate**.
+### Parecer Técnico & Recomendação
+Propõe-se a integração do **TaintGate Sanitizer**, do **Modelo CAR (Capability Authorization Register)** e do **Sandboxing Híbrido (Git Worktrees + Docker Rootless)**.
 
 ```mermaid
 flowchart LR
     ExternalData[External Data: Issue/Web] --> TaintGate[TaintGate Parser & Sanitizer]
-    TaintGate -->|Marca Dados como TAINTED| AgentContext[Agent Context]
+    TaintGate -->|Marca Dados como UNTRUSTED_TAINTED| AgentContext[Agent Context]
     AgentContext --> LLM[LLM Decision Engine]
     LLM -->|Tool Call Proposal| KernelPolicy[Kernel Policy Engine CAR]
-    KernelPolicy -->|Verifica Autorização + Taint Status| Dispatcher{É Seguro?}
+    KernelPolicy -->|Verifica Autorização & Taint Status| Dispatcher{É Seguro?}
     Dispatcher -->|Sim| Sandbox[Rootless Container / Worktree Sandbox]
-    Dispatcher -->|Não| Blocked[Bloqueio de Execução + Security Alert]
+    Dispatcher -->|Não| Blocked[Bloqueio de Execução + Alerta de Segurança]
 ```
 
 ### Requisitos de Segurança:
-1. **Taint Tagging:** Todo texto vindo de fora do controle do usuário recebe tag interna `UNTRUSTED_TAINTED`.
-2. **Restrição de Egress:** Ferramentas que executam no sandbox não possuem acesso à rede externa a menos que explicitamente autorizadas via concessão temporária no kernel.
+1. **Taint Tagging:** Dados externos recebem a tag de controle `UNTRUSTED_TAINTED`.
+2. **Separação Brain / Hands:** O orquestrador ("Brain") opera desacoplado da camada de execução isolada ("Hands"), prevenindo exfiltração não autorizada.
 
 ---
 
-## ADR-04: CAMINHO PARA AUTONOMIA LONG-HORIZON & SISTEMA CONDUCTOR (System 3)
+## ADR-04: CAMINHO PARA AUTONOMIA LONG-HORIZON & CONDUCTOR SYSTEM 3
 
 ### Contexto
-Para solucionar problemas complexos em repositórios reais de código (como SWE-bench Pro), o agente precisa operar durante horas ou dias, sendo imune a interrupções de rede, reboots de máquina ou rate limits de APIs.
+Tarefas complexas em repositórios reais (SWE-bench Pro) exigem execuções de longo prazo imunes a quedas de conexão, reinícios de máquina ou limites de taxa de APIs.
 
-### Decisão
-Implementar a camada **Conductor (System 3)** com **Hibernação Durável (`FrozenRunState`)** e **Síntese Autônoma de Ferramentas**.
+### Parecer Técnico & Recomendação
+Recomenda-se o desenvolvimento do **Conductor System 3** com **Hibernação Durável (`FrozenRunState`)**, **Auto Dream Memory Consolidation** e **Dataset Exporter (SFT/DPO)**.
 
-### Mecanismos-Chave:
-1. **`FrozenRunState`:** O estado do agente (pilha de execução, memória de trocas, estado dos worktrees e pendências) é serializado em SQLite/JSON estrito a cada iteração. Em caso de queda, a execução é retomada do exato passo em que parou.
-2. **Tool Synthesis:** Se o agente identifica um padrão repetitivo de inspeção no repositório, ele compila um script Python/Rust temporário e o registra dinamicamente como uma ferramenta privada no Kernel.
-3. **Dataset Exporter (SFT / DPO):** Trajetórias que alcançam aprovação nos gates do `GateEvaluator` são automaticamente sanitizadas e exportadas nos formatos JSONL de Fine-Tuning (SFT) e Otimização Direta de Preferência (DPO) para treinamento de modelos locais.
-
----
-
-## 5. RESUMO DAS REGRAS INVARIANTES DOS ADRs
-
-1. **Nenhum arquivo é modificado sem validação sintática AST prévia.**
-2. **Nenhuma mensagem do contexto é descartada de forma parcial (apenas trocas inteiras).**
-3. **Nenhum dado externo entra no loop de ferramentas sem passar pelo TaintGate.**
-4. **Toda execução de longo prazo deve ser serializada em `FrozenRunState`.**
+### Mecanismos Propostos:
+1. **`FrozenRunState`:** Serialização atômica do estado do agente (pilha de execução, histórico de trocas e repositório) em SQLite. Em caso de interrupção, a execução é restaurada do ponto exato da parada.
+2. **Auto Dream Consolidation:** Consolidação de memória episódica em segundo plano durante períodos ociosos (*idle time*), utilizando fusão RRF (BM25 + Vetorial + Grafo de Conhecimento) e expiração temporal (TTL).
+3. **Dataset Exporter:** Sanitização e exportação de trajetórias aprovadas no `GateEvaluator` nos formatos JSONL para treinamento e fine-tuning local (SFT/DPO).

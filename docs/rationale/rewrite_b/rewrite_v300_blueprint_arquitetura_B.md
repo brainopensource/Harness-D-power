@@ -3,19 +3,20 @@
 > **Autor:** Tech Lead 2 (PhD) / Principal Software Architect  
 > **Data:** 05 de Agosto de 2026  
 > **Target:** `docs/rationale/rewrite_b/rewrite_v300_blueprint_arquitetura_B.md`  
-> **Status:** Concluído / Em conformidade com RFP `review_project_rewrite_v300B.md`
+> **Status:** Concluído / Em conformidade com RFP `review_project_rewrite_v300B.md`  
+> **Tom de Escrita:** Analítico, baseado em evidências empíricas e propositivo (sem imperativos).
 
 ---
 
-## 1. VISÃO GERAL DA ARQUITETURA HEXAGONAL (PORTS & ADAPTERS)
+## 1. VISÃO GERAL DA ARQUITETURA HEXAGONAL & MODELO BRAIN/HANDS
 
-O **AETHER v3.0.0B** é estruturado rigorosamente sob o padrão **Arquitetura Hexagonal (Ports & Adapters)** com **Modelo de Autorização por Capacidades (CAR Engine)**. O namespace de produção final é **`src/aether`**.
+O **AETHER v3.0.0B** é estruturado sob os princípios de **Arquitetura Hexagonal (Ports & Adapters)**, **Capability Authorization (CAR Model)** e o desacoplamento **Brain / Hands / Session Log** (conforme a especificação *Anthropic Managed Agents 2026*). O namespace final de produção é **`src/aether`**.
 
-### Invariantes Estritos de Arquitetura:
-1. **Domínio Puro (`src/aether/domain/`):** Modelos Pydantic v2 sem dependências de I/O, banco de dados ou bibliotecas externas de LLM.
-2. **Portas Remotáveis (`src/aether/ports/`):** Interfaces `Protocol` totalmente assíncronas (`async`), cujos argumentos e retornos são 100% serializáveis via Pydantic (sem envio de `Path`, manipuladores de arquivos ou instâncias de conexão de rede através das fronteiras).
-3. **Módulo Nativo de Alta Performance (`src/aether/core_rs/`):** Componente em Rust exportado via **PyO3** para computação sintática intensiva.
-4. **Interface TUI/CLI Reativa (`src/aether/tui/`):** Terminal User Interface desacoplada que consome eventos do kernel via bus de mensagens.
+### Invariantes Estritos de Engenharia:
+1. **Domínio Puro (`src/aether/domain/`):** Modelos Pydantic v2 puros, sem dependências de I/O, banco de dados ou APIs de terceiros.
+2. **Portas Remotáveis (`src/aether/ports/`):** Interfaces `Protocol` totalmente assíncronas (`async`), cujos payloads são 100% serializáveis via Pydantic (sem envio de objetos de conexão ou manipuladores de arquivo através das fronteiras).
+3. **Desacoplamento Brain vs. Hands:** O orquestrador de raciocínio ("Brain") opera separado da camada de execução e sandboxing ("Hands"), comunicando-se via event bus assíncrono.
+4. **Módulo Nativo Rust (`src/aether/core_rs/`):** Biblioteca de alta performance exportada via **PyO3** para parsing AST Tree-sitter, indexação FTS5 e manipuladores nativos de Git Worktree.
 
 ---
 
@@ -63,21 +64,22 @@ src/aether/
 ├── adapters/                     # Implementações concretas das Portas
 │   ├── code_graph/               # Adaptação Rust PyO3 Tree-sitter
 │   ├── indexer/                  # Adaptação FTS5 & Search Service
-│   ├── model/                    # Adaptação LLM (Anthropic / OpenAI / DeepSeek)
+│   ├── model/                    # Adaptação LLM (Opus / Sonnet / DeepSeek)
 │   ├── sandbox/                  # Adaptação Docker/Podman Container
-│   ├── search/                   # Adaptação Best-of-N & Scoring
+│   ├── search/                   # Adaptação Best-of-N & RRF Scoring
 │   ├── tools/                    # Ferramentas nativas do sistema
 │   ├── trajectory/               # Adaptação SQLite Engine
 │   └── workspace/                # Adaptação Git Worktrees
 ├── agency/                       # Agência, Loop de Execução e Contexto
 │   ├── __init__.py
-│   ├── architect.py              # Agente Arquiteto (Proposta de Planos)
-│   ├── editor.py                 # Agente Editor (Search/Replace cirúrgico)
+│   ├── architect.py              # Modelo Arquiteto (Planejamento Conceitual)
+│   ├── editor.py                 # Modelo Editor (Search/Replace cirúrgico)
 │   ├── freeze.py                 # Hibernação FrozenRunState
 │   ├── run_loop.py               # Real-Time In-Loop Repair Engine
 │   └── context/
 │       ├── assembler.py          # Montador de Contexto Alinhado a Cache
 │       ├── compactor.py          # Exchange-Granular Compactor
+│       ├── dynamic_dispatch.py   # Tool Search on Demand
 │       └── taint_gate.py         # Sanitizador TaintGate
 └── tui/                          # Terminal User Interface
     ├── __init__.py
@@ -97,12 +99,13 @@ graph TB
         CLI[CLI Commands Parser]
     end
 
-    subgraph AGENCY_LAYER [Camada de Agência & Raciocínio (src/aether/agency)]
+    subgraph BRAIN_LAYER [Camada de Agência & Raciocínio - BRAIN (src/aether/agency)]
         RL[RunLoop Real-Time Repair Engine]
         ARCH[Architect Model - Planing]
         EDIT[Editor Model - Search/Replace]
         CTX[Context Assembler & Exchange Compactor]
         TAINT[TaintGate Sanitizer]
+        DISPATCH[Tool Search on Demand]
     end
 
     subgraph KERNEL_LAYER [Trusted Computing Base - TCB (src/aether/kernel)]
@@ -112,14 +115,7 @@ graph TB
         GOV[Resource & Budget Governor]
     end
 
-    subgraph PORTS_LAYER [Contratos Hexagonais (src/aether/ports)]
-        P_MODEL[Port Model]
-        P_WORK[Port Workspace]
-        P_GRAPH[Port Code Graph]
-        P_SANDBOX[Port Sandbox]
-    end
-
-    subgraph ADAPTERS_LAYER [Implementações de Alta Performance (src/aether/adapters & core_rs)]
+    subgraph HANDS_LAYER [Camada de Execução Isolada - HANDS (src/aether/adapters & core_rs)]
         A_LLM[LLM API Adapters - Opus/Sonnet/DeepSeek]
         A_WORK[Git Worktrees Adapter]
         A_RUST[Rust Core PyO3 - Tree-sitter & FTS5]
@@ -132,28 +128,24 @@ graph TB
     RL --> EDIT
     RL --> CTX
     CTX --> TAINT
+    CTX --> DISPATCH
     
     RL --> DISP
     DISP --> CAR
     DISP --> GOV
     CAR --> BUS
 
-    DISP --> P_MODEL
-    DISP --> P_WORK
-    DISP --> P_GRAPH
-    DISP --> P_SANDBOX
-
-    P_MODEL --> A_LLM
-    P_WORK --> A_WORK
-    P_GRAPH --> A_RUST
-    P_SANDBOX --> A_CONTAINER
+    DISP --> A_LLM
+    DISP --> A_WORK
+    DISP --> A_RUST
+    DISP --> A_CONTAINER
 ```
 
 ---
 
-## 4. FLUXO DE EXECUÇÃO DO REAL-TIME IN-LOOP REPAIR ENGINE
+## 4. FLUXO DO REAL-TIME IN-LOOP REPAIR ENGINE COM RUST AST CHECK
 
-O diagrama a seguir detalha a iteração de reparo em tempo real, onde falhas sintáticas ou de testes são tratadas instantaneamente no loop sem quebrar a prefix cache:
+O diagrama a seguir detalha a execução do loop de reparo em tempo real, evidenciando a pré-validação sintática determinística em Rust antes de devolver o controle à LLM:
 
 ```mermaid
 sequenceDiagram
@@ -166,24 +158,24 @@ sequenceDiagram
     participant CAR as Policy Engine (CAR)
     participant RUST as Rust Core (AST/File Edit)
 
-    RL->>CTX: Prepara Prompt com Exchange-Granular Compaction
-    CTX-->>RL: Context Payload (Aligned Cache)
+    RL->>CTX: Prepara Prompt com Exchange Compactor & AST Skeleton
+    CTX-->>RL: Context Payload (Prompt Cache Aligned)
     RL->>LLM: Stream Completions Request
-    LLM-->>RL: Returns Tool Call (e.g. apply_search_replace)
+    LLM-->>RL: Retorna Tool Call (e.g. apply_search_replace)
     RL->>DISP: Executa Dispatcher(tool_call)
-    DISP->>CAR: Authorize Capability (Token & Scope)
+    DISP->>CAR: Authorize Capability (Token & Taint Status)
     alt Autorização Concedida
         CAR-->>DISP: Approved
-        DISP->>RUST: Executa Edição Cirúrgica + AST Parse Check
-        alt Sucesso na Edição
-            RUST-->>DISP: Content Updated
+        DISP->>RUST: Executa Edição Cirúrgica + Validação ast.parse
+        alt Sintaxe Válida
+            RUST-->>DISP: Content Updated Success
             DISP-->>RL: Observation (Tool Result Success)
             RL->>TUI: Publish Step Event (Success)
-        else SyntaxError ou Failure
+        else SyntaxError Encontrado
             RUST-->>DISP: Syntax Error Details & Line Number
             DISP-->>RL: Observation (Tool Result Error Feedback)
             RL->>TUI: Publish Step Event (In-Loop Repairing)
-            Note over RL,LLM: In-loop Repair: Stack Trace alimentado na próxima iteração
+            Note over RL,LLM: In-loop Repair: Erro re-injetado sem invalidar o Prompt Cache
         end
     else Autorização Negada
         CAR-->>DISP: Permission Denied
@@ -194,8 +186,8 @@ sequenceDiagram
 
 ---
 
-## 5. REQUISITOS DE CONFORMIDADE & QUALIDADE DO CÓDIGO
+## 5. REQUISITOS DE CONFORMIDADE E REGRAS DE QUALIDADE
 
-1. **Async I/O Concurrency:** Todo I/O de rede e disco deve utilizar `anyio` ou `asyncio` não-bloqueante.
+1. **Async I/O Concurrency:** Utilização exclusiva de `anyio` ou `asyncio` não-bloqueante em todas as operações de I/O de rede e disco.
 2. **Type Hints & Rigor:** 100% de cobertura de tipagem estrita com `pyright` no modo strict e `ruff`.
-3. **No Legacy Bloat:** Proibida a utilização de bibliotecas pesadas de orquestração genérica (como LangChain, AutoGen ou CrewAI). Todo o harness do **AETHER v300B** é minimalista, customizado e altamente performático.
+3. **Zero Legacy Bloat:** Abstrações de terceiros como LangChain ou AutoGen são vedadas no núcleo. O harness do **AETHER v300B** é minimalista, desacoplado e customizado para alta performance.

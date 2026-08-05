@@ -135,12 +135,26 @@ uninformative; contamination findings invalidating the public pool.
 readable.
 
 **Decision.** **Concepts and published theory transfer; implementation does not.**
-(a) Only official and open-source trees are cloned. (b) De-obfuscated or decompiled artifacts of
-closed CLIs are **deferred, not permanently excluded** — bringing one in would be a separate,
-explicitly recorded decision with its own legal review, never a silent one. (c) Any design change that
-converges on a competitor's choice must be justified by **our own KPIs** — an ablation on our suites,
-against our noise floor, recorded in `docs/rationale/benchmarks/`. (d) Dependencies are open-source
-only, license class reviewed on addition.
+
+**(a) No external code enters `src/aether/`. Ever.** Not copied, not adapted, not vendored. What
+crosses from a reference is understanding — an algorithm, a protocol shape, a design constraint, a
+failure mode — expressed in our own code. Reference trees exist to be *read*, and reading is the only
+thing they are for. This is stricter than "attribution" or "license compatibility": even permissively
+licensed code stays out, because the project's value is that its design is its own and defensible.
+
+(b) Only official and open-source trees are cloned, and preference goes to **documentation over
+source** where documentation suffices — `src/claude_refs/` is markdown, and that is the right shape
+for a reference. (c) De-obfuscated or decompiled artifacts of closed CLIs are **deferred, not
+permanently excluded** — bringing one in would be a separate, explicitly recorded decision with its
+own legal review, never a silent one. (d) Any design change that converges on a competitor's choice
+must be justified by **our own KPIs** — an ablation on our suites, against our noise floor, recorded
+in `docs/rationale/benchmarks/`. (e) Dependencies are open-source only, license class reviewed on
+addition.
+
+**Reference harnesses run as benchmark arms, and that is a different relationship.** Executing Hermes
+against our tasks on our model ([measurement §1b](./rewrite_v300_measurement_strategy.md)) is
+measurement, not derivation — we run the binary, we read the score, no code moves. It is the most
+valuable use of a competitor's tree and it is fully consistent with (a).
 
 **Consequences.** Clean IP provenance for a commercial product. Slower to copy a known-good
 implementation; the ablation requirement is the cost of being able to defend every design choice.
@@ -170,12 +184,16 @@ Mixed-language filenames are a cosmetic inconsistency accepted in exchange for h
 
 | # | Decision | Why it cannot be resolved here | Blocks |
 | :--- | :--- | :--- | :--- |
-| **Q3** | Model tier the client will fund | Drives the absolute score more than any engineering choice (R1). Recommendation: **mixed routing** — frontier for coding, cheap tier for planning and summarization | A-006 absolute targets |
-| **Q6** | Private held-out benchmark repository | Requires a repository and a license. Must not be public | T3 contamination control |
-| **Q8** | Compute budget for benchmarking | A full Pro run is not free; sets CI tiering | M1b onward |
+| **Q3** | Model tier the client will fund | Drives the absolute score more than any engineering choice (R1). Recommendation: **mixed routing** — frontier for coding, cheap tier for planning and summarization | **A-006 absolute targets only — M4** |
+| **Q6** | Private held-out benchmark repository | Requires a repository and a license. Must not be public | T3 contamination control — M3 |
+| **Q8** | Compute budget for benchmarking | A full Pro run is not free | **M4 only** |
 
-**Q3 and Q8 together gate B2** — no model endpoint means no measurement, which means M1b cannot exit.
-These are the highest-priority external dependencies in the plan.
+**These no longer gate M1b.** An earlier revision treated Q3/Q8 as blocking B2 and therefore the whole
+plan. The **Tier 0** strategy retires that: a locally hosted open-weight model covers the noise floor,
+the single-shot baseline, T1 scaffold lift, every ablation, and the head-to-head against real
+competitor harnesses, at zero marginal cost. Lift is a paired delta on a *fixed* model — it needs a
+constant model, not an expensive one. The commercial decision now buys the absolute headline number at
+M4 and nothing before it.
 
 ---
 
@@ -488,6 +506,44 @@ a direct function call would be simpler to read.
 memoization benefit measurable, no branching in sight — collapse it to a plain sequential pipeline.
 The escape hatch stays open until M2 precisely because four nodes are cheap to un-abstract; forty
 would not be.
+
+---
+
+### A-025 — Progressive benchmark tiers; competitors run as arms on our model
+
+**Context.** §1's absolute targets need a frontier model, which needs a budget decision. Treating that
+as a prerequisite puts an external approval on the critical path of an engineering project. Separately,
+"beat the best published open scaffold" is a weak comparison: a published number carries a different
+model, tool budget, retry policy and task pool than ours.
+
+**Decision.** Three tiers, entered in order.
+
+**Tier 0 — free, local, head-to-head.** A locally hosted open-weight model. Four arms on the *same*
+model, tasks and hardware: pure single-shot LLM (**the floor**), AETHER, **Hermes** (**the target**),
+and at least one more open scaffold. Competitor harnesses are pinned by commit, like the tasks. This
+tier fully validates every instrument, the A/A noise floor, the baseline, **T1 lift**, and every
+ablation.
+
+**Tier 1 — sampled API.** An OpenRouter adapter and stratified samples, not full suites: an
+intermediate signal at a fraction of the cost, and a second look at mechanisms that showed nothing at
+Tier 0.
+
+**Tier 2 — premium spot checks.** Small, isolated, deliberately non-statistical comparisons against
+vendor CLIs on concrete artifacts, scored on quality, wall-clock, cost and tokens/second. Qualitative
+calibration, never a headline.
+
+Only after those does the full absolute run at frontier tier happen.
+
+**Consequences.** Q3/Q8 leave the critical path and bind at M4. The head-to-head is stronger evidence
+than any literature comparison — three confounds vanish when every arm runs the same model on the same
+tasks on the same machine. Vendor CLIs cannot participate in Tier 0: they authenticate to their own
+provider and are interactive subscription products, not programmable endpoints, so Claude Code and
+Gemini CLI appear only at Tier 2.
+
+**Reversal Conditions.** If Tier 0's resolve rates are so low that no mechanism produces a signal
+distinguishable from the noise floor, the tier is uninformative and Tier 1 becomes the working floor —
+at which point the budget decision returns to the critical path. Run the strongest locally hosted
+model available before concluding this.
 
 ---
 

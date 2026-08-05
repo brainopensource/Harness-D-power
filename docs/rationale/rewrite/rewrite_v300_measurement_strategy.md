@@ -107,6 +107,73 @@ harness is not a peer comparison.
 
 ---
 
+## 1b. The benchmark ladder — free first, premium last
+
+The absolute targets in §1 need a frontier model. Almost everything else does not, and building the
+measurement practice on a **free local model** removes the commercial decision from the critical path
+entirely.
+
+### Tier 0 — free, local, head-to-head
+
+Run on a locally hosted open-weight model (Ollama on local GPU). Unlimited runtime, zero marginal
+cost, many passes affordable.
+
+**The design that makes this powerful is running the competitors on the same model.** Not comparing
+against their published numbers — *running their harness, on our model, on our tasks, on our
+hardware*:
+
+| Arm | What it establishes |
+| :--- | :--- |
+| **Pure LLM, single shot** | The **floor**. Everything a harness adds must beat this |
+| **AETHER** | Us |
+| **Hermes** on the same model | The **target**. A real, reproducible scaffold ceiling |
+| Aider · OpenHands · SWE-agent on the same model | Additional reference points at the same tier |
+
+This is strictly stronger evidence than the literature comparison §1 describes. A published leaderboard
+number comes from a different model, a different tool budget, a different retry policy, and a task pool
+with an estimated 30% defect rate — three of those confounds vanish when every arm runs the same model
+on the same tasks on the same machine. **The gap between "pure LLM" and "Hermes" is the scaffold's
+contribution, isolated.** Our job is to close it and then exceed it.
+
+**Practical constraint, stated because it shapes the design:** harnesses that speak an
+OpenAI-compatible endpoint (Hermes, Aider, OpenHands, SWE-agent) can be pointed at a local server.
+Vendor CLIs generally cannot — they authenticate to their own provider and are interactive
+subscription products, not programmable endpoints. **Claude Code and Gemini CLI therefore cannot be
+part of Tier 0**; they appear at Tier 2, on their own terms.
+
+**What Tier 0 fully validates:** every instrument, the A/A noise floor, the single-shot baseline,
+**T1 scaffold lift** (a paired delta on a fixed model — tier-independent by construction), every
+ablation, and the head-to-head standing versus real competitors.
+
+**What Tier 0 cannot give:** an absolute SOTA number. A weak model also compresses the signal — if the
+floor resolves 2% and we resolve 4%, the delta is real but the interval is wide. Use the strongest
+model the hardware runs, expect some mechanisms to show no signal until a stronger model is used, and
+record that as a property of the measurement rather than of the mechanism.
+
+### Tier 1 — sampled API
+
+Once Tier 0 shows AETHER at or above the Hermes arm, add an OpenRouter adapter and run **stratified
+samples**, not full suites: enough tasks for an intermediate signal at a fraction of a full run's
+cost. This is where mechanisms that were signal-less on a weak model get a second look.
+
+### Tier 2 — premium spot checks
+
+Small, isolated, deliberately non-statistical. Take a handful of concrete tasks, run them through a
+vendor CLI, and compare the artifact — the actual `.py` output — against ours on quality, wall-clock,
+cost, and tokens/second. These are **qualitative calibration**, never a headline: the sample is small,
+the harness is theirs, and the pool is not controlled. They answer "are we close to premium?", not
+"what is our score".
+
+### Only then: the full absolute run
+
+SWE-bench Pro at frontier tier ([A-006](./rewrite_v300_decisoes_adr.md)) — the one step that genuinely
+needs the budget decision, and by then it is buying a headline number rather than unblocking work.
+
+**Sequencing consequence.** The commercial decision (Q3/Q8) moves off the critical path and onto the
+M4 boundary. Tiers 0 and 1 need no approval, no budget, and no vendor relationship.
+
+---
+
 ## 2. The blockers — what must be fixed before any number exists
 
 `docs/rationale/benchmarks/noise-floor.md` still reads **"Status: still not populated."** The A/A run
@@ -116,7 +183,7 @@ attempted 2026-08-01 failed on all 30 tasks × 2 passes. The printed `mean_delta
 | # | Blocker | Fix |
 | :--- | :--- | :--- |
 | **B1** | The runner executes `git worktree add <base_commit>` against the **local** repository, while SWE-bench base commits live in **twelve upstream repositories that were never cloned** → `fatal: invalid reference:` on every task | An upstream repo cache: clone (mirror, shallow-by-commit) each task repo once, keyed by URL, pinned by SHA, reused across runs and across CI. This is the first real component built in M1b |
-| **B2** | No model endpoint and no API keys → nothing to measure even with a working runner | Provider credentials and a documented cost budget. A **commercial decision**, flagged as open in [the ADRs](./rewrite_v300_decisoes_adr.md) (Q8) |
+| **B2** | ~~No model endpoint~~ → **resolved by Tier 0** (§1b): a local OpenAI-compatible server on local GPU. Free, unlimited, sufficient for the noise floor, the baseline, T1 lift, and every ablation | Point the `ModelProvider` adapter at the local endpoint. The API budget decision (Q3/Q8) moves to the M4 boundary and no longer gates M1b |
 | **B3** | The editable install's `.pth` leaked the live `src/` into every isolated worktree → candidate diffs invisible to the gates scoring them (`s4-harvest-findings.md` D3) | No editable install inside an evaluation container; environment built from the task's own dependency spec; **canary test asserting a deliberately broken candidate fails** |
 | **B4** | pytest-uncollectable files in `failing_test_cmd` (D1); exit-127 "command not found" scored as a test failure rather than an instrument error (D2) | Typed distinction between *test failed* and *instrument failed*. An instrument failure is never a data point |
 
@@ -192,6 +259,19 @@ floor wider.
 
 A full benchmark run per commit is unusable on cost and latency (PLANNING.md **R7**).
 
+**Pre-MVP posture: CI stays minimal.** While the MVP is still being designed there are no deploys and
+no production surface, so CI carries only the cheap correctness gates — lint, type check, import
+contracts, port conformance, loud-stub check, replay, and the docs frontmatter/link checks. **Heavy
+gates arrive with the capability they guard**: the container perimeter suite when the perimeter
+exists, coverage thresholds when there is code worth covering, benchmark tiers when the instruments
+are honest. Adding a gate before its subject exists produces either a permanently skipped job or a
+permanently red one, and both teach the team to ignore CI — which is the same failure as a gate that
+cannot fail, arriving from the opposite direction.
+
+What must **never** be dropped in the name of minimalism: the loud-stub check, the port conformance
+suite, and replay determinism. Those three are what prevent the predecessor's failure mode, and they
+cost seconds.
+
 | Tier | Trigger | Content | Gate |
 | :--- | :--- | :--- | :--- |
 | **Replay** | Every PR | Cassette record/replay, zero network | Byte-equal step sequences (T8: 100%) |
@@ -250,10 +330,10 @@ of the code; on day one of AETHER it says *nothing is implemented*, and that is 
 | Phase | Instrument work | Exit |
 | :--- | :--- | :--- |
 | **M1a** | Cassette replay; trajectory store; cost accounting wired end to end | Replay byte-equal |
-| **M1b** | **B1–B4 fixed**; gate-can-fail tests; smoke suite in CI; **A/A noise floor published** | The gate the predecessor never passed |
-| **M2** | Ablation harness; paired comparison tooling; cache-hit-rate floor | Lift ≥ +10 pts, CI excluding the floor |
-| **M3** | Profiling gates (T6, T7); private held-out suite (T3) | Footprint and contamination measured |
-| **M4** | Full Pro and Verified runs; independent reproducibility package | Pro ≥ 80%, Verified ≥ 96% |
+| **M1b** | **B1–B4 fixed** on **Tier 0**; gate-can-fail tests; smoke suite in CI; **A/A noise floor published**; the four-arm head-to-head standing up (floor · AETHER · Hermes · one more) | The gate the predecessor never passed — reached with zero budget |
+| **M2** | Ablation harness; paired comparison tooling; cache-hit-rate floor. All on Tier 0 | Lift ≥ +10 pts, CI excluding the floor; **AETHER ≥ Hermes on the same model** |
+| **M3** | Profiling gates (T6, T7); private held-out suite (T3); Tier 1 OpenRouter adapter + stratified samples | Footprint and contamination measured; mechanisms re-checked at a stronger tier |
+| **M4** | Tier 2 spot checks vs vendor CLIs; full Pro and Verified runs; independent reproducibility package | Pro ≥ 80%, Verified ≥ 96% |
 | **M5** | RHI acceptance statistics | T9: >0 accepted, zero TCB modifications |
 
 **Instruments before capability, in every phase.** The measurement layer for a phase ships before the

@@ -227,29 +227,34 @@ axis and not at all on the others.
 | **Ablation cycles** | **No** | Each is a paired run against the noise floor. Serial and compute-bound — which is exactly why M2 buys memoization |
 | **Q3 / Q8 — model tier and compute budget** | **No** | Organizational. No engineering velocity touches it |
 
-### The consequence
+### The consequence — and why the commercial blocker is not one
 
-**At high coding velocity the project stops being engineering-bound almost immediately and becomes
-money-and-decision-bound.** M0 and M1a are the two phases that compress most, and they are the two
-phases *before* the blocker. The result is that **B2 arrives sooner and hits harder**, not that it
-goes away.
+At high coding velocity a project like this normally becomes money-and-decision-bound the moment the
+engineering compresses. **The Tier 0 strategy removes that.**
 
-This does not change the critical path identified below — it sharpens the deadline on it:
+Running on a **locally hosted open-weight model** ([measurement §1b](./rewrite_v300_measurement_strategy.md))
+covers the A/A noise floor, the single-shot baseline, **T1 scaffold lift**, every ablation, and the
+head-to-head against real competitor harnesses — all at zero marginal cost and unlimited runtime.
+Lift is a *paired delta on a fixed model*, so it is tier-independent by construction; it does not need
+a frontier model, it needs a **constant** one.
 
-> **Resolve Q3 and Q8 in parallel with M0, not when M1b reaches them.** The failure mode of ignoring
-> this is a complete, well-tested walking skeleton with no way to know whether it is any good. That is
-> where the predecessor stopped — the difference is that at this velocity you arrive there in days
-> rather than months, with the same amount of nothing to report.
+**Q3 and Q8 therefore move off the critical path and onto the M4 boundary.** M0 through M3 need no
+budget approval, no vendor relationship, and no external decision. The one thing the budget buys is
+the absolute headline number, and by then it is purchasing a claim rather than unblocking work.
 
-Two scheduling consequences follow:
+What replaces the old blocker as the thing to watch:
 
-1. **Front-load the compute-bound work.** The upstream repo cache (B1) and the smoke suite can be
-   built and dry-run against cassettes during M0/M1a, so that the moment credentials exist, M1b is
-   execution rather than construction.
-2. **Do not let engineering velocity outrun measurement.** Shipping M2 capability before M1b's noise
+1. **Do not let engineering velocity outrun measurement.** Shipping M2 capability before M1b's noise
    floor produces mechanisms that cannot be evaluated — and the standing rule that no mechanism
-   promotes without an ablation then blocks the entire phase retroactively. Capability built ahead of
-   its instruments is inventory, not progress.
+   promotes without an ablation then blocks the phase retroactively. Capability built ahead of its
+   instruments is inventory, not progress. **M1b remains a hard serialization point**; it is simply no
+   longer gated on anyone's signature.
+2. **Signal compression on a weak model is the real Tier 0 risk.** If the floor resolves 2% and we
+   resolve 4%, the delta is genuine but the interval is wide, and some mechanisms will show nothing
+   until a stronger tier. Mitigation: run the strongest model the hardware supports, run more passes
+   (free), and record a null result as a property of *the measurement* rather than of the mechanism.
+3. **Front-load the slow parts.** The upstream repo cache (B1) and the smoke suite can be built and
+   dry-run against cassettes during M0/M1a, so M1b is execution rather than construction.
 
 ---
 
@@ -261,17 +266,23 @@ M0 Contracts ── ports · WorkflowStep types · CI jobs per invariant
    └─> M1a Walking skeleton ── 4-node graph · streaming · TUI MVP
    │        schemas ratified · replay byte-equal · reports honest zero
    │
-   │   ┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐
-   │   ╎  Q3 model tier · Q8 compute budget  ── COMMERCIAL ╎
-   │   ╎  run in parallel with M0. Gates B2, gates M1b.    ╎
-   │   └╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┬╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘
-   └─────────────────────►│
-          └─> M1b Instruments ── B1 B2 B3 B4 · NOISE FLOOR PUBLISHED
-                 └─> M2 Capability ── memoization · T1 lift ≥ +10 · T4 cost
-                        ├─> M3 Scale ── graph branching · T5 T6 T7 T3
-                        │      └─> M4 SOTA ── Pro ≥80 · Verified ≥96
-                        │             └─> M5 RHI ── T9
-                        └─> (Phase 4) Conductor — gated on L1–L3 measured
+   │        ── TIER 0: local open-weight model · free · unlimited ──
+   │
+   └─> M1b Instruments ── B1 B3 B4 · NOISE FLOOR PUBLISHED
+   │        four-arm head-to-head: floor · AETHER · Hermes · +1
+   │
+   └─> M2 Capability ── memoization · T1 lift ≥ +10 · AETHER ≥ Hermes
+          │
+          ├─> M3 Scale ── graph branching · T5 T6 T7 T3
+          │      │        ── TIER 1: OpenRouter, stratified samples ──
+          │      │
+          │      └─> M4 SOTA ── TIER 2 spot checks · Pro ≥80 · Verified ≥96
+          │             │      ┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐
+          │             │      ╎ Q3 tier · Q8 budget ── COMMERCIAL  ╎
+          │             │◄╌╌╌╌╌╎ needed HERE only, for the absolute ╎
+          │             │      └╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘
+          │             └─> M5 RHI ── T9
+          └─> (Phase 4) Conductor — gated on L1–L3 measured
 ```
 
 **M1b is the single serialization point.** Every downstream claim depends on it, and B2 depends on an
@@ -300,7 +311,9 @@ path, and it should be resolved in parallel with M0 rather than discovered at M1
 
 | Risk | Phase | Mitigation |
 | :--- | :--- | :--- |
-| **Q3/Q8 unresolved → B2 blocked → M1b cannot exit** | M1b | Escalate now, in parallel with M0. This is the critical path |
+| ~~Q3/Q8 unresolved blocks M1b~~ | ~~M1b~~ | **Retired.** Tier 0 (local model) covers the noise floor, the baseline, T1 lift, every ablation, and the head-to-head. The commercial decision binds only at M4 |
+| **Weak-model signal compression** | M1b–M2 | The Tier 0 replacement risk: small resolve rates widen every interval. Strongest local model available, more passes (free), and a null result recorded as a property of the measurement |
+| **Competitor arms drift** | M1b onward | Hermes and the other reference harnesses are pinned by commit in the benchmark definition, like the tasks. An unpinned competitor arm is not a baseline |
 | Model tier caps the absolute target (R1) | M4 | Contract on lift; state R1 in writing before committing to absolutes |
 | Benchmark saturation or migration (R2) | M4 | `Evaluator` stays a port — a new suite is a new adapter, not a rewrite |
 | Contamination inflates the number (R3) | M3 | T3 private suite, gap published with every public number |
