@@ -1,3 +1,8 @@
+---
+status: rationale
+retrieval: excluded
+---
+
 # DOCUMENTO DE DIRETRIZES E PROMPT DE AUDITORIA: Transição para o Aether v3.0.0B (Harness SOTA & AGI Autônomo) - REVISÃO B
 
 > **Arquivo Target:** `docs/rationale/reviews/review_project_rewrite_v300B.md`  

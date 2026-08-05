@@ -1,5 +1,6 @@
 ---
-status: reference
+status: rationale
+retrieval: excluded
 updated: 2026-08-03
 companion_to: PLANNING.md
 shelf_life: short — see §13 Refresh Triggers

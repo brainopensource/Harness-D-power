@@ -10,7 +10,7 @@
 
 ## 1. ESTRUTURA DOS REGISTROS DE DECISÃO (ADRs)
 
-Este documento compila os Registros de Decisão de Arquitetura (ADRs) propostos para o **AETHER v3.0.0B**, fundamentando as escolhas de engenharia necessárias para alcançar a meta de **90.0%+ em SWE-bench Verified** e **60.0%+ em SWE-bench Pro**.
+Este documento compila os Registros de Decisão de Arquitetura (ADRs) propostos para o **AETHER v3.0.0B**, sintetizando o melhor dos ecossistemas SOTA (Sagiha CAR Model, Claude Code Context Engineering, Aider Surgical Edits e Hermes GEPA Self-Evolution), visando alcançar a meta de **90.0%+ em SWE-bench Verified** e **60.0%+ em SWE-bench Pro**.
 
 ---
 
@@ -18,11 +18,6 @@ Este documento compila os Registros de Decisão de Arquitetura (ADRs) propostos 
 
 ### Contexto
 Reescritas integrais de arquivos (*Full File Rewrite*) provocam elevado consumo de tokens, falhas de atenção em arquivos grandes (>300 LOC) e erros de sintaxe em refatorações multi-arquivo.
-
-### Opções Avaliadas
-1. **Full File Rewrite:** Reescrita total do arquivo contendo as alterações.
-2. **Unified Diffs / Patch Tools:** Aplicação de patches no formato `git diff`.
-3. **Search/Replace Blocks (Aider-Style) com AST-Validation & Architect/Editor Split:** Edições cirúrgicas propostas por um modelo Editor a partir do plano conceitual de um modelo Arquiteto.
 
 ### Parecer Técnico & Recomendação
 Propõe-se a adoção dos **Search/Replace Blocks com Validação AST & Rollback** associados à **Separação Arquiteto/Editor (Architect/Editor Split)**.
@@ -119,3 +114,29 @@ Recomenda-se o desenvolvimento do **Conductor System 3** com **Hibernação Dur�
 1. **`FrozenRunState`:** Serialização atômica do estado do agente (pilha de execução, histórico de trocas e repositório) em SQLite. Em caso de interrupção, a execução é restaurada do ponto exato da parada.
 2. **Auto Dream Consolidation:** Consolidação de memória episódica em segundo plano durante períodos ociosos (*idle time*), utilizando fusão RRF (BM25 + Vetorial + Grafo de Conhecimento) e expiração temporal (TTL).
 3. **Dataset Exporter:** Sanitização e exportação de trajetórias aprovadas no `GateEvaluator` nos formatos JSONL para treinamento e fine-tuning local (SFT/DPO).
+
+---
+
+## ADR-05: MOTOR DE AUTO-EVOLUÇÃO REFLEXIVA (GEPA & SESSION TRACE MINING)
+
+### Contexto
+Sistemas tradicionais de agentes dependem de refinamentos manuais de prompts e habilidades por engenheiros humanos. Inspirado no ecossistema *Hermes Self-Evolution*, o agente deve possuir a capacidade de auto-otimização textual contínua sem necessidade de retreinamento de pesos em GPU.
+
+### Parecer Técnico & Recomendação
+Propõe-se a integração do **GEPA Reflective Auto-Evolution Engine** e do **SessionDB Trace Mining**.
+
+```mermaid
+flowchart TD
+    SessionDB[(SessionDB - Trajetórias SQLite)] --> TraceMiner[SessionDB Trace Miner]
+    TraceMiner --> EvalDataset[Dataset de Avaliação Sintético]
+    EvalDataset --> GEPAEngine[GEPA Reflective Evolver]
+    GEPAEngine -->|Analisa a causa-raiz da falha nas trajetórias| PromptMutation[Mutador de Texto de Prompts e Skills]
+    PromptMutation --> CandidateVariant[Candidato a Novo Prompt / Skill]
+    CandidateVariant --> GateEval[GateEvaluator - Teste de Regressão]
+    GateEval -->|Passa p < 0.05| Deploy[Promove para Produção em src/aether]
+```
+
+### Mecanismos Propostos:
+1. **Otimização Reflexiva Baseada em Trajetórias (GEPA):** O evolver analisa as trajetórias de falha gravadas em `trajectory.py` e diagnostica a causa-raiz (ambiguidade de prompt, instrução ausente em skill ou descrição de ferramenta confusa), propondo mutações textuais reflexivas.
+2. **SessionDB Mining:** Extração automática de tarefas e execuções de produção para compor suítes de teste sintéticas de regressão.
+3. **Otimização Zero-GPU:** A otimização opera exclusivamente mutando strings e avaliando variantes por chamadas de API, dispensando infraestrutura pesada de GPUs.

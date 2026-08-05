@@ -8,14 +8,17 @@
 
 ---
 
-## 1. VISÃO GERAL DA ARQUITETURA HEXAGONAL & MODELO BRAIN/HANDS
+## 1. VISÃO GERAL DA ARQUITETURA HEXAGONAL & MODELO BRAIN/HANDS/EVOLVER
 
-O **AETHER v3.0.0B** é estruturado sob os princípios de **Arquitetura Hexagonal (Ports & Adapters)**, **Capability Authorization (CAR Model)** e o desacoplamento **Brain / Hands / Session Log** (conforme a especificação *Anthropic Managed Agents 2026*). O namespace final de produção é **`src/aether`**.
+O **AETHER v3.0.0B** é estruturado sob os princípios de **Arquitetura Hexagonal (Ports & Adapters)**, **Capability Authorization (CAR Model)**, o desacoplamento **Brain / Hands / Session Log** (especificação *Anthropic Managed Agents 2026*) e o **GEPA Reflective Auto-Evolution Engine** (inspirado no *Hermes Self-Evolution*). O namespace final de produção é **`src/aether`**.
 
 ### Invariantes Estritos de Engenharia:
 1. **Domínio Puro (`src/aether/domain/`):** Modelos Pydantic v2 puros, sem dependências de I/O, banco de dados ou APIs de terceiros.
-2. **Portas Remotáveis (`src/aether/ports/`):** Interfaces `Protocol` totalmente assíncronas (`async`), cujos payloads são 100% serializáveis via Pydantic (sem envio de objetos de conexão ou manipuladores de arquivo através das fronteiras).
-3. **Desacoplamento Brain vs. Hands:** O orquestrador de raciocínio ("Brain") opera separado da camada de execução e sandboxing ("Hands"), comunicando-se via event bus assíncrono.
+2. **Portas Remotáveis (`src/aether/ports/`):** Interfaces `Protocol` totalmente assíncronas (`async`), cujos payloads são 100% serializáveis via Pydantic.
+3. **Desacoplamento Brain vs. Hands vs. Evolver:**
+   * **Brain (Agência & Prompting):** Orquestração e tomadas de decisão.
+   * **Hands (Sandbox & Execução):** Camada estritamente isolada sem acesso não-autorizado.
+   * **Evolver (Auto-Evolução Reflexiva):** Otimização offline baseada em análise de trajetórias de erro (GEPA).
 4. **Módulo Nativo Rust (`src/aether/core_rs/`):** Biblioteca de alta performance exportada via **PyO3** para parsing AST Tree-sitter, indexação FTS5 e manipuladores nativos de Git Worktree.
 
 ---
@@ -81,6 +84,11 @@ src/aether/
 │       ├── compactor.py          # Exchange-Granular Compactor
 │       ├── dynamic_dispatch.py   # Tool Search on Demand
 │       └── taint_gate.py         # Sanitizador TaintGate
+├── evolution/                    # Módulo de Auto-Evolução Reflexiva (SOTA)
+│   ├── __init__.py
+│   ├── gepa_evolver.py           # Otimizador Reflexivo de Prompts & Skills
+│   ├── trace_miner.py            # Mineração de Trajetórias de Produção
+│   └── dataset_exporter.py       # Exportador SFT / DPO
 └── tui/                          # Terminal User Interface
     ├── __init__.py
     ├── app.py                    # Aplicação Rich/Textual
@@ -106,6 +114,12 @@ graph TB
         CTX[Context Assembler & Exchange Compactor]
         TAINT[TaintGate Sanitizer]
         DISPATCH[Tool Search on Demand]
+    end
+
+    subgraph EVOLVER_LAYER [Camada de Auto-Evolução Reflexiva (src/aether/evolution)]
+        GEPA[GEPA Reflective Evolver]
+        MINER[SessionDB Trace Miner]
+        DPO[Dataset Exporter SFT/DPO]
     end
 
     subgraph KERNEL_LAYER [Trusted Computing Base - TCB (src/aether/kernel)]
@@ -135,6 +149,11 @@ graph TB
     DISP --> GOV
     CAR --> BUS
 
+    BUS --> MINER
+    MINER --> GEPA
+    GEPA -->|Otimiza Texto de Skills & Prompts| CTX
+    MINER --> DPO
+
     DISP --> A_LLM
     DISP --> A_WORK
     DISP --> A_RUST
@@ -145,7 +164,7 @@ graph TB
 
 ## 4. FLUXO DO REAL-TIME IN-LOOP REPAIR ENGINE COM RUST AST CHECK
 
-O diagrama a seguir detalha a execução do loop de reparo em tempo real, evidenciando a pré-validação sintática determinística em Rust antes de devolver o controle à LLM:
+O diagrama a seguir detalha a execução do loop de reparo em tempo real com validação AST em Rust:
 
 ```mermaid
 sequenceDiagram
@@ -188,6 +207,6 @@ sequenceDiagram
 
 ## 5. REQUISITOS DE CONFORMIDADE E REGRAS DE QUALIDADE
 
-1. **Async I/O Concurrency:** Utilização exclusiva de `anyio` ou `asyncio` não-bloqueante em todas as operações de I/O de rede e disco.
+1. **Async I/O Concurrency:** Utilização exclusiva de `anyio` ou `asyncio` não-bloqueante em todas as operações de I/O.
 2. **Type Hints & Rigor:** 100% de cobertura de tipagem estrita com `pyright` no modo strict e `ruff`.
-3. **Zero Legacy Bloat:** Abstrações de terceiros como LangChain ou AutoGen são vedadas no núcleo. O harness do **AETHER v300B** é minimalista, desacoplado e customizado para alta performance.
+3. **Zero Legacy Bloat:** Abstrações de terceiros genéricas são vedadas no núcleo. O harness do **AETHER v300B** é minimalista, desacoplado e customizado para alta performance.

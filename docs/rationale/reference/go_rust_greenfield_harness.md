@@ -1,6 +1,7 @@
 ---
 title: SOTA Greenfield Autonomous Coding Harness Architecture & Evolution Plan
-status: draft
+status: rationale
+retrieval: excluded
 version: 1.0.0
 target_benchmark_score: ">80% SWE-bench"
 architecture_pattern: Hexagonal / Port-Adapter / Microkernel
@@ -47,13 +48,13 @@ To scale to multi-agent swarms without hitting Python's Global Interpreter Lock 
 ### Stack Allocation
 * **Rust Core Engine (Microkernel & Sandbox):**
   * **Role:** Capability security choke point (`PolicyEngine`), process/worktree pool management, AST indexing (`tree-sitter-rs`), trajectory CAS, and high-frequency dispatch.
-  * **Inspiration:** [`src/grok_build`](file:///home/rock_dev/Code/Harness/src/grok_build).
+  * **Inspiration:** `src/grok_build`.
 * **Go / TypeScript (Control Plane & UI/TUI):**
   * **Role:** High-concurrency I/O multiplexing, terminal rendering (TUI), CLI command parsing, and Agent-to-Agent (A2A) protocol negotiation.
-  * **Inspiration:** [`src/open_code`](file:///home/rock_dev/Code/Harness/src/open_code) & [`src/claude_code`](file:///home/rock_dev/Code/Harness/src/claude_code).
+  * **Inspiration:** `src/open_code` & `src/claude_code`.
 * **Python (Intelligence Sidecar & IAO):**
   * **Role:** Frontier LLM integrations (Google GenAI, Anthropic, OpenAI), prompt/DSPy optimization loops, and local surrogate reward/risk prediction models (IAO).
-  * **Inspiration:** [`src/hermes_agent`](file:///home/rock_dev/Code/Harness/src/hermes_agent) & [`src/sagiha`](file:///home/rock_dev/Code/Harness/src/sagiha).
+  * **Inspiration:** `src/hermes_agent` & `src/sagiha`.
 
 ---
 
@@ -79,11 +80,11 @@ High performance on SWE-bench requires specific harness mechanics rather than na
 
 | Reference Engine | Language / Core | Key Component / Pattern to Adopt |
 | :--- | :--- | :--- |
-| **`grok_build`** ([`src/grok_build`](file:///home/rock_dev/Code/Harness/src/grok_build)) | Rust | Zero-copy Git Worktree Manager, high-performance state machine, memory-safe execution dispatch. |
-| **`open_code`** ([`src/open_code`](file:///home/rock_dev/Code/Harness/src/open_code)) | Go / `sqlc` | Clean terminal UX, high-concurrency subprocess orchestration, compile-time typed SQL schemas (`sqlc`). |
-| **`claude_code`** ([`src/claude_code`](file:///home/rock_dev/Code/Harness/src/claude_code)) | TypeScript / MCP | Streaming tool calls, interactive human-in-the-loop permission approvals, sub-agent lifecycle management. |
-| **`hermes_agent`** ([`src/hermes_agent`](file:///home/rock_dev/Code/Harness/src/hermes_agent)) | Python | Trajectory compression (`trajectory_compressor.py`), dynamic skill loading, mini-SWE runner execution loops. |
-| **`sagiha`** ([`src/sagiha`](file:///home/rock_dev/Code/Harness/src/sagiha)) | Python MVP | Capability Security (`PolicyEngine.authorize()`), immutable test gates (`require_tests_unmodified`), clean hexagonal ports (`ports/`). |
+| **`grok_build`** (`src/grok_build`) | Rust | Zero-copy Git Worktree Manager, high-performance state machine, memory-safe execution dispatch. |
+| **`open_code`** (`src/open_code`) | Go / `sqlc` | Clean terminal UX, high-concurrency subprocess orchestration, compile-time typed SQL schemas (`sqlc`). |
+| **`claude_code`** (`src/claude_code`) | TypeScript / MCP | Streaming tool calls, interactive human-in-the-loop permission approvals, sub-agent lifecycle management. |
+| **`hermes_agent`** (`src/hermes_agent`) | Python | Trajectory compression (`trajectory_compressor.py`), dynamic skill loading, mini-SWE runner execution loops. |
+| **`sagiha`** (`src/sagiha`) | Python MVP | Capability Security (`PolicyEngine.authorize()`), immutable test gates (`require_tests_unmodified`), clean hexagonal ports (`ports/`). |
 
 ---
 
@@ -100,7 +101,7 @@ To ensure growth from MVP to enterprise scale without major refactorings:
 3. **Remotable Ports (Wire-Serializable):**
    * Port parameters must be Pydantic / Protobuf serializable payload objects. No raw file handles, callbacks, or live objects cross boundaries.
 4. **Day 1 Evaluation-Driven Development (EDD):**
-   * Configure [`princeton-nlp/SWE-bench_Lite`](file:///home/rock_dev/Code/Harness/princeton-nlp/SWE-bench_Lite) as an automated CI/CD gate from Day 1 to track performance deltas continuously.
+   * Configure `princeton-nlp/SWE-bench_Lite` as an automated CI/CD gate from Day 1 to track performance deltas continuously.
 
 ---
 
@@ -131,7 +132,7 @@ To ensure growth from MVP to enterprise scale without major refactorings:
   * Microkernel supporting single-agent execution in an isolated Git worktree.
   * Anthropic 3-Agent Loop (`Planner` → `Generator` → `Evaluator`).
   * AST Context Compactor using `tree-sitter`.
-  * Automated [`SWE-bench_Lite`](file:///home/rock_dev/Code/Harness/princeton-nlp/SWE-bench_Lite) CI runner logging baseline scores.
+  * Automated `SWE-bench_Lite` CI runner logging baseline scores.
 
 ### Phase 2: Rust Core Engine & Parallel Worktree Pool (Weeks 6–9)
 * **Goal:** Migrate high-frequency execution choke points to Rust and enable parallel multi-agent swarms.
@@ -154,4 +155,4 @@ To ensure growth from MVP to enterprise scale without major refactorings:
 
 1. Create `docs/08-decisions/` ADR templates and write ADR-001 (Polyglot Core Architecture) and ADR-002 (CAR Security Model).
 2. Establish `contracts/proto/` directory and draft the initial gRPC service definition (`kernel.proto`).
-3. Verify local environment integration with [`princeton-nlp/SWE-bench_Lite`](file:///home/rock_dev/Code/Harness/princeton-nlp/SWE-bench_Lite) for baseline scoring.
+3. Verify local environment integration with `princeton-nlp/SWE-bench_Lite` for baseline scoring.

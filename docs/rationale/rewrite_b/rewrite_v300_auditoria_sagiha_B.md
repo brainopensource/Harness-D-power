@@ -1,3 +1,8 @@
+---
+status: rationale
+retrieval: excluded
+---
+
 # AUDITORIA TÉCNICA BASEADA EM FATOS: ESTADO ATUAL DO PROTÓTIPO `src/sagiha/` (AETHER v300B)
 
 > **Autor:** Tech Lead 2 (PhD) / Principal Software Architect  

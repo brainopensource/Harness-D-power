@@ -50,8 +50,8 @@ gantt
     section Sprint 3: Sandboxing
     Git Worktree & Podman Sandbox:s3_1, after s2_2, 7d
     TaintGate Security          :s3_2, after s3_1, 7d
-    section Sprint 4: Autonomy AGI
-    Conductor System 3          :s4_1, after s3_2, 7d
+    section Sprint 4: Autonomy & GEPA Evolution
+    Conductor System 3 & GEPA   :s4_1, after s3_2, 7d
     SWE-bench 90% Gate Final    :s4_2, after s4_1, 7d
 ```
 
@@ -64,7 +64,7 @@ gantt
   2. Implementação das portas remotáveis Pydantic-serializable.
   3. Módulo Rust `aether_core_rs` compilado via Maturin para AST Tree-sitter.
   4. Interface TUI reativa MVP em Rich/Textual para exibição de eventos e status.
-* **Gate de Aceite:** Passage nos testes de conformidade de portas e inicialização da TUI < 200ms.
+* **Gate de Aceite:** Passagem nos testes de conformidade de portas e inicialização da TUI < 200ms.
 
 ---
 
@@ -98,12 +98,12 @@ gantt
 
 ---
 
-### 3.5 SPRINT 4: CONDUCTOR SYSTEM 3 & BENCHMARK GATE FINAL (90% SWE-BENCH)
-* **Objetivo:** Entregar autonomia de longo prazo (*Long-Horizon Autonomy*), exportação de datasets SFT/DPO e atingir os alvos finais dos benchmarks.
+### 3.5 SPRINT 4: CONDUCTOR SYSTEM 3, AUTO-EVOLUÇÃO GEPA & GATE FINAL (90% SWE-BENCH)
+* **Objetivo:** Entregar autonomia de longo prazo (*Long-Horizon Autonomy*), auto-otimização reflexiva de prompts e atingir os alvos finais dos benchmarks.
 * **Entregáveis Propostos:**
   1. Orquestrador **Conductor System 3** com hibernação durável `FrozenRunState`.
-  2. **Auto Dream Memory Consolidation:** Consolidação e expiração temporal de memórias episódicas.
-  3. **Dataset Exporter:** Sanitização e exportação de trajetórias aprovadas para fine-tuning local.
+  2. **GEPA Reflective Auto-Evolver & SessionDB Miner:** Pipeline de mineração de trajetórias de erro e otimização textual automatizada de skills/prompts (`src/aether/evolution/`).
+  3. **Dataset Exporter:** Sanitização e exportação de trajetórias aprovadas para fine-tuning local (SFT/DPO).
   4. Avaliação completa das suítes **SWE-bench Verified** e **SWE-bench Pro**.
 * **Gate de Aceite Final:** **90.0%+ SWE-bench Verified**, **60.0%+ SWE-bench Pro** e **75.0%+ Terminal-Bench**.
 
