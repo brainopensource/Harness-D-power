@@ -1,5 +1,5 @@
 ---
-status: normative
+status: historical
 phase: 0 — planning
 updated: 2026-08-03
 ---

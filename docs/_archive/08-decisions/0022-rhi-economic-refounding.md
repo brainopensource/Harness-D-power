@@ -1,5 +1,5 @@
 ---
-status: normative
+status: historical
 updated: 2026-07-31
 ---
 # ADR-0022: RHI Is Re-Founded on Economics — Tiers A/B Scheduled, Tier C Trigger-Gated

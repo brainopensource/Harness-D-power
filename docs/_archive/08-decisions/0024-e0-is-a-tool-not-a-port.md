@@ -1,5 +1,5 @@
 ---
-status: normative
+status: historical
 updated: 2026-07-31
 ---
 # ADR-0024: `e0/` Is a Tool, Not a Port — Delete `ports/benchmark.py`

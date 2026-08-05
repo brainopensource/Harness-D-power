@@ -1,5 +1,5 @@
 ---
-status: normative
+status: historical
 updated: 2026-07-29
 ---
 # ADR-0004: Explicit Composition Root, No DI Container

@@ -23,7 +23,7 @@ contestable and correct them in the room.
 > | **F5** | Track B declares 12 ports up front | Track B **adopts Track A's A-010** — 8 ports, adapter-first — in three places. Moved to Block 1 as agreed |
 > | **F2** | Track B has no A/A noise floor | Track B commits to measuring the A/A floor in Sprints 0–1. The fork narrows to *sequencing* |
 >
-> **Cause:** [`rewrite_ab_comparison.md`](../_archive/rationale/rewrite_ab_comparison.md)
+> **Cause:** `rewrite_ab_comparison.md` (`docs/_archive/rationale/rewrite_ab_comparison.md`)
 > reviewed a superseded Track B revision — its snapshot note reads 15:04; the files on disk
 > are 15:22–15:24, squashed into `2a8c417` with no history to diff. Track A's verification
 > discipline was applied honestly to text that has since changed.
@@ -67,7 +67,7 @@ Both tracks arrived at these independently. Confirm and move on.
 
 ## Block 2 — Contested forks (the agenda)
 
-Full both-sides write-ups: [ADR set, Part IIc](../_archive/rationale/rewrite/rewrite_v300_decisoes_adr.md).
+Full both-sides write-ups: ADR set, Part IIc (`docs/_archive/rationale/rewrite/rewrite_v300_decisoes_adr.md`).
 
 **Decide today — expensive or impossible to reverse:**
 
@@ -203,11 +203,11 @@ migration itself needs an owner.
 
 | Read this | Who | Why |
 | :--- | :--- | :--- |
-| [`rewrite_ab_comparison.md`](../_archive/rationale/rewrite_ab_comparison.md) | Both leads | Full side-by-side, including where Track A is weaker. Written by Track A's author — bias declared |
-| [ADR Part IIc](../_archive/rationale/rewrite/rewrite_v300_decisoes_adr.md) | Both leads | The fork register, both sides at full strength |
-| [`rewrite_v300_measurement_strategy.md`](../_archive/rationale/rewrite/rewrite_v300_measurement_strategy.md) §1c, §2, §3 | Whoever owns F2/F3/F4 | The blockers, the literature, the floor protocol |
-| [`rewrite_v300_blueprint_arquitetura_B.md`](../_archive/rationale/rewrite_b/rewrite_v300_blueprint_arquitetura_B.md) §2 | Prototyping dev | The file-level tree — the most immediately useful artifact either track produced |
-| [`rewrite_v300_synthesis_amendments.md`](../_archive/competitors_research/tech_lead_A/rewrite_v300_synthesis_amendments.md) | Whoever writes Tier 2 | P1–P78 mapped onto the plan: 19 covered, 17 to sharpen, 34 gaps, 8 declines. **The arithmetic is presentational** — eight proposals (P7, P8, P15, P32, P38, P42, P43, P44) get no verdict at all, and P65/P74 are double-counted |
+| `rewrite_ab_comparison.md` (`docs/_archive/rationale/rewrite_ab_comparison.md`) | Both leads | Full side-by-side, including where Track A is weaker. Written by Track A's author — bias declared |
+| ADR Part IIc (`docs/_archive/rationale/rewrite/rewrite_v300_decisoes_adr.md`) | Both leads | The fork register, both sides at full strength |
+| `rewrite_v300_measurement_strategy.md` (`docs/_archive/rationale/rewrite/rewrite_v300_measurement_strategy.md`) §1c, §2, §3 | Whoever owns F2/F3/F4 | The blockers, the literature, the floor protocol |
+| `rewrite_v300_blueprint_arquitetura_B.md` (`docs/_archive/rationale/rewrite_b/rewrite_v300_blueprint_arquitetura_B.md`) §2 | Prototyping dev | The file-level tree — the most immediately useful artifact either track produced |
+| `rewrite_v300_synthesis_amendments.md` (`docs/_archive/competitors_research/tech_lead_A/rewrite_v300_synthesis_amendments.md`) | Whoever writes Tier 2 | P1–P78 mapped onto the plan: 19 covered, 17 to sharpen, 34 gaps, 8 declines. **The arithmetic is presentational** — eight proposals (P7, P8, P15, P32, P38, P42, P43, P44) get no verdict at all, and P65/P74 are double-counted |
 | [`rewrite_v300_phase0_audit_register.md`](./rewrite_v300_phase0_audit_register.md) | **Everyone, before forming a position** | Every contradiction between the tracks and every untraceable number, with citations. It is what produced the corrections in this revision |
 
 ## C. The documentation tiers this meeting unblocks

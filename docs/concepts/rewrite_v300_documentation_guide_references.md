@@ -27,16 +27,16 @@ Companion documents, not duplicated here: the project vision brief (the mission 
 
 | Document | Scope |
 | :--- | :--- |
-| [`README.md`](../_archive/rationale/reviews/README.md) | Audit taxonomy and finding-ID conventions |
-| [`Harness_LLM_orchestrator_aether_project_review_v210.md`](../_archive/rationale/reviews/Harness_LLM_orchestrator_aether_project_review_v210.md) | **Audit of record.** Actual title: *"SAGIHA v2.1.0 — Post-Remediation Audit & Forward Architecture Plan."* Verifies the W0–W8 remediation, then lists open defects using `N-C<n>` (critical) / `N-H<n>` (high) IDs |
-| [`concept_review.md`](../_archive/rationale/reviews/concept_review.md) | Retrospective: what the prototype got right vs. what failed conceptually |
-| [`critical_gaps_analysis.md`](../_archive/rationale/reviews/critical_gaps_analysis.md) | Architectural audit · competitive capability gap matrix · technical-debt register · a dialectical "should this survive?" close |
-| [`codebase_delta_refactor.md`](../_archive/rationale/reviews/codebase_delta_refactor.md) | Refactoring plan for findings **H1–H4** |
-| [`next_gen_architecture_specs.md`](../_archive/rationale/reviews/next_gen_architecture_specs.md) | v2→v3 spec: tiered self-improvement, dynamic context assembly, AST-aware edits |
-| [`prompt_review.md`](../_archive/rationale/reviews/prompt_review.md) | System-prompt structure, instruction budget, tool-schema clarity |
-| [`agi_evolution_path.md`](../_archive/rationale/reviews/agi_evolution_path.md) | The System-3 "Conductor" long-horizon layer |
-| [`review_project_rewrite_v300.md`](../_archive/rationale/reviews/review_project_rewrite_v300.md) | **Track A RFP charter.** Mandates 9 deliverables; Track A shipped 12 (the 9 plus three additions) |
-| [`review_project_rewrite_v300B.md`](../_archive/rationale/reviews/review_project_rewrite_v300B.md) | **Track B RFP charter.** Body names 9 expected deliverables; its §5 checklist lists 5. Track B shipped the 5 |
+| `README.md` (`docs/_archive/rationale/reviews/README.md`) | Audit taxonomy and finding-ID conventions |
+| `Harness_LLM_orchestrator_aether_project_review_v210.md` (`docs/_archive/rationale/reviews/Harness_LLM_orchestrator_aether_project_review_v210.md`) | **Audit of record.** Actual title: *"SAGIHA v2.1.0 — Post-Remediation Audit & Forward Architecture Plan."* Verifies the W0–W8 remediation, then lists open defects using `N-C<n>` (critical) / `N-H<n>` (high) IDs |
+| `concept_review.md` (`docs/_archive/rationale/reviews/concept_review.md`) | Retrospective: what the prototype got right vs. what failed conceptually |
+| `critical_gaps_analysis.md` (`docs/_archive/rationale/reviews/critical_gaps_analysis.md`) | Architectural audit · competitive capability gap matrix · technical-debt register · a dialectical "should this survive?" close |
+| `codebase_delta_refactor.md` (`docs/_archive/rationale/reviews/codebase_delta_refactor.md`) | Refactoring plan for findings **H1–H4** |
+| `next_gen_architecture_specs.md` (`docs/_archive/rationale/reviews/next_gen_architecture_specs.md`) | v2→v3 spec: tiered self-improvement, dynamic context assembly, AST-aware edits |
+| `prompt_review.md` (`docs/_archive/rationale/reviews/prompt_review.md`) | System-prompt structure, instruction budget, tool-schema clarity |
+| `agi_evolution_path.md` (`docs/_archive/rationale/reviews/agi_evolution_path.md`) | The System-3 "Conductor" long-horizon layer |
+| `review_project_rewrite_v300.md` (`docs/_archive/rationale/reviews/review_project_rewrite_v300.md`) | **Track A RFP charter.** Mandates 9 deliverables; Track A shipped 12 (the 9 plus three additions) |
+| `review_project_rewrite_v300B.md` (`docs/_archive/rationale/reviews/review_project_rewrite_v300B.md`) | **Track B RFP charter.** Body names 9 expected deliverables; its §5 checklist lists 5. Track B shipped the 5 |
 
 **Corrections to an earlier draft of this guide**, recorded so nobody greps for IDs that do not exist:
 the audit of record uses **`N-C1`/`N-C2`/`N-C3`**, not "D1–D18"; `critical_gaps_analysis.md` contains

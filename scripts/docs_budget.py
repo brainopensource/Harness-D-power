@@ -40,7 +40,7 @@ DECLARED_STATUSES = frozenset({"normative", "rationale", "historical"})
 #: 28 files and 5,779 words re-entered the budget and pushed it from 13,941 to 19,720,
 #: which read as a content breach rather than the string drift it was. A component match
 #: survives the next move; `assert_exemption_matches()` catches it if it does not.
-EXEMPT_DIR_NAME = "08-decisions"
+EXEMPT_DIR_NAME = "decisions"
 
 
 def parse_frontmatter(text: str) -> tuple[dict[str, str], str]:

@@ -1,5 +1,5 @@
 ---
-status: normative
+status: historical
 updated: 2026-08-01
 ---
 # ADR-0026: `Indexer.search(query)` Replaces `Indexer.neighbors(path)`

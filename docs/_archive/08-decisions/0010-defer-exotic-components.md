@@ -1,5 +1,5 @@
 ---
-status: normative
+status: historical
 updated: 2026-07-29
 ---
 # ADR-0010: Defer Exotic Components Behind Trigger Conditions

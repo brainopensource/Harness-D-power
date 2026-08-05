@@ -1,5 +1,5 @@
 ---
-status: normative
+status: historical
 updated: 2026-07-31
 ---
 # ADR-0019: Port Consolidation — Delete Unbacked Protocols While They Are Free

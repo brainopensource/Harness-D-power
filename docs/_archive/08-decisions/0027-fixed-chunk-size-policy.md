@@ -1,5 +1,5 @@
 ---
-status: normative
+status: historical
 updated: 2026-08-01
 ---
 # ADR-0027: Fixed Chunk-Size Policy; `max_chunk_tokens` Removed

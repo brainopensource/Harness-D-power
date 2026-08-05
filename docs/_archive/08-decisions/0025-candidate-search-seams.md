@@ -1,5 +1,5 @@
 ---
-status: normative
+status: historical
 updated: 2026-07-31
 ---
 # ADR-0025: `CandidateExecutor` and `CandidateScorer` Are Adapter-Internal Seams, Not Ports

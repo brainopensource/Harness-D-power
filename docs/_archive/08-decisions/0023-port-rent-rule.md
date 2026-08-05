@@ -1,5 +1,5 @@
 ---
-status: normative
+status: historical
 updated: 2026-07-31
 ---
 # ADR-0023: The Port-Rent Rule — Ports Pay Rent in Adapters

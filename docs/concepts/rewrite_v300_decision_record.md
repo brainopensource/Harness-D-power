@@ -27,7 +27,7 @@ competitor teardowns. The audit changed the shape of the agenda: **F5 is not con
 F6 and F2 are materially narrower than the original framing.**
 
 **On ratification, this file becomes the record and
-[ADR Part IIc](../_archive/rationale/rewrite/rewrite_v300_decisoes_adr.md) becomes history.**
+ADR Part IIc (`docs/_archive/rationale/rewrite/rewrite_v300_decisoes_adr.md`) becomes history.**
 Two live registers of the same forks is how the DAG went three plans without a vote.
 
 **Every row carries a reversal condition.** A decision without one is a preference with

@@ -1,5 +1,5 @@
 ---
-status: normative
+status: historical
 updated: 2026-07-31
 ---
 # ADR-0020: Per-Invocation Effect Classification, With the Allowlist in the TCB
