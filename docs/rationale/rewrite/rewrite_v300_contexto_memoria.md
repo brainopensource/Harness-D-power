@@ -151,6 +151,49 @@ Port SAGIHA's `ExchangeCompactor` (235 LOC) with its granularity rule intact: co
 | Where the summary goes | Appended as a turn, never spliced into the frozen prefix |
 | Observability | `CompactionApplied` event with before/after exchange and tail-token counts (SAGIHA emits this; keep it) |
 
+### 2.1 The summary is an instruction source — treat it as one
+
+**A compaction summary re-enters the context as text the model reads, and it competes with the live
+task for authority.** A summary carrying a `## Next Steps` or `## Remaining Work` heading gets read as
+*current* directives: the agent starts "wrapping up" work already finished, or revives a historical
+to-do as live. The compactor silently becomes a second instruction channel.
+
+This is not speculative — it is the design that `agent/context_compressor.py` in
+`src/hermes_agent` converged on after hitting the failure, and AETHER adopts it:
+
+| Rule | Mechanism |
+| :--- | :--- |
+| **No forward-looking headings in a summary** | Rename to historical: `## Historical Task Snapshot`, `## Historical In-Progress State`, `## Historical Pending User Asks`, `## Historical Remaining Work` |
+| **Mark the block as reference, not instruction** | Wrap in an explicit `[CONTEXT COMPACTION — REFERENCE ONLY]` envelope |
+| **Ship a precedence rule inside the summary** | Where the historical block diverges from the latest message, *the latest message wins* — discard the historical section, do not wrap up |
+| **Filter-safe summarizer preamble** | The turns being summarized are framed to the summarizer as **source material to preserve**, never as instructions to follow |
+| **Redact secrets during summarization** | By explicit instruction in the summarizer prompt, not by hoping they do not appear |
+
+**The compaction boundary is a trust boundary.** The fourth row is the one most designs miss: the
+summarizer is a model reading a transcript that may contain repository content, tool output, and web
+results — all `trusted=False` by [our own provenance rules](./rewrite_v300_seguranca_sandbox.md). An
+injection that survives into the summary is *laundered into the frozen part of the context*, where it
+looks like our own text. The summarizer preamble is the control, and it belongs in the TaintGate's
+threat model rather than in the compactor's.
+
+**One recorded regression, carried as a warning:** the same codebase records that the
+`REFERENCE ONLY` framing once bled into general tool-use suppression — the model read it as "do not
+act" and stopped calling tools. Strengthening the envelope has a cost, and the wording is an ablation
+parameter like any other, not a constant to copy blindly.
+
+### 2.2 Mechanics adopted with the strategy
+
+| Mechanic | Rationale |
+| :--- | :--- |
+| **Tool-output pruning as a cheap pre-pass**, before the summarizer runs | Do not pay a model to read output that was going to be discarded |
+| **Token-budget tail protection**, not a fixed message count | "Keep the last N" retains twenty trivial turns or truncates two large ones |
+| **Scaled summary budget**, proportional to the compressed region | A fixed summary size over-summarizes small regions and under-summarizes large ones |
+| **Iterative summary updates** across successive compactions | The direct counter to §5.2's "repeated compression loses nuance": each compaction updates the prior summary rather than re-summarizing its own output |
+| **Auxiliary (cheap) model for summarization** | Summarization is not the task; it should not be priced like the task |
+| **Startup feasibility probe on the aux model** | Check the aux context window against the compaction threshold, auto-lower the threshold where possible, hard-reject an aux that is too small. A summarizer that cannot fit what it must summarize fails at the worst possible moment |
+| **Strip historical media** | Images in compacted history are pure cost |
+| **Preflight and idle compaction** | Compact *before* the call that would overflow, and opportunistically while idle — not as an overflow handler |
+
 **Server-side compaction is available** (beta, `compact-2026-01-12`) and is deliberately **not**
 adopted in Phase 1. Reason: it moves a mechanism we need to ablate onto the provider's side of the
 port, where we can neither measure nor vary it. Revisit when our own compactor has a measured
@@ -230,7 +273,104 @@ written once is re-injected into every later session that reads the store.
 
 ---
 
-## 5. Summary
+## 5. The degradation curve — field evidence, and what it constrains
+
+Everything above assumes lean context is worth engineering for. This section is the evidence, drawn from
+the community field guide in `src/claude_refs/claude-code-ultimate-guide`.
+
+**These are other people's numbers.** They are practitioner estimates and community observations, not
+our measurements, and several carry explicit confidence caveats in the source. They enter this
+document as **design constraints and hypotheses to re-measure**, never as results — see
+[measurement strategy §1](./rewrite_v300_measurement_strategy.md).
+
+### 5.1 Context rot is structural
+
+Transformers attend to all tokens pairwise, so attention relationships grow as **n², not n**. Double
+the context and you quadruple the relationships the model must weigh; attention becomes diffuse and
+mid-window positions receive diminishing effective weight.
+
+**This is a property of the architecture, not a defect future models remove.** It is the mechanism
+behind §0's thesis, and it is why "use the 1M window" is not an answer: a larger window that
+accumulates tool-output noise and stale turns is not more capable, only more expensive and slower.
+
+Two refinements worth carrying:
+
+- Needle-in-a-haystack benchmarks measure *lexical* retrieval. Once query and target stop sharing
+  obvious vocabulary, degradation with length is worse than NIAH numbers suggest.
+- **The degradation hits monitor and classifier models too, not just generation.** One 2026 data
+  point: Opus 4.6 used as a trajectory monitor dropped from 98.6% to 88% recall once 800K tokens of
+  *benign* prior actions were prepended. This lands directly on Best-of-N: our judge is a model
+  reading long candidate transcripts, and it degrades the same way the generator does. **The judge
+  gets its own context budget and its own hygiene**, not the generator's leftovers.
+
+### 5.2 Two thresholds, and why we must measure our own
+
+| Figure | Reported | Use |
+| :--- | :--- | :--- |
+| **MECW** — effective vs. advertised window | ~92% of the advertised limit before measurable degradation | Plan against the effective number, not the sticker |
+| **Sharp quality drop** | A **non-linear** drop around **~70% of context budget used** — abrupt, not a smooth decline. Reported independently by multiple practitioners at one 2026 event | The compaction trigger is set *below* the cliff, not at overflow |
+| Observed auto-compaction triggers in shipped tools | 75% · 92% · 95% · "1–5% remaining", depending on surface | **The spread is the finding.** No single number is authoritative — ours is an ablation parameter |
+| Session degradation | 15–25 turns; 80–100K tokens accumulated | Bounds on a single run before a checkpoint or reset earns its cost |
+
+The third row is the one that matters procedurally. Four credible sources report four different
+thresholds for the same mechanism, which means **copying any one of them is guessing with extra
+steps**. AETHER's compaction trigger ships as a config value with a default near the reported cliff
+and is settled by ablation.
+
+Compaction also degrades what it preserves: repeated compression cycles lose nuance and break
+references. That is an argument for compacting *less often but earlier* — one well-timed compaction
+beats three late ones.
+
+### 5.3 The instruction ceiling — a budget on our own prompt
+
+Beyond roughly **150 distinct rules**, models begin selectively ignoring some of them. The mechanism
+is attention diffusion: high-salience rules (recent, strongly worded, placed early) crowd out
+lower-salience ones. Reported adherence against instruction-file size:
+
+| Lines of always-on instruction | Estimated adherence |
+| ---: | ---: |
+| 1–100 | ~95% |
+| 100–200 | ~88% |
+| 200–400 | ~75% |
+| 400–600 | ~60% |
+| 600+ | ~45% and falling |
+
+**This applies to AETHER's own frozen prefix**, not just to user-authored config. The system prompt,
+the tool descriptions, and the skills corpus all live in layers 1–3 — the cached, always-on part —
+and every one of them competes for the same attention budget. Three consequences:
+
+1. **The frozen prefix carries a rule budget**, tracked like the token budget. Rule quality beats rule
+   quantity; twenty specific actionable rules outperform two hundred aspirational ones.
+2. **Skills must load progressively** — description always-on, body on demand. An agent-authored skill
+   corpus that grows monotonically ([autonomy §2](./rewrite_v300_autonomia_agi.md)) will otherwise
+   silently degrade adherence to everything else. This is a second, independent reason for the skill
+   acceptance gate.
+3. **Path-scoped and role-scoped instructions** beat one global rule set, because they keep only
+   relevant rules in context — which is the same just-in-time principle as §3, applied to instructions
+   rather than to code.
+
+### 5.4 Chain-of-thought is not free in long runs
+
+Extended reasoning generates tokens, tokens extend context, and context accelerates rot for every
+subsequent step. On runs spanning 20+ tool calls the effect is measurable. The practical rule:
+reasoning depth is a per-step decision, and in long agentic runs **compressed intermediate output
+beats extended reasoning traces**. Cost control is `effort`, not disabling thinking — see
+[security §3.3](./rewrite_v300_seguranca_sandbox.md) for why disabling thinking has its own failure
+modes.
+
+### 5.5 Retrieval as the answer, restated with the mechanism
+
+The field guide frames the same split §3 arrives at: **pre-loading** (retrieve everything potentially
+relevant up front) versus **just-in-time retrieval** (retrieve exactly what the current step needs).
+Pre-loading works when requirements are known and stable; JIT is harder to build and better at scale.
+
+AETHER is JIT by construction — the repo map is pre-loaded because it is small and always relevant,
+and file contents arrive through search and graph expansion only when a step touches them. §5.1 is
+why: pre-loading trades a fixed, growing attention cost for a saving that retrieval already provides.
+
+---
+
+## 6. Summary
 
 | Decision | Choice | Reversal / trigger |
 | :--- | :--- | :--- |
@@ -241,7 +381,15 @@ written once is re-injected into every later session that reads the store.
 | Mid-run state change | `role: "system"` message; never edit top-level `system` | Model capability flag |
 | Dynamic tool set | `defer_loading` + `tool_addition`, behind a capability flag; static registry default | — |
 | Cache hit rate | First-class metric with a CI floor | — |
+| Compaction trigger | Config value defaulted near the reported ~70% cliff, **not** at overflow | Ablation. Shipped tools report 75/92/95% — the spread is why ours is a parameter |
+| Effective window | Plan against MECW (~92% of advertised), not the sticker number | Our own measurement |
+| Frozen-prefix rule budget | Tracked alongside the token budget; skills load progressively | Adherence measurement |
+| Judge context | Best-of-N judge gets its own budget and hygiene | — |
 | Compaction | Own exchange-granular compactor | Ablation vs. server-side compaction, once a baseline exists |
+| Summary framing | Historical headings, `REFERENCE ONLY` envelope, latest-message-wins precedence rule | Envelope strength is an ablation — over-strengthening suppresses tool use |
+| Summarizer trust | Filter-safe preamble; the compaction boundary is in the TaintGate threat model | — |
+| Summarizer model | Cheap auxiliary model with a startup feasibility probe | — |
+| Compaction timing | Preflight and idle, never as an overflow handler | — |
 | Context editing | Ablation target alongside compaction | — |
 | Retrieval | Structural + lexical + graph on; dense deferred | ADR-0014 recall@10 trigger |
 | Retrieval-before-edit | Pipeline stage, not an optional tool | — |

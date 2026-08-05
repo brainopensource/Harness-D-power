@@ -38,6 +38,12 @@ exit gates are the schedule.
 `.importlinter` contracts, the conformance suite, and a named CI job per invariant I1–I9 — **even
 where the job is not yet implemented**.
 
+**Plus `WorkflowStep[In, Out]` — the node and socket types only.** No memoization, no partial
+re-execution, no graph editor. Just the typed boundary. See [A-024](./rewrite_v300_decisoes_adr.md)
+for why this moved forward from M3: the node abstraction is nearly free to declare and expensive to
+retrofit, and it is the one component in the system with no reference implementation, so it earns
+early exposure in its most trivial form.
+
 Schemas are **provisionally frozen**, ratified only after M1a round-trips them end to end.
 
 | Exit gate |
@@ -45,6 +51,7 @@ Schemas are **provisionally frozen**, ratified only after M1a round-trips them e
 | Every invariant I1–I9 maps to a named CI job |
 | Reflection contract passes over all ports: async, wire-serializable, no untyped `dict`, no `Grant`, aware datetimes |
 | import-linter: layer order, pure domain, pure ports, TCB isolation |
+| `WorkflowStep` typed and conformance-tested; **no execution engine yet** |
 | `docs_budget.py` and `check_links.py` green |
 | `docs/STATUS.md` says **"nothing is implemented"** and is true |
 
@@ -57,17 +64,33 @@ Schemas are **provisionally frozen**, ratified only after M1a round-trips them e
 ([A-011](./rewrite_v300_decisoes_adr.md) — required here because BoN cache sequencing and the TUI both
 depend on it).
 
+**The vertical slice is expressed as a four-node graph**, not a hand-written pipeline:
+
+```
+  retrieve ──► generate ──► apply ──► evaluate
+```
+
+A linear chain is a DAG with no branches. Running it through `WorkflowStep` from the first working
+run means the abstraction is exercised by every subsequent phase instead of being introduced late over
+code that already assumes a straight line. **No memoization in this phase** — nodes execute
+unconditionally; the graph is a structure, not yet an optimizer.
+
 Anthropic-native `ModelProvider` with explicit `cache_control` breakpoints. Cassette record/replay.
 Cost accounting wired through `ResourceGovernor`.
 
+**Measurement plumbing lands here; measurement results do not.** The smoke runner, cost accounting,
+and replay all work at the end of M1a — and the runner honestly reports **zero**, because the
+instruments that make a number interpretable are M1b. Shipping the plumbing early is what makes M1b a
+one-week phase; reporting a number early is the predecessor's exact failure.
+
 | Exit gate |
 | :--- |
-| A trivial task resolves end to end |
+| A trivial task resolves end to end **through the graph executor** |
 | **Schemas ratified** — the freeze becomes real; breaking changes need a version bump |
 | Replay byte-equal (T8: 100%) |
 | Cost accounting non-zero and correct against provider-reported usage |
 | `cache_read_input_tokens` > 0 on a repeated-prefix run — proves caching works at all |
-| TUI drives a run and renders the event stream |
+| TUI drives a run and renders the event stream; every surface tagged `LIVE`/`MOCK` honestly |
 
 ---
 
@@ -112,6 +135,7 @@ capability measured on an unverified instrument, which is the predecessor's exac
 | **Container perimeter** + egress allowlist + TaintGate | Autonomy requires containment |
 | **Exchange-granular compaction** | Long tasks exceed the window |
 | **Cache economics** | Hit-rate metric with a CI floor |
+| **Per-node memoization**, keyed by input digest | Now it pays for itself: an ablation re-runs one node's subtree instead of the pipeline. The economics of every row above depend on it |
 
 | Exit gate |
 | :--- |
@@ -128,9 +152,10 @@ ladder per rung · anchor matching strict vs. tolerant.
 
 ## M3 — Scale and autonomy
 
-**Delivers.** Hibernation (`FrozenRunState`, grants re-minted); the workflow DAG with per-node
-memoization; sub-agent delegation with scoped registries; skills; MCP; LSP diagnostics; long-term
-memory; the private held-out suite.
+**Delivers.** Hibernation (`FrozenRunState`, grants re-minted); **graph branching and fan-out** — the
+point at which the DAG stops being a straight line and carries parallel candidates and conditional
+paths; sub-agent delegation with scoped registries; skills and the curator; background review on the
+parent's warm prefix; MCP; LSP diagnostics; long-term memory; the private held-out suite.
 
 | Exit gate |
 | :--- |
@@ -184,14 +209,66 @@ the loop's most efficient available strategy.
 
 ---
 
+## Velocity — where acceleration applies, and where it does not
+
+Phase durations stay absent: **the exit gates are the schedule.** But *effort* distribution is
+planning-relevant, and under AI-assisted development it is heavily skewed — which changes what the
+binding constraint is.
+
+**Much of the available speedup is already banked.** The twelve documents in this set removed the
+design ambiguity that is where AI-assisted coding actually stalls. What remains compresses well on one
+axis and not at all on the others.
+
+| Axis | Compresses? | Why |
+| :--- | :--- | :--- |
+| Writing code against a settled contract | **Strongly** | Ports, adapters, tests, the graph executor, the TUI. Specified in advance; mechanical to produce |
+| Integration debugging | Partly | Still bounded by how fast a failing run reproduces |
+| **Benchmark execution** | **No** | A Pro or Verified run is API round-trips and container time. Money and wall-clock, not typing |
+| **Ablation cycles** | **No** | Each is a paired run against the noise floor. Serial and compute-bound — which is exactly why M2 buys memoization |
+| **Q3 / Q8 — model tier and compute budget** | **No** | Organizational. No engineering velocity touches it |
+
+### The consequence
+
+**At high coding velocity the project stops being engineering-bound almost immediately and becomes
+money-and-decision-bound.** M0 and M1a are the two phases that compress most, and they are the two
+phases *before* the blocker. The result is that **B2 arrives sooner and hits harder**, not that it
+goes away.
+
+This does not change the critical path identified below — it sharpens the deadline on it:
+
+> **Resolve Q3 and Q8 in parallel with M0, not when M1b reaches them.** The failure mode of ignoring
+> this is a complete, well-tested walking skeleton with no way to know whether it is any good. That is
+> where the predecessor stopped — the difference is that at this velocity you arrive there in days
+> rather than months, with the same amount of nothing to report.
+
+Two scheduling consequences follow:
+
+1. **Front-load the compute-bound work.** The upstream repo cache (B1) and the smoke suite can be
+   built and dry-run against cassettes during M0/M1a, so that the moment credentials exist, M1b is
+   execution rather than construction.
+2. **Do not let engineering velocity outrun measurement.** Shipping M2 capability before M1b's noise
+   floor produces mechanisms that cannot be evaluated — and the standing rule that no mechanism
+   promotes without an ablation then blocks the entire phase retroactively. Capability built ahead of
+   its instruments is inventory, not progress.
+
+---
+
 ## Dependency graph
 
 ```
-M0 Contracts
-   └─> M1a Walking skeleton  ── schemas ratified · streaming · TUI MVP
+M0 Contracts ── ports · WorkflowStep types · CI jobs per invariant
+   │
+   └─> M1a Walking skeleton ── 4-node graph · streaming · TUI MVP
+   │        schemas ratified · replay byte-equal · reports honest zero
+   │
+   │   ┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐
+   │   ╎  Q3 model tier · Q8 compute budget  ── COMMERCIAL ╎
+   │   ╎  run in parallel with M0. Gates B2, gates M1b.    ╎
+   │   └╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┬╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘
+   └─────────────────────►│
           └─> M1b Instruments ── B1 B2 B3 B4 · NOISE FLOOR PUBLISHED
-                 └─> M2 Capability ── T1 lift ≥ +10 · T4 cost
-                        ├─> M3 Scale ── T5 T6 T7 T3
+                 └─> M2 Capability ── memoization · T1 lift ≥ +10 · T4 cost
+                        ├─> M3 Scale ── graph branching · T5 T6 T7 T3
                         │      └─> M4 SOTA ── Pro ≥80 · Verified ≥96
                         │             └─> M5 RHI ── T9
                         └─> (Phase 4) Conductor — gated on L1–L3 measured
@@ -234,4 +311,5 @@ path, and it should be resolved in parallel with M0 rather than discovered at M1
 | Research components on a calendar (R8) | M4–M5 | Empirical triggers only |
 | Scope sprawl from reference mining (R9) | All | The **reject** column in [reference teardowns](./rewrite_v300_reference_teardowns.md) is binding |
 | Doc drift (R10) | All | One owner per topic; code wins for contracts; budget ratchet |
-| **Workflow DAG has no reference implementation** | M3 | Original to AETHER — higher risk than the ported components. Prototype early, keep the escape hatch to a linear pipeline |
+| **Workflow DAG has no reference implementation** | M0–M3 | Original to AETHER. **Mitigated by moving it forward, not back** ([A-024](./rewrite_v300_decisoes_adr.md)): types in M0, a 4-node linear graph in M1a, memoization in M2, branching in M3. Each step is small and load-bearing; the escape hatch to a plain pipeline stays open until M2 |
+| **Velocity outruns measurement** | M1a→M2 | Capability built ahead of its instruments cannot be promoted and becomes inventory. M1b is a hard serialization point, not a suggestion |

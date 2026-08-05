@@ -122,6 +122,28 @@ explicitly matters because a blocklist that looks like security invites the secu
 exfiltration open, and an allowlist proxy is what makes "this run touched only these hosts" an
 auditable claim rather than an assumption.
 
+### 2.1 Three escape vectors the perimeter must be designed against
+
+Documented against shipped native sandboxes and worth designing for rather than discovering. Each has
+the same shape: a configuration that *looks* restrictive and is not.
+
+| Vector | Mechanism | Rule |
+| :--- | :--- | :--- |
+| **Domain fronting** | An allowlisted CDN apex hosts arbitrary user content. Allow `*.cloudflare.com` and the agent can fetch an attacker-uploaded payload from a Workers subdomain — the allowlist was satisfied | **Never allowlist a CDN apex or broad wildcard.** Allowlist specific hosts. Accept that perfect blocking is impossible without TLS inspection, and treat egress as *auditable*, not *airtight* |
+| **Unix socket privilege escalation** | A socket is a capability. `/var/run/docker.sock` is full host access; `containerd.sock`, a supervisor socket, or a systemd user bus are process control. A pattern like `/tmp/*.sock` grants whatever happens to be there | **Sockets deny-by-default; allowlist individually after audit**, never by glob. A socket that reaches a process manager or container daemon is a perimeter breach, not a convenience |
+| **Filesystem escalation via write paths** | Write access to a `$PATH` directory or a shell rc file is deferred code execution outside the sandbox — drop a binary named `sudo` in `/usr/local/bin`, wait for the human | **Write scope is the worktree.** `$PATH` directories, shell rc files, and anything sourced at login are outside the writable set regardless of how convenient an exception looks |
+
+The generalization: **an allowlist entry is a capability grant, and its blast radius is whatever sits
+behind it — not what the person writing it had in mind.** That is the same failure mode as
+[§1.3](#13-effect-classes-narrowed-per-call)'s static effect class, one layer down, and it is why the
+config schema treats broad wildcards in egress, socket, and write-path lists as a validation error
+rather than a style issue.
+
+**Layered sandboxes are weaker than they look.** Nesting a sandbox inside another does not compose
+their guarantees on Linux; the inner boundary can be the weaker of the two. AETHER's perimeter is one
+boundary that is actually enforced, not a stack of partial ones — which is also why the worktree layer
+is documented as *isolation, not security* above.
+
 ---
 
 ## 3. TaintGate — untrusted content
@@ -175,6 +197,50 @@ AETHER is a *security-adjacent* tool that will legitimately touch cryptography, 
 sandbox logic, benign false positives are expected. The `ModelProvider` port surfaces refusal as a
 typed outcome with its category, and the run loop treats it as a disposition — not a crash, and not
 a silently truncated success.
+
+---
+
+### 3.4 The agent can attack the harness's own supervision
+
+A threat class none of §1–§3 covers, and one AETHER would otherwise ship into: **the agent's
+legitimate capabilities, aimed at the harness's own lifecycle.**
+
+The concrete case, documented in `cron/lifecycle_guard.py` in `src/hermes_agent`:
+
+1. The agent schedules a cron job whose command restarts the gateway process
+   (`hermes gateway restart`, `launchctl kickstart`, `systemctl restart …`).
+2. The cron fires. The gateway dies.
+3. The supervisor — launchd `KeepAlive`, systemd `Restart=` — revives it, correctly.
+4. Auto-resume picks up the session that scheduled the job.
+5. The resumed turn re-runs the same logic.
+
+**Result: a SIGTERM-respawn loop every ~10 seconds until a human breaks it.** No sandbox was escaped,
+no policy was violated, no untrusted content was involved. Scheduling and durable resume are both
+features working exactly as designed, and their composition is a self-inflicted denial of service.
+
+Two things make this generalize rather than being one bug:
+
+- **It is a composition failure.** Each capability is individually safe and individually authorized.
+  The perimeter model in §2 reasons about *what the agent may touch*; it has nothing to say about
+  *what two permitted actions do to each other*. AETHER has all three ingredients on the roadmap —
+  scheduling, hibernation and durable resume, and supervised restart — so it inherits the failure
+  unless it inherits the guard.
+- **The guard has to read past the prompt.** Hermes' check scans the job's prompt *and any shell
+  scripts it references*, because "run `./deploy.sh`" hides the restart one level down. A guard that
+  inspects only the literal command is trivially bypassed without any adversarial intent.
+
+**AETHER's rule.** Harness lifecycle primitives — process restart, supervisor control, scheduler
+mutation, and the freeze/resume machinery itself — are **not reachable from agent-authored scheduled
+work**, and the check is enforced at job *creation* so it fires on every path rather than at each call
+site. More generally, and stated as a design obligation rather than one patch:
+
+> Any capability that can **re-enter the agent loop** — a scheduler, a webhook, a resume trigger, a
+> self-directed task queue — must be analyzed for loops with every capability that can **restart or
+> resume the harness**. This is a required review item when scheduling
+> ([autonomy §8](./rewrite_v300_autonomia_agi.md)) lands, not a note.
+
+The budget governor is a mitigation and not a solution: a respawn loop that restarts the *process*
+starts a fresh budget each time.
 
 ---
 
@@ -268,5 +334,7 @@ fail-closed provenance, applied to secrets.
 | Generator ≠ Evaluator | `require_tests_unmodified`; gates admit, scorers rank | Hard gate + type-level separation |
 | Evaluation isolation | No editable install; canary proves the gate sees the candidate | Canary test |
 | Hibernation | Grants re-minted | `test_no_grant_in_frozen_run_state` |
-| Sub-agents | Scoped registry, own budget; cannot widen authority | Policy test |
+| Harness lifecycle | Unreachable from agent-scheduled work; checked at job creation, scans referenced scripts | Lifecycle-guard test |
+| Capability composition | Re-entry capabilities reviewed against restart/resume capabilities | Required review item |
+| Sub-agents | Scoped registry, own budget; cannot widen authority. Delegated children scrub inherited identity | Policy test |
 | Credentials | Injected outside the perimeter | — |

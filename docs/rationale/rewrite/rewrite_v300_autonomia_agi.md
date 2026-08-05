@@ -114,6 +114,50 @@ after every task produces a corpus that grows monotonically and helps unmeasurab
 skills a measured mechanism rather than a hopeful one, and it is the reason skills sit at `growth`
 rather than `core`.
 
+### 2.1 The corpus needs a curator, not just a gate
+
+An acceptance gate controls what *enters*. It does nothing about what is already in and has gone
+stale — and [context & memory §5.3](./rewrite_v300_contexto_memoria.md) shows why that matters: past
+roughly 150 always-on rules, adherence to *all* of them degrades. A growing skill corpus does not just
+waste tokens; it quietly erodes compliance with everything else in the prefix.
+
+`agent/curator.py` in `src/hermes_agent` supplies the missing half, and AETHER adopts its shape:
+
+| Property | Mechanism |
+| :--- | :--- |
+| **Inactivity-triggered, no daemon** | Runs when the agent is idle *and* the last run is older than an interval. Maintenance costs nothing during active work and needs no separate scheduler to supervise — which, per [security §3.4](./rewrite_v300_seguranca_sandbox.md), is also one fewer scheduler to guard |
+| **Runs as a forked review agent** | Same fork-and-review pattern as §2.2, on the skill store rather than one turn |
+| **Lifecycle states, derived** | Skills auto-transition on activity timestamps — active, stale, archived — rather than being managed by hand |
+| **Consolidation is a first-class outcome** | Alongside pin, archive, and patch. The corpus can get **smaller and denser**, not merely shorter, and a consolidated skill records where its content went |
+
+Consolidation is the row that matters. Archival alone produces a corpus that oscillates — write, archive,
+re-write the same lesson next month. Merging two overlapping skills into one preserves the knowledge
+while reducing the always-on surface, which is the only move that improves both axes at once.
+
+### 2.2 Writing memory without paying for it — the cache-sharing fork
+
+**When** an agent writes memory is an unsolved question in AETHER's design so far. In-loop writes cost
+tokens on the critical path and pollute the transcript; never writing means no learning.
+
+`agent/background_review.py` answers it: after a turn, fork the agent into a background thread, replay
+a conversation snapshot, and ask *"should any skill or memory be saved or updated?"*. Writes go
+straight to the memory and skill stores.
+
+Two properties make it nearly free, and both are load-bearing:
+
+- **The main conversation and the prompt cache are never touched.** The review is a side branch; the
+  primary transcript does not carry it.
+- **The fork inherits the parent's live runtime** — provider, model, base URL, credentials, and the
+  cached system prompt — **so it hits the same prefix cache.** The review pays a cheap tail on an
+  already-warm prefix instead of a cold write.
+
+That second point is the "fork operations must reuse the parent's exact prefix" rule from
+[context & cache §1](./rewrite_v300_contexto_memoria.md), and it generalizes past memory: **any
+auxiliary model call AETHER makes about a run — the compaction summarizer, the Best-of-N judge, a
+review pass — should be built on the parent's prefix rather than assembling its own.** Stated as a
+design rule, that is one of the higher-leverage cost decisions in the system, and it is invisible
+unless cache hit rate is a tracked metric.
+
 ---
 
 ## 3. Code-mode tool orchestration
@@ -159,6 +203,18 @@ nearly zero marginal cost once BoN exists.
 
 The corpus is also the **trigger source** for several `research` items: the learned candidate scorer
 (§6) and tool synthesis (§3) both wait on it being large enough to beat their heuristic baselines.
+
+**A caveat on what the corpus is good for.** Exporting trajectories invites the assumption that
+fine-tuning is the destination. For *teaching a model facts*, it frequently is not: fine-tuning runs
+into the **reversal curse** — a model tuned on "A is B" often cannot answer "what is B", despite the
+logical symmetry — while keeping the fact as retrievable text sidesteps the problem entirely. Two
+independent Stanford courses converge on this when advising teams choosing between the approaches.
+
+The consequence for AETHER: the trajectory corpus's primary value is **behavioral** — preference data
+for how to act, ablation evidence, and the trigger source above — not as a substitute for retrieval.
+Knowledge belongs in the index and the memory store, where it can be updated, invalidated, and
+audited. That is also why [long-term memory](./rewrite_v300_contexto_memoria.md) is bi-temporal: a
+fact that goes stale needs to be correctable, and a weight update is not.
 
 ---
 
@@ -213,7 +269,76 @@ exists so that a capability's status is honest: not started, trigger not fired, 
 
 ---
 
-## 7. Scheduling and the Conductor (System 3)
+## 7. Multi-agent topology
+
+Delegation is the capability most likely to be built on a wrong assumption, so the constraints are
+stated before the mechanism.
+
+### 7.1 Sub-agents: depth 1, and context is never inherited
+
+**Depth is capped at one level.** Production systems that ship sub-agents enforce this rather than
+recommend it, for four reasons that all compound: recursive spawning has no natural bound; each level
+accumulates its own context; multi-level agent chains are effectively undebuggable; and nested
+delegation makes token cost unpredictable — which is fatal for a system with a
+[budget governor](#1-durable-hibernation). AETHER enforces depth 1 at the registry: a sub-agent's tool
+set does not include the delegation tool.
+
+**Context is never inherited automatically — and this is the most common multi-agent design error.**
+The dominant production topology is hub-and-spoke: one coordinator holds the full picture, N workers
+each receive *only their task string*. Worker B knows nothing of Worker A's findings unless the
+coordinator puts them in B's task description.
+
+```
+              COORDINATOR  ── decomposes · passes context explicitly
+              ·  aggregates results · resolves conflicts
+               │        │        │
+          WORKER A  WORKER B  WORKER C      ← isolated; task string only
+               └────────┴────────┘
+                results flow back to the coordinator only
+```
+
+The design consequence is that **the coordinator's context-passing is a first-class mechanism**, not
+an implementation detail — what it forwards, and how it compresses A's findings into B's task, is
+where multi-agent runs succeed or fail. It is also an ablation target, because "pass more" and "pass
+less" both have failure modes.
+
+This interacts with [§1](#1-durable-hibernation)'s security posture: a sub-agent gets a **scoped tool
+registry and its own budget**, and delegation must never widen authority. Isolation of context and
+isolation of capability are the same boundary seen twice.
+
+### 7.2 Team size is a context-pressure decision, not a parallelism decision
+
+Reported field experience converges on **>5 concurrent agents costing more in coordination than they
+return in throughput** — with a large exception that explains the whole tradeoff.
+
+A single agent on a 50K+ LOC codebase can spend 80–90% of its window merely loading relevant files,
+leaving almost nothing for reasoning. Splitting across agents keeps each near ~40% utilization and
+restores headroom. So the real question is **not "how many agents?" but "is coordination overhead
+cheaper than context overflow?"**
+
+| Situation | Reading |
+| :--- | :--- |
+| Independent modules, zero shared state | More agents are close to free — there is no coordination to pay for |
+| Agents repeatedly reading each other's output or touching shared files | More agents actively hurt — merge conflicts and coordination messages consume the context the split was meant to save |
+| Codebase cannot fit one agent's window with room to reason | Split regardless of coordination cost |
+
+For AETHER this maps onto an existing distinction rather than a new one: Best-of-N candidates are the
+*zero-shared-state* case (isolated worktrees, no cross-talk, results compared by the evaluator), while
+collaborative decomposition is the *shared-state* case and carries the coordination tax. The two
+should not share a concurrency setting.
+
+Two further field observations, recorded because they cut against the intuitive design:
+
+- Reported adoption data shows success rates climbing with **process maturity** (pilot 60–70% →
+  production 85–90%), gated on modular architecture and strong test coverage. Weak tests are named as
+  a blocker, which is consistent with this project's position that the evaluator is load-bearing.
+- The anti-pattern list is short and specific: too many agents, over-delegation, and **automating a
+  workflow that was never mastered manually**. The last one is the one a harness project is most
+  likely to commit.
+
+---
+
+## 8. Scheduling and the Conductor (System 3)
 
 ### Scheduling — `growth`
 
@@ -250,7 +375,7 @@ so the constraint is mechanical, not aspirational.
 
 ---
 
-## 8. Summary
+## 9. Summary
 
 | Capability | Tier | Trigger / gate |
 | :--- | :--- | :--- |
@@ -259,8 +384,13 @@ so the constraint is mechanical, not aspirational.
 | Disposition ladder | core | Per-rung ablation |
 | Native task budget; **no countdown in the prompt** | core | — |
 | Agent-authored skills | growth | Ablation beating the noise floor |
+| Skill curator (archive / consolidate) | growth | Corpus size tracked against adherence |
+| Background review fork on the parent's prefix | growth | Cache hit rate confirms the fork is warm |
 | Code-mode RPC orchestration | growth | Round-trip cost measured on real traces |
-| Trajectory export (SFT/DPO) | growth | — |
+| Trajectory export (SFT/DPO) | growth | Behavioral data, not a knowledge substitute (reversal curse) |
+| Sub-agent delegation, depth 1 | growth | Enforced at the registry — no delegation tool in a sub-agent's set |
+| Explicit coordinator context passing | growth | Ablation: what to forward, and how compressed |
+| Concurrency: BoN vs. collaborative | core / growth | Separate settings — zero-shared-state vs. coordination-taxed |
 | Meta-loop (RHI) | growth | T9: >0 accepted mutations, **zero** TCB modifications |
 | Tool synthesis | research | Measurable rate of repeated call sequences |
 | Learned candidate scorer | research | Beats rank-by-tests-passed on held-out data |

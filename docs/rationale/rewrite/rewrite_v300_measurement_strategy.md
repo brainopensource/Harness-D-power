@@ -58,6 +58,27 @@ Three facts about these numbers that shape the entire protocol:
 3. **Roughly 30% of the public Pro tasks were estimated broken** in an OpenAI audit published July
    2026. A public-set number carries that error bar whether or not it is stated.
 
+### Third-party field numbers are hypotheses, not baselines
+
+Several design documents in this set cite practitioner and community figures — the ~70% context cliff,
+the ~150-instruction ceiling, blast-radius success rates, session-degradation thresholds. They are
+useful and they are load-bearing for *design*, but they are governed by one rule:
+
+**A number we did not measure on our own instruments never appears in a result, a claim, or a
+regression gate.** It may set a default, motivate an ablation, or bound a design — nothing more. Each
+one enters the backlog as a hypothesis with a named experiment.
+
+| Field claim | Our test |
+| :--- | :--- |
+| Quality drops non-linearly near ~70% of context budget | Sweep the compaction trigger; measure resolve rate and cost per resolved task at each setting |
+| Adherence degrades past ~150 always-on rules | Ablate system-prompt and skill-corpus size against instruction-following on a fixed suite |
+| Success falls from ~85% (1–3 files) to ~40% (8+) | Stratify our own resolve rate by files-touched; it is already recoverable from trajectories |
+| Repeated failures dilute task intent | Ablate intent re-injection on/off across repair attempts |
+| Judge models degrade on long transcripts | Vary judge context budget in Best-of-N; measure selection accuracy against gate outcomes |
+
+The last row is the one most likely to be quietly wrong in a scaffold: a degraded judge silently
+selects worse candidates, and the failure looks like the *generator* underperforming.
+
 ### The targets, and the honest framing
 
 The user's decision is **real SOTA**: Pro ≥ 80%, Verified ≥ 96%. Recorded plainly, with the risk
@@ -179,6 +200,20 @@ A full benchmark run per commit is unusable on cost and latency (PLANNING.md **R
 | **Full** | Nightly / pre-release | Full Verified and Pro suites | Recorded, not gating |
 | **Ablation** | On demand | One mechanism on/off, paired | CI excludes the noise floor |
 | **Profiling** | Nightly | RSS, idle CPU, index time, **cache hit rate** | T6 / T7 ceilings; hit-rate floor |
+
+**One canonical trajectory format, three consumers.** `src/hermes_agent` composes its evaluation
+stack around a single format: a SWE runner over local / Docker / Modal environments emits it, a batch
+runner consumes it, and a trajectory compressor post-processes it for training. AETHER's runner,
+harvester, reporter and SFT/DPO exporter should share one format for the same reason — a separate
+"eval format" and "training format" guarantees they drift, and the export pipeline then re-derives
+what the runner already knew.
+
+**Compression for training data has different invariants than compression for runtime context.** The
+same reference protects the first turns and the last N, compresses only the middle starting from the
+second tool response, and — the non-obvious constraint — **keeps the remaining tool calls intact so
+the model continues working after the summary**. A training corpus compressed with runtime rules
+teaches the model to stop after a summary, which is precisely the behavior a long-horizon agent must
+not learn. Two compressors, one format.
 
 **Deterministic replay is what makes the PR tier possible at all.** Digest-keyed cassettes with
 byte-equal step sequences and zero network give a fast, free, fully deterministic signal on every

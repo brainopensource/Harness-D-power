@@ -57,11 +57,82 @@ An unbounded repair loop is a budget incinerator. SAGIHA's mechanism is sound an
   produced a different edit that failed in exactly the same way. Abort with
   `RepairAbandoned(reason="no_progress")` rather than spending another attempt.
 - **Stuck detection.** Three identical tool-call signatures (`_STUCK_REPEAT_THRESHOLD = 3`) ends the
-  run with `error_kind="stuck_loop"`.
+  run with `error_kind="stuck_loop"`. **This is too blunt, and §1.4 replaces it.**
 - **Transcript integrity.** Every skipped `tool_use` block gets a synthetic error `ToolResult`. A
   dangling `tool_use` id is a provider-level protocol error on the *next* request, so a halted run
   must still leave a well-formed transcript. This is what makes a halted run resumable instead of
   dead.
+
+### 1.3 Failure-triggered context drift — the degradation the repair loop causes
+
+A repair loop feeds failures back into the context. That is the point, and it has a cost the
+predecessor's design does not account for.
+
+**Repeated tool failures degrade context *quality* independently of context *size*.** Stack traces,
+retry noise, and error output accumulate; the original task intent is progressively diluted, and
+subsequent attempts start following the **error narrative** rather than the goal. The window is not
+full — the signal-to-noise ratio has collapsed inside a bounded window.
+
+This is distinct from compaction drift, and the distinction is the useful part:
+
+| | Addresses | Trigger | Fix |
+| :--- | :--- | :--- | :--- |
+| **Compaction drift** | Context *size* | Utilization threshold | Summarize whole exchanges |
+| **Failure drift** | Context *quality* | Consecutive failures | **Re-inject task intent** |
+
+**Mitigation: re-assert the task on failure, not only on compaction.** After a failed tool call or a
+failed gate, the appended observation carries a condensed restatement of the task and its constraints
+alongside the error — so the next attempt is anchored to the goal rather than to the last stack trace.
+
+Three properties keep this from becoming its own problem:
+
+- It is **appended, not prepended** — the frozen prefix is untouched, so the cache survives
+  ([AD-2](#11-three-binding-decisions-carried-forward) applies unchanged).
+- The restatement is **condensed and constant** — a varying restatement is just more noise.
+- It is **bounded**: intent re-injection does not accumulate. One restatement per failure, replacing
+  the previous one rather than stacking.
+
+Credit: the pattern comes from field practice around hook-based intent re-injection on non-zero tool
+exit; the framing of "size versus quality" degradation is what makes it a design rule rather than a
+trick.
+
+### 1.4 Loop guardrails — a typed policy, not one threshold
+
+SAGIHA halts on three identical tool signatures. That single counter cannot distinguish *retrying a
+read that returns the same bytes* from *re-running a command whose effect legitimately repeats*, and
+it has exactly one response: kill the run. `agent/tool_guardrails.py` in `src/hermes_agent` models
+this properly and AETHER adopts its shape.
+
+**Three signals, each with its own thresholds** (illustrative defaults, all config values):
+
+| Signal | Meaning | Warn | Block / halt |
+| :--- | :--- | ---: | ---: |
+| Exact repeated failure | Same tool, same args, same failure | 2 | 5 |
+| Same-tool repeated failure | Same tool failing on varying args | 3 | 8 |
+| Idempotent no-progress | An idempotent tool returning an unchanged result | 2 | 5 |
+
+**`idempotent` and `mutating` are declared sets, and the distinction is load-bearing.** No-progress
+detection is only meaningful for idempotent tools: re-reading a file and getting identical bytes is a
+loop; re-running a mutating command and getting the same result may be correct. AETHER already
+classifies tools by effect class for
+[authorization](./rewrite_v300_seguranca_sandbox.md) — the guardrail reuses that classification rather
+than inventing a second taxonomy.
+
+Four properties of the design, all adopted:
+
+1. **Two tiers: warn, then stop.** A warning becomes guidance appended to the transcript and never
+   blocks execution. Halting is the second tier.
+2. **Hard stops are opt-in.** Interactive sessions get a nudge; circuit-breaker behavior is a
+   deliberate configuration choice. A harness that kills an interactive user's run on a heuristic is
+   worse than one that warns them — and in autonomous mode the default flips.
+3. **The controller is side-effect free.** It observes tool calls and *returns decisions*; the runtime
+   decides whether a decision becomes guidance, a synthetic tool result, or a controlled halt. Pure
+   policy, impure runtime — the same split as `PolicyEngine` versus `dispatch`, and it makes the
+   thresholds unit-testable without a running agent.
+4. **One failure classifier, shared with the UI.** Whatever decides "this tool call failed" for the
+   guardrail is the same function that renders the user-visible error indicator. Divergence between
+   what the system counts as a failure and what the operator sees is a debugging trap, and sharing the
+   classifier closes it by construction.
 
 **AETHER addition — a disposition ladder rather than a flat retry.** `next_gen_architecture_specs.md`
 §2.1 proposes `rehydrate → replan → escalate (S1→S2) → checkpoint+abort`, each rung consuming
@@ -69,6 +140,25 @@ budget. A repair attempt that fails the same gate twice should not attempt a thi
 it should change *strategy* — re-retrieve context, then re-plan, then escalate to Best-of-N across
 worktrees, then checkpoint and stop. Which rung fires is a policy decision recorded in config, and
 the ladder itself is an ablation target.
+
+**The ladder needs a sibling for API failures.** The disposition ladder above handles *gate* failures.
+Provider failures — rate limits, context-length errors, credential problems, transient upstream
+errors — are a separate axis, and SAGIHA handles them with inline string matching (`_is_transient()`
+in `adapters/model/fallback.py`). `agent/error_classifier.py` in `src/hermes_agent` replaces that with
+a structured taxonomy and a **priority-ordered classification pipeline** mapping each failure to a
+recovery action:
+
+```
+retry · rotate credential · fail over to another provider · compress context · abort
+```
+
+The non-obvious entry is the fourth. **"Compress context" is a recovery action**, not an error: a
+context-length rejection is neither a retry nor an abort — it is a signal to compact and continue.
+Treating it as transient burns the budget re-sending an over-long request; treating it as fatal
+abandons a recoverable run. AETHER's `ModelProvider` port therefore surfaces a **typed classified
+error**, not a raw exception, and the classification lives in one place rather than at each call site.
+Refusals ([security §3.3](./rewrite_v300_seguranca_sandbox.md)) are one more disposition in the same
+taxonomy.
 
 ---
 
@@ -172,7 +262,27 @@ of the cost, and AutoCodeRover ~52%. Their entire edge is picking the right five
 
 An agent that edits the wrong file perfectly scores zero. Retrieval-before-edit — tree-sitter
 skeleton repo map, symbol search, code-graph impact analysis — is therefore a prerequisite for the
-edit mechanism, not a companion feature. It is owned by
+edit mechanism, not a companion feature.
+
+**Blast radius has a measured cost.** Practitioner data reported in the community field guide, useful
+as a design constraint rather than as a result:
+
+| Files touched simultaneously | Reported success rate |
+| :--- | ---: |
+| 1–3 | ~85% |
+| 4–7 | ~60% |
+| 8+ | ~40% |
+
+Degradation also tracks session length — 15–25 conversation turns, or 80–100K accumulated tokens,
+before earlier constraints start being dropped.
+
+The design consequence is not "refuse large tasks". It is that **a task touching many files should be
+decomposed into steps that each touch few**, with the localized set re-established per step rather
+than carried as a growing working set. That is an argument for the disposition ladder (§1.2) and for
+sub-agent delegation with explicit context passing
+([autonomy §7.1](./rewrite_v300_autonomia_agi.md)) — and a caution against the intuition that a
+bigger context window makes wide edits safe. It does not; it makes them affordable, which is a
+different property. It is owned by
 [context & memory](./rewrite_v300_contexto_memoria.md), and the roadmap sequences it **before** any
 work on editor sophistication.
 
@@ -189,6 +299,10 @@ work on editor sophistication.
 | Batch edits | Transactional — all or none | — |
 | Read-before-write | Enforced by policy | — |
 | Repair loop | Inside the run loop; tool-result-shaped feedback; trusted; progress-signature termination | — |
+| Loop guardrails | Three typed signals with separate warn/stop thresholds; idempotent vs mutating sets; pure controller; hard stops opt-in interactively | Threshold ablation |
+| API failures | Typed taxonomy → `retry · rotate · failover · compress · abort`, classified in one place | — |
+| Failure drift | Condensed task intent re-injected on failure; appended, constant, bounded | Ablation |
+| Blast radius per step | Prefer 1–3 files; decompose rather than widen the working set | Measurement on our own suites |
 | Disposition ladder | `rehydrate → replan → escalate → checkpoint+abort` | Ablation per rung |
 | Architect/Editor split | Seam built, **shipped off** | Ablation clearing the noise floor at acceptable cost |
 | Streaming patch application | Deferred | Wall-clock per resolved task becomes the binding metric |

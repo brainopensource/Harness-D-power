@@ -92,8 +92,11 @@ extend-exclude = [
     ".sagiha",
     "aether_examples",
     "src/claude_code",
+    "src/claude_refs",
+    "src/codex_cli",
     "src/grok_build",
     "src/hermes_agent",
+    "src/hermes_self_evolution",
     "src/open_code",
 ]
 

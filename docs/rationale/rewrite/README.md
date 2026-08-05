@@ -73,6 +73,29 @@ benchmark number, and everything else is downstream of fixing them.
    import-linter layering, loud stubs, tri-state gates, and a documented history of deleting a
    component rather than shipping a false-success shell. A rewrite that ports the code and drops the
    discipline is a regression wearing a version bump.
+6. **Hermes' best ideas are in its failure handling, not its feature list.** Read at depth
+   ([teardowns §1](./rewrite_v300_reference_teardowns.md)), the seven mechanisms worth taking are:
+   compaction summaries treated as an instruction channel *and* a trust boundary; loop guardrails as
+   typed policy with three signals rather than one counter; background review forking onto the
+   parent's warm prefix; a skill **curator** that consolidates rather than only archiving; an API
+   error taxonomy where "compress context" is a recovery action; a single trajectory format shared by
+   runner, batch and training compressor; and a lifecycle guard against the agent restarting its own
+   supervisor. Each closed a real gap in this set rather than confirming it.
+7. **The most productive documentation reference was a field guide, not a codebase.** `src/claude_refs/` contributed
+   quantitative constraints no code teardown yields: the non-linear context cliff, the ~150-instruction
+   adherence ceiling, failure-triggered context drift, blast-radius success rates, three sandbox escape
+   vectors, and the sub-agent isolation rule. Every one of those numbers is someone else's and enters
+   as a **hypothesis with a named experiment**, per
+   [measurement strategy §1](./rewrite_v300_measurement_strategy.md).
+
+### One open item for the reviewer
+
+`src/claude_refs/claude-code-analysis` is a third-party **reverse-engineering teardown** of a closed
+source tree. It is MIT-licensed, public, and not code — but its provenance sits in the grey zone of
+[A-007](./rewrite_v300_decisoes_adr.md), which defers artifacts derived from closed sources. It has
+been used only at capability-inventory altitude, with the tension flagged in
+[teardowns §3b.2](./rewrite_v300_reference_teardowns.md) rather than resolved silently. Nothing in the
+set depends on it; if the reading is too permissive, the deletion cost is low.
 
 ---
 

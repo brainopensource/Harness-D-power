@@ -244,8 +244,18 @@ The memoization key is what makes ablation cheap: flipping one mechanism re-runs
 pipeline. Given that the project's core discipline is "no mechanism ships without an ablation", the
 cost of an ablation is a first-order design concern — and this is the mechanism that pays it down.
 
+**The graph is the execution structure; the event stream (§7) is the observation structure.** They are
+deliberately separate. Nodes emit events as they run; events never drive node scheduling. Collapsing
+the two produces a system where adding observability changes behaviour, which is the failure mode
+every event-driven orchestrator eventually finds.
+
 No reference in the study set implements this for agent cognition. It is original to AETHER, which
-also means it carries more risk than the ported components.
+also means it carries more risk than the ported components — and is why
+[A-024](./rewrite_v300_decisoes_adr.md) moves it *forward* rather than back: node types in M0, a
+four-node linear graph running the walking skeleton in M1a, memoization in M2 when ablations become
+routine, branching in M3. A linear pipeline is a DAG with no branches, so the abstraction is exercised
+from the first working run at almost no cost, and nothing downstream accumulates a straight-line
+assumption.
 
 ---
 
@@ -299,6 +309,7 @@ adapters — the TCB cannot reach *up* into what it judges).
 | Absent | Returns |
 | :--- | :--- |
 | `Orchestrator` port | Never. The engine API is the boundary |
+| Graph **memoization** and **branching** | M2 and M3 respectively. The node types and a linear four-node graph are present from M0/M1a — see [A-024](./rewrite_v300_decisoes_adr.md) |
 | Dense retrieval | ADR-0014 recall@10 trigger |
 | Learned scorer / `Advisory` | Labeled corpus beats rank-by-tests-passed |
 | MCP | `growth`, with its first real adapter |

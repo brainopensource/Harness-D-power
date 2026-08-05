@@ -323,6 +323,174 @@ than merely detected.
 
 ---
 
+### A-018 — Compaction trigger is a measured parameter, not a copied constant
+
+**Context.** Context rot is structural (n² attention scaling), and field reports place a **non-linear**
+quality cliff near ~70% of budget used, with the effective window around 92% of the advertised one.
+But shipped tools trigger auto-compaction at 75%, 92%, 95%, and "1–5% remaining" depending on surface.
+Four credible sources, four different numbers, one mechanism.
+
+**Decision.** The compaction trigger ships as a **config value defaulted below the reported cliff**,
+and is settled by ablation on our own suites. Planning is done against the effective window, not the
+advertised one. Compaction is preferred **earlier and less often** — repeated compression cycles lose
+nuance and break references, so one well-timed compaction beats three late ones.
+
+**Consequences.** No copied magic number. One more ablation to run, on a parameter that materially
+moves both cost and resolve rate.
+
+**Reversal Conditions.** Our own measurement placing the cliff elsewhere; a provider change to
+attention or context handling.
+
+---
+
+### A-019 — Sub-agents: depth 1, scoped registry, explicit context passing
+
+**Context.** Delegation is where multi-agent designs fail, and the failure is usually an assumption:
+that sub-agents inherit context. They do not — in the dominant hub-and-spoke topology a worker
+receives only its task string.
+
+**Decision.** (a) **Depth capped at one level, enforced at the registry** — a sub-agent's tool set
+excludes the delegation tool. Unbounded recursion, per-level context accumulation, undebuggable
+chains, and unpredictable cost all compound. (b) A sub-agent receives a **scoped tool registry and its
+own budget**; delegation never widens authority. (c) **The coordinator's context-passing is a
+first-class mechanism** and an ablation target — what it forwards and how it compresses is where
+delegated runs succeed or fail. (d) Best-of-N concurrency (zero shared state) and collaborative
+delegation (coordination-taxed) get **separate settings**.
+
+**Consequences.** No agent-spawning-agent topologies. Coordinator prompt design becomes a measured
+component rather than an afterthought.
+
+**Reversal Conditions.** A measured case where depth 2 beats decomposition at depth 1 on the same
+budget — which would also require solving the cost-predictability problem.
+
+---
+
+### A-020 — Allowlist entries are capability grants; broad wildcards are a validation error
+
+**Context.** Three documented escape vectors share one shape — a configuration that looks restrictive
+and is not: an allowlisted CDN apex hosts attacker content (domain fronting); a socket glob grants
+whatever daemon happens to listen there (`/var/run/docker.sock` is full host access); a writable
+`$PATH` directory or shell rc file is deferred execution outside the sandbox.
+
+**Decision.** Egress hosts, Unix sockets, and write paths are **deny-by-default and allowlisted
+individually after audit**. Broad wildcards in any of the three lists are a **config validation
+error**, not a style warning. Write scope is the worktree; `$PATH` directories and login-sourced files
+are never writable. Egress is treated as **auditable, not airtight** — perfect blocking is impossible
+without TLS inspection, and claiming otherwise is the dangerous part.
+
+**Consequences.** More friction configuring an environment, in exchange for the allowlist meaning what
+it appears to mean. Consistent with ADR-0006: the perimeter is enforced, and configuration cannot
+silently widen it.
+
+**Reversal Conditions.** None on the deny-by-default posture. Individual allowlist entries are always
+revisable with an audit.
+
+---
+
+### A-021 — The compaction boundary is a trust boundary and an instruction channel
+
+**Context.** A compaction summary re-enters the context as text the model reads. Forward-looking
+headings in a summary (`## Next Steps`, `## Remaining Work`) are read as *current* directives, causing
+the agent to wrap up finished work or revive historical to-dos. Separately, the summarizer is a model
+reading a transcript containing repository content, tool output, and web results — all untrusted — and
+anything that survives into the summary is laundered into the stable part of the context.
+
+**Decision.** Summaries use **historical headings only**, are wrapped in an explicit
+`REFERENCE ONLY` envelope, and carry an internal **precedence rule** (latest message wins over the
+historical block). The summarizer preamble is **filter-safe** — prior turns are source material, never
+instructions — and secret redaction is an explicit instruction. The compaction boundary is listed in
+the TaintGate threat model. Supporting mechanics: tool-output pruning pre-pass, token-budget tail
+protection, scaled summary budget, iterative summary updates, cheap auxiliary summarizer with a
+startup feasibility probe, preflight and idle compaction.
+
+**Consequences.** A more complex compactor than "summarize the middle". In exchange, compaction stops
+being a silent second instruction source and a silent injection path.
+
+**Reversal Conditions.** Envelope wording is an ablation parameter, not a constant — over-strengthening
+it has been observed to suppress tool use entirely.
+
+---
+
+### A-022 — Loop guardrails are typed policy; API errors are a taxonomy
+
+**Context.** SAGIHA halts on three identical tool signatures and classifies provider failures with
+inline string matching. Neither distinguishes cases that need different responses.
+
+**Decision.** (a) **Three guardrail signals** — exact repeated failure, same-tool repeated failure,
+idempotent no-progress — each with its own warn and stop thresholds, reusing the existing effect-class
+declaration for the idempotent/mutating split. The controller is **side-effect free** and returns
+decisions; the runtime chooses guidance, synthetic result, or halt. Warnings are on by default; hard
+stops are opt-in interactively and default-on autonomously. One failure classifier is shared with the
+user-visible error rendering. (b) **API failures are a structured taxonomy** mapping to
+`retry · rotate credential · failover · compress context · abort`, classified in one place. The
+`ModelProvider` port surfaces a typed classified error, not a raw exception.
+
+**Consequences.** More configuration surface. In exchange, thresholds are unit-testable without a
+running agent, and "context too long" stops being handled as either a retry or a crash.
+
+**Reversal Conditions.** Threshold values are ablation parameters throughout.
+
+---
+
+### A-023 — Auxiliary model calls run on the parent's prefix
+
+**Context.** AETHER makes several model calls *about* a run rather than *in* it: the compaction
+summarizer, the Best-of-N judge, background memory/skill review. Assembled independently, each pays a
+cold cache write on a prefix nearly identical to one already warm.
+
+**Decision.** Auxiliary calls **fork from the parent's live runtime** — same provider, model, base
+URL, credentials and cached system prompt — and append their own tail, rather than constructing a
+fresh prompt. They never mutate the main transcript. Background review specifically runs off the
+critical path and writes to the memory and skill stores directly.
+
+**Consequences.** Auxiliary work costs a cheap tail on a warm prefix instead of a full write. Couples
+auxiliary calls to the parent's model choice, which is the intended trade — a different model would
+invalidate the cache anyway, since caches are model-scoped.
+
+**Reversal Conditions.** An auxiliary task genuinely requiring a different model tier; that call
+accepts the cold-write cost explicitly and records it.
+
+---
+
+### A-024 — The walking skeleton is a graph; memoization is deferred
+
+**Context.** The workflow DAG (ADR-0018, extended) is the one component in AETHER with **no reference
+implementation** — no system in the study set applies a node graph to agent cognition. The original
+roadmap placed it in M3, which is the worst position for an unproven abstraction: introduced late,
+over code that already assumes a straight line, with retrofit cost paid exactly when the system is
+most complex.
+
+Two facts change the sequencing. A linear pipeline **is** a DAG with no branches, so exercising the
+abstraction costs almost nothing at the start. And retrofitting a graph onto a pipeline is far more
+expensive than starting with a trivial graph — the dependency direction is asymmetric.
+
+**Decision.** Split the DAG across phases by cost rather than shipping it whole:
+
+| Phase | What lands | Cost |
+| :--- | :--- | :--- |
+| **M0** | `WorkflowStep[In, Out]` — node and socket types only. No executor | Near zero |
+| **M1a** | The walking skeleton runs as a **four-node linear graph** (`retrieve → generate → apply → evaluate`) through a trivial executor. Nodes execute unconditionally | Small |
+| **M2** | **Per-node memoization keyed by input digest**, and partial re-execution | Real, and it pays for itself immediately |
+| **M3** | Branching, fan-out, conditional paths — parallel candidates as graph structure | Real |
+
+**M2 is where memoization earns its place, not earlier.** The project's core discipline is that no
+mechanism promotes without an ablation, and an ablation re-runs a pipeline with one node changed.
+Memoization turns that from a full re-execution into a subtree re-execution. The cost of running
+ablations is therefore a first-order design concern, and this is the mechanism that pays it down —
+which is only true once ablations are routine.
+
+**Consequences.** The riskiest original component gets continuous exposure in its simplest form
+instead of a late big-bang integration. Every phase after M1a is written against the graph, so nothing
+accumulates a straight-line assumption. The cost is a small indirection in the walking skeleton, where
+a direct function call would be simpler to read.
+
+**Reversal Conditions.** If the node abstraction is still not carrying weight at the M2 boundary — no
+memoization benefit measurable, no branching in sight — collapse it to a plain sequential pipeline.
+The escape hatch stays open until M2 precisely because four nodes are cheap to un-abstract; forty
+would not be.
+
+---
+
 ## Part III — Carrying forward the 27 existing ADRs
 
 Every record in [`docs/08-decisions/`](../../08-decisions/README.md) is explicitly re-affirmed,
