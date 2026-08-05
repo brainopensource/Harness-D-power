@@ -1,8 +1,13 @@
+---
+status: rationale
+retrieval: excluded
+---
+
 # COMPREHENSIVE ARCHITECTURAL & TECHNICAL ANALYSIS: CLAUDE REFS (`src/claude_refs`)
 
 > **Author:** Gemini (Antigravity AI Coder)  
 > **Date:** August 05, 2026  
-> **Target Document:** `docs/competitors/claude_refs_B_gemini.md`  
+> **Target Document:** `docs/competitors_research/tech_lead_B/claude_refs_B_gemini.md`  
 > **Source Material:** `src/claude_refs` (628 markdown files, >100k lines of reverse-engineering teardowns, academic papers, and architectural reference specifications).  
 > **Scope:** Deep-dive technical teardown of the Claude Code CLI, Anthropic Managed Agents 2026 architecture, Agent Harness Engineering (arXiv 2605.18747), Context Engineering (arXiv 2602.11988), 3-Track Memory Systems, TaintGate Security, and Subagent Orchestration.
 
@@ -314,3 +319,179 @@ To achieve a world-class autonomous agent harness (**AETHER v300B**) competing w
 | **TaintGate Security** | `src/aether/agency/context/taint_gate.py` | Tag external inputs with `UNTRUSTED_TAINTED` and gate privileged tool execution. |
 | **Conductor System 3** | `src/aether/agency/conductor.py` | Manage subagent DAGs with durable `FrozenRunState` SQLite serialization. |
 | **Auto Dream Memory** | `src/aether/evolution/gepa_evolver.py` | Idle-time memory consolidation using RRF fusion (BM25 + SQLite-vec). |
+
+---
+
+## 10. DETAILED FILE-BY-FILE INVENTORY & BRIEFINGS (PART 1: ULTIMATE GUIDE)
+
+This section provides an exhaustive, document-by-document technical briefing of every file in `src/claude_refs/claude-code-ultimate-guide/guide/`.
+
+### 10.1 Core Subsystem Documents (`guide/core/`)
+
+1. **`agent-harness.md` (28.4 KB):**
+   * **Briefing:** Defines the foundational framework for AI coding agent harnesses based on arXiv 2605.18747. Specifies the 9 core modules (RunLoop, ContextAssembler, Compactor, Dispatcher, Sandbox, EventBus, Governor, MemoryStorage, Evaluator) and the 3 invariants: Parity, Receptivity, and Observability.
+2. **`architecture.md` (98.0 KB):**
+   * **Briefing:** Comprehensive specification of the Managed Agents 2026 tri-layer model (Brain, Hands, Session Event Log). Details the out-of-process execution model, message streaming pipelines, and state externalization.
+3. **`context-engineering.md` (140.0 KB):**
+   * **Briefing:** Master reference for context budgeting and token window management. Explains attention rot dynamics in the 40%-60% token band (*The Dumb Zone*), Exchange-Granular Compaction algorithms, and prompt cache alignment boundaries (>92% Hit Rate).
+4. **`memory-systems.md` (79.7 KB):**
+   * **Briefing:** Defines the 3-Track Memory model (Episodic, Semantic, Procedural). Documents the background Auto Dream consolidation worker, reciprocal rank fusion (RRF) algorithm, and ETH Zürich research on config inflation risks (arXiv 2602.11988).
+5. **`tools-reference.md` (17.5 KB):**
+   * **Briefing:** Exhaustive technical specification of the 41 core tools in Claude Code. Details input Zod schemas, execution modes (Sync/Async), permission levels, and progress notification channels.
+6. **`hooks-events-reference.md` (21.3 KB):**
+   * **Briefing:** Complete reference for the event bus and lifecycle hooks (`pre_tool_execution`, `post_tool_execution`, `on_context_compaction`, `on_session_end`). Outlines payload definitions and listener registration APIs.
+7. **`settings-reference.md` (75.3 KB):**
+   * **Briefing:** Deep breakdown of CLI configuration hierarchies (`settings.json`, environment variables, enterprise policy overrides, feature flags).
+8. **`skill-design-patterns.md` (21.7 KB):**
+   * **Briefing:** Architectural patterns for creating custom skills (`SKILL.md`). Outlines YAML frontmatter parsing, variable interpolation, dynamic parameter injection, and skill composition rules.
+9. **`known-issues.md` (26.7 KB):**
+   * **Briefing:** Comprehensive catalog of edge cases, API rate limit traps, context drift vulnerabilities, and multi-file refactoring pitfalls with exact mitigation recipes.
+10. **`methodologies.md` (31.8 KB):**
+    * **Briefing:** Software engineering methodologies adapted for AI agent execution, including Plan-First Development, Spec-First Engineering, and In-Loop Test-Driven Development (TDD).
+11. **`community-patterns.md` (24.9 KB):**
+    * **Briefing:** Real-world workflows developed by the community, including multi-agent code reviews, autonomous PR creation, and automated changelog fragments.
+12. **`visual-reference.md` (43.5 KB):**
+    * **Briefing:** UI/UX specification for React + Ink terminal layouts. Outlines multi-pane split views, diff syntax highlighting, spinner components, and statusline rendering.
+13. **`glossary.md` (15.5 KB):**
+    * **Briefing:** Terminology reference defining core agentic concepts (Agent Harness, Taint Gate, Prompt Caching, Dumb Zone, RRF Fusion, CAR Register).
+14. **`credits.md` (17.9 KB):**
+    * **Briefing:** Citations and references for underlying research papers (arXiv 2605.18747, arXiv 2602.11988), open-source libraries, and contributors.
+15. **`claude-code-releases.md` (285.8 KB):**
+    * **Briefing:** Complete historical release changelog of Claude Code, detailing feature additions, breaking API updates, performance optimizations, and security patches.
+
+---
+
+### 10.2 Security Subsystem Documents (`guide/security/`)
+
+1. **`sandbox-native.md` (49.2 KB):**
+   * **Briefing:** Native OS-level sandboxing specification. Details Bubblewrap (`bwrap`) unshare mounts on Linux and Windows Restricted Tokens / Job Objects on Windows.
+2. **`sandbox-isolation.md` (34.5 KB):**
+   * **Briefing:** Container-based isolation using Docker and Podman rootless mounts. Documents read-only lower layers, tmpfs upper layers, and container pool management.
+3. **`security-hardening.md` (53.7 KB):**
+   * **Briefing:** Threat modeling and defense-in-depth architecture. Details the TaintGate sanitizer (`UNTRUSTED_TAINTED`), capability authorization registers (CAR), and prompt injection mitigations.
+4. **`enterprise-governance.md` (44.1 KB):**
+   * **Briefing:** Enterprise policy enforcement, Mobile Device Management (MDM) integration, SAML/OAuth SSO authentication, and tamper-proof audit trails.
+5. **`production-safety.md` (31.6 KB):**
+   * **Briefing:** Guardrails for autonomous agent execution in production environments, including resource limits, timeout handlers, and automated rollback triggers.
+6. **`data-privacy.md` (20.6 KB):**
+   * **Briefing:** Zero Data Retention (ZDR) policies, telemetry opt-out flags, sensitive data redaction filters, and credential masking.
+
+---
+
+### 10.3 Workflows Subsystem Documents (`guide/workflows/`)
+
+1. **`agent-teams.md` (78.2 KB) & `agent-teams-quick-start.md` (23.5 KB):**
+   * **Briefing:** Architecture for multi-agent team collaboration. Outlines leader-worker topologies, shared memory spaces, inter-agent messaging protocols, and task decomposition.
+2. **`spec-first.md` (43.7 KB):**
+   * **Briefing:** Specification-driven development workflow where the agent writes formal API specifications and test suites before generating implementation code.
+3. **`plan-driven.md` (13.6 KB) & `plan-pipeline.md` (16.3 KB):**
+   * **Briefing:** Plan Mode pipeline execution. Details the transition between read-only architectural planning and write-enabled code implementation.
+4. **`rpi.md` (24.9 KB):**
+   * **Briefing:** The Research-Plan-Implement (RPI) cycle. Standard operating procedure for complex multi-file codebase refactoring.
+5. **`tdd-with-claude.md` (10.8 KB):**
+   * **Briefing:** Test-Driven Development (TDD) loops where the agent writes failing unit tests, implements minimal code to pass, and refactors under test coverage.
+6. **`task-management.md` (26.0 KB):**
+   * **Briefing:** Async background task management (`TaskCreateTool`, `TaskGetTool`, `TaskStopTool`), task lifecycle states, and output streaming.
+7. **`dual-instance-planning.md` (21.2 KB):**
+   * **Briefing:** Dual-instance Architect/Editor pattern. Isolates high-level planning on a primary model (Opus) while delegating surgical code edits to a secondary model (Sonnet/Haiku).
+8. **`dynamic-workflows.md` (38.7 KB):**
+   * **Briefing:** Runtime workflow composition and dynamic step execution based on intermediate environment observations.
+9. **`event-driven-agents.md` (11.7 KB):**
+   * **Briefing:** Event-triggered agent execution reacting to GitHub webhooks, file system changes (`fsnotify`), or Slack messages.
+10. **`search-tools-mastery.md` (25.4 KB):**
+    * **Briefing:** Advanced search strategies using GlobTool, GrepTool (ripgrep), and LSP symbol navigation to explore large repositories efficiently.
+11. **`production-reliability.md` (24.2 KB):**
+    * **Briefing:** Strategies for ensuring zero-downtime execution, error backoff, self-healing loops, and graceful fallback handling.
+12. **`agentic-software-factories.md` (20.9 KB):**
+    * **Briefing:** Scaled autonomous software factory pipelines where agents process PR queues continuously.
+13. **`code-review.md` (7.3 KB) & `multi-provider-code-review.md` (12.9 KB):**
+    * **Briefing:** Automated code review workflows comparing diffs against architectural rules and utilizing multiple LLM providers for ensemble scoring.
+14. **`design-to-code.md` (26.9 KB):**
+    * **Briefing:** Converting UI mockups and design assets into semantic, accessible HTML/CSS/React components.
+15. **`exploration-workflow.md` (8.8 KB):**
+    * **Briefing:** Structured onboarding workflow for exploring unfamiliar codebases without inflating context windows.
+16. **`github-actions.md` (12.4 KB):**
+    * **Briefing:** Integrating Claude Code into GitHub Actions CI/CD workflows for automated issue triaging and PR generation.
+17. **`gstack-workflow.md` (10.3 KB):**
+    * **Briefing:** Full-stack development workflows spanning database schemas, backend APIs, and frontend components.
+18. **`iterative-refinement.md` (19.7 KB):**
+    * **Briefing:** Iterative code improvement loops driven by lint errors, type checker feedback (`pyright`/`tsc`), and benchmark results.
+19. **`changelog-fragments.md` (9.4 KB):**
+    * **Briefing:** Automated generation of Towncrier-style changelog fragments from git commit histories and PR descriptions.
+20. **`pdf-generation.md` (13.3 KB) & `og-image-generation.md` (6.7 KB):**
+    * **Briefing:** Automated document and visual asset generation pipelines using Playwright and Puppeteer inside sandboxed tools.
+21. **`skeleton-projects.md` (7.2 KB):**
+    * **Briefing:** Scaffolding new projects using skeleton templates and automated dependency initialization.
+22. **`smart-suggest-routing.md` (12.3 KB):**
+    * **Briefing:** Intent classification and smart tool suggestion algorithms for routing user prompts to optimal tools.
+23. **`support-csm-agent.md` (15.7 KB):**
+    * **Briefing:** Specialized agent configurations for customer support and customer success engineering tasks.
+24. **`talk-pipeline.md` (21.2 KB) & `tts-setup.md` (8.0 KB):**
+    * **Briefing:** Voice-driven interaction pipelines incorporating speech-to-text (Whisper) and text-to-speech (TTS) setups.
+25. **`team-ai-instructions.md` (10.6 KB):**
+    * **Briefing:** Managing shared team AI instructions (`.claude/rules`) across large engineering organizations.
+
+---
+
+### 10.4 Operations, Roles & Ecosystem Documents
+
+1. **`guide/ops/observability.md` (40.0 KB):**
+   * **Briefing:** OpenTelemetry (OTel) metrics, distributed tracing, log aggregation, and performance profiling for agent runs.
+2. **`guide/ops/ai-unit-economics.md` (26.4 KB):**
+   * **Briefing:** Token economics, cost-per-PR calculations, prompt caching ROI, and model tier selection strategies.
+3. **`guide/ops/devops-sre.md` (30.1 KB):**
+   * **Briefing:** SRE workflows, automated incident response, log triage, and infrastructure-as-code (Terraform/Ansible) maintenance.
+4. **`guide/ops/ai-traceability.md` (33.1 KB):**
+   * **Briefing:** Full auditability, decision provenance tracking, and regulatory compliance logging.
+5. **`guide/ops/api-gateway.md` (10.5 KB):**
+   * **Briefing:** API gateway proxies, rate limiting, quota management, and fallback endpoint routing.
+6. **`guide/ops/team-metrics.md` (34.2 KB):**
+   * **Briefing:** Measuring developer productivity, PR throughput, and agent assistance impact.
+7. **`guide/roles/ai-roles.md` (46.3 KB):**
+   * **Briefing:** Specializing agent roles (Architect, Security Auditor, Test Writer, Refactoring Specialist).
+8. **`guide/roles/agent-evaluation.md` (27.0 KB):**
+   * **Briefing:** Evaluation methodologies, benchmark regression gates, and statistical ablation testing.
+9. **`guide/roles/adoption-approaches.md` (25.3 KB):**
+   * **Briefing:** Frameworks for introducing autonomous coding agents into enterprise engineering teams.
+10. **`guide/roles/learning-with-ai.md` (56.8 KB):**
+    * **Briefing:** Interactive pair programming, code explanation, and developer onboarding using AI.
+11. **`guide/ecosystem/ai-ecosystem.md` (157.1 KB):**
+    * **Briefing:** Architectural comparison across modern AI coding tools (Claude Code, Aider, OpenHands, Cursor, Windsurf).
+12. **`guide/ecosystem/mcp-servers-ecosystem.md` (79.0 KB):**
+    * **Briefing:** Catalog of Model Context Protocol (MCP) servers (GitHub, Postgres, Slack, Brave Search, Puppeteer).
+13. **`guide/ecosystem/mcp-vs-cli.md` (24.1 KB):**
+    * **Briefing:** Architectural trade-offs between server-side MCP tools and local CLI tool execution.
+14. **`guide/learning-path/01-installation.md` to `07-advanced.md` (8 files, ~70 KB):**
+    * **Briefing:** Step-by-step tutorial modules covering installation, core loops, memory management, subagent spawning, custom skill authoring, hook development, and advanced enterprise setup.
+
+---
+
+## 11. DETAILED FILE-BY-FILE INVENTORY & BRIEFINGS (PART 2: CLAUDE CODE ANALYSIS & REVERSE ENGINEERING TEARDOWNS)
+
+This section details the source code teardown modules compiled in `src/claude_refs/claude-code-analysis/`.
+
+### 11.1 Source Code Reverse-Engineering Breakdown (`claude-code-analysis/DOCUMENTATION.md`)
+
+1. **`DOCUMENTATION.md` (37.2 KB):**
+   * **Briefing:** Comprehensive top-down architectural analysis of the Claude Code TypeScript source tree. Documents the 17 core architectural subsystems:
+     * **§1 Project Overview & Capabilities:** Interactive REPL, 40+ tools, 101 slash commands, agent/task system, plan mode, MCP integration, plugins/skills, voice mode, bridge mode, remote sessions.
+     * **§2 Technology Stack:** TypeScript, Bun bundler (`bun:bundle`), React + Ink (`terminal React renderer`), Anthropic SDK (`@anthropic-ai/sdk`), MCP SDK (`@modelcontextprotocol/sdk`), Commander.js, Zod v4, Chalk.
+     * **§3 Directory Structure:** Single top-level `src/` directory containing `QueryEngine.ts`, `Tool.ts`, `Task.ts`, `commands.ts`, `tools.ts`, `context.ts`, `query.ts`, `setup.ts`, `cost-tracker.ts`, `ink.ts`, `replLauncher.tsx`, `tasks.ts`, and 30+ subdirectories.
+     * **§4 Entry Points (`src/main.tsx` & `src/setup.ts`):** 10-step startup sequence (startup profiler, MDM prefetch, keychain prefetch, Bun feature flag evaluation, Commander.js argument parsing, Auth validation, GrowthBook feature flag initialization, policy limit loading, tool/command registration, REPL launcher).
+     * **§5 Core Architecture (`QueryEngine.ts`, `context.ts`, `cost-tracker.ts`):** 46KB QueryEngine managing message history, real-time token streaming, auto-compaction, cache alignment, retry backoff, and cost tracking by model.
+     * **§6 Tool System (41 Tools):** Breakdown of File Operations, Code Execution, Web & Search, Agent & Task Management, Planning & Workflow, MCP, Configuration & System, Team & Remote, and Internal tools.
+     * **§7 Command System (101 Commands):** Breakdown of Git & VCS, Session & History, Config & Settings, Agent & Task Management, File Operations, Dev & Debugging, Auth, Plugins, Workspace, Info & Help, Platform Integration, Memory, Model, and Special Operations.
+     * **§8 State Management (`src/state/`):** React Context provider (`AppState.tsx`), Zustand-style store (`store.ts`), and central state fields (`settings`, `mainLoopModel`, `messages`, `tasks`, `toolPermissionContext`, `kairosEnabled`, `remoteConnectionStatus`).
+     * **§9 Task System (`src/Task.ts` & `tasks.ts`):** Task types (`local_bash`, `local_agent`, `remote_agent`, `in_process_teammate`, `local_workflow`, `monitor_mcp`, `dream`) and 5 lifecycle states (`pending`, `running`, `completed`, `failed`, `killed`).
+     * **§10 Services & Integrations (`src/services/`):** API services, auth providers (OAuth, AWS Bedrock, GCP Vertex, Azure), keychain security, telemetry exporters, MCP integration server.
+     * **§11 UI Layer (`src/components/`, `screens/`, `ink/`):** 130+ Ink components, multi-pane layout renderers, diff syntax highlighter, spinner animations, custom terminal keybindings.
+     * **§12 Utilities (`src/utils/`):** 300+ utility modules for string formatting, path normalization, AST parsing, diff calculation, process execution.
+     * **§13 Special Modes:** Plan mode (read-only architectural planning), Kairos mode (assistant mode), Bridge mode (always-on remote connection), Remote sessions, Vim mode, Voice mode.
+     * **§14 Plugins & Skills:** Bundled plugin loader, user skill parser, frontmatter validator, parameter binding.
+     * **§15 Hooks & Extensibility:** Event bus listeners, lifecycle hooks (`pre_tool_execution`, `post_tool_execution`, `on_context_compaction`, `on_session_end`).
+     * **§16 Architectural Patterns:** Strict module boundaries, out-of-process execution hands, append-only SQLite WAL logging, immutable prompt cache markers, zero-copy worktrees.
+
+2. **`README.md` in `claude-code-analysis/` (4.3 KB):**
+   * **Briefing:** Index and reading guide for the reverse-engineering teardown, outlining methodology, provenance, and license compliance.
+
+

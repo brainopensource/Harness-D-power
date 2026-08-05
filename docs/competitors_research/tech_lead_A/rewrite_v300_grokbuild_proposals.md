@@ -22,11 +22,11 @@ A study of `src/grok_build` (xAI, 81 workspace crates, ~1.5M lines of Rust acros
 > defers to the item here.
 
 Everything below is phrased as a proposal with an open question attached. Several of these would
-*change decisions already recorded* in [the ADRs](./rewrite_v300_decisoes_adr.md); where that is the
+*change decisions already recorded* in [the ADRs](../../rationale/rewrite/rewrite_v300_decisoes_adr.md); where that is the
 case it is stated explicitly, because a suggestion that quietly contradicts a settled decision is
 worse than no suggestion. **Nothing here is adopted until the review decides.**
 
-Under [A-007](./rewrite_v300_decisoes_adr.md), what transfers is understanding — an algorithm, a
+Under [A-007](../../rationale/rewrite/rewrite_v300_decisoes_adr.md), what transfers is understanding — an algorithm, a
 seam, a failure mode. No code moves, and the fact that grok_build is Rust while AETHER is Python is
 noted per item, because some of these ideas are language-neutral (OS primitives, protocol shapes) and
 some are cheap in Rust and expensive in Python.
@@ -101,8 +101,8 @@ choice, not a mechanism one.
 `PauseKind` is `User | BackOff | NoProgress | Verification | Infra`.
 
 **Why it matters to us.** We have the pieces scattered across three documents and no single type: the
-[disposition ladder](./rewrite_v300_mecanismo_edicao.md) has rungs, the
-[API error taxonomy](./rewrite_v300_mecanismo_edicao.md) has recovery actions, the `ask` permission
+[disposition ladder](../../rationale/rewrite/rewrite_v300_mecanismo_edicao.md) has rungs, the
+[API error taxonomy](../../rationale/rewrite/rewrite_v300_mecanismo_edicao.md) has recovery actions, the `ask` permission
 state is a pause, and `BudgetExhausted` parks a run. **Five different pause reasons already exist in
 our design and none of them share a type.** Their taxonomy maps onto ours almost exactly —
 `NoProgress` and `Verification` are the repair loop, `BackOff` and `Infra` are the API taxonomy, `User`
@@ -175,7 +175,7 @@ buried.
 not a node graph. They are `validate`d, journaled, and dry-run before execution.
 
 **What we decided.** [ADR-0018](../../08-decisions/0018-native-workflow-dag.md) and
-[A-024](./rewrite_v300_decisoes_adr.md) put the pipeline in a typed `WorkflowStep` DAG serialized to
+[A-024](../../rationale/rewrite/rewrite_v300_decisoes_adr.md) put the pipeline in a typed `WorkflowStep` DAG serialized to
 config, on the grounds that memoization by input digest makes ablation cheap and that config-driven
 composition needs no kernel change.
 
@@ -226,7 +226,7 @@ maintenance surface. Cassette replay already gives us something adjacent, though
 protocol-agnostic, operating on an `Outcome`, with separate presets for server- and client-side
 consumers running the same state machine.
 
-**Why it matters to us.** [A-022](./rewrite_v300_decisoes_adr.md) specifies count-based guardrails —
+**Why it matters to us.** [A-022](../../rationale/rewrite/rewrite_v300_decisoes_adr.md) specifies count-based guardrails —
 warn at 2 exact repeats, block at 5, and so on. Counters have two known weaknesses: they trip on a
 short unlucky streak early in a run, and they **never** trip on a sustained 40% failure rate that is
 clearly pathological. A rate-over-window with a minimum sample count fixes both, and the min-samples
@@ -260,7 +260,7 @@ they have two.
 
 **Cost and caveats.** This is a Rust crate boundary; in Python it is a module boundary plus protocols,
 which is cheaper but also less enforced. And it is a real question whether a component we have not yet
-built once deserves an internal seam on day one — the port-rent rule ([A-010](./rewrite_v300_decisoes_adr.md))
+built once deserves an internal seam on day one — the port-rent rule ([A-010](../../rationale/rewrite/rewrite_v300_decisoes_adr.md))
 argues against speculative boundaries.
 
 > **Question for the review:** worth understanding what intra- vs inter-compaction means for our design
@@ -299,7 +299,7 @@ filesystem calls and child processes, with a deliberate asymmetry: **process-lev
 because the agent needs the LLM API, while child-process network is blocked per-subprocess via
 seccomp.**
 
-That asymmetry is a genuinely elegant answer to a problem [our security design](./rewrite_v300_seguranca_sandbox.md)
+That asymmetry is a genuinely elegant answer to a problem [our security design](../../rationale/rewrite/rewrite_v300_seguranca_sandbox.md)
 sidesteps by putting everything in a container: the harness process itself needs egress, so "block the
 network" is not available at the process level. Worth recording as a lighter-weight option for the
 local-development profile, where a container is heavy. **Not a replacement for the container
@@ -333,7 +333,7 @@ validate locally, this is the shape that allows it.
 inputs at dispatch time; anything they act through is a **capability injected at install time**, and
 they **never own loop control**."
 
-This is our hooks rule ([security §1.5](./rewrite_v300_seguranca_sandbox.md)) stated better than we
+This is our hooks rule ([security §1.5](../../rationale/rewrite/rewrite_v300_seguranca_sandbox.md)) stated better than we
 stated it. No design change — worth borrowing the phrasing, because "a hook may veto, never grant" and
 "capability at install, data at dispatch" are the same rule and the second is more precise about
 *how*.
@@ -344,7 +344,7 @@ stated it. No design change — worth borrowing the phrasing, because "a hook ma
 request plus roles, personas and parent state, resolve effective model, persona, capability mode and
 isolation — into a pure library separate from the spawning itself.
 
-Consistent with [A-019](./rewrite_v300_decisoes_adr.md), where a sub-agent gets a scoped registry and
+Consistent with [A-019](../../rationale/rewrite/rewrite_v300_decisoes_adr.md), where a sub-agent gets a scoped registry and
 its own budget. The idea worth keeping is that **the resolution is a pure function of the request and
 the parent state**, and therefore unit-testable without spawning anything. Cheap to honour when we
 build sub-agents; nothing to decide now.

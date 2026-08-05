@@ -15,13 +15,12 @@ retrieval: excluded
 
 ## 1. VISÃO GERAL DA ARQUITETURA HEXAGONAL & ESTRUTURA MASTER MULTI-ENGINE
 
-O **AETHER v3.0.0B** é estruturado sob os princípios de **Arquitetura Hexagonal (Ports & Adapters)**, **Capability Authorization (CAR Model)**, o desacoplamento **Brain / Hands / Session Log** (*Anthropic Managed Agents 2026*), o **GEPA Reflective Auto-Evolution Engine** (*Hermes Self-Evolution*), a **Infraestrutura Nativa Rust com Actor Hunk Tracking e PTY Harness** (*Grok Build*) e os **Mecanismos de Fuzzy Patch Seeking, ExecPolicy AST, Pre-Warmed Containers e Codemode Execution** (*OpenAI Codex CLI & OpenHands*). O namespace final de produção é **`src/aether`**.
+O **AETHER v3.0.0B** é estruturado sob os princípios de **Arquitetura Hexagonal (Ports & Adapters)**, **Capability Authorization (CAR Model)**, o desacoplamento **Brain / Hands / Session Log** (*Anthropic Managed Agents 2026* e paper arXiv 2605.18747), o **GEPA Reflective Auto-Evolution Engine** (*Hermes Self-Evolution*), a **Infraestrutura Nativa Rust com Actor Hunk Tracking e PTY Harness** (*Grok Build*) e os **Mecanismos de Fuzzy Patch Seeking, ExecPolicy AST, Pre-Warmed Containers e Codemode Execution** (*OpenAI Codex CLI & OpenHands*). O namespace final de produção é **`src/aether`**.
 
-### Diretrizes de Arquitetura Propostas:
-1. **Domínio Puro (`src/aether/domain/`):** Modelos Pydantic v2 puros, sem dependências de I/O, banco de dados ou APIs de terceiros. Inclui migração por `upcasters.py`.
-2. **Portas Remotáveis (`src/aether/ports/`):** Interfaces `Protocol` totalmente assíncronas (`async`), cujos payloads são 100% serializáveis via Pydantic.
-3. **Módulo Nativo Rust (`src/aether/core_rs/`):** Biblioteca de alta performance exportada via **PyO3** contendo parsing AST Tree-sitter, busca FTS5, Hunk Tracker Actor com atribuição por autor, PTY Terminal Harness, busca aproximada de patches (`seek_sequence.rs`) e manipuladores OverlayFS/CoW de Git Worktrees (<10ms).
-4. **Isolamento de Segurança e Containers:** Suporte a Sandboxing Nativo (Windows Restricted Tokens / Linux `bwrap`) e Pool de Containers Pré-Aquecidos (*Pre-Warmed Container Pool*) para alocação instantânea de subagentes em 0ms.
+### As Três Propriedades Fundamentais do Harness (arXiv 2605.18747):
+1. **Paridade (Parity):** O ambiente percebido pelo agente no workspace é idêntico ao ambiente do desenvolvedor humano no terminal, prevenindo desvios de contexto.
+2. **Receptivity (Receptividade):** O loop aceita observações do ambiente (erros de compilação, linter, stack traces) diretamente na iteração seguinte para reparo em tempo real (*In-Loop Real-Time Repair*).
+3. **Observability (Observabilidade):** Gravação determinística de todas as ações, chamadas de ferramentas e estados em um barramento de eventos append-only persistente com exportação OpenTelemetry.
 
 ---
 
@@ -34,7 +33,7 @@ src/aether/
 ├── core_rs/                      # Módulo nativo Rust (PyO3) - Inspirado no Grok/Codex
 │   ├── Cargo.toml
 │   └── src/
-│       ├── ast_treesitter.rs     # AST Parsing de altíssima velocidade
+│       ├── ast_treesitter.rs     # AST Parsing de altíssima velocidade (<50ns)
 │       ├── fast_indexer.rs       # Walk & FTS5 em Rust
 │       ├── fast_worktree_cow.rs  # Worktrees nativos OverlayFS / Btrfs CoW (<10ms)
 │       ├── hunk_tracker.rs       # Actor Hunk Tracking (Atribuição Agent vs User)
@@ -50,19 +49,19 @@ src/aether/
 │   ├── events.py
 │   ├── trajectory.py
 │   └── upcasters.py              # Migração Transparente de Schemas Legados
-├── ports/                        # Interfaces Protocol (Contratos Hexagonais)
+├── ports/                        # Interfaces Protocol (Contratos Hexagonais - 9 Módulos Harness)
 │   ├── __init__.py
 │   ├── code_graph.py
-│   ├── evaluator.py
-│   ├── governor.py
+│   ├── evaluator.py              # Tri-State Gates & Ablation Evaluator
+│   ├── governor.py               # Budget & Resource Governor
 │   ├── indexer.py
-│   ├── memory.py
-│   ├── model.py
-│   ├── policy.py
-│   ├── sandbox.py
+│   ├── memory.py                 # 3-Track Memory Interface
+│   ├── model.py                  # LLM Provider API Interface
+│   ├── policy.py                 # CAR Policy Interface
+│   ├── sandbox.py                # Isolated Hands Interface
 │   ├── search.py
-│   ├── tool_registry.py
-│   ├── trajectory.py
+│   ├── tool_registry.py          # Tool Search on Demand Registry
+│   ├── trajectory.py             # Event Stream Persistence Interface
 │   └── workspace.py
 ├── kernel/                       # Trusted Computing Base (TCB)
 │   ├── __init__.py
@@ -78,27 +77,28 @@ src/aether/
 │   ├── model/                    # Adaptação LLM (Opus / Sonnet / DeepSeek)
 │   ├── sandbox/                  # Pre-Warmed Container Pool & Native Sandbox (bwrap)
 │   ├── search/                   # Adaptação Best-of-N & RRF Scoring
-│   ├── tools/                    # Ferramentas nativas do sistema
+│   ├── tools/                    # 41 Ferramentas Nativas do Sistema
 │   ├── trajectory/               # Adaptação SQLite Engine WAL Journaling
 │   └── workspace/                # Adaptação Git Worktrees CoW
-├── agency/                       # Agência, Loop de Execução e Contexto
+├── agency/                       # Agência, Loop de Execução e Contexto (The Brain)
 │   ├── __init__.py
-│   ├── architect.py              # Modelo Arquiteto (Planejamento Conceitual)
-│   ├── editor.py                 # Modelo Editor (Search/Replace cirúrgico)
+│   ├── architect.py              # Modelo Arquiteto (Opus 5 - Planejamento Conceitual)
+│   ├── editor.py                 # Modelo Editor (Sonnet/Haiku - Diffs Cirúrgicos)
 │   ├── codemode.py               # Execução Programática de Ferramentas em Loop Local
 │   ├── freeze.py                 # Hibernação FrozenRunState
+│   ├── conductor.py              # Conductor System 3 Multi-Agent Engine
 │   ├── run_loop.py               # Real-Time In-Loop Repair Engine
 │   └── context/
-│       ├── assembler.py          # Montador de Contexto Alinhado a Cache
+│       ├── assembler.py          # Montador de Contexto Alinhado a Cache (>92%)
 │       ├── compactor.py          # Exchange-Granular Compactor
-│       ├── dynamic_dispatch.py   # Tool Search on Demand
-│       └── taint_gate.py         # Sanitizador TaintGate
+│       ├── dynamic_dispatch.py   # Tool Search on Demand (37% menos tokens)
+│       └── taint_gate.py         # Sanitizador TaintGate (UNTRUSTED_TAINTED)
 ├── evolution/                    # Módulo de Auto-Evolução Reflexiva (GEPA / Hermes)
 │   ├── __init__.py
-│   ├── gepa_evolver.py           # Otimizador Reflexivo de Prompts & Skills
+│   ├── gepa_evolver.py           # Otimizador Reflexivo de Prompts & Skills (Auto Dream)
 │   ├── trace_miner.py            # Mineração de Trajetórias de Produção
 │   └── dataset_exporter.py       # Exportador SFT / DPO
-└── tui/                          # Terminal User Interface (Rich/Textual / Bubbletea)
+└── tui/                          # Terminal User Interface (React + Ink / Textual)
     ├── __init__.py
     ├── app.py                    # Aplicação Multi-Pane
     ├── components/               # Painéis de Diff Side-by-Side, Hunk Reverter & Logs
@@ -107,22 +107,24 @@ src/aether/
 
 ---
 
-## 3. DIAGRAMA ARQUITETURAL COMPLETO (MERMAID)
+## 3. DIAGRAMA ARQUITETURAL COMPLETO BRAIN / HANDS / LOG (MERMAID)
 
 ```mermaid
 graph TB
     subgraph TUI_LAYER [Camada de Interface & UX Multi-Pane (src/aether/tui)]
-        TUI[Terminal UI - Rich / Textual App]
-        CLI[CLI Commands Parser]
+        TUI[Terminal UI - React Ink / Textual App]
+        CLI[CLI Commands Parser - 101 Commands]
         HunkViewer[Hunk Diff Inspector & Reverter]
     end
 
     subgraph BRAIN_LAYER [Camada de Agência & Raciocínio - BRAIN (src/aether/agency)]
         RL[RunLoop Real-Time Repair Engine]
-        ARCH[Architect Model - Planing]
-        EDIT[Editor Model - Search/Replace]
+        ARCH[Architect Model - Opus 5]
+        EDIT[Editor Model - Sonnet / Haiku]
         CODEMODE[Codemode Local Tool Runner]
-        CTX[Context Assembler & Exchange Compactor]
+        CONDUCTOR[Conductor System 3 Manager]
+        CTX[Context Assembler - Prompt Cache >92%]
+        COMPACTOR[Exchange-Granular Compactor]
         TAINT[TaintGate Sanitizer]
         DISPATCH[Tool Search on Demand]
     end
@@ -130,6 +132,7 @@ graph TB
     subgraph EVOLVER_LAYER [Camada de Auto-Evolução Reflexiva (src/aether/evolution)]
         GEPA[GEPA Reflective Evolver]
         MINER[SessionDB Trace Miner]
+        AUTODREAM[Auto Dream Memory Worker]
         DPO[Dataset Exporter SFT/DPO]
     end
 
@@ -156,7 +159,9 @@ graph TB
     RL --> ARCH
     RL --> EDIT
     RL --> CODEMODE
+    RL --> CONDUCTOR
     RL --> CTX
+    CTX --> COMPACTOR
     CTX --> TAINT
     CTX --> DISPATCH
     
@@ -168,7 +173,8 @@ graph TB
 
     BUS --> MINER
     MINER --> GEPA
-    GEPA -->|Otimiza Texto de Skills & Prompts| CTX
+    GEPA --> AUTODREAM
+    AUTODREAM -->|Otimiza Texto de Skills & Prompts| CTX
     MINER --> DPO
 
     DISP --> A_LLM

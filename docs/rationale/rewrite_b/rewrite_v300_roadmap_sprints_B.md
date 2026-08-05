@@ -17,11 +17,12 @@ retrieval: excluded
 
 Este roadmap apresenta o plano de execução propositivo por Sprints para a construção do **AETHER v3.0.0B** no namespace `src/aether/`.
 
-### Princípio de Admissão de Código:
+### Princípio de Admissão de Código & Prevenção da Inflação de Contexto (arXiv 2602.11988):
 Recomenda-se que nenhuma alteração de mecanismo, heurística de prompt ou nova ferramenta seja promovida para a branch principal de produção sem passar por uma **Ablação Estatisticamente Comprovada** ($p < 0.05$, mínimo de 50 instâncias de teste) demonstrando:
 1. Elevação estatisticamente significante na taxa de resolução (*pass rate*).
 2. Redução ou manutenção do custo monetário e de latência total por tarefa.
 3. Adimplência estrita à regra `require_tests_unmodified` (vedada qualquer modificação na suíte de testes de validação para forçar resultados positivos).
+4. Prevenção da inflação de contexto: vedada a injeção de dumps de regras desnecessários que degradem a precisão em $3\%$ e elevem os custos em $23\%$.
 
 ---
 
@@ -32,7 +33,7 @@ Recomenda-se que nenhuma alteração de mecanismo, heurística de prompt ou nova
 | **SWE-bench Verified** | ~68.0% | 78.0% | 84.0% | **90.0%+** (com Opus 5) |
 | **SWE-bench Pro** | ~38.0% | 45.0% | 52.0% | **60.0%+** |
 | **Terminal-Bench** | ~45.0% | 58.0% | 68.0% | **75.0%+** |
-| **Prompt Cache Hit Rate**| ~50.0% | 75.0% | 88.0% | **>92.0%** |
+| **Prompt Cache Hit Rate**| ~50.0% | 75.0% | 88.0% | **>92.0%** (3 Cache Markers Fixos) |
 | **Tempo de Criação de Worktree**| ~1.5s - 4.5s | 0.8s | 0.1s | **< 10 ms** (OverlayFS / Btrfs CoW) |
 | **Alocação de Container Subagente**| ~3.5s | 1.0s | 0.2s | **0 ms** (Pre-Warmed Container Pool) |
 | **Latência por Chamada FFI**| ~1.5s (gRPC/IPC) | 2.0s | 0.5s | **< 50 ns** (Rust PyO3 Native) |
@@ -78,7 +79,7 @@ gantt
 ### 3.2 SPRINT 1: REAL-TIME IN-LOOP REPAIR, ARCHITECT/EDITOR, HUNK TRACKER & FUZZY PATCHES
 * **Objetivo:** Desenvolver o loop de reparo em tempo real no `run_loop.py`, a separação entre Arquiteto e Editor, o rastreamento de diffs por autor (`HunkTrackerActor`) e a busca aproximada de hunks (`seek_sequence.rs`).
 * **Entregáveis Propostos:**
-  1. Separação de papéis: **Architect** (plano conceitual) e **Editor** (diffs cirúrgicos).
+  1. Separação de papéis: **Architect** (Opus 5 - plano conceitual) e **Editor** (Sonnet/Haiku - diffs cirúrgicos).
   2. Mecanismo de **Search/Replace Blocks com Fuzzy Sequence Seeking** (`seek_sequence.rs`) para suporte a deslocamento imprevisto de linhas sem rejeição de patches.
   3. Actor Hunk Tracker (`hunk_tracker.rs`) para rastreamento e atribuição de autoria de alterações (`Agent` vs `User`) com suporte a reversão atômica por hunk.
   4. Re-injeção de stack traces no loop sem invalidar a prefix cache.
@@ -92,7 +93,7 @@ gantt
   1. **Exchange-Granular Compactor:** Compactação por trocas completas preservando a paridade de mensagens.
   2. **AST Skeleton Mapping (Agentless Pattern):** Injeção de mapa sintático do repositório no topo do prompt.
   3. **Tool Search on Demand & Codemode Execution:** Despacho dinâmico de ferramentas (redução de 37% de tokens) e suporte à execução programática de ferramentas em lote local via `codemode.py`.
-* **Gate de Aceite:** **Prompt Cache Hit Rate > 88%** e melhoria estatisticamente significante em repositórios de grande porte.
+* **Gate de Aceite:** **Prompt Cache Hit Rate > 92%** e melhoria estatisticamente significante em repositórios de grande porte.
 
 ---
 

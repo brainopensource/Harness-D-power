@@ -3,94 +3,122 @@ status: rationale
 retrieval: excluded
 ---
 
-# RELATÓRIO DE ANÁLISE TÉCNICA E ARQUITETURA: HERMES SELF-EVOLUTION (`src/hermes_self_evolution`)
+# COMPREHENSIVE ARCHITECTURAL & TECHNICAL ANALYSIS: HERMES SELF-EVOLUTION (`src/hermes_self_evolution`)
 
 > **Autor:** Gemini (Antigravity AI Coder)  
-> **Data:** 05 de Agosto de 2026  
-> **Target:** `docs/competitors/hermes_self_evolution_B_gemini.md`  
-> **Escopo:** Análise técnica profunda do ecossistema de auto-evolução reflexiva do Hermes (`src/hermes_self_evolution`), abordando os três motores de otimização (GEPA, Darwinian Evolver, MIPROv2), mineração de datasets de avaliação por SessionDB e evolução zero-GPU baseada em trajetórias.
+> **Date:** August 05, 2026  
+> **Target Document:** `docs/competitors_research/tech_lead_B/hermes_self_evolution_B_gemini.md`  
+> **Source Material:** `src/hermes_self_evolution` (Nous Research Hermes Self-Evolution standalone optimization framework, >780 lines PLAN.md).  
+> **Scope:** Deep-dive technical breakdown of Hermes Self-Evolution pipeline, GEPA reflective evolution engine via DSPy, MIPROv2 Bayesian instruction optimizer, Darwinian code evolver, SessionDB trajectory mining, and zero-GPU text optimization mechanics.
 
 ---
 
-## 1. INTRODUÇÃO & VISÃO GERAL DO HERMES SELF-EVOLUTION
-
-O **Hermes Self-Evolution** (`src/hermes_self_evolution`), desenvolvido pela Nous Research, é uma pipeline autônoma projetada para otimizar sistematicamente o desempenho do agente de codificação sem necessidade de fine-tuning de pesos em GPUs.
-
-A pipeline opera sobre quatro camadas de otimização (*Tier 1* a *Tier 4*), utilizando análise reflexiva de trajetórias para mutar prompts, habilidades (*skills*) e descrições de ferramentas.
+## TABLE OF CONTENTS
+1. **Executive Overview & Vision**
+2. **The 3 Optimization Engines (GEPA, MIPROv2, Darwinian Code Evolver)**
+3. **The 4 Optimization Tiers (Skills, Tools, Prompts, Code)**
+4. **SessionDB Trajectory Mining & Dataset Generation (`dataset_builder.py`)**
+5. **Fitness Evaluation, Cost Constraints & Statistical Validation (`fitness.py` & `constraints.py`)**
+6. **Zero-GPU Text Mutation Mechanics**
+7. **Synthesis & Deep Technical Mapping for AETHER v300B**
 
 ---
 
-## 2. ARQUITETURA DOS TRÊS MOTORES DE OTIMIZAÇÃO
+## 1. EXECUTIVE OVERVIEW & VISION
+
+**Hermes Self-Evolution** (`src/hermes_self_evolution`) is a standalone, reflective optimization framework designed to systematically improve agent performance by mutating skills (`SKILL.md`), system prompts, tool descriptions, and helper code.
+
+The core paradigm shift in Hermes Self-Evolution is **Zero-GPU Text Optimization**: instead of updating model neural weights via expensive RL or fine-tuning, the framework treats prompts, skills, and code files as optimizable text strings, using LLM-based reflective feedback to evolve higher-performing variants.
 
 ```mermaid
 graph TB
-    subgraph HERMES_SELF_EVOLUTION_PIPELINE [Pipeline de Auto-Evolução Reflexiva]
-        SessionDB[(SessionDB - Histórico de Tarefas Reais)] --> DatasetBuilder[dataset_builder.py - Gerador de Datasets]
-        DatasetBuilder --> EvalData[Dataset de Avaliação Treino/Validação/Teste]
+    subgraph HERMES_SELF_EVOLUTION_MASTER_PIPELINE [Hermes Self-Evolution Framework]
+        SessionDB[(SessionDB - SQLite Production Trajectories)] --> DatasetBuilder[dataset_builder.py - Trajectory Miner]
+        DatasetBuilder --> EvalData[Train / Validation / Test Datasets]
 
-        subgraph OPTIMIZATION_ENGINES [Motores de Otimização]
-            GEPA[GEPA - Otimizador Reflexivo Baseado em Trajetórias]
-            MIPRO[MIPROv2 - Otimizador Otimizado Othello / Bayesiano]
-            Darwin[Darwinian Code Evolver - Otimização de Código de Ferramentas]
+        subgraph THREE_OPTIMIZATION_ENGINES [Three Optimization Engines]
+            GEPA[DSPy + GEPA Engine - Reflective Evolution]
+            MIPRO[DSPy MIPROv2 Engine - Bayesian Instruction Opt]
+            Darwin[Darwinian Code Evolver - AGPL Code Mutation]
         end
 
-        EvalData --> GEPA
-        EvalData --> MIPRO
-        EvalData --> Darwin
+        EvalData --> THREE_OPTIMIZATION_ENGINES
 
-        GEPA -->|Mutações Reflexivas baseadas em Trajetórias| Candidates[Candidatos Mutados]
-        MIPRO --> Candidates
-        Darwin --> Candidates
+        GEPA -->|Reflective Failure Mutations| CandidateVariants[Candidate Mutated Text Strings]
+        MIPRO -->|Bayesian Instruction Tuning| CandidateVariants
+        Darwin -->|AST Code Mutations| CandidateVariants
 
-        Candidates --> Fitness[fitness.py & constraints.py - Validador de Regressão]
-        Fitness -->|Sucesso p < 0.05| Deploy[Deploy em Produção / Git Commit]
+        CandidateVariants --> Fitness[fitness.py & constraints.py - Regression Guardrail]
+        Fitness -->|Pass Rate Lift p < 0.05| ProductionDeploy[Git Commit & Deploy to Production]
     end
 ```
 
 ---
 
-### 2.1 Os Três Motores de Otimização
+## 2. THE 3 OPTIMIZATION ENGINES
 
-| Motor | Objeto da Otimização | Mecanismo de Funcionamento | Requer GPU? |
+| Engine | Optimization Target | License | Operational Mechanism |
 | :--- | :--- | :--- | :--- |
-| **DSPy + GEPA** | Skills (`SKILL.md`), instruções de prompts e descrições de ferramentas. | Análise reflexiva das trajetórias de falha para entender **POR QUE** o agente errou, propondo mutações textuais. | **Não** (100% via chamadas de API de LLM). |
-| **DSPy MIPROv2** | Exemplos de *few-shot* e texto de instruções do system prompt. | Otimização Bayesiana de instruções e seleção de exemplos contextuais. | **Não** (Apenas otimização de strings). |
-| **Darwinian Evolver** | Código fonte das ferramentas e algoritmos em Python. | Algoritmo genético evolutivo que muta arquivos `.py` e valida via `pytest`. | **Não** (Execução local de suítes de teste). |
+| **DSPy + GEPA** | Skills (`SKILL.md`), prompts, tool descriptions. | MIT | Native Python reflective optimizer. Analyzes execution traces to understand **WHY** a task failed and mutates prompt text to fix root causes. |
+| **DSPy MIPROv2** | Few-shot examples and instruction text. | MIT | Bayesian instruction optimizer. Selects optimal few-shot examples and tunes system instructions. |
+| **Darwinian Evolver**| Tool implementation code (`.py` files). | AGPL v3 | Genetic algorithm mutating Python tool code, validated against `pytest` suites. |
 
 ---
 
-### 2.2 As Quatro Camadas de Otimização (*Tier 1* a *Tier 4*)
+## 3. THE 4 OPTIMIZATION TIERS
 
-1. **Tier 1: Arquivos de Habilidades (Skills - `SKILL.md`):**  
-   * **Relevância:** Altíssimo valor e baixo risco.  
-   * **Funcionamento:** O texto do procedimento é encapsulado como um módulo DSPy, testado contra datasets de avaliação e evoluído via GEPA para cobrir cenários de falha reais.
-2. **Tier 2: Descrições de Ferramentas (`description` em JSON Schema):**  
-   * **Relevância:** Médio valor e baixo risco.  
-   * **Funcionamento:** Otimização dos textos descritivos das ferramentas para garantir que o modelo escolha a ferramenta correta no momento exato (resolvendo problemas de classificação de tool calls).
-3. **Tier 3: Componentes do System Prompt:**  
-   * **Relevância:** Alto valor e risco moderado.  
-   * **Funcionamento:** Otimização das seções de regras e persona do system prompt sem violar as fronteiras de alinhamento de Prompt Cache.
-4. **Tier 4: Evolução de Código de Ferramentas:**  
-   * **Relevância:** Alto valor e alto risco.  
-   * **Funcionamento:** Refatoração de funções auxiliares de ferramentas utilizando algoritmos evolutivos validados por suítes de testes (`pytest`).
+```mermaid
+flowchart TD
+    Tier1[Tier 1: Skill Files SKILL.md - High Value / Low Risk] --> Tier2[Tier 2: Tool Descriptions Schema - Med Value / Low Risk]
+    Tier2 --> Tier3[Tier 3: System Prompt Sections - High Value / Med Risk]
+    Tier3 --> Tier4[Tier 4: Tool Implementation Code - High Value / High Risk]
+```
 
----
-
-### 2.3 Mineração de Trajetórias & Avaliação Reflexiva
-* **`dataset_builder.py`:** Extrai casos de uso reais a partir dos arquivos SQLite do `SessionDB`, dividindo-os automaticamente em conjuntos de treino, validação e teste.
-* **Reflexão sobre o Porquê da Falha:** Diferente de otimizadores tradicionais que usam apenas métricas binárias (passou/falhou), o GEPA inspeciona a saída intermediária (*thought trace*) e identifica se o erro foi provocado por ambiguidade no prompt ou falta de contexto.
+1. **Tier 1: Skill Files (`SKILL.md`):** Highest value, lowest risk. Wraps procedural instructions as DSPy modules, evaluates test tasks, and mutates wording using GEPA.
+2. **Tier 2: Tool Descriptions (`description` in JSON Schemas):** Improves tool selection accuracy by optimizing description text seen by the model during tool routing.
+3. **Tier 3: System Prompt Components:** Refines persona rules, formatting instructions, and safety guardrails while preserving prompt caching alignment.
+4. **Tier 4: Tool Implementation Code:** Refactors Python tool implementations using Darwinian evolutionary search, guarded by strict `pytest` test suites.
 
 ---
 
-## 3. OTIMIZAÇÕES E BENCHMARKS EMPÍRICOS
+## 4. SESSIONDB TRAJECTORY MINING & DATASET GENERATION (`dataset_builder.py`)
 
-* **Zero-GPU Efficiency:** Todos os processos de mutação de prompts e skills operam via chamadas à API de LLMs (como Claude Opus/Sonnet ou GPT-4o), eliminando a necessidade de clusters de GPUs de alto custo.
-* **Validação Estatística:** Mutações só são promovidas se demonstrarem ganhos estatisticamente significantes ($p < 0.05$) no conjunto de teste sem aumentar o consumo de tokens além dos limites estabelecidos em `constraints.py`.
+* **Mining Real Execution Logs:** `dataset_builder.py` mines `hermes_state.py` (SessionDB) to extract real user tasks, execution steps, tool outputs, and resolution results.
+* **Automatic Dataset Splitting:** Formats extracted tasks into train, validation, and test datasets for optimization benchmarking.
 
 ---
 
-## 4. CONCLUSÃO & RECOMENDAÇÕES PARA O AETHER v300B
+## 5. FITNESS EVALUATION, COST CONSTRAINTS & STATISTICAL VALIDATION (`fitness.py` & `constraints.py`)
 
-1. **Implementar o Módulo `src/aether/evolution/`:** Adotar o motor **GEPA Reflective Auto-Evolver** (`gepa_evolver.py`) para otimização automatizada offline do texto de skills e descrições de ferramentas do AETHER.
-2. **Utilizar Mineração de Trajetórias (`trace_miner.py`):** Minar os bancos SQLite de trajetórias do AETHER para gerar benchmarks sintéticos internos de regressão.
-3. **Estabelecer Regras de Validação com Regressão Estatística:** Garantir que mutações de prompts só sejam mescladas no código de produção após aprovação no `GateEvaluator` com $p < 0.05$.
+```mermaid
+flowchart LR
+    Candidate[Candidate Variant] --> BatchRunner[batch_runner.py Execution]
+    BatchRunner --> Metrics[Calculate Accuracy, Token Cost & Latency]
+    Metrics --> ConstraintCheck{Passes Constraints?}
+    ConstraintCheck -->|No: Cost/Tokens Exceeded| Reject[Reject Variant]
+    ConstraintCheck -->|Yes| StatCheck{Pass Rate Lift p < 0.05?}
+    StatCheck -->|No| Reject
+    StatCheck -->|Yes| Approve[Approve & Commit Variant]
+```
+
+### 5.1 Evaluation & Validation Rules
+* **Fitness Metric (`fitness.py`):** Evaluates task accuracy, execution cost (tokens), latency, and error rates across test tasks.
+* **Constraints Enforcer (`constraints.py`):** Ensures mutated prompts do not exceed character limits, break prompt caching alignment, or inflate token spend.
+* **Statistical Significance Gate:** Demands $p < 0.05$ across at least 50 test instances before promoting a mutated skill or prompt to production.
+
+---
+
+## 6. ZERO-GPU TEXT MUTATION MECHANICS
+
+* **API-Only Execution:** Operates entirely via LLM API calls (Opus, Sonnet, GPT-4o), eliminating GPU cluster requirements.
+* **Reflective Trace Analysis:** Instead of binary pass/fail feedback, GEPA reads execution traces (thought process, tool calls, error logs) to understand the failure root cause and generate targeted prompt modifications.
+
+---
+
+## 7. SYNTHESIS & DEEP TECHNICAL MAPPING FOR AETHER v300B
+
+| Hermes Self-Evolution Mechanism | Target AETHER Module (`src/aether/`) | Implementation Directive |
+| :--- | :--- | :--- |
+| **GEPA Reflective Engine** | `src/aether/evolution/gepa_evolver.py` | Implement reflective trace analysis and prompt/skill text mutation via DSPy/GEPA. |
+| **SessionDB Trajectory Miner** | `src/aether/evolution/trace_miner.py` | Mine SQLite trajectories to auto-generate evaluation datasets. |
+| **Statistical Ablation Gate** | `src/aether/ports/evaluator.py` | Require $p < 0.05$ pass rate lift on 50+ test instances before merging prompt/skill updates. |

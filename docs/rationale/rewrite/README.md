@@ -63,9 +63,11 @@ so and leaves the contradiction open.
 
 | Document | Reference | Contains |
 | :--- | :--- | :--- |
-| [`rewrite_v300_grokbuild_proposals.md`](./rewrite_v300_grokbuild_proposals.md) | Grok Build (xAI) | **P1–P15**, infrastructure: CoW worktrees; budget reservation; pause taxonomy; engine/host split; circuit breaker |
-| [`rewrite_v300_grokbuild_teardown.md`](./rewrite_v300_grokbuild_teardown.md) | Grok Build (xAI) | **P16–P41**, the agent: goal-mode verification cascade; prefire compaction; retrieval; tool versioning; permission gates; what not to copy |
-| [`rewrite_v300_hermes_teardown.md`](./rewrite_v300_hermes_teardown.md) | Hermes Agent + Hermes Self-Evolution (Nous) | **P42–P60**, the primary competitor: the Footprint Ladder; verification evidence ledger; closed learning loop; DSPy+GEPA meta-loop and its measurement gap; Hermes vs Grok Build convergence table |
+| [`rewrite_v300_grokbuild_proposals.md`](../../competitors_research/tech_lead_A/rewrite_v300_grokbuild_proposals.md) | Grok Build (xAI) | **P1–P15**, infrastructure: CoW worktrees; budget reservation; pause taxonomy; engine/host split; circuit breaker |
+| [`rewrite_v300_grokbuild_teardown.md`](../../competitors_research/tech_lead_A/rewrite_v300_grokbuild_teardown.md) | Grok Build (xAI) | **P16–P41**, the agent: goal-mode verification cascade; prefire compaction; retrieval; tool versioning; permission gates; what not to copy |
+| [`rewrite_v300_hermes_teardown.md`](../../competitors_research/tech_lead_A/rewrite_v300_hermes_teardown.md) | Hermes Agent + Hermes Self-Evolution (Nous) | **P42–P60**, the primary competitor: the Footprint Ladder; verification evidence ledger; closed learning loop; DSPy+GEPA meta-loop and its measurement gap; Hermes vs Grok Build convergence table |
+| [`rewrite_v300_claudecode_teardown.md`](../../competitors_research/tech_lead_A/rewrite_v300_claudecode_teardown.md) | Claude Code (via `src/claude_refs/`) | **P61–P78**, the market leader: the "less scaffolding, more model" thesis and the DAG tension; context-engineering budgets; Tool Search measurements; agent teams; Auto Dream; **three-way convergence table**. Carries a provenance warning under L2 |
+| **[`rewrite_v300_synthesis_amendments.md`](../../competitors_research/tech_lead_A/rewrite_v300_synthesis_amendments.md)** | **all four** | **Read this one.** Maps P1–P78 onto these twelve documents: 19 already covered, 17 to sharpen, 34 genuine gaps, 8 declines. Per-document amendments, eight candidate ADRs (A-026…A-033), and a suggested sequencing |
 
 ---
 

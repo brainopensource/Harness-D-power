@@ -18,7 +18,7 @@ updated: 2026-08-05
 
 Same posture as the Grok Build teardown: an **audit followed by suggestions**, not a plan.
 Nothing here decides anything, nothing here overrides
-[`rewrite_v300_decisoes_adr.md`](rewrite_v300_decisoes_adr.md), and where a finding contradicts a
+[`rewrite_v300_decisoes_adr.md`](../../rationale/rewrite/rewrite_v300_decisoes_adr.md), and where a finding contradicts a
 decision we already made the document says so and leaves it open for the review.
 
 No code is proposed for reuse. Both repositories are MIT, so the licence would permit it; the
@@ -122,7 +122,7 @@ plugins against that interface."
 > Our blueprint starts at ~8 core ports and ADR-0023 already says ports pay rent; the ladder is
 > the *tool-side* equivalent and it is sharper, because it names the cheaper alternatives in
 > order instead of just setting a bar. It also interacts directly with the cache-stable prefix
-> layout in [`rewrite_v300_contexto_memoria.md`](rewrite_v300_contexto_memoria.md): the tool
+> layout in [`rewrite_v300_contexto_memoria.md`](../../rationale/rewrite/rewrite_v300_contexto_memoria.md): the tool
 > schema is the first block in the prefix, so a tool added at M2 is a cost paid on every call
 > through M5.
 
@@ -443,7 +443,7 @@ That is a genuinely counter-intuitive cost result and it generalizes to every au
 wants the conversation as input.
 
 > **P51 · Cache-sharing forks for auxiliary tasks.** Grade A. Already noted in
-> [`rewrite_v300_autonomia_agi.md`](rewrite_v300_autonomia_agi.md) §2.2; this teardown adds the
+> [`rewrite_v300_autonomia_agi.md`](../../rationale/rewrite/rewrite_v300_autonomia_agi.md) §2.2; this teardown adds the
 > quantitative reasoning and the tool-whitelist-at-runtime enforcement. Note the tension with
 > Grok Build's skeptic panel, which deliberately uses *different* models per skeptic for
 > diversity — so the right answer is task-dependent: forks that need the transcript should share
@@ -596,7 +596,7 @@ command-shaped, anchored on concrete command identifiers, "so it cannot fire on 
 without preventing the actual foot-gun."
 
 > **P57 · Self-DoS as a named lifecycle class, with defence in depth.** Grade A. Already in
-> [`rewrite_v300_seguranca_sandbox.md`](rewrite_v300_seguranca_sandbox.md) §3.4; Hermes adds two
+> [`rewrite_v300_seguranca_sandbox.md`](../../rationale/rewrite/rewrite_v300_seguranca_sandbox.md) §3.4; Hermes adds two
 > refinements. First, the guard is enforced at *creation* time as well as execution time so the
 > agent gets an immediate informative rejection instead of a job that silently fails later.
 > Second, the pattern is command-shaped rather than keyword-shaped, with the false-positive
@@ -809,7 +809,7 @@ defensible numbers.
 > the objective can stay cheap; the A/A noise floor must be established for the acceptance metric
 > before any evolved variant is accepted; and acceptance must be a significance test against that
 > floor, not a positive delta. That is exactly the doctrine in
-> [`rewrite_v300_measurement_strategy.md`](rewrite_v300_measurement_strategy.md), applied one
+> [`rewrite_v300_measurement_strategy.md`](../../rationale/rewrite/rewrite_v300_measurement_strategy.md), applied one
 > level up — and being able to point at a competitor's shipped meta-loop as the negative example
 > makes the argument concrete rather than pedantic.
 
@@ -912,10 +912,10 @@ imported — is the pattern to follow if it is ever considered.
 
 **Cross-references:** [`rewrite_v300_grokbuild_teardown.md`](rewrite_v300_grokbuild_teardown.md) ·
 [`rewrite_v300_grokbuild_proposals.md`](rewrite_v300_grokbuild_proposals.md) ·
-[`rewrite_v300_reference_teardowns.md`](rewrite_v300_reference_teardowns.md) ·
-[`rewrite_v300_measurement_strategy.md`](rewrite_v300_measurement_strategy.md) ·
-[`rewrite_v300_autonomia_agi.md`](rewrite_v300_autonomia_agi.md) ·
-[`rewrite_v300_contexto_memoria.md`](rewrite_v300_contexto_memoria.md) ·
-[`rewrite_v300_mecanismo_edicao.md`](rewrite_v300_mecanismo_edicao.md) ·
-[`rewrite_v300_seguranca_sandbox.md`](rewrite_v300_seguranca_sandbox.md) ·
-[`rewrite_v300_decisoes_adr.md`](rewrite_v300_decisoes_adr.md)
+[`rewrite_v300_reference_teardowns.md`](../../rationale/rewrite/rewrite_v300_reference_teardowns.md) ·
+[`rewrite_v300_measurement_strategy.md`](../../rationale/rewrite/rewrite_v300_measurement_strategy.md) ·
+[`rewrite_v300_autonomia_agi.md`](../../rationale/rewrite/rewrite_v300_autonomia_agi.md) ·
+[`rewrite_v300_contexto_memoria.md`](../../rationale/rewrite/rewrite_v300_contexto_memoria.md) ·
+[`rewrite_v300_mecanismo_edicao.md`](../../rationale/rewrite/rewrite_v300_mecanismo_edicao.md) ·
+[`rewrite_v300_seguranca_sandbox.md`](../../rationale/rewrite/rewrite_v300_seguranca_sandbox.md) ·
+[`rewrite_v300_decisoes_adr.md`](../../rationale/rewrite/rewrite_v300_decisoes_adr.md)
