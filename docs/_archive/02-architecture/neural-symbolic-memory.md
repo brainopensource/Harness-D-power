@@ -38,8 +38,8 @@ retrieval: excluded
 
 ## **The Memory Port**
 
-Contract in [`src/sagiha/ports/memory.py`](../../src/sagiha/ports/memory.py): `remember`, `recall`, `invalidate`.
-* Models defined in [`src/sagiha/domain/memory.py`](../../src/sagiha/domain/memory.py) (see [Domain Schemas](../03-contracts-and-models/domain-schemas.md#memory)).
+Contract in [`src/sagiha/ports/memory.py`](../../../src/sagiha/ports/memory.py): `remember`, `recall`, `invalidate`.
+* Models defined in [`src/sagiha/domain/memory.py`](../../../src/sagiha/domain/memory.py) (see [Domain Schemas](../03-contracts-and-models/domain-schemas.md#memory)).
 * **No Vectors in Port Signature**: Embeddings live behind `EmbeddingProvider` inside adapters, per [ADR-0014](../08-decisions/0014-defer-dense-retrieval.md).
 
 > [!IMPORTANT]

@@ -43,7 +43,7 @@ This extends the design principle from [Hexagonal Ports](../03-contracts-and-mod
 ## **Async Signatures & Enforcement**
 
 * **Async Signatures**: Port methods use `async def`. Synchronous v1 adapters wrap work in `asyncio.to_thread`.
-* **Automated CI Enforcement**: Checked via meta-conformance suite [`tests/contracts/test_port_shape.py`](../../tests/contracts/test_port_shape.py) (`test_all_port_payloads_are_serializable`, `test_every_port_method_is_async`).
+* **Automated CI Enforcement**: Checked via meta-conformance suite [`tests/contracts/test_port_shape.py`](../../../tests/contracts/test_port_shape.py) (`test_all_port_payloads_are_serializable`, `test_every_port_method_is_async`).
 * **Known Fix**: `Toolchain.detect(root: Path)` signature to be updated to relative `str`.
 
 ## **Cross-References**

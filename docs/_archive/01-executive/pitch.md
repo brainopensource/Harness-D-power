@@ -112,7 +112,7 @@ Source of truth: [`docs/STATUS.md`](../STATUS.md) | [Sprint 3a Status](../implem
 
 ## Further Reading
 
-* [`README.md`](../../README.md) — System architecture, agency levels, quickstart.
+* [`README.md`](../../../README.md) — System architecture, agency levels, quickstart.
 * [`docs/STATUS.md`](../STATUS.md) — Implementation status and roadmap.
 * [`docs/08-decisions/`](../08-decisions/) — Architecture Decision Records (ADRs).
 * [`docs/reviews/`](../rationale/reviews/) — Architectural review audit trail.

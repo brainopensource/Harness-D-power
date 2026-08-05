@@ -1,3 +1,9 @@
+---
+status: rationale
+retrieval: excluded
+updated: 2026-08-05
+---
+
 Contexto. Encerramos a fase de protótipo do AETHER. Toda a documentação anterior foi arquivada em docs/_archive/. Vamos escrever a documentação V0 do zero, mas informada por tudo que já foi produzido. Antes disso há uma reunião de alinhamento entre os dois Tech Leads.
 
 Sua primeira tarefa é leitura, não escrita. Leia, nesta ordem:

@@ -34,7 +34,13 @@ DECLARED_STATUSES = frozenset({"normative", "rationale", "historical"})
 #: ADRs are exempt from the budget (guidelines §4.3): they are short, high-value, and
 #: each one *replaces* long-form derivation elsewhere. Budgeting them would incentivise
 #: exactly the wrong trade — prose in an architecture doc instead of a decision record.
-EXEMPT_PREFIX = "08-decisions/"
+#:
+#: Matched as a path *component*, not a prefix. The prefix form (`"08-decisions/"`) broke
+#: silently when the archive reorganisation moved the ADRs to `_archive/08-decisions/`:
+#: 28 files and 5,779 words re-entered the budget and pushed it from 13,941 to 19,720,
+#: which read as a content breach rather than the string drift it was. A component match
+#: survives the next move; `assert_exemption_matches()` catches it if it does not.
+EXEMPT_DIR_NAME = "08-decisions"
 
 
 def parse_frontmatter(text: str) -> tuple[dict[str, str], str]:
@@ -71,8 +77,12 @@ class DocEntry:
         self.words = words
 
     @property
+    def exempt(self) -> bool:
+        return EXEMPT_DIR_NAME in self.path.parts
+
+    @property
     def budgeted(self) -> bool:
-        if self.path.as_posix().startswith(EXEMPT_PREFIX):
+        if self.exempt:
             return False
         return self.status in BUDGETED_STATUSES
 
@@ -162,12 +172,30 @@ def render(entries: list[DocEntry], ceiling: int | None, fmt: str) -> str:
 
     excluded = [e for e in entries if e.retrieval == "excluded"]
     lines.append(f"`retrieval: excluded`: {len(excluded)} files, {sum(e.words for e in excluded):,} words")
-    exempt = [e for e in entries if e.status in BUDGETED_STATUSES and not e.budgeted]
+    exempt = [e for e in entries if e.status in BUDGETED_STATUSES and e.exempt]
     lines.append(
-        f"ADR exemption (`{EXEMPT_PREFIX}`): {len(exempt)} files, "
+        f"ADR exemption (`{EXEMPT_DIR_NAME}/`): {len(exempt)} files, "
         f"{sum(e.words for e in exempt):,} words excluded from the budget"
     )
     return "\n".join(lines)
+
+
+def assert_exemption_matches(entries: list[DocEntry]) -> str | None:
+    """Return an error message when the ADR exemption selects nothing.
+
+    A path-keyed constant that matches no file does not announce itself: the budget
+    simply gets larger and the breach is read as prose bloat. The exemption is only
+    meaningful if it exempts something, so matching zero files is a defect in the
+    constant, not a legitimate state of the tree.
+    """
+    if any(e.exempt for e in entries):
+        return None
+    return (
+        f"FAIL: the ADR exemption `{EXEMPT_DIR_NAME}` matches no file under docs/.\n"
+        f"Either the ADRs were removed, or they moved and this constant did not follow "
+        f"them. Until it is corrected every ADR counts against the normative ceiling and "
+        f"the resulting breach will look like a content problem."
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -189,6 +217,11 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     failed = False
+
+    drift = assert_exemption_matches(entries)
+    if drift is not None:
+        print(f"\n{drift}", file=sys.stderr)
+        failed = True
 
     # An untagged file is invisible to the budget, which makes "no `status:` key"
     # a loophole that evades the ceiling entirely (defect m-12). Listing them was

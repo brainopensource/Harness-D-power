@@ -34,7 +34,7 @@ Events are frozen Pydantic models containing `run_id`, `step_id`, `schema_versio
 
 ## **Subscriber Contracts**
 
-Contracts live in [`src/sagiha/kernel/bus.py`](../../src/sagiha/kernel/bus.py):
+Contracts live in [`src/sagiha/kernel/bus.py`](../../../src/sagiha/kernel/bus.py):
 
 ### 1. Observers (`async def on_event(event) -> None`)
 * Executed concurrently after emission with hard timeouts.

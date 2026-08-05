@@ -53,14 +53,14 @@ graph TD
 
 ### 1. Capability Grants
 Side-effecting Runtime methods execute only when backed by a path/tool-scoped `Grant`, minted by `PolicyEngine.authorize()` and checked via `verify_grant`.
-* Contracts: [`src/sagiha/ports/policy.py`](../../src/sagiha/ports/policy.py) and [`src/sagiha/ports/workspace.py`](../../src/sagiha/ports/workspace.py).
-* Models: [`src/sagiha/domain/control.py`](../../src/sagiha/domain/control.py).
+* Contracts: [`src/sagiha/ports/policy.py`](../../../src/sagiha/ports/policy.py) and [`src/sagiha/ports/workspace.py`](../../../src/sagiha/ports/workspace.py).
+* Models: [`src/sagiha/domain/control.py`](../../../src/sagiha/domain/control.py).
 
 ### 2. Import-Graph Contracts
 CI enforces via `import-linter` that `agency/` cannot import `runtime/` or `adapters/`.
 
 ### 3. Single Dispatch Choke Point
-Agency emits a `ToolCall`. The kernel choke point ([`src/sagiha/kernel/dispatch.py`](../../src/sagiha/kernel/dispatch.py)) executes: `authorize` → verify `grant_id` → acquire lease → `registry.dispatch(call)` → release lease → `record_outcome(grant_id, result)`. The registry never receives the `Grant` object directly (see [`src/sagiha/ports/tool_registry.py`](../../src/sagiha/ports/tool_registry.py)).
+Agency emits a `ToolCall`. The kernel choke point ([`src/sagiha/kernel/dispatch.py`](../../../src/sagiha/kernel/dispatch.py)) executes: `authorize` → verify `grant_id` → acquire lease → `registry.dispatch(call)` → release lease → `record_outcome(grant_id, result)`. The registry never receives the `Grant` object directly (see [`src/sagiha/ports/tool_registry.py`](../../../src/sagiha/ports/tool_registry.py)).
 
 ## **Admission Control**
 

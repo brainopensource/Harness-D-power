@@ -16,7 +16,7 @@ updated: 2026-07-29
 
 ### T2 — Sandbox Escape via Shell
 * **Perimeter Boundary**: Command string blocklists are UX guards, not security boundaries. Security relies strictly on container isolation ([ADR-0006](../08-decisions/0006-sandbox-is-the-perimeter.md), [Phased Migration Matrix](../07-roadmap/phased-migration-matrix.md)).
-* **Dev-Mode Restrictions**: Unsandboxed subprocess execution is allowed **only** under `interactive` autonomy; invalid configurations fail startup validation ([`src/sagiha/domain/config.py`](../../src/sagiha/domain/config.py)).
+* **Dev-Mode Restrictions**: Unsandboxed subprocess execution is allowed **only** under `interactive` autonomy; invalid configurations fail startup validation ([`src/sagiha/domain/config.py`](../../../src/sagiha/domain/config.py)).
 * **Container Runtime**: Rootless Podman with rootless network namespace firewalling and explicit HTTP/HTTPS proxying ([ADR-0016](../08-decisions/0016-container-runtime-podman.md)).
 
 ### T3 — Evaluation Capture

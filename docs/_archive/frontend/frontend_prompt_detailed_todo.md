@@ -15,15 +15,15 @@ updated: 2026-08-01
 ## 1. Executive Summary & Architectural Invariants
 
 ### 1.1 Architecture & Code Location
-- **Workspace Monorepo Root:** [`frontend/`](../../frontend)
-- **Desktop GUI App (`@sagiha/gui`):** [`frontend/apps/gui`](../../frontend/apps/gui) — Tauri v2 (Rust window host) + React 18+ / Vite / Tailwind CSS.
-- **Terminal CLI App (`@sagiha/cli`):** [`frontend/apps/cli`](../../frontend/apps/cli) — Node ESM + React Ink (`ink`) for rich, interactive TUI directly inside terminal emulators.
-- **Shared UI Library (`@sagiha/ui`):** [`frontend/packages/ui`](../../frontend/packages/ui) — Pure, reusable React component primitives, design tokens, charts, and layout components shared 100% between GUI and TUI adapters.
-- **Shared Protocol & Client (`@sagiha/protocol`):** [`frontend/packages/protocol`](../../frontend/packages/protocol) — TypeScript schemas generated from Pydantic models in [`src/sagiha/domain/`](../../src/sagiha/domain), WebSocket client, REST client, and state hooks.
-- **Mock Engine (`@sagiha/mock-engine`):** [`frontend/packages/mock-engine`](../../frontend/packages/mock-engine) — High-fidelity mock engine simulating real-time WebSocket event streams, step execution, and gate reports for features planned in future backend sprints.
+- **Workspace Monorepo Root:** [`frontend/`](../../../frontend)
+- **Desktop GUI App (`@sagiha/gui`):** [`frontend/apps/gui`](../../../frontend/apps/gui) — Tauri v2 (Rust window host) + React 18+ / Vite / Tailwind CSS.
+- **Terminal CLI App (`@sagiha/cli`):** [`frontend/apps/cli`](../../../frontend/apps/cli) — Node ESM + React Ink (`ink`) for rich, interactive TUI directly inside terminal emulators.
+- **Shared UI Library (`@sagiha/ui`):** [`frontend/packages/ui`](../../../frontend/packages/ui) — Pure, reusable React component primitives, design tokens, charts, and layout components shared 100% between GUI and TUI adapters.
+- **Shared Protocol & Client (`@sagiha/protocol`):** [`frontend/packages/protocol`](../../../frontend/packages/protocol) — TypeScript schemas generated from Pydantic models in [`src/sagiha/domain/`](../../../src/sagiha/domain), WebSocket client, REST client, and state hooks.
+- **Mock Engine (`@sagiha/mock-engine`):** [`frontend/packages/mock-engine`](../../../frontend/packages/mock-engine) — High-fidelity mock engine simulating real-time WebSocket event streams, step execution, and gate reports for features planned in future backend sprints.
 
 ### 1.2 Backend Reference & Ground Truth
-- Backend microkernel and contracts are located in [`src/sagiha/`](../../src/sagiha).
+- Backend microkernel and contracts are located in [`src/sagiha/`](../../../src/sagiha).
 - Reference specifications:
   - Roadmap & Sprint Plan: [`docs/implementation/development_plan_v2.md`](../implementation/development_plan_v2.md)
   - Refactoring & Contract Invariants: [`refactor_sagiha_v2_guidelines.md`](../implementation/refactor_sagiha_v2_guidelines.md)
