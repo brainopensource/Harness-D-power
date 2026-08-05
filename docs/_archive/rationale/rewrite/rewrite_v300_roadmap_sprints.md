@@ -346,6 +346,34 @@ becomes execution rather than construction. That is already written into the vel
 "front-load the slow parts" — and it is the version of this plan that answers B's momentum objection
 without giving up the serialization point.
 
+### 5c.3 What F2 is *not* — a misreading this document has already caused twice
+
+Two independent reviewers read the F2 fork and concluded that Track A proposes *"a hard stop to fix
+B1/B3/B4 before starting Sprint 0."* **It does not, and that reading is not implementable.** Recording
+the correction here, because when two readers make the same error the wording is the defect.
+
+**What Track A actually claims:** no *capability number* is trusted until the A/A floor is published.
+Code starts at M0. The walking skeleton ships at M1a, **before** M1b, and deliberately reports an
+honest zero. The serialization point is on **interpreting measurements**, not on writing software.
+
+**Why the stronger reading is not implementable.** The three blockers have different earliest-possible
+dates, and treating them as one gate produces a plan that cannot start:
+
+| Blocker | Earliest it can be fixed | Why |
+| :--- | :--- | :--- |
+| **B1** — upstream repo cache | **Immediately**, before any AETHER code | It is a standalone clone-and-pin utility with no dependency on the harness. This is the one to front-load |
+| **B3** — no editable install in the evaluation container; canary proves the gate sees the candidate | **After the evaluation container exists** | You cannot fix the isolation of a container you have not built |
+| **B4** — typed *test failed* vs *instrument failed* | **After the gate exists** | The distinction lives in the evaluator's return type |
+
+So the sequencing rule is narrower and sharper than "instruments first": **B1 now; B3 and B4 arrive
+with the components they isolate; no number is published before the floor.** A plan that blocks all
+construction on B3 is waiting for a component to exist before building it.
+
+**Why this matters for v300 specifically.** When the prototype ends and final development starts, the
+temptation will be to read "instruments before capability" as permission to spend a sprint building
+measurement scaffolding with nothing to measure. That is the opposite failure from the predecessor's
+and it wastes the same time. The rule earns its place only in its precise form.
+
 **One thing to take from Track B unconditionally:** its per-sprint acceptance gates are concrete and
 checkable (*"0 ms de espera no alocador de containers e 100% de bloqueio em testes de invasão
 TaintGate"*). Several of Track A's exit gates are prose. Converting each to a named CI job or a named
