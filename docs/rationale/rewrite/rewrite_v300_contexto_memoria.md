@@ -526,6 +526,76 @@ substitution rather than a rewrite.
 
 ---
 
+## 5c. Track B cross-check
+
+### 5c.1 Adopt: ephemeral chain-of-thought truncation
+
+Track B's ADR-01 carries a mechanism this document does not have: **the context retains tool calls and
+their results, and discards the verbose reasoning trace from past turns.** Its stated rationale is that
+CoT from a completed turn consumes window without informing future ones.
+
+That lands exactly on §5.4's finding — reasoning generates tokens, tokens extend context, context
+accelerates rot for every subsequent step, measurably past ~20 tool calls. §5.4 states the problem and
+offers no mechanism beyond "reasoning depth is a per-step decision". **Track B's is the mechanism**,
+and it is cheap: reasoning blocks are already a distinct content type on the wire.
+
+Two cautions before it is adopted as a default rather than an ablation arm:
+
+- **It is a prefix rewrite** and therefore falls under §5b.3 — dropping blocks from already-sent
+  history invalidates the cache from the drop point onward. The version that is cache-safe drops
+  reasoning only from the region being compacted anyway, not from the live tail.
+- **Anthropic's `clear_thinking_20251015` context-editing beta does this provider-side**, which is a
+  cheaper implementation of the same idea and is already noted in §2.2 as an ablation target. Worth
+  comparing the two rather than building ours first.
+
+### 5c.2 Adopt: the three-track memory naming
+
+§4 splits memory into short-term / long-term / knowledge-net. Track B's split is
+**episodic · semantic · procedural**, mapped to concrete stores: episodic in SQLite WAL, semantic in a
+workspace-scoped `MEMORY.md`, procedural in `SKILL.md` files.
+
+B's version is better, for one specific reason: it makes **skills a memory tier** rather than a
+separate subsystem. That connects [autonomy §2](./rewrite_v300_autonomia_agi.md)'s skill corpus to
+§5.3's frozen-prefix rule budget — a skill *is* procedural memory competing for the same attention
+budget — and it makes the curator's job legible as memory consolidation rather than as file
+housekeeping. Suggested: adopt the naming and the store mapping; keep A's bi-temporal requirement on
+the episodic tier, which B does not have.
+
+### 5c.3 Adopt: a stated λ for MMR
+
+§5b.8 specifies MMR with token-set Jaccard and does not name λ. Track B specifies **λ = 0.7**
+(0.7 relevance / 0.3 diversity). That is a reasonable starting value and a stated default beats an
+unstated one — as an ablation parameter, not a constant.
+
+### 5c.4 Fork F10 — the prefix layout
+
+| | **Track A** | **Track B** |
+| :--- | :--- | :--- |
+| Structure | 5 layers, **4** `cache_control` breakpoints, rolling tail | **3 fixed markers**: Identity → Tool Schemas → **AST Skeleton Map** |
+| Repo context | Static repo layer at breakpoint 3, **flagged as the first M2 ablation** | AST Skeleton Map as a permanent marker |
+| Target | >92% over the stable-prefix span (§5b.4) | >92% hit rate |
+
+The two layouts are close and mostly compatible — B's three markers are A's layers 1, 2 and 4 with
+memory/skills folded in. **The contested element is the AST Skeleton Map as a permanent fixture.**
+
+Track B cites arXiv 2602.11988 in support of its context design. That paper's actual finding is that
+repository context files **do not improve resolve rate on average while costing >20% more**, and that
+**LLM-generated** files reduced success ~3% while human-written ones improved it ~4%. A tree-sitter
+skeleton is machine-generated repository context — the category the paper measured as negative-value.
+
+This is not an argument that B is wrong: a skeleton and an `AGENTS.md` are different artifacts, the
+paper did not test skeletons, and A carries the same exposure. It is an argument that **neither track
+has evidence for this layer and both should treat it as an experiment.** §5b.6 already makes it the
+first ablation of M2; the suggestion for the meeting is that both tracks adopt that ablation rather
+than either defending its layout.
+
+**One genuine advantage of B's three-marker form:** fewer markers leave more of the four-breakpoint
+budget for the rolling tail, which is what §1.3's 20-block lookback problem consumes. If the skeleton
+layer loses its ablation, A's layout collapses to something very close to B's — which suggests the
+gap between them is one measurement wide.
+
+---
+
 ## 6. Summary
 
 | Decision | Choice | Reversal / trigger |

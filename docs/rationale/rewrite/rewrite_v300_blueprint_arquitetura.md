@@ -472,6 +472,127 @@ at M0 and impossible to retrofit at M4.
 
 ---
 
+## 8c. Track B cross-check — a file-level layout, and two forks
+
+Track B's blueprint (`docs/rationale/rewrite_b/rewrite_v300_blueprint_arquitetura_B.md`) specifies the
+package down to individual files. §8 above stops at the directory, which is the weaker artifact for
+anyone about to open an editor. **Suggested: adopt the granularity.**
+
+### 8c.1 A file-level layout, reconciled with this document's invariants
+
+Track B's tree with the parts that conflict with A-010 (eight ports, adapter-first) and F1 (the Rust
+fork) marked rather than silently dropped. Nothing here is frozen; it is a starting shape.
+
+```
+src/aether/
+├── domain/                     pure models — zero I/O (I1)
+│   ├── config.py               composition-time configuration schemas
+│   ├── content.py              message and content-block models
+│   ├── control.py              RunOutcome · PauseKind · control signals   ← A-026
+│   ├── events.py               the typed event catalog
+│   ├── trajectory.py           run, step and gate records
+│   └── upcasters.py            FrozenRunState schema migration            ← from Track B, §8c.2
+├── ports/                      Protocols — async, wire-serializable (I2, I3)
+│   ├── model.py · workspace.py · worktree.py · tool_registry.py
+│   ├── policy.py · governor.py · trajectory.py · evaluator.py · indexer.py
+│   └── (code_graph · memory · toolchain · search · lsp · advisory — arrive WITH their
+│        first adapter, per A-010. Track B declares 12 up front; see F5)
+├── kernel/                     TCB (I5, I8)
+│   ├── dispatch.py             the single choke point
+│   ├── bus.py                  event bus + OTel export adapter            ← A-034
+│   ├── governor.py             leases · reserve/commit/release · budgets  ← A-030
+│   └── policy/
+│       ├── engine.py           CAR authorization register
+│       └── effects.py          per-invocation effect classification
+├── agency/                     the loop — mutable by the meta-loop
+│   ├── run_loop.py             step executor; in-loop repair
+│   ├── repair.py               disposition ladder · progress signature
+│   ├── verification/           stop detector · evidence ledger · cascade  ← A-029
+│   ├── search.py               Best-of-N, cache-sequenced fan-out
+│   ├── freeze.py               FrozenRunState — atomic write + sidecar
+│   ├── profile.py              RunProfile — resolved once, immutable      ← A-031
+│   ├── codemode.py             programmatic tool orchestration
+│   ├── conductor.py            (Phase 4 — ports and domain only)
+│   └── context/
+│       ├── assembler.py        5-layer prefix · ≤4 breakpoints
+│       ├── compactor.py        exchange-granular · prefire two-pass       ← A-033
+│       ├── tokens.py           THE token estimator — one source of truth
+│       └── taint_gate.py       deterministic provenance rules
+├── adapters/                   behind ports
+│   ├── model/ · workspace/ · worktree/ · tools/ · trajectory/
+│   ├── indexer/ · sandbox/ · search/ · telemetry/
+│   └── (code_graph/ · memory/ — with their ports)
+├── measurement/                TCB
+│   ├── evaluator.py · gates/ · statistics.py · runner.py · harvester.py
+├── workflow/                   WorkflowStep DAG · memoization (A-024)
+├── evolution/                  offline only — never imported by agency/    ← M5
+│   ├── optimizer.py · trace_miner.py · exporter.py
+├── tui/
+│   ├── app.py · view_model.py
+│   └── components/             diff pane · hunk inspector · run state      ← from Track B
+├── engine.py                   headless API — the surface every pilot uses
+└── composition.py              explicit wiring; no DI container (ADR-0004)
+```
+
+**What is deliberately not in this tree, and why.** Track B places a `core_rs/` sibling with eight
+Rust modules (`ast_treesitter`, `fast_indexer`, `fast_worktree_cow`, `hunk_tracker`, `seek_sequence`,
+`exec_policy_ast`, `pty_harness`, `prompt_queue`). That is **fork F1** and it is not settled here. If
+the review takes Track B's side, the tree gains `core_rs/` and each of those eight becomes an adapter
+implementation behind a port that already exists — which is the property that makes the fork
+reversible in either direction, and the reason I3 matters more than the fork does.
+
+### 8c.2 Three things from Track B's tree worth taking regardless of F1
+
+**`domain/upcasters.py` — schema migration for `FrozenRunState`.** This is the best single idea in
+Track B's layout and Track A does not have it. A frozen run is serialized state that must survive a
+harness upgrade; T5 (≥8h unattended, resumable across process death) implicitly requires that a run
+frozen by version *N* thaws under version *N+1*. Without a versioned upcaster chain the only options
+are "refuse to thaw" or "thaw wrong", and both are discovered in production. Pairs directly with the
+fail-closed drive-state rule in §8b.2 — an unmigratable snapshot restores as *paused*, never *active*.
+
+**A `verification/` sub-package rather than a method on the evaluator.** Track B separates
+`architect.py` / `editor.py` / `codemode.py` as peers in `agency/`. The same instinct applied to the
+completion cascade (A-029) gives the stop detector, the evidence ledger and the panel their own
+module, which is what makes each independently testable.
+
+**`prompt_queue` — combining in-flight turns.** Track B lists a queue that merges user input arriving
+while a turn is running, rather than serializing or dropping it. Not on our roadmap, cheap, and it is
+a real interaction-quality item for a long-running TUI. Recorded in
+[UI §4b](./rewrite_v300_uiux_tui.md).
+
+### 8c.3 Fork F5 — eight ports or twelve
+
+| | **Track A** | **Track B** |
+| :--- | :--- | :--- |
+| Count at M0 / Sprint 0 | 8 | 12 |
+| Entry rule | A port arrives in the same change as its first adapter and conformance test | Declared up front |
+| Rationale | SAGIHA declared 17 and five had zero adapters; an interface designed against an imagined adapter is a guess with type annotations | A complete contract surface lets the team parallelize against stubs |
+
+**The argument for B's side, stated fairly:** twelve declared ports let several people build against a
+frozen surface simultaneously, which is exactly what a five-sprint calendar needs. **The argument
+against:** Track B's own audit identifies five adapterless SAGIHA ports and invokes *"código sem
+adaptador não paga aluguel"* to delete one of them — then declares `code_graph`, `memory`, `search`
+and `indexer` with no adapter-first rule.
+
+A middle position neither track took: declare all twelve **signatures** as a design artifact in the
+document, and admit into `ports/` only those with an adapter — so the parallelization benefit is
+captured without the rent problem.
+
+### 8c.4 Fork F11 — LSP
+
+Track B proposes eliminating LSP entirely and replacing it with tree-sitter in Rust, on the grounds of
+instability and cost. Track A keeps `LSPAdapter` at `growth` tier behind a warm server pool.
+
+They answer different questions and the substitution is not clean: tree-sitter gives **syntax** —
+skeletons, symbol positions, parse validity — and an LSP gives **semantics**: type errors, resolved
+references across compilation units, diagnostics from the project's real toolchain. Our T2
+verification tier is defined in terms of exactly that second category. Track B's position is
+defensible if the T2 tier is dropped or served by invoking the project's own linters and type-checkers
+directly, which is cheaper and less stateful than an LSP session — and that may well be the better
+answer. Worth deciding explicitly rather than by omission.
+
+---
+
 ## 9. What is deliberately absent from v1
 
 | Absent | Returns |

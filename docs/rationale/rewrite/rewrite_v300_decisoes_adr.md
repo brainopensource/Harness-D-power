@@ -676,6 +676,49 @@ nesting is what makes *"where did the four hours go"* answerable.
 
 ---
 
+## Part IIc — Conflict register: Track A vs Track B (meeting agenda)
+
+Source: [`rewrite_ab_comparison.md`](../rewrite_ab_comparison.md), cross-checking this set against
+[`docs/rationale/rewrite_b/`](../rewrite_b/). **Neither column is the answer.** Each row is a fork
+where the two proposals take incompatible positions and the review has to pick one — or a third thing.
+Rows are ordered by how expensive the decision is to reverse later.
+
+| # | Fork | **Track A position** | **Track B position** | Cost of getting it wrong | Owner doc |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **F1** | **Rust core** | Python monoglot; sidecar per component behind a measured trigger (RT-1/2/3); I3 keeps it free | `core_rs/` with 8 named modules via PyO3, **at Sprint 0**, built by Maturin | **Highest.** A build step in every dev loop and inside the self-improvement loop; eight subsystems coupled to one language | [runtime §5b](./rewrite_v300_decisoes_runtime.md) |
+| **F2** | **Instruments before capability** | M1b is a hard serialization point: B1/B3/B4 fixed and an A/A floor published before any capability number | Sprint 0 begins building; no instrument phase | **Highest, and retroactive.** Numbers taken over a broken instrument must be discarded | [roadmap §5c](./rewrite_v300_roadmap_sprints.md) |
+| **F3** | **Statistical protocol** | A/A noise floor first; exact McNemar (paired binary); Holm–Bonferroni family-wise; effect size published | p < 0.05, N ≥ 50, Student's t / permutation; no floor | High. Without a floor, "significant" has no denominator | [measurement §3](./rewrite_v300_measurement_strategy.md) |
+| **F4** | **Benchmark targets** | Pro ≥ 80%, Verified ≥ 96%, lift published alongside | Verified ≥ 90%, Pro ≥ 60%, Terminal-Bench ≥ 75% | Medium. Sets what "success" means for two years | [measurement §1](./rewrite_v300_measurement_strategy.md) |
+| **F5** | **Port count and entry rule** | 8 ports; **a port arrives with its first adapter** (A-010) | 12 ports declared up front | Medium-high. This is the exact defect B's own audit diagnoses in SAGIHA | [blueprint §3](./rewrite_v300_blueprint_arquitetura.md) |
+| **F6** | **Meta-loop authority** | RHI may never touch the TCB; every mutation lands as a **PR**, never a direct commit | GEPA: `p < 0.05 → Commit Git Automático em Produção`, no TCB boundary | **Highest for autonomy.** A loop that can weaken its own judge invalidates every number retroactively | [autonomy §5](./rewrite_v300_autonomia_agi.md) |
+| **F7** | **Architect/Editor split** | Seam built, **shipped off** behind an ablation (A-016) | Built and enabled in Sprint 1 as a foundational mechanism | Medium. Roughly doubles per-task cost; evidence is mixed | [edit §4](./rewrite_v300_mecanismo_edicao.md) |
+| **F8** | **Shell command analysis** | Sandbox is the perimeter (ADR-0006); shell AST for **effect classification only**, never containment | ExecPolicy Shell AST presented as eliminating security bypasses | Medium. A control that looks like security invites the real security to be removed | [security §6b.1](./rewrite_v300_seguranca_sandbox.md) |
+| **F9** | **Schedule form** | No durations — "the exit gates are the schedule" | 5 sprints × ~14 days with a Gantt | Low, and easy to reconcile — see roadmap §5c.1 | [roadmap](./rewrite_v300_roadmap_sprints.md) |
+| **F10** | **Static repo context in the prefix** | Five layers, four breakpoints; the generated repo layer is the **first ablation of M2** | Three fixed markers, with an **AST Skeleton Map** as marker 3 | Medium. arXiv 2602.11988 measured this category as negative-value | [context §5b.6](./rewrite_v300_contexto_memoria.md) |
+| **F11** | **LSP** | `LSPAdapter` at `growth` tier, with a warm server pool | **Eliminate LSP**; replace with tree-sitter in Rust | Low-medium. Tree-sitter and LSP answer different questions | [blueprint §3.2](./rewrite_v300_blueprint_arquitetura.md) |
+| **F12** | **IP protection** | Compilation is a speed bump; the moat is the measured harness | Nuitka + stripped Rust rated **"Excelente"** | Low. Affects packaging effort, not architecture | [runtime §4.1](./rewrite_v300_decisoes_runtime.md) |
+
+### How to read the register
+
+Three of these — **F1, F2, F6** — are the ones worth most of the meeting. They are the decisions that
+are cheap to make now and expensive-to-impossible to unwind later, and the other nine can be settled
+in either direction without much regret.
+
+**F2 and F6 are also the two where the positions are not symmetric.** On F2, Track B's plan produces
+numbers earlier and Track A's produces trustworthy numbers later; but a number taken over the
+documented B3 defect (candidate diffs invisible to the gates scoring them) is not a slower path to the
+same place, it is work that has to be thrown away. On F6, an auto-evolution loop with commit authority
+and no TCB boundary has a strictly dominant strategy available to it — weaken the evaluator — and no
+amount of statistical rigour downstream detects that, because the statistics are computed by the thing
+being weakened.
+
+**F1 is the genuine either/or**, and it is the one where Track A is weakest. Track A's position is
+safe and evasive; Track B's is decisive and unmeasured. Track A's suggested resolution is neither: put
+a timer on worktree creation and AST parsing in the first working slice and let the number pick the
+side — which costs one instrument and defers the commitment by one milestone rather than by three.
+
+---
+
 ## Part III — Carrying forward the 27 existing ADRs
 
 Every record in [`docs/08-decisions/`](../../08-decisions/README.md) is explicitly re-affirmed,

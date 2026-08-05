@@ -432,6 +432,57 @@ context is already over the window, which is precisely the state where compactio
 
 ---
 
+## 5c. Track B cross-check — fork F7, and two adoptions
+
+### 5c.1 Fork F7 — Architect/Editor: ablation gate, or foundation
+
+| | **Track A** (A-016) | **Track B** (ADR-01, Sprint 1) |
+| :--- | :--- | :--- |
+| Status | Seam built; **shipped off** | Built and **enabled** as a foundational mechanism |
+| Architect | An `editor` role in the config-level role→tier binding | `agency/architect.py` — Opus 5, conceptual plan, **no write tools** |
+| Editor | — | `agency/editor.py` — Sonnet/Haiku, surgical `SEARCH/REPLACE` blocks |
+| Gate to enable | An ablation on the smoke suite showing a resolve-rate gain whose CI excludes the noise floor, at acceptable cost delta | None; it is the design |
+
+**The argument for Track B's side, stated fairly and at its strongest.** Reasoning and formatting are
+different skills, and the cost asymmetry is real: an Opus-tier plan followed by Haiku-tier diffs can be
+*cheaper* than Opus doing both, not more expensive, if the plan is short and the diffs are many. The
+architect's context also stays clean of tool-call noise, which §5.1's degradation curve says matters.
+And B's coupling is the interesting part — the AST pre-validation loop returns syntax errors straight
+to the **editor**, so the architect never sees formatting churn at all.
+
+**The argument for keeping it off until measured.** It introduces a lossy hand-off, and hand-off loss
+is the dominant failure mode in multi-agent coding pipelines — the editor sees prose, not the
+architect's context ([autonomy §7.1](./rewrite_v300_autonomia_agi.md): context is never inherited).
+Frontier models in 2026 emit correct anchored edits directly, which is the condition that made the
+pattern valuable when it was proposed and has since weakened. And it is a **structural** commitment:
+once `architect.py` and `editor.py` are peers in the run loop, turning the split off is a refactor
+rather than a config flag.
+
+**A reconciliation:** build it the way Track B specifies — as two modules with a clean seam — and bind
+the *enablement* to config the way A-016 specifies. Then B gets the architecture and A gets the
+ablation, and the first M2 sweep answers the question with a number instead of a preference. The cost
+of this reconciliation is one config branch; the cost of getting it wrong in either direction is a
+doubled per-task bill or a mechanism nobody can turn off.
+
+### 5c.2 Adopt: the pre-validation loop returns to the editor, not the architect
+
+Independent of F7, Track B's ADR-01 sequence has a detail worth taking. On a syntax rejection, the
+error and its location are re-injected **to whichever component produced the diff**, and the file on
+disk is left untouched. §5b.2 proposes moving validation pre-write; B's diagram adds the routing rule.
+
+This matters even in a single-model design: a syntax error is a *formatting* failure, and routing it
+back through a planning turn wastes an expensive round-trip re-deriving intent that never changed.
+
+### 5c.3 Adopt: `SEARCH/REPLACE` block markers as the wire form
+
+Track B specifies the Aider-style `<<<<<<< SEARCH ... ======= ... >>>>>>>` form explicitly. A-013
+specifies anchored search/replace and never says what the model actually emits. The marker form is
+worth pinning for two reasons that are not aesthetic: models have seen it heavily in training, and it
+is **parseable from a partial stream**, which is what would make [§2.3's deferred streaming
+application](#23-streaming-application) possible if wall-clock ever becomes the binding metric.
+
+---
+
 ## 6. Summary
 
 | Decision | Choice | Reversal condition |

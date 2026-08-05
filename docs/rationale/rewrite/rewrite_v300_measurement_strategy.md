@@ -324,6 +324,80 @@ floor wider.
 
 ---
 
+## 5b. Track B cross-check — forks F3 and F4
+
+### 5b.1 Fork F3 — the statistical protocol
+
+Track B requires **p < 0.05 over N ≥ 50 instances, via Student's t or a two-tailed permutation test**,
+with cost and latency held flat and `require_tests_unmodified` enforced. That is a stronger admission
+rule than most plans carry and the instinct is right.
+
+| | **Track A** | **Track B** |
+| :--- | :--- | :--- |
+| Floor | **A/A noise floor published before any regression rule is enforced** | Not established |
+| Test | **Exact McNemar** (paired binary outcomes) | Student's t / permutation |
+| Multiple comparisons | **Holm–Bonferroni across the gate family** | α = 0.05 per test |
+| Sample | ≥2 passes per arm, more where budget allows; smoke tier 20–50 tasks | N ≥ 50 instances |
+| Reported alongside | Effect size, CI, cost and wall-clock per resolved task, the floor it was measured against | Pass-rate increase, cost, latency |
+
+Two of these are not preferences but correctness issues, offered as such:
+
+- **Resolve/not-resolve is a paired binary outcome.** Student's t assumes continuous, roughly normal
+  data; the appropriate test for "same task, two arms, pass or fail" is McNemar's, which conditions on
+  the discordant pairs. On paired binary data a t-test is not merely less powerful — its p-value does
+  not mean what it appears to mean.
+- **α = 0.05 applied per-test across five arms is a ~23% family-wise error rate.** One in four sweeps
+  produces a "significant" result by chance. Holm–Bonferroni is the cheap fix.
+
+And the structural one: **without an A/A floor, "significant" has no denominator.** Two identical
+configurations differ by some amount — sampling, test ordering, flaky upstream tests — and a paired
+comparison cannot distinguish a real effect from that variance until it has been measured. This is
+`PLANNING.md` risk **R6**, and it is why §3 produces the floor *before* any must-not-regress rule
+exists rather than after.
+
+**Track B's N ≥ 50 is the better half of its protocol and Track A should adopt it explicitly.** §3
+says "≥2 passes per arm, more where budget allows", which is vaguer than it should be given that
+Tier 0 makes passes free. A stated minimum instance count belongs in the protocol.
+
+### 5b.2 Fork F4 — the targets
+
+| | **Track A** | **Track B** |
+| :--- | :--- | :--- |
+| SWE-bench Pro | **≥ 80%** | ≥ 60% |
+| SWE-bench Verified | **≥ 96%** | ≥ 90% |
+| Terminal-Bench | secondary, no number | ≥ 75% |
+| Framing | absolute + **lift**, published together, with R1 stated | absolute only |
+
+Per §1 (August 2026, from web research — Track A's own claim, worth independent re-verification):
+Pro's leader is ~80.3% with the top cluster at 79–80%; Verified saturates near 96% with the top tier
+inside a point. If that holds, Track B's targets land ~20 points below the Pro leader and ~6 below the
+Verified frontier, while being framed as *"liderança SOTA incontestável"*. They are consistent with
+`PLANNING.md`'s stale snapshot (Pro leader 69.2%) — and even against that snapshot, 60% Pro is below
+the leader.
+
+**The argument for Track B's side, stated fairly:** a target you can hit is more useful than a target
+you cannot, and Pro ≥80% is a stretch that depends on a model tier nobody has funded (Q3). A plan
+whose headline gate is unreachable will either be missed or quietly re-baselined, and both are worse
+than an honest 60%.
+
+**The argument against:** the number is a commitment to what "success" means for two years, and 60%
+Pro would place the finished product behind the current leader on the primary screen — which is a hard
+position to defend commercially regardless of how honestly it was set.
+
+**A reconciliation neither track proposed:** Track A already separates the two claims. *Lift* (≥+10
+points, paired, on a fixed model, CI excluding the floor) is achievable at Tier 0 with no budget and
+is tier-independent by construction; *absolute* is dominated by model tier and binds only at M4. If
+the meeting adopts B's absolute numbers as the **committed** gate and keeps A's as the **stretch**
+gate, both readings survive and nothing in the engineering plan changes — because the lift target,
+which is what the harness work actually moves, is identical either way.
+
+**Terminal-Bench should be taken from Track B regardless.** §1 lists it as "secondary, for shell and
+environment capability" with no number. Given that PTY execution, sandboxing and the perimeter are all
+on the roadmap, a stated Terminal-Bench target is a better fit for those mechanisms than SWE-bench is,
+and B naming one is an improvement.
+
+---
+
 ## 6. CI tiering
 
 A full benchmark run per commit is unusable on cost and latency (PLANNING.md **R7**).

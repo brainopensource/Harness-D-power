@@ -507,6 +507,86 @@ budget makes the budget mean two things at once.
 
 ---
 
+## 8c. Track B cross-check
+
+### 8c.1 Adopt: a schema-migration pipeline for `FrozenRunState`
+
+Track B's domain layout carries `upcasters.py` — *"FrozenRunState Schema Migration Pipeline"*. This is
+the best single idea in Track B's tree and §1 does not have it.
+
+T5 requires a run to survive process death. It implicitly also requires surviving a **harness
+upgrade**: a run frozen by version *N* and thawed under version *N+1* after an overnight deploy. Absent
+a versioned upcaster chain, the only two behaviours available are "refuse to thaw" — which loses eight
+hours of work — and "thaw wrong" — which is worse, because the wrongness is silent. Both are
+discovered in production.
+
+Suggested shape, composing with §8b.1's fail-closed rule: every `FrozenRunState` carries a schema
+version; thaw runs the version through a chain of pure upcaster functions; **a version with no path to
+current restores as *paused*, never *active*.** The chain is a natural fit for the replay corpus too,
+since a cassette recorded under an old schema has the same problem.
+
+### 8c.2 Adopt: benchmark-shaped decomposition examples
+
+Track B's Conductor diagram decomposes a master task into three concrete sub-agents — *spec &
+architecture*, *write the missing tests*, *surgical implementation*. §7 specifies the topology and the
+constraints but never shows a decomposition. A worked example is a better specification of what the
+coordinator's context-passing has to carry than the constraint list is, and it makes §7.1's ablation
+("what to forward, and how compressed") concrete.
+
+Worth noting that B's particular split has a property the meeting should like: *write the missing
+tests* as a separate agent from *implement* is [invariant I7](./rewrite_v300_seguranca_sandbox.md)
+(generator ≠ evaluator) expressed as a topology rather than as a gate.
+
+### 8c.3 Fork F6 — meta-loop authority
+
+This is the most consequential structural disagreement between the two proposals.
+
+| | **Track A** | **Track B** |
+| :--- | :--- | :--- |
+| Mutable surface | Prompts, routing, skills, tool schemas | Prompts, `SKILL.md`, instructions |
+| **Immutable surface** | **Policy, dispatch, evaluator, gate definitions, benchmark definitions, `.importlinter`, CI** (I8) | **Not defined** |
+| Enforcement | import-linter `tcb-isolation` + CI `tcb-check` rejecting PRs from the agent identity | None named |
+| Deployment | Every mutation lands as a reviewable **PR** | `p < 0.05 → Commit Git Automático em Produção` |
+| Acceptance | Lift beating a measured A/A floor, CI excluding it; rejection log published | p < 0.05 over N ≥ 50 |
+
+**The argument for Track B's side, stated fairly:** a loop that requires human review on every
+mutation is not autonomous, and the statistical gate is doing real work — it is a stronger admission
+criterion than most systems apply to human-written changes. If the gate is sound, requiring a human
+signature adds latency without adding safety.
+
+**The argument against.** The gate is computed by the system it gates. An optimizer whose mutable
+surface includes the evaluator, the gate definitions or the benchmark definitions has one strictly
+dominant strategy available: **weaken the judge.** That path produces a rising p-value-certified score
+with no improvement in the product, and no amount of statistical rigour downstream detects it, because
+the statistics are computed by the thing being weakened. The failure is also retroactive — it
+invalidates every number the project produced after the first such mutation, not just the current run.
+
+Two observations that may narrow the fork rather than settle it:
+
+- **Track B's own cited inspiration disagrees with Track B.** Hermes' self-evolution repository, which
+  ADR-05 names as the model, lists among its five hard guardrails: *"PR review — all changes go
+  through human review, never direct commit."* It also runs the full test suite as a zero-tolerance
+  gate and caps artifact growth at +20%. B took the optimizer and left the guardrails.
+- **The two positions are compatible if the mutable surface is defined.** If the TCB boundary exists
+  and is enforced mechanically, auto-commit *within* that boundary is far less dangerous — the loop
+  can rewrite a prompt automatically because it structurally cannot rewrite the gate. The disagreement
+  is really about I8, and auto-commit is downstream of it. **Suggested framing for the meeting: settle
+  the boundary first; the commit policy follows.**
+
+### 8c.4 Fork F7 — and one thing to take from B's version regardless
+
+The Architect/Editor fork is owned by [the edit mechanism](./rewrite_v300_mecanismo_edicao.md); noted
+here only because Track B places `architect.py` and `editor.py` as peers in `agency/` and this
+document's §7 never mentions the split as a delegation topology.
+
+If the split ships, it is a **depth-1 hand-off** and everything in §7.1 applies to it: the editor
+receives what the architect forwards and nothing else, and *what it forwards* is the ablation target.
+Track B treats the split as an editing mechanism; §7's framing says it is a delegation mechanism
+wearing an editing hat, and the dominant failure mode in multi-agent coding pipelines — hand-off loss
+— is therefore its dominant failure mode too.
+
+---
+
 ## 9. Summary
 
 | Capability | Tier | Trigger / gate |

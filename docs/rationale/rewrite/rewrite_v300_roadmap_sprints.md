@@ -279,6 +279,80 @@ quality issue, and neither the progress signature nor the step cap prevents it.
 
 ---
 
+## Track B cross-check — a calendar, and fork F2
+
+### 5c.1 Adopt: an indicative calendar alongside the exit gates
+
+This document refuses durations on the grounds that the exit gates are the schedule. That is
+intellectually correct and operationally unhelpful when someone has to plan a quarter, and Track B is
+right to carry a Gantt.
+
+The two are reconcilable, and the reconciliation is worth stating: **the gate decides when a phase
+ends; the calendar decides when to worry.** An indicative duration is a tripwire, not a commitment —
+if a phase runs 50% over its indicative window, that is a signal to re-scope, not a reason to skip its
+gate.
+
+| Phase | Indicative window | Tripwire at | What overrun most likely means |
+| :--- | :--- | :--- | :--- |
+| **M0** Contracts | ~1–2 weeks | 3 weeks | The port surface is being designed against imagined adapters (A-010) |
+| **M1a** Walking skeleton | ~2–3 weeks | 5 weeks | Adapters are not deliberately dumb enough; scope crept into M2 |
+| **M1b** Instruments | ~1–2 weeks | 4 weeks | B1's upstream repo cache is harder than it looks — the most likely real overrun |
+| **M2** Capability | ~4–6 weeks | 10 weeks | Ablation cycles are serial and compute-bound; this is the phase memoization exists to pay down |
+| **M3** Scale | ~4–6 weeks | — | T6/T7 are where RT-1/2/3 fire if they fire |
+| **M4** SOTA push | gated on Q3/Q8 | — | Commercial, not engineering |
+| **M5** Meta-loop | — | — | Trigger-gated on corpus size |
+
+**These are planning figures, not commitments**, and they carry the same standing as every other
+third-party number in this set: useful for a calendar, never a gate. The exit gates in the phase
+tables above remain the only thing that ends a phase.
+
+Track B's sprints map onto these cleanly enough to compare: B's Sprint 0 ≈ M0 + parts of M1a + the
+Rust core; B's Sprints 1–3 ≈ M2; B's Sprint 4 ≈ M3 + M5. **B has no M1b.** That is fork F2.
+
+### 5c.2 Fork F2 — instruments before capability, or build first
+
+| | **Track A** | **Track B** |
+| :--- | :--- | :--- |
+| First phase | M0 contracts, then M1a walking skeleton reporting an **honest zero** | Sprint 0 builds the hexagonal foundation **and** the Rust core |
+| Instrument phase | **M1b is a hard serialization point.** B1/B3/B4 fixed; A/A floor published; canary proves the gate can see the candidate | None |
+| First number | After M1b, against a published floor | Sprint 0 acceptance gate (worktree <10 ms), Sprint 2 gate (cache hit >92%) |
+| Baseline | Measured at M1b, or reported as zero | Stated as ~68% Verified / ~38% Pro / ~50% cache hit |
+
+**The argument for Track B's side, stated fairly:** an instrument phase that ships no capability is
+hard to justify to a stakeholder, it delays every downstream signal, and a team that builds nothing
+for two weeks loses momentum. B's plan produces observable progress from week one.
+
+**The argument against, stated concretely rather than as principle.** Three defects are documented and
+reproduced in this repository, and none is fixed by Sprint 0:
+
+- **B1** — the runner runs `git worktree add <base_commit>` against the *local* repo while SWE-bench
+  base commits live in twelve never-cloned upstream repositories. This is why the 2026-08-01 A/A run
+  failed on **all 30 tasks** and `noise-floor.md` still reads *"still not populated"*.
+- **B3** — the editable install's `.pth` leaks the live `src/` into every isolated worktree, so
+  **candidate diffs are invisible to the gates scoring them**. This one produced numbers.
+- **B4** — exit-127 "command not found" scored as a test failure rather than an instrument error, so
+  instrument failures enter the denominator and widen every interval unpredictably.
+
+The asymmetry that makes this fork not a simple speed-versus-rigour trade: a number taken over B3 is
+not a *slower path to the same place*, it is work that has to be discarded — and discarded
+retroactively, along with every decision made on it. This project has already paid that bill once;
+`s1_honest_baseline.md` records the correction that took the measured pass rate to 0.0%, and *the drop
+was the fix*.
+
+**A reconciliation worth putting to the meeting.** M1b is described here as a phase, which makes it
+look like a two-week stop. Most of it is not: the upstream repo cache (B1) and the smoke suite can be
+built and dry-run against cassettes **during M0/M1a**, in parallel with capability work, so M1b
+becomes execution rather than construction. That is already written into the velocity section above —
+"front-load the slow parts" — and it is the version of this plan that answers B's momentum objection
+without giving up the serialization point.
+
+**One thing to take from Track B unconditionally:** its per-sprint acceptance gates are concrete and
+checkable (*"0 ms de espera no alocador de containers e 100% de bloqueio em testes de invasão
+TaintGate"*). Several of Track A's exit gates are prose. Converting each to a named CI job or a named
+measurement, in the style B uses, would be an improvement independent of how F2 lands.
+
+---
+
 ## Dependency graph
 
 ```

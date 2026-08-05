@@ -273,6 +273,93 @@ the only asset worth a speed bump, and that a speed bump was enough.
 
 ---
 
+## 4c. Fork F1 — the Rust core. Both positions, for the meeting
+
+This is the widest disagreement between the two proposals and the one most worth spending meeting time
+on. Both positions are stated here at full strength; the section deliberately does not resolve it.
+
+### 4c.1 The two positions
+
+| | **Track A** | **Track B** |
+| :--- | :--- | :--- |
+| Shape | Python 3.13 monoglot. A sidecar behind an existing port, **per component**, when a measured trigger fires | `src/aether/core_rs/` with **8 named modules**, PyO3 C-ABI, built by Maturin, **at Sprint 0** |
+| Modules | none named | `ast_treesitter` · `fast_indexer` · `fast_worktree_cow` · `hunk_tracker` · `seek_sequence` · `exec_policy_ast` · `pty_harness` · `prompt_queue` |
+| Trigger | RT-1 cold index >10 min on 1M LOC · RT-2 RSS >300 MB or idle CPU >1% · RT-3 incremental re-index >200 ms | None — it is foundational |
+| Claimed benefit | Fastest iteration; one toolchain; the LLM round-trip dominates by 4–7 orders of magnitude | <50 ns FFI vs 1.5–5.0 ms IPC; <10 ms CoW worktrees; ~60 MB RSS vs ~150 MB |
+| Claimed cost of the other side | A build step inside the dev loop and inside the self-improvement loop; eight subsystems coupled to one language; harder to swap, not easier | GIL-bound CPU parallelism; higher footprint; a rewrite later instead of a design now |
+
+### 4c.2 What is actually contested, and what is not
+
+**Not contested.** Both tracks agree that (a) the hot paths are AST parsing and indexing, (b) PyO3
+in-process is the right *mechanism* if a sidecar is built — §3 of this document already says so — and
+(c) the port signature does not change either way, because I3 makes the boundary wire-serializable.
+So the fork is about **timing and scope**, not about technology.
+
+**Contested, honestly.** Track A's position is safe and, from a builder's perspective, evasive: it
+never names a module and defers everything to triggers that may never be instrumented. Track B's
+position is decisive and unmeasured: it sets `<50 ns`, `<10 ms` and `0 ms` as *sprint acceptance
+gates* for latencies nobody has timed on this repository.
+
+Three specific problems with the numbers, offered as things to check rather than as refutations:
+
+- **`<50 ns` conflates the FFI crossing with the work.** A PyO3 call can be tens of nanoseconds; a
+  tree-sitter parse of a real source file is milliseconds in any language. Track B's blueprint reads
+  *"passa o hunk por Tree-sitter `ast.parse` em <50ns"*, which applies the crossing cost to the parse.
+  The correct comparison is Python-tree-sitter (already a C extension) against Rust-tree-sitter — a
+  much narrower gap than 50 ns vs 4 ms suggests.
+- **`<10 ms` may already be free, or may be unreachable.** It is a filesystem property. Grok Build's
+  own worktree pool is macOS-only in production, with the reason in the source: *"Linux has O(1) BTRFS
+  snapshots; the pool adds value only on macOS/APFS where worktree creation is O(file_count)."* On a
+  reflink-capable host much of the gain may exist without any Rust.
+- **`0 ms` container allocation is amortized, not achieved.** A pre-warmed pool drains under Best-of-N
+  fan-out — the exact workload it exists for — and the Nth subagent waits for a cold container. The
+  honest metric is p99 allocation latency under fan-out.
+
+### 4c.3 A third position, offered as a suggestion
+
+Neither "defer everything behind triggers that nobody instruments" nor "commit eight modules in
+sprint 0". **Instrument the two candidate hot paths in the first working slice** — a timer on worktree
+creation and a timer on AST parse-and-validate — and let the numbers select the modules, one at a
+time, behind ports that already exist.
+
+That costs one afternoon of instrumentation, defers the toolchain commitment by exactly one milestone
+rather than by three, and produces the number that settles the argument instead of a preference. It
+also preserves the property both tracks say they want: a component moves to Rust **because it was
+measured**, which is the same rule the rest of this project applies to every other mechanism.
+
+If the review prefers Track B's side outright, the sequencing that reduces the risk most is to take
+the modules in the order of measured benefit — almost certainly `fast_indexer` and `ast_treesitter`
+first, since those are the only two the competitor study shows a compiled language clearly winning —
+and to leave `pty_harness`, `prompt_queue` and `exec_policy_ast` in Python, where none of them is
+CPU-bound.
+
+### 4c.4 Two smaller items from Track B, adopted with no conflict
+
+**Maturin as the build tool**, if and when `core_rs/` exists. Track B names it; this document did not.
+It is the right choice — it produces a wheel, keeps `pip install -e .` working, and does not require
+contributors to have Rust installed unless they touch that crate.
+
+**Windows Restricted Tokens / Job Objects** as the Windows sandbox backend, alongside `bwrap` on Linux.
+Track B names both; ADR-0016 names rootless Podman as one backend of a cross-platform abstraction but
+never says what the others are. Recorded in [security](./rewrite_v300_seguranca_sandbox.md).
+
+### 4c.5 Fork F12 — IP protection
+
+Track B's runtime matrix rates Nuitka-compiled Python as **"Excelente"** protection. §4.1 of this
+document argues that compilation is a speed bump.
+
+The corroboration from the competitor study is unusually direct and worth putting in front of the
+meeting: **Grok Build ships a native Rust binary and still obfuscates only the prompt text**, with a
+trivially reversible XOR generated by a build script. A well-funded competitor shipping compiled
+machine code concluded that prompts were the only asset worth protecting, and that a speed bump
+sufficed.
+
+That does not make Nuitka worthless — it raises the cost of casual copying, which is a real product
+decision. It does mean "Excelente" overstates it, and that betting the commercial moat on packaging
+rather than on the measured harness is the risk worth naming.
+
+---
+
 ## 5. Decision summary
 
 | Question | Decision | Reversal |

@@ -4,101 +4,74 @@ retrieval: excluded
 ---
 
 # AUDITORIA TÉCNICA EMPÍRICA DA BASE PROTOTÍPICA `src/sagiha/` E PLANO DE TRANSIÇÃO PARA O AETHER v300B
+## Análise de Falhas Históricas, Sugestões da Track A & Pontos de Debate na Triagem de Portas
 
 > **Autor:** Tech Lead B (PhD) / Principal Software Architect  
 > **Data:** 05 de Agosto de 2026  
 > **Target Document:** `docs/rationale/rewrite_b/rewrite_v300_auditoria_sagiha_B.md`  
-> **Fonte Primária de Pesquisa:** Competitor Research (`docs/competitors_research/tech_lead_B/`) — Claude Code CLI (`claude_refs_B_gemini.md`), Grok Build (`grok_build_B_gemini.md`), Hermes Agent (`hermes_agent_B_gemini.md`), Hermes Self-Evolution (`hermes_self_evolution_B_gemini.md`).  
+> **Fontes Primárias:** Competitor Research (`docs/competitors_research/tech_lead_B/`) & Track A Rationale (`docs/rationale/rewrite/`).  
 > **Status:** Concluído / Em Conformidade Estrita com a REVISÃO B.
 
 ---
 
 ## 1. RESUMO EXECUTIVO & DIAGNÓSTICO EMPÍRICO DA BASE ATUAL (`src/sagiha/`)
 
-Esta auditoria apresenta uma avaliação quantitativa e arquitetural da base prototípica `src/sagiha/`, confrontada diretamente com as evidências empíricas extraídas do estudo de concorrentes no SOTA (Claude Code CLI, Grok Build, Hermes Agent e Hermes Self-Evolution) e da literatura acadêmica recente (arXiv 2605.18747 *"Code as Agent Harness"*, arXiv 2602.11988 *"Agent Context Evaluation"* da ETH Zürich).
+Esta auditoria apresenta uma avaliação quantitativa e arquitetural da base prototípica `src/sagiha/`, confrontada diretamente com as evidências empíricas dos concorrentes SOTA (Claude Code, Grok Build, Hermes), as lições da literatura (arXiv 2605.18747, arXiv 2602.11988 da ETH Zürich) e os diagnósticos da **Track A** (Tech Lead A).
 
-O objetivo é fundamentar a transição estrutural do ecossistema para o **AETHER v3.0.0B** no namespace `src/aether/`, assegurando o cumprimento das metas globais em benchmarks SOTA: **90.0%+ em SWE-bench Verified**, **60.0%+ em SWE-bench Pro** e **75.0%+ em Terminal-Bench**.
-
-### 1.1 Métricas Empíricas do Protótipo (`src/sagiha/`):
-* **Total de Portas (`ports/`):** 17 interfaces `Protocol`.
-* **Total de Adaptações Concretas (`adapters/`):** 11 diretórios funcionais.
-* **Componentes Incompletos / Stubs (Sem Aluguel Pago):** 5 portas/camadas sem adaptadores de produção (`lsp`, `orchestrator`, `advisory`, `meta_improver`, `aoi`).
-* **Monólito de Controle:** `src/sagiha/agency/run_loop.py` (~31 KB, ~850 linhas) concentra linearmente o controle do agente, sofrendo de execuções síncronas post-hoc sem capacidade de reparo em tempo real (*In-Loop Real-Time Repair*).
-* **Eficiência de Cache de Prompt:** Estimada em ~50%, devido à ausência de marcadores de prefixo fixos e ao truncamento ingênuo de contexto.
+O objetivo é fundamentar a transição estrutural do ecossistema para o **AETHER v3.0.0B** em `src/aether/`, assegurando o cumprimento das metas globais: **90.0%+ em SWE-bench Verified**, **60.0%+ em SWE-bench Pro** e **75.0%+ em Terminal-Bench**.
 
 ---
 
-## 2. AUDITORIA DETALHADA POR CAMADAS E CONFRONTO COM SOTA
+## 2. DIAGNÓSTICO DAS FALHAS HISTÓRICAS DE MEDIÇÃO (CONTRIBUIÇÃO CRÍTICA DA TRACK A)
 
-### 2.1 Camada de Portas (`src/sagiha/ports/`)
+A auditoria da Track A identificou quatro defeitos críticos de instrumentação no protótipo original (`s4-harvest-findings.md` D1-D4) que invalidavam medições de benchmark anteriores:
 
-A análise individual de cada uma das 17 portas declaradas em `src/sagiha/ports/` revelou a seguinte triagem técnica para migração em `src/aether/ports/`:
+1. **Vazamento do `.pth` do Virtualenv (Defeito D3):** O instalador editável injetava o caminho `.pth` do ambiente virtual para dentro dos containers de teste isolados. Como resultado, os testes executados pelos *gates* rodavam contra o código-fonte vivo do repositório em vez de rodar contra os diffs modificados pelo candidato, gerando pontuações falsas.
+2. **Ausência de Canary Tests:** Inexistência de testes canário para verificar se um candidato comprovadamente quebrado causava a reprovação do gate.
+3. **Ausência de Rastreamento de Ruído A/A:** Inexistência de medição de oscilação estocástica das próprias APIs de LLM entre chamadas idênticas.
 
-| Arquivo de Porta em `sagiha` | Função Original | Adaptador Existente | Parecer Técnico PhD & Decisão para o AETHER v300B |
-| :--- | :--- | :--- | :--- |
-| `policy.py` | Autorização de ferramentas & capacidades | `kernel/policy/` | **MANTER & EVOLUIR:** Base do modelo CAR. Integrar ao sanitizador `TaintGate` (`UNTRUSTED_TAINTED`). |
-| `workspace.py` | Manipulação de workspace & Git Worktrees | `adapters/workspace/` | **REFATORAR (Rust Core):** Evoluir para suporte nativo PyO3 a OverlayFS e Btrfs CoW (<10ms). |
-| `trajectory.py` | Persistência de eventos & trajetórias | `adapters/trajectory/sqlite.py` | **MANTER & EVOLUIR:** Base para a serialização durável de estado `FrozenRunState` em SQLite WAL. |
-| `model.py` | Abstração de chamadas LLM | `adapters/model/openai.py` | **REFATORAR:** Adicionar suporte a marcadores de Prompt Caching e Tool Search on Demand. |
-| `tool_registry.py` | Registro estático de ferramentas | `adapters/tools/` | **REFATORAR:** Integrar seleção dinâmica de ferramentas por categoria (estilo `toolsets.py` do Hermes). |
-| `code_graph.py` | Grafo de símbolos e AST | `adapters/code_graph/` | **REFATORAR (Rust Core):** Migrar parsing pesado para Rust `ast_treesitter.rs` via `PyO3` (<50ns). |
-| `indexer.py` | Busca FTS5 & indexação sintática | `adapters/indexer/` | **REFATORAR (Rust Core):** Reescrever percurso de diretórios e extração paralela em Rust (`fast_indexer.rs`). |
-| `search.py` | Best-of-N, reranking e scoring | `adapters/search/` | **REFATORAR:** Evoluir para fusão MMR (Maximal Marginal Relevance, $\lambda=0.7$) sobre `sqlite-vec`. |
-| `sandbox.py` | Isolamento e execução | `adapters/sandbox/` | **REFATORAR:** Integrar Pre-Warmed Container Pool (0ms) e Native Sandbox (`bwrap` / Restricted Tokens). |
-| `memory.py` | Memória de curto/longo prazo | `adapters/memory/` | **REFATORAR:** Implementar a Arquitetura de Memória de 3 Trilhas + Auto Dream Consolidation. |
-| `evaluator.py` | Validação e Gates | `outer_loop/evaluator/` | **MANTER & EXPANDIR:** Promover a Gate de Admissão de Ablações Estatísticas ($p < 0.05$). |
-| `governor.py` | Limitação de recursos | `kernel/governor.py` | **MANTER:** Controle ciberntético de orçamento financeiro e tokens por sessão. |
-| `toolchain.py` | Compilação e linters | Parcial em `builtins` | **REFATORAR:** Integrar ao validador sintático AST do modelo Editor. |
-| `advisory.py` | Auxílio de raciocínio | NENHUM (Stub) | **ELIMINAR:** Viola a regra de ouro do contrato ("código sem adaptador não paga aluguel"). |
-| `lsp.py` | Language Server Protocol | NENHUM (Stub) | **SUBSTITUIR:** Substituir por Tree-sitter em Rust, eliminando instabilidades e despesas de LSP. |
-| `orchestrator.py` | Orquestração multi-agente | NENHUM (Stub) | **SUBSTITUIR:** Evoluir para o Conductor System 3 Multi-Agent Engine (DAG Decomposition). |
-| `meta_improver.py` | Auto-melhoria de prompts | NENHUM (Stub) | **SUBSTITUIR:** Evoluir para o GEPA Reflective Auto-Evolver em `src/aether/evolution/`. |
+### Recomendação de Solução Incorporada:
+* Eliminar installs editáveis dentro dos containers de teste.
+* Injetar **Canary Tests** que forçam falhas deliberadas para provar a sensibilidade dos gates.
+* Medir o ruído baseline A/A e reportar o **Scaffold-Attributable Lift** (delta emparelhado versus baseline single-shot no mesmo modelo).
 
 ---
 
-## 3. AUDITORIA DAS FALHAS E OPORTUNIDADES DE EVOLUÇÃO NO `run_loop.py` E CONTEXTO
+## 3. TRIAGEM DE PORTAS: COMPARATIVO TRACK A VS. TRACK B
 
-### 3.1 Monólito `run_loop.py`
-* **Diagnóstico Atual:** O loop principal operava sequencialmente por turno de interrupção, tratando falhas de compilação ou de sintaxe como erros de processo ou encerramentos prematuros.
-* **Refinamento no AETHER v300B:** Implementação do **Real-Time In-Loop Repair Cycle** (inspirado no Hermes Agent e Claude Code). Stack traces e erros de sintaxe gerados pelo validador Rust Tree-sitter são capturados e reinjetados instantaneamente no contexto do Editor no turno imediato, mantendo intacto o cache de prefixo do sistema.
+### 3.1 Tabela de Consolidação das Portas Hexagonais (`src/aether/ports/`)
 
-### 3.2 Montador de Contexto & Prevenção da "Dumb Zone" (arXiv 2602.11988)
-* **Diagnóstico Atual:** O `assembler.py` realizava concatenações genéricas e truncamentos ingênuos por limite de caracteres, corrompendo a paridade de trocas `user -> assistant -> tool_use -> tool_result` e provocando instabilidades no raciocínio do modelo.
-* **Evidência Empírica da ETH Zürich:** A pesquisa demonstrou que injeções automáticas de dumps genéricos de código (`/init`) elevam custos em **23%** e degradam a precisão em **3%**, enquanto regras curadas (`AGENTS.md`) elevam o sucesso em **+4%**. Ademais, janelas longas (>100k) sofrem difusão de atenção na faixa intermediária dos 40%-60% (**Dumb Zone**).
-* **Solução no AETHER v300B:** Adotar o **Exchange-Granular Compactor** (remoção estrita de trocas completas), fixação de **3 Marcadores de Cache Fixos** (Identity, Tool Schemas, AST Skeleton Map) para atingir **>92% de Cache Hit Rate**, e **Tool Search on Demand** (economia de 37% em tokens).
-
----
-
-## 4. TRIAGEM DOS COMPONENTES PARA O AETHER v300B
-
-```mermaid
-graph TD
-    A[Base Atual: src/sagiha] --> B[MANTER & REUTILIZAR]
-    A --> C[REFATORAR PARA SOTA RUST/PYO3]
-    A --> D[ELIMINAR OU SUBSTITUIR STUBS]
-
-    B --> B1[Kernel Policy Engine CAR - kernel/policy/]
-    B --> B2[Domain Models Pydantic - domain/]
-    B --> B3[Gate Evaluator & Cassettes - outer_loop/evaluator/]
-
-    C --> C1[RunLoop -> Real-Time In-Loop Repair Engine]
-    C --> C2[Context Assembler -> Exchange Compactor + AST Mapping]
-    C --> C3[Tree-sitter Code Graph -> Core Rust PyO3 ast_treesitter.rs]
-    C --> C4[Workspace Adapters -> Git CoW Worktrees <10ms + Containers 0ms]
-    C --> C5[Memory Adapters -> 3-Track Memory + Auto Dream MMR]
-
-    D --> D1[Stubs mortos: lsp, orchestrator, advisory, meta_improver]
-    D --> D2[Diretórios descontinuados: aoi, runtime]
-    D --> D3[Truncamento Naive de Contexto & Retries Síncronos]
-```
+| Arquivo de Porta em `sagiha` | Status no Provedor | Recomendação Track A | Recomendação Track B | **Decisão Proposta para o AETHER v300B** |
+| :--- | :--- | :--- | :--- | :--- |
+| `policy.py` | Adaptador existia | Reduzir para 8 portas base | Manter & Evoluir (CAR Model) | **MANTER (TCB):** Integrar ao TaintGate (`UNTRUSTED_TAINTED`). |
+| `workspace.py` | Adaptador existia | Fundir com WorktreeManager | Manter & Expandir (Rust CoW) | **MANTER:** Suporte nativo PyO3 a OverlayFS e Btrfs CoW (<10ms). |
+| `trajectory.py` | Adaptador existia | Manter (SQLite WAL) | Manter (SQLite WAL) | **MANTER:** Base para a hibernação durável `FrozenRunState`. |
+| `model.py` | Adaptador existia | Exigir `stream()` nativo | Adicionar Prompt Caching | **REFATORAR:** Adicionar suporte a streaming e marcadores de cache. |
+| `tool_registry.py` | Adaptador existia | Versionar contratos de ferramentas | Tool Search on Demand | **REFATORAR:** Integrar versionamento e despacho dinâmico. |
+| `code_graph.py` | Adaptador existia | Deferir para fase posterior | Migrar para Rust PyO3 | **REFATORAR (Rust Core):** Tree-sitter em Rust (`ast_treesitter.rs`). |
+| `indexer.py` | Adaptador existia | FTS5 + Tree-sitter | Multi-thread Rust Walk | **REFATORAR (Rust Core):** Percurso paralelo e FTS5 em Rust. |
+| `search.py` | Adaptador existia | Deferir para fase posterior | MMR Reranking ($\lambda=0.7$) | **REFATORAR:** BM25 + `sqlite-vec` + MMR Reranking. |
+| `sandbox.py` | Adaptador existia | Rootless Podman | Containers 0ms + `bwrap` | **REFATORAR:** Pre-Warmed Container Pool + `bwrap` nativo. |
+| `memory.py` | Adaptador existia | Deferir para fase posterior | Memória de 3 Trilhas | **REFATORAR:** 3 Trilhas + Auto Dream Consolidation Worker. |
+| `evaluator.py` | Adaptador existia | Gate TCB Isolado | Gate de Ablação Estatística | **MANTER (TCB):** Admissão por ablação estatística ($p < 0.05$). |
+| `governor.py` | Adaptador existia | Spend/Lease Governor | Spend/Budget Governor | **MANTER:** Leases e controle de orçamento monetário. |
+| `advisory.py` | Apenas Stub | **ELIMINAR** (Regra A-010) | **ELIMINAR** (Regra do Aluguel) | **ELIMINAR DE IMEDIATO** |
+| `lsp.py` | Apenas Stub | **ELIMINAR** (Regra A-010) | Substituir por Tree-sitter | **ELIMINAR:** Tree-sitter Rust substitui o LSP. |
+| `orchestrator.py` | Apenas Stub | **ELIMINAR** (Regra A-010) | Substituir por Conductor | **SUBSTITUIR:** Conductor System 3 Multi-Agent Engine. |
+| `meta_improver.py` | Apenas Stub | **ELIMINAR** (Regra A-010) | Substituir por GEPA | **SUBSTITUIR:** GEPA Reflective Auto-Evolver em `evolution/`. |
 
 ---
 
-## 5. METROLOGIA ALVO E CRITÉRIOS DE ABLAÇÃO ESTATÍSTICA
+## 4. PONTOS DE DEBATE NA AUDITORIA (PARA A REUNIÃO DE TECH LEADS)
 
-Para assegurar superioridade absoluta sobre concorrentes (Hermes, Claude Code, Grok Build, OpenHands), toda promoção de código ou refinamento de prompt para o namespace `src/aether/` deve cumprir as seguintes métricas e regras quantitativas:
+### DEBATE: Regra de Entrada de Novas Portas (Regra A-010) vs. Disponibilização Antecipada
+* **Opção A (Tech Lead A):** Regra estrita **A-010**: Reduzir a base para 8 portas essenciais (`ModelProvider`, `Workspace`, `ToolRegistry`, `PolicyEngine`, `TrajectoryStore`, `Evaluator`, `Indexer`, `ResourceGovernor`). Nenhuma nova porta pode ser criada sem a entrega simultânea do seu primeiro adaptador funcional e testes de conformidade.
+* **Opção B (Tech Lead B):** Manter 9 portas base incluindo `Memory` e `CodeGraph` desde a fundação para estruturar os contratos de auto-evolução reflexiva e AST desde o primeiro momento.
+* **Proposta de Consenso:** Aceitar a **Regra A-010 da Track A**: iniciar o `src/aether/ports/` com 8 portas essenciais e promover `Memory` e `CodeGraph` no exato momento em que seus adaptadores nativos Rust forem acoplados (Sprint 0 / Sprint 1).
 
-### 5.1 Tabela de Metas em Benchmarks SOTA
+---
+
+## 5. METRICAS ALVO E CRITÉRIOS DE ABLAÇÃO ESTATÍSTICA
 
 | Benchmark / Métrica | Baseline Prototípico (`sagiha`) | Meta Target Final (AETHER v300B) | Mecanismo-Chave Garantidor |
 | :--- | :--- | :--- | :--- |
@@ -110,9 +83,11 @@ Para assegurar superioridade absoluta sobre concorrentes (Hermes, Claude Code, G
 | **Alocação de Container Subagente**| ~3.5s | **0 ms** | Pre-Warmed Container Pool em Background |
 | **Latência por Chamada FFI**| ~1.5ms - 5.0ms (gRPC) | **< 50 ns** | Direct Memory Sharing via Rust `PyO3` C-ABI |
 
-### 5.2 Regra de Aceitação por Ablação Estatística ($p < 0.05$)
+---
+
+## 6. REGRA DE ACEITAÇÃO POR ABLAÇÃO ESTATÍSTICA ($p < 0.05$)
 Nenhuma nova funcionalidade, heurística de prompt ou ferramenta será aceita sem passar pelo seguinte protocolo de validação:
 1. Execução em no mínimo **50 instâncias independentes de teste** dos benchmarks de referência.
 2. Demonstração de aumento estatisticamente significante na taxa de sucesso ($p < 0.05$ via teste t de Student / teste bicaudal de permutação).
 3. Manutenção ou redução do custo monetário por tarefa concluída.
-4. Cumprimento estrito da regra `require_tests_unmodified` (nenhum teste da suíte de avaliação pode ser alterado para obter aprovação).
+4. Cumprimento estrito da regra `require_tests_unmodified` e aprovação nos **Canary Tests** contra vazamentos de ambiente.

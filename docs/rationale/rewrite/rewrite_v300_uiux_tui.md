@@ -176,6 +176,42 @@ the engine API and the protocol, and nothing else.
 
 ---
 
+## 5b. Track B cross-check — three adoptions, no forks
+
+Track B has no dedicated UI document; these come from its blueprint tree and diagram. None conflicts
+with anything here.
+
+**A multi-pane layout with a dedicated diff pane and hunk inspector.** Track B's TUI layer names
+`components/` as *"Painéis Side-by-Side Diff, Hunk Inspector & Terminal Output"*, and wires the hunk
+viewer directly to the hunk tracker so a human can inspect and revert **per hunk, by author**. §3's
+progression (MVP → streaming → diff review → parallel candidates → mission dashboard) reaches diff
+review as stage three and does not specify its shape. B's does, and the author-attributed revert is
+the part worth taking — it is the surface that makes
+[hunk attribution](./rewrite_v300_mecanismo_edicao.md) worth building at all, and it is the moment
+`Agent` vs `External` stops being metadata and becomes a control.
+
+**A prompt-queue combiner for in-flight turns.** Track B lists `prompt_queue` — merging user input that
+arrives *while a turn is running* rather than serializing it behind the turn or dropping it. On an
+8-hour autonomous run with a human occasionally watching, "let me add one more constraint" arriving
+mid-turn is the normal case, and the alternatives are both bad: block the user until the turn ends, or
+start a second turn that forks the transcript. Merging into the pending user message is the third
+option and it is cheap. Suggested as a stage-two item, alongside streaming.
+
+**Render the pause reason, not just the pause.** Already proposed in §8b.1 of
+[the blueprint](./rewrite_v300_blueprint_arquitetura.md) via `RunOutcome`; recorded here because the
+TUI is the consumer. "Waiting on you", "backing off", "no progress", "infrastructure error" and
+"blocked — needs a decision" are five different things for an operator watching an overnight run, and
+a single "paused" badge makes four of them indistinguishable from the one that needs them.
+
+**One note on B's framing.** Track B's blueprint lists the TUI as *"React Ink / Textual Reativa"* and
+its CLI as *"101 Commands"*. The 101 figure is Claude Code's command count from the competitor study,
+not a design target — a harness with 101 slash commands before it has one benchmark number would be
+the [Footprint Ladder](../../competitors_research/tech_lead_A/rewrite_v300_hermes_teardown.md)'s
+worst case. Reading it as an aspiration rather than a specification is almost certainly correct, but
+it is worth saying, since §3's MVP is deliberately three commands.
+
+---
+
 ## 6. Summary
 
 | Decision | Choice | Reversal |

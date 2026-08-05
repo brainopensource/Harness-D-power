@@ -423,6 +423,78 @@ divergence is worth stating rather than discovering.
 
 ---
 
+## 6c. Track B cross-check
+
+### 6c.1 Adopt: name the cross-platform sandbox backends
+
+ADR-0016 names rootless Podman as *"one backend of a cross-platform abstraction"* and never says what
+the others are. Track B names them: **`bwrap`** on Linux and **Windows Restricted Tokens / Job
+Objects** on Windows. Claude Code's native sandbox uses **Seatbelt** on macOS and `bubblewrap` on
+Linux/WSL2, and does not support WSL1 at all.
+
+Suggested: record the backend matrix explicitly, including the platforms where the perimeter **cannot**
+be enforced — WSL1 is a real case, and a harness that silently degrades to no sandbox on an
+unsupported platform is worse than one that refuses to run.
+
+| Platform | Backend | Note |
+| :--- | :--- | :--- |
+| Linux | rootless Podman (ADR-0016); `bwrap` as a lighter local-dev profile | Podman is the benchmark and production path |
+| macOS | Seatbelt, or Podman machine | Seatbelt is kernel-level and needs no dependency |
+| Windows | Restricted Tokens + Job Objects | From Track B; unverified by us |
+| WSL1 | **none available** | Must fail closed, not degrade silently |
+
+### 6c.2 Adopt: `UNTRUSTED_TAINTED` as an explicit wire tag
+
+§3.2 specifies provenance stamped at the registry with `trusted=False`. Track B names the tag
+`UNTRUSTED_TAINTED` and carries it as a visible marker. The naming is a small improvement worth taking:
+a boolean field is easy to default wrong on a new code path, whereas an explicit tag that must be
+attached makes the fail-closed rule visible at every call site. Same semantics, better ergonomics.
+
+### 6c.3 Fork F8 — shell AST as containment, or as classification
+
+| | **Track A** | **Track B** |
+| :--- | :--- | :--- |
+| Position | Sandbox is the perimeter (ADR-0006). Shell AST for **effect classification only** (§6b.1) | `exec_policy_ast.rs` inspects the command AST before execution, *"eliminando bypasses de segurança baseados em regex"* |
+| Blocklists | UX, never containment | Not distinguished |
+| Perimeter | Rootless Podman + egress allowlist proxy, stated as *auditable, not airtight* | `bwrap` / Restricted Tokens / container pool, alongside the AST check |
+
+**Where the two agree, which is most of it.** Both run an OS-level perimeter. Both parse the command.
+Track A's §6b.1 already proposes upgrading `classify_command` from string matching to a real parse —
+segment splitting, wrapper unwrapping, write-target identification. **The mechanism is not contested.**
+
+**What is contested is the claim attached to it.** "Eliminating bypasses" is the framing ADR-0006
+rejects: an AST parser is a better parser, not a different category of control. It does not close
+`base64 -d | sh`, a fetched script, an interpreter invocation, or a command whose dangerous effect is
+in a file it references. Those are not regex weaknesses; they are consequences of the command being
+Turing-complete.
+
+The concrete risk of the stronger framing is the one ADR-0006 names: **a control that looks like
+security invites the real security to be removed.** If the ExecPolicy is believed to eliminate
+bypasses, the argument for paying the container's cost weakens — and the container is the thing that
+actually contains.
+
+**A synthesis both tracks could take:** build Track B's Rust shell parser, wire it to Track A's
+outcome taxonomy (`Reject | AskRuleMatch | AskFailClosed`, §6b.1), and state in the ADR that its
+purpose is **classification and escalation, and that the perimeter is unchanged**. That keeps B's
+mechanism, B's implementation quality, and A's threat model, and it costs nothing but a paragraph.
+
+### 6c.4 Two gaps in Track B worth naming, since they affect a shared design
+
+Neither is a fork — Track B simply does not cover them, and if the meeting merges the proposals these
+should not be lost:
+
+- **The three escape vectors** (§2.1): domain fronting via an allowlisted CDN apex, Unix-socket
+  privilege escalation, and filesystem escalation through a writable `$PATH` directory or shell rc
+  file. All three share one shape — a configuration that looks restrictive and is not — and all three
+  survive an AST-checked command.
+- **The self-DoS composition class** (§3.4): an agent schedules a job that restarts the harness, the
+  supervisor revives it, auto-resume picks up the session that scheduled the job, and the turn
+  re-runs. Track B has all three ingredients on its roadmap — Conductor scheduling, `FrozenRunState`
+  durable resume, container supervision — and no guard. Nothing is violated; each capability is
+  individually authorized. It is their composition that fails.
+
+---
+
 ## 7. Summary
 
 | Decision | Choice | Enforcement |

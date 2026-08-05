@@ -71,6 +71,29 @@ so and leaves the contradiction open.
 
 ---
 
+## Track B cross-check
+
+Every document in this set now carries a **Track B cross-check** section, comparing it against the
+parallel proposal in [`docs/rationale/rewrite_b/`](../rewrite_b/). Two kinds of content:
+
+- **Adoptions** — things Track B does better, folded in as suggestions. The file-level `src/aether/`
+  tree, `upcasters.py` for frozen-state schema migration, ephemeral CoT truncation, the
+  episodic/semantic/procedural memory naming, `SEARCH/REPLACE` block markers, the sandbox backend
+  matrix, an indicative calendar, and per-sprint acceptance gates that are checkable rather than prose.
+- **Forks** — twelve places where the two proposals take incompatible positions, each stated with both
+  sides at full strength and no resolution. The consolidated register is
+  [**Part IIc of the ADR set**](./rewrite_v300_decisoes_adr.md), which is the meeting agenda.
+
+The three forks worth most of the meeting: **F1** the Rust core at Sprint 0, **F2** whether an
+instrument phase precedes capability work, and **F6** whether the meta-loop may commit to production
+without a TCB boundary.
+
+The full side-by-side, including the places Track A is weaker, is in
+[`rewrite_ab_comparison.md`](../rewrite_ab_comparison.md) — written by Track A's author, with that
+conflict of interest declared.
+
+---
+
 ## The five findings that shaped the set
 
 1. **Zero valid benchmark numbers exist.** Four concrete blockers, all fixable, all in
