@@ -12,8 +12,14 @@ updated: 2026-08-05
 
 ## 0. What this document is, and is not
 
-A study of `src/grok_build` (xAI, 81 crates, ~117k lines of Rust across `codegen/` and `common/`) read
-for **ideas worth putting on an agenda** — not for conclusions.
+A study of `src/grok_build` (xAI, 81 workspace crates, ~1.5M lines of Rust across `codegen/`,
+`common/` and `build/`) read for **ideas worth putting on an agenda** — not for conclusions.
+
+> **Scope.** This document covers the **infrastructure** crates. A companion pass over the *agent*
+> — goal mode, the verification cascade, context economics, retrieval, the tool layer, the safety
+> perimeter — is in [`rewrite_v300_grokbuild_teardown.md`](./rewrite_v300_grokbuild_teardown.md)
+> and continues the numbering at **P16**. Read them together; where they overlap, the teardown
+> defers to the item here.
 
 Everything below is phrased as a proposal with an open question attached. Several of these would
 *change decisions already recorded* in [the ADRs](./rewrite_v300_decisoes_adr.md); where that is the

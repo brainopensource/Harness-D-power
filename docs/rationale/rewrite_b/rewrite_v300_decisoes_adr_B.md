@@ -1,3 +1,8 @@
+---
+status: rationale
+retrieval: excluded
+---
+
 # REGISTRO DE DECISÕES DE ARQUITETURA (ADRs): MECANISMOS NÚCLEO DO AETHER v300B
 
 > **Autor:** Tech Lead 2 (PhD) / Principal Software Architect  

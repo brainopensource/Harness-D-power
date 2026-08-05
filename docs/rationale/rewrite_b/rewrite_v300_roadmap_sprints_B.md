@@ -1,3 +1,8 @@
+---
+status: rationale
+retrieval: excluded
+---
+
 # ROADMAP DE SPRINTS, GATES DE ABLAÇÃO E CRITÉRIOS BENCHMARK (AETHER v300B)
 
 > **Autor:** Tech Lead 2 (PhD) / Principal Software Architect  

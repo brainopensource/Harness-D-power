@@ -54,6 +54,19 @@ benchmark number, and everything else is downstream of fixing them.
 | [`rewrite_v300_uiux_tui.md`](./rewrite_v300_uiux_tui.md) | D-10, Q4 | Wire protocol; TUI progression; the LIVE/MOCK discipline |
 | [`rewrite_v300_roadmap_sprints.md`](./rewrite_v300_roadmap_sprints.md) | RFP §5.5 | M0–M5 with quantitative exit gates; dependency graph; risks |
 
+### Group D — reference-study addenda
+
+Deeper per-reference studies, written after the twelve. Advisory only: they raise numbered
+suggestions (**P1…**) for the architecture review to accept, defer or decline. None of them
+decides anything, and where one contradicts a decision already recorded in the ADR set it says
+so and leaves the contradiction open.
+
+| Document | Reference | Contains |
+| :--- | :--- | :--- |
+| [`rewrite_v300_grokbuild_proposals.md`](./rewrite_v300_grokbuild_proposals.md) | Grok Build (xAI) | **P1–P15**, infrastructure: CoW worktrees; budget reservation; pause taxonomy; engine/host split; circuit breaker |
+| [`rewrite_v300_grokbuild_teardown.md`](./rewrite_v300_grokbuild_teardown.md) | Grok Build (xAI) | **P16–P41**, the agent: goal-mode verification cascade; prefire compaction; retrieval; tool versioning; permission gates; what not to copy |
+| [`rewrite_v300_hermes_teardown.md`](./rewrite_v300_hermes_teardown.md) | Hermes Agent + Hermes Self-Evolution (Nous) | **P42–P60**, the primary competitor: the Footprint Ladder; verification evidence ledger; closed learning loop; DSPy+GEPA meta-loop and its measurement gap; Hermes vs Grok Build convergence table |
+
 ---
 
 ## The five findings that shaped the set

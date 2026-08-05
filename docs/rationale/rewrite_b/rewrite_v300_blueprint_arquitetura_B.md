@@ -1,3 +1,8 @@
+---
+status: rationale
+retrieval: excluded
+---
+
 # BLUEPRINT COMPLETO DA ARQUITETURA DO AETHER v3.0.0B
 
 > **Autor:** Tech Lead 2 (PhD) / Principal Software Architect  
