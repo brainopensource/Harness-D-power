@@ -5,85 +5,40 @@ updated: 2026-07-29
 # **Recursive Harness Self-Improvement (RHI) Outer Loop**
 
 > [!NOTE]
-> **Working Proposal Disclaimer**: A working architectural proposal, refined iteratively as practical evaluation progresses.
+> **Working Proposal Disclaimer**: Architectural proposal refined iteratively during evaluation.
 
-The outer loop optimizes harness scaffolding under held-out validation. It is **scheduled, not continuous** — see the cost note at the end.
+The outer loop optimizes harness scaffolding under held-out validation. It is **scheduled, not continuous**.
 
-## **The Trusted Computing Base**
+## **The Trusted Computing Base (TCB)**
 
-A self-improving system able to edit its own evaluator has a trivial optimum: edit the evaluator. Any design that lists policy or grading code as mutable, or that auto-commits validated mutations to the production baseline, makes rewriting the grader the cheapest available path to a higher score — and an optimizer will find it before it finds a real improvement.
+To prevent optimizer gaming (editing graders/evaluators to force high scores), the TCB is immutable:
 
-**Never writable by the agent:**
-
-* Policy engine and autonomy configuration
-* Evaluator, gate definitions, benchmark task definitions
-* The deployment gate itself, and this list
-* Secret handling and the sandbox boundary
-
-Enforced three ways: path allowlist in `MutationProposal.targets`, residence on a branch the agent cannot push, and CI rejection of any diff touching a TCB path.
-
-**Mutable surface**: prompts, retrieval and compaction parameters, tool descriptions, routing heuristics, non-Control adapter code.
+* **Non-writable surface**: Policy engine, autonomy config, evaluators, gate definitions, benchmark tasks, deployment gates, secret handling, sandbox boundaries. Enforced via `MutationProposal.targets` path allowlist, read-only branches, and CI diff checks.
+* **Mutable surface**: Prompts, retrieval/compaction parameters, tool descriptions, routing heuristics, non-Control adapters.
 
 ## **Cycle**
 
-1. **Trajectory Ingestion** — traces, tool logs, and step scores to an append-only store instrumented with **OTel GenAI semantic conventions**, so ecosystem tooling works without bespoke adapters. The EventBus is the single source of truth; the TrajectoryStore and the OTel span log are independent subscribers — neither is derived from the other (see [Microkernel & Bus](../02-architecture/microkernel-and-bus.md)).
-2. **Mutation Proposal** — the Meta-Improver reviews failure patterns and proposes targeted changes within the mutable surface. AOI ranks candidates so only promising ones reach expensive evaluation.
-3. **Verification** — the four gates below.
-4. **Deployment** — staged for **human sign-off**. Mutations do not self-deploy.
+1. **Trajectory Ingestion** — Log traces, tool outputs, and step scores via OTel GenAI conventions to an append-only store ([Microkernel & Bus](../02-architecture/microkernel-and-bus.md)).
+2. **Mutation Proposal** — Meta-Improver proposes mutable surface changes; AOI ranks candidates before full evaluation.
+3. **Verification** — Execute Tiers 0–3 verification gates.
+4. **Deployment** — Staged for human sign-off; self-deployment is prohibited.
 
 ## **Verification Gates**
 
-### Tier 0 — A/A Noise Floor (run first, always)
+* **Tier 0 — A/A Noise Floor**: Run unmodified harness twice to establish stochastic noise floor. Candidates must exceed this delta.
+* **Tier 1 — Screening**: Smoke test against held-out split (prefer SWE-bench Verified / Multi-SWE-bench over Lite).
+* **Tier 2 — Commit-Replay Private Split**: Harvested real historical repository commits posed as tasks with original diffs and tests as ground truth.
+* **Tier 3 — Paired Regression & Statistics**: Paired evaluation ($k \ge 3$ runs/task, fixed seeds), reporting variance and multiple-comparison corrected significance.
 
-Run the **unmodified** harness twice against the suite and measure the score-delta distribution under pure stochasticity. This is the noise floor, and any candidate that fails to beat it is not an improvement no matter how much its score moved.
+## **Economic Tiers (A/B/C)**
 
-This gate is the most important addition to the loop. Most harness mutations produce effects smaller than run-to-run variance, so "accept if the score improved" **ratchets permanently on noise** — accumulating changes that are individually meaningless and collectively a random walk away from the baseline. Without an A/A measurement there is no way to tell the difference.
+Mutation search costs thousands of dollars per iteration. The loop is structured by economic return (see [STATUS.md](../STATUS.md), [ADR-0022](../08-decisions/0022-rhi-economic-refounding.md)):
 
-### Tier 1 — Screening
-
-A held-out split, treated as a smoke test rather than the objective.
-
-**SWE-bench Lite is unsuitable as the primary screen**: contaminated across frontier models, Python-only, and shaped as single-repo issue resolution — which is not the long-horizon multi-file target. Optimizing harness mutations against it tunes the system for a distribution nobody wants. Prefer SWE-bench Verified and Multi-SWE-bench where public comparison is desired.
-
-### Tier 2 — Commit-Replay Private Split
-
-The private split is **harvested, not authored**: mine real commits from target repository history, revert them, pose them as tasks with the original diff and tests as ground truth.
-
-This yields an unbounded, uncontaminated, in-distribution benchmark that stays current as the repository evolves — and it removes the need to hand-write synthetic bugs whose distribution nobody can defend. It is strictly better than the previous "private synthetic mutation split" on every axis: realism, volume, maintenance cost, and contamination resistance.
-
-### Tier 3 — Paired Regression & Statistics
-
-* Paired evaluation on identical task sets with fixed seeds
-* **k ≥ 3 runs per task**, reporting variance rather than a point estimate
-* Acceptance threshold **corrected for multiple comparisons** — screening many candidates against one uncorrected threshold manufactures winners from noise
-* No increase in token consumption or latency; cache hit rate reported alongside
-
-## **Cost Reality — and the Tier A/B/C Re-Founding**
-
-A few hundred tasks × several dollars × k repetitions × many candidates puts a single outer-loop
-iteration in the **thousands of dollars**. An outer loop that cannot pay for itself is a research
-project, not a feature.
-
-The cycle above treats "Mutation Proposal" as the loop's core. **It is not, and it must not be
-funded as though it were.** Mutation search is the single most expensive activity in this
-architecture and the one with the weakest evidence of return — because the gates that would prove
-the return were themselves fabricated until `v2-S1` (see [STATUS.md](../STATUS.md), H1/H2). The
-loop is therefore re-founded on what each tier actually costs versus what it actually returns:
-
-| Tier | Activity | Cost | Schedule |
+| Tier | Activity | Cost Profile | Schedule |
 | :--- | :--- | :--- | :--- |
-| **A** | **Trajectory ingestion and measurement.** A/A noise floor, paired statistics, cost/latency/cache-hit accounting, failure-pattern reporting. Reads what already happened. | Near-zero — it is instrumentation on runs that were paid for anyway | **Always on.** Every run feeds it |
-| **B** | **Distillation and dataset export.** Turning admitted, replay-verified, untainted trajectories into SFT/DPO datasets; prompt and policy refinements a human authors and evaluates. | Bounded and predictable | **Scheduled.** Runs at phase close |
-| **C** | **Mutation search.** The Meta-Improver proposing harness changes, AOI ranking them, and Tiers 0–3 evaluating them. | Thousands of dollars per iteration | **Dormant.** Behind an explicit funding trigger |
+| **A** | **Trajectory Ingestion & Measurement**: A/A noise floor, paired stats, cost/latency/cache tracking, failure patterns. | Near-zero (piggybacks on standard runs) | **Always on** |
+| **B** | **Distillation & Dataset Export**: Export admitted trajectories to SFT/DPO datasets; human-authored prompt/policy updates. | Bounded & predictable | **Scheduled** (phase close) |
+| **C** | **Mutation Search**: Meta-Improver proposals, AOI ranking, Tiers 0–3 gate execution. | High ($k\text{k}+/iter$) | **Dormant** (explicit manual trigger only) |
 
-**Tier C is dormant by default and does not ship on a schedule.** It activates only when a human
-funds a specific iteration against a named hypothesis, with the A/A floor already measured on
-honest gates. `ports/meta_improver.py` stays in the tree — it costs 22 LOC and the port-rent rule
-([ADR-0023](../08-decisions/0023-port-rent-rule.md)) governs it — but it has no scheduled consumer.
-
-This is the economically honest ordering: **measurement is nearly free and compounds; mutation
-search is expensive and speculative.** The previous framing funded them as peers. The AOI
-pre-filter still exists to keep Tier C tractable *when it runs*; it is not a reason to run it.
-
-*Implements: `docs/rationale/reviews/agi_evolution_path.md` and `critical_gaps_analysis.md`.
-Recorded as [ADR-0022](../08-decisions/0022-rhi-economic-refounding.md).*
+* Port reference: `ports/meta_improver.py` governed by [ADR-0023](../08-decisions/0023-port-rent-rule.md).
+* Implements `docs/rationale/reviews/agi_evolution_path.md` and `critical_gaps_analysis.md`.

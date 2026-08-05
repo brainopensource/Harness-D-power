@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Extract full Gemini share-page conversation text to markdown."""
+
 from __future__ import annotations
 
 import re
@@ -8,8 +9,17 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-URL = "https://gemini.google.com/share/a80e0c8ea417?skid=36bb015e-1bb8-44dc-95a8-85fbc12ccb85"
-OUT = Path(sys.argv[1] if len(sys.argv) > 1 else "gemini_share_a80e0c8ea417.md")
+URL = (
+    sys.argv[1]
+    if len(sys.argv) > 1 and sys.argv[1].startswith("http")
+    else "https://gemini.google.com/share/a80e0c8ea417?skid=36bb015e-1bb8-44dc-95a8-85fbc12ccb85"
+)
+out_arg = (
+    sys.argv[2]
+    if len(sys.argv) > 2
+    else (sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].startswith("http") else "gemini_share_a80e0c8ea417.md")
+)
+OUT = Path(out_arg)
 
 
 def clean_body(text: str) -> str:
@@ -17,9 +27,7 @@ def clean_body(text: str) -> str:
     lines = text.splitlines()
     start = 0
     for i, line in enumerate(lines):
-        if line.strip() in {"You said", "Advanced Agent Architecture Design"} or line.startswith(
-            "# SAGIHA2"
-        ):
+        if line.strip() in {"You said", "Advanced Agent Architecture Design"} or line.startswith("# SAGIHA2"):
             # Prefer title if present earlier
             if "Advanced Agent Architecture Design" in line:
                 start = i
@@ -53,8 +61,8 @@ def main() -> None:
         for _ in range(3):
             for btn in page.locator("button").all():
                 try:
-                    label = (btn.inner_text(timeout=200) or "") + " " + (
-                        btn.get_attribute("aria-label") or ""
+                    label = (
+                        (btn.inner_text(timeout=200) or "") + " " + (btn.get_attribute("aria-label") or "")
                     )
                     if re.search(r"expand|mostrar|previous|anteriores", label, re.I):
                         btn.click(timeout=1000)
@@ -78,7 +86,7 @@ def main() -> None:
             "status: rationale",
             "updated: 2026-08-01",
             "retrieval: excluded",
-            "source: https://gemini.google.com/share/a80e0c8ea417?skid=36bb015e-1bb8-44dc-95a8-85fbc12ccb85",
+            f"source: {URL}",
             "---",
             "",
             "# Gemini Share Export — Advanced Agent Architecture Design",
@@ -90,7 +98,8 @@ def main() -> None:
             "**Captured:** 2026-08-01 via Playwright (full `document.body` text after expand/scroll).",
             "",
             "> Note: This is a linear text dump of a shared Gemini chat UI. Formatting may include",
-            "> doubled newlines from the share renderer; speaker turns are marked `You said` / model replies.",
+            "> doubled newlines from the share renderer; speaker turns are marked",
+            "> `You said` / model replies.",
             "",
             "---",
             "",

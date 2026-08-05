@@ -3,115 +3,67 @@ status: rationale
 updated: 2026-07-29
 retrieval: excluded
 ---
-# **Glossary**
+# Glossary
 
 > [!NOTE]
-> **Working Proposal Disclaimer**: A working architectural proposal, refined iteratively as practical evaluation progresses.
+> Working architectural proposal, refined iteratively.
 
-Terms carry these meanings throughout the suite. Where a term is commonly used loosely elsewhere, the entry says what SAGIHA specifically means by it.
+## Architecture
+- **CAR**: Control-Agency-Runtime model. Control authorizes, Agency deliberates, Runtime executes. Enforced via grants, import linters, and a single dispatch choke point.
+- **Port**: `typing.Protocol` in domain language defining capability boundaries (e.g. `Memory.recall()`).
+- **Adapter**: Interchangeable concrete implementation of a port.
+- **Conformance Suite**: Parametrized behavioral tests (`tests/contracts/`) validating swappability for adapters.
+- **Composition Root**: Single `build_kernel(config)` wiring function; no DI container.
+- **Dispatch Choke Point**: Single execution path attaching authorization, budget, auditing, and redaction.
+- **Grant**: Expiring capability token minted by `PolicyEngine.authorize()` and verified at execution (`verify_grant`).
+- **TCB**: Trusted Computing Base (policy, evaluator, gates, benchmarks, deployment gate, secrets, sandbox). Read-only for agents.
+- **Sidecar**: Out-of-process compiled service (deployment topology, not architectural layer).
 
-## **Architecture**
+## Execution
+- **DMARTIC**: Inner loop: Design, Measure, Analyze, Review, Test, Improve, Control, Self-Reflect.
+- **System 1 / System 2**: Fast ReAct for local tasks; deliberate best-of-N + sequential repair for complex work.
+- **Best-of-N**: Propose *n* gated, ranked candidates across worktrees (no persistent MCTS tree/backpropagation).
+- **Sequential Repair**: Feeding gate failure diagnostics back to candidates for iterative repair.
+- **Escalation Ladder**: Deterministic rules (failures, scope, diff size, risk) routing System 1 to System 2.
+- **Worktree**: Isolated git working directory isolating tracked file state per candidate attempt.
+- **Materialization**: Copying ignored artifacts (`.env`, `.venv`, `node_modules`) into fresh worktrees.
+- **EffectClass**: `PURE` / `IDEMPOTENT` / `DESTRUCTIVE`. Governs replay safety (only `PURE` re-executes on replay).
+- **Cassette**: Recorded model interactions enabling zero-network replay.
 
-**CAR** — Control-Agency-Runtime. The three-layer model. Control authorizes, Agency deliberates, Runtime executes. Enforced by capability grants, import-linter contracts, and a single dispatch choke point — not by convention.
+## Memory & Retrieval
+- **STM / LTM**: Short-term session ring-buffer (SQLite-WAL) and durable long-term `Memory` port.
+- **Code Graph**: Deterministic code structure (imports, calls, co-change) extracted via Tree-sitter and git.
+- **Episodic Memory**: Bi-temporal learned facts, decisions, and rationale with temporal invalidation.
+- **Bi-temporal**: Tracks valid time (when fact held) and transaction time (when learned).
+- **AST-bounded Chunk**: Code chunk bounded by Tree-sitter symbol spans, prefixed with path and symbol path.
+- **Skeletonization**: Stripping function bodies while preserving signatures, interfaces, and docstrings.
+- **Staged Re-hydration**: Restoring full file context when compacted context triggers build/test failure.
+- **Stable Prefix**: Byte-identical leading prompt text preserved for provider context caching.
 
-**Port** — a `typing.Protocol` written in *domain* language defining a capability boundary. `Memory.recall()` is a port; `store_vector()` would be a driver.
+## Evaluation
+- **Hard Gate**: Binary blocking admission check (tests pass, coverage, unmodified tests, diff bounds).
+- **Soft Score**: Continuous ranking signal (PRM value) applied only to candidates clearing hard gates.
+- **`tests_unmodified`**: Hard gate ensuring candidates do not alter evaluation test suites.
+- **Pristine Injection**: Supplying test suites read-only from base commit.
+- **PRM**: Process Reward Model scoring intermediate step quality.
+- **A/A Noise Floor**: Score-delta distribution from running unmodified harness twice to measure variance.
+- **Commit-replay**: Harvester turning historical commits into un-contaminated task benchmarks.
+- **Recall@k**: Retrieval quality metric measured independently from overall task success.
 
-**Adapter** — a concrete implementation of a port. Interchangeable, verified by conformance suites.
+## Improvement
+- **RHI**: Recursive Harness Self-Improvement outer loop over mutable surfaces, requiring human sign-off.
+- **Mutable Surface**: Editable components (prompts, retrieval parameters, routing heuristics, non-Control adapters).
+- **AOI**: Auxiliary Optimization Intelligence (small advisory models in shadow mode).
+- **Shadow Mode**: Model predictions logged for calibration without executing actions.
+- **Exploration Fraction**: Share of un-censored runs executed to gather unbiased training data.
 
-**Conformance suite** — behavioral tests in `tests/contracts/` parametrized over every adapter of a port. The mechanism that makes swappability real. An adapter absent from it is unsupported.
+## Protocols & Channels
+- **MCP**: Model Context Protocol for vertical tool integration.
+- **A2A**: Agent-to-Agent protocol for peer delegation.
+- **Observer / Interceptor**: Event subscribers; interceptors can deny execution, observers only log.
+- **Pilot**: External interface driving headless entry point (CLI/TUI, bot, IDE, CI).
+- **`sagiha-bot`**: Disposable messaging bot client in separate repository.
 
-**Composition root** — the single `build_kernel(config)` function wiring everything. No DI container.
-
-**Dispatch choke point** — the one path from intent to effect, where authorization, budget, audit, and redaction attach.
-
-**Grant** — a scoped, expiring capability token minted only by `PolicyEngine.authorize()` and re-verified at the point of effect (`verify_grant`); never crosses a port signature. "Unforgeable" overclaims in a language with full introspection — the actual property is reachability, enforced by module boundaries and `import-linter`, not cryptography.
-
-**TCB (Trusted Computing Base)** — policy engine, evaluator, gate definitions, benchmark definitions, deployment gate, secret handling, sandbox boundary. Never writable by the agent.
-
-**Sidecar** — an out-of-process compiled service. A deployment topology, not an architectural layer. Currently all deferred or dropped.
-
-## **Execution**
-
-**DMARTIC** — the inner loop: Design, Measure, Analyze, Review, Test, Improve, Control, Self-Reflect.
-
-**System 1 / System 2** — fast direct ReAct for localized work; deliberate best-of-N with sequential repair for complex work. Routing is a deterministic escalation ladder.
-
-**Best-of-N** — propose *n* candidate solutions, gate them, rank survivors, pick one. Explicitly *not* MCTS: no persistent tree, no visit counts, no backpropagation.
-
-**Sequential repair** — feeding a failing candidate its own gate failures for another attempt. Higher yield per dollar than widening N.
-
-**Escalation ladder** — the deterministic System 1 → System 2 rule (repeated failure, multi-file scope, diff size, risk class). Also the label generator for a future learned router.
-
-**Worktree** — an isolated git working directory per candidate or sub-task. Isolates **tracked file state only** — not ports, dependency trees, caches, databases, or environment.
-
-**Materialization** — copying or linking ignored-but-required artifacts (`.env`, `.venv`, `node_modules`) into a fresh worktree. Required, not optional: a worktree contains only tracked files, so builds fail without it.
-
-**EffectClass** — `PURE` / `IDEMPOTENT` / `DESTRUCTIVE`. Governs replay safety; only `PURE` calls re-execute during replay.
-
-**Cassette** — a recorded model interaction enabling replay with zero API calls. The `ModelProvider` replay adapter.
-
-## **Memory & Retrieval**
-
-**STM / LTM** — short-term (per-session ring buffer over SQLite-WAL) and long-term (durable `Memory` port).
-
-**Code graph** — deterministic structure (imports, calls, ownership, co-change) derived exactly from Tree-sitter and git. Never LLM-extracted.
-
-**Episodic memory** — learned, contestable facts (decisions, rationale, preferences) with bi-temporal validity. The only place LLM extraction and temporal invalidation earn their cost.
-
-**Bi-temporal** — tracking both *valid time* (when a fact held) and *transaction time* (when the system learned it). Note git is already bi-temporal for code.
-
-**AST-bounded chunk** — an embeddable unit that is a Tree-sitter function/method/class span, prefixed with file path and symbol path. Never a fixed-size window.
-
-**Skeletonization** — stripping function bodies while keeping interfaces, signatures, and docstrings.
-
-**Staged re-hydration** — restoring full file content after an edit fails under compacted context. Compilation failure is the signal that compaction went too far.
-
-**Stable prefix** — the byte-identical leading portion of the prompt that stays cached across turns. Any per-turn repartitioning destroys it.
-
-## **Evaluation**
-
-**Hard gate** — a binary, non-negotiable admission criterion (tests pass, tests unmodified, no new suppressions, coverage held, diff bounded). Gates *admit*; they are never traded off.
-
-**Soft score** — a continuous ranking signal (PRM value) applied *only* to candidates that already cleared every gate. Never admits.
-
-**`tests_unmodified`** — the gate preventing a candidate from editing its own grader. With filesystem access to its worktree, an agent can otherwise rewrite the tests it is scored against.
-
-**Pristine injection** — supplying the test suite read-only from the base commit, so evaluation never uses the candidate's copy.
-
-**PRM** — Process Reward Model. Scores intermediate steps rather than only final outcomes.
-
-**A/A noise floor** — the score-delta distribution from running the *unmodified* harness twice. Any change not exceeding it is not an improvement. Must be re-measured whenever the model version changes.
-
-**Commit-replay** — harvesting real commits, reverting them, posing them as tasks. Uncontaminated, in-distribution, self-maintaining.
-
-**Recall@k** — retrieval quality against a labelled query set, reported separately from task success so retrieval regressions stay attributable.
-
-## **Improvement**
-
-**RHI** — Recursive Harness Self-Improvement. The outer loop, restricted to the mutable surface, gated on statistics, deployed only with human sign-off.
-
-**Mutable surface** — what the outer loop may edit: prompts, retrieval and compaction parameters, tool descriptions, routing heuristics, non-Control adapters. The complement of the TCB.
-
-**AOI** — Auxiliary Optimization Intelligence. Small local models (reward, failure, cost predictors). Advisory only, shadow mode by default.
-
-**Shadow mode** — a model predicts and logs but does not act, until calibration justifies promotion.
-
-**Exploration fraction** — the share of runs that complete regardless of predicted failure, preventing the predictor from censoring its own training data.
-
-## **Protocols & Channels**
-
-**MCP** — Model Context Protocol. Vertical integration: agent to tools. SAGIHA both consumes MCP servers and runs as one.
-
-**A2A** — Agent-to-Agent. Horizontal peer delegation. Deferred until a genuinely remote peer exists.
-
-**Observer / Interceptor** — event bus subscriber kinds. Observers cannot influence execution; interceptors may deny but never mutate.
-
-**Pilot** — any client driving the headless entry point: CLI/TUI, bot, IDE, CI, A2A peer.
-
-**`sagiha-bot`** — the separate, disposable messaging-platform pilot service. Deliberately out of this repository.
-
-## **Roadmap**
-
-**Vertical slice (S0–S4)** — a thin end-to-end capability through every layer, each with a measurable gate. Contrast with component-wise phasing, which optimizes the wrong axis since the risk lives in integration.
-
-**Trigger condition** — the measurement that must fire before an advanced component is adopted. Replaces calendar-based scheduling.
+## Roadmap
+- **Vertical Slice (S0–S4)**: End-to-end integration slices with measurable gates.
+- **Trigger Condition**: Quantitative measurement threshold required to adopt advanced components.

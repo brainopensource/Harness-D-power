@@ -13,7 +13,14 @@ import pytest
 
 from sagiha.agency.run_loop import RunLoop, make_task
 from sagiha.composition import build_kernel
-from sagiha.domain.config import SandboxConfig, AutonomyConfig, Config, ModelConfig, TelemetryConfig, WorkspaceConfig
+from sagiha.domain.config import (
+    AutonomyConfig,
+    Config,
+    ModelConfig,
+    SandboxConfig,
+    TelemetryConfig,
+    WorkspaceConfig,
+)
 from sagiha.domain.content import (
     Message,
     ModelRequest,

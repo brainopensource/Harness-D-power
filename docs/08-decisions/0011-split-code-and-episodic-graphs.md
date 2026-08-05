@@ -4,19 +4,20 @@ updated: 2026-07-29
 ---
 # ADR-0011: Split the Code Graph from Episodic Memory
 
-**Status**: Accepted
+**Status**: Accepted  
 **Date**: 2026-07-28
 
 ## Context
-The design routed both structural code facts and learned experience through a single bi-temporal graph engine performing LLM-based entity extraction on ingest. Code structure — imports, call edges, definitions, inheritance, ownership, co-change — is exactly derivable from Tree-sitter and git. Passing it through LLM extraction pays tokens and latency for facts a parser already knows with certainty, and admits hallucinated edges into a dependency graph that impact analysis then trusts.
+LLM entity extraction on code structure introduces hallucinations, latency, and token cost for facts already known deterministically via ASTs and Git.
 
 ## Decision
-Two stores with different epistemics. The **deterministic code graph** is built directly by the indexer into SQLite (embedded Kùzu if recursive traversal outgrows SQL), is exact, and is fully rebuildable from HEAD — a cache, not a system of record. **Episodic and decision memory** — ADRs, PR rationale, "we tried X and it failed because Y" — is where facts are genuinely unstructured and lose validity over time, and is where bi-temporal modelling and LLM extraction earn their cost.
-
-Note that git is already bi-temporal for code: valid time is commit time, transaction time is index time, and structure re-derives at any ref. Rebuilding that inside a graph database duplicates version control.
+Maintain two distinct storage models:
+1. **Deterministic Code Graph**: Built directly via Tree-sitter into SQLite (or Kùzu). Exact, rebuildable from HEAD (acting as a cache).
+2. **Episodic & Decision Memory**: Semi-structured history (ADRs, PR rationale, failure cases) using LLM extraction and bi-temporal models.
 
 ## Consequences
-Impact analysis is exact and cheap. Temporal invalidation applies only where it pays. Two stores to maintain instead of one, with a clear rule for which receives a given fact.
+- Code impact analysis is fast, exact, and zero-token cost.
+- Temporal invalidation and LLM extraction apply strictly to unstructured memory.
 
 ## Reversal Conditions
-Evidence that unified storage materially improves retrieval quality on the labelled query set, at acceptable ingest cost.
+- Unified graph storage demonstrating superior retrieval precision/recall at acceptable ingestion costs.

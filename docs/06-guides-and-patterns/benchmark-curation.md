@@ -10,30 +10,24 @@ retrieval: excluded
 
 ## **Why This Module Exists**
 
-The S0 gate reads "≥70% resolved on a pinned 30-task suite." That suite does not exist, and it is the one prerequisite that cannot be derived from the architecture — it must be curated. Without it, S0 has no exit criterion and every subsequent slice inherits an unmeasurable baseline.
-
-This is the only remaining artifact standing between the documentation and Sprint 1.
+The S0 gate requires ≥70% resolution on a pinned 30-task suite to establish exit criteria and a measurable baseline for subsequent slices.
 
 > [!IMPORTANT]
-> **The target repository is finalized.** Per [ADR-0015](../08-decisions/0015-benchmark-target-repository.md),
-> commit-replay harvesting uses **`brainopensource/Harness-D-power`** (`https://github.com/brainopensource/Harness-D-power`)
-> for S0 Core and E0 benchmark task harvesting, ensuring zero-contamination baseline evaluation.
+> **Target Repository**: Per [ADR-0015](../08-decisions/0015-benchmark-target-repository.md), commit-replay harvesting uses **`brainopensource/Harness-D-power`** (`https://github.com/brainopensource/Harness-D-power`) for S0 Core and E0 benchmarks to guarantee zero-contamination baselines.
 
 ## **The Three Suites**
 
-| Suite | Size | Purpose | Cost per run |
+| Suite | Size | Purpose | Execution Cadence / Cost |
 | :--- | :--- | :--- | :--- |
-| **Smoke** | 10 tasks | Per-PR sanity, fast | minutes, cents |
-| **S0 Core** | 30 tasks | Slice gates, regression | ~1 hour, single-digit dollars |
-| **Commit-Replay** | 200+ | RHI evaluation, statistical work | hours, hundreds of dollars |
-
-Only Smoke runs per-PR. The others run nightly and on release tags.
+| **Smoke** | 10 tasks | Fast per-PR sanity check | Per-PR (minutes, cents) |
+| **S0 Core** | 30 tasks | Slice gates & regression testing | Nightly / Releases (~1 hr, single-digit $) |
+| **Commit-Replay** | 200+ tasks | RHI evaluation & statistical work | Nightly / Releases (hours, hundreds $) |
 
 ## **Building the S0 Core Suite**
 
-### Sourcing
+### Sourcing & Harvesting
 
-Harvest from the target repository's own history — real commits, reverted and posed as tasks:
+Harvested from real historical target repository commits (reverted into tasks while retaining tests as ground truth):
 
 > **Planned — Block 2 (E0-lite)** ([STATUS.md](../STATUS.md)).
 
@@ -46,26 +40,20 @@ sagiha bench harvest \
   --limit 200
 ```
 
-The harvester keeps commits that touched test files alongside source (giving ground-truth verification), reverts the source change while **retaining the tests**, and records the original diff as a reference solution — never as the grading criterion, since a different correct implementation must pass.
+* **Rationale**: Real commits reflect true codebase difficulty distributions, cost nothing to generate, and remain immune to synthetic task author bias.
 
-**Why harvested rather than authored**: hand-written synthetic bugs encode the author's idea of what an agent finds hard, which is uncorrelated with what agents actually find hard. Real commits carry the genuine difficulty distribution of the codebase, cost nothing to produce, and stay current as the repository evolves.
+### Task Composition (30 Tasks)
 
-### Composition
-
-Thirty tasks, deliberately distributed:
-
-| Category | Count | Character |
+| Category | Count | Scope & Purpose |
 | :--- | :--- | :--- |
-| Single-file bug fix | 10 | One file, clear failing test — S0's core competency |
-| Single-file feature | 6 | Add a function/method with tests |
-| Multi-file refactor | 5 | 2–3 files, held out for S3 |
-| Test authoring | 4 | Write tests for existing untested code |
-| Diagnostic-driven | 3 | Type or lint errors, no failing test |
-| **Adversarial** | 2 | Deliberately unsolvable or underspecified |
+| **Single-file bug fix** | 10 | 1 file, clear failing test (S0 core target) |
+| **Single-file feature** | 6 | Add function/method with tests |
+| **Multi-file refactor** | 5 | 2–3 files (held out for S3) |
+| **Test authoring** | 4 | Write tests for existing untested code |
+| **Diagnostic-driven** | 3 | Type/lint errors, no failing test |
+| **Adversarial** | 2 | Deliberately unsolvable or underspecified (measures clean failure / non-hallucination) |
 
-The adversarial pair earns its place: a harness that "solves" an unsolvable task is hallucinating, and one that quietly weakens a test to pass is grader-editing. **Expected outcome for these two is a clean failure with an accurate explanation** — measuring honest failure is as important as measuring success, and nothing else in the suite tests for it.
-
-### Task Format
+### Task Specification Format
 
 ```yaml
 task_id: fix-parser-offset-001
@@ -93,33 +81,21 @@ metadata:
   reference_diff: .bench/solutions/fix-parser-offset-001.diff
 ```
 
-### Selection Criteria
+### Selection & Inclusion Criteria
 
-Include a candidate only if all hold:
+* **Inclusion**: Machine-verifiable acceptance, self-contained (no network/credentials), deterministic (5× pass on base commit), bounded (diff <200 lines), non-trivial.
+* **Exclusions**: DB migrations, time/timezone-dependent logic, network-dependent tests. Flakiness must be verified *before* inclusion.
 
-* **Verifiable** — acceptance is fully machine-checkable
-* **Self-contained** — no network, no external services, no credentials
-* **Deterministic** — the test suite is not itself flaky (verify: run 5× on the base commit)
-* **Bounded** — reference solution under ~200 changed lines
-* **Non-trivial** — a trivial one-liner measures nothing
+## **Suite Freezing & Versioning**
 
-Exclude: anything needing a migration, anything time- or timezone-dependent, anything whose tests touch the network.
+Frozen suites are committed under `benchmarks/definitions/` within the [trusted computing base](../04-workflows-and-loops/rhi-outer-loop.md) (read-only to agents, enforced by CI).
 
-**Verify flakiness before inclusion, not after.** A flaky task injects variance directly into the noise floor and will be misread as harness instability for weeks.
-
-## **Freezing**
-
-Once assembled, the suite is **frozen and committed** under `benchmarks/definitions/`, which sits inside the [trusted computing base](../04-workflows-and-loops/rhi-outer-loop.md) — not writable by the agent, protected by the CI path check.
-
-A moving benchmark makes every historical comparison meaningless. When the suite must change:
-
-* Adding tasks creates **v2**, run alongside v1 through at least one full cycle
-* Removing a task requires a recorded reason
-* The suite version is stamped into every result
+* Modifications increment version (e.g., **v2**) and must run alongside prior versions.
+* Task removals require logged justification, and versions are stamped into all run results.
 
 ## **Establishing the Noise Floor**
 
-Before the suite grades anything:
+Measure stochastic baseline variance prior to suite evaluation:
 
 > **Planned — Block 2**.
 
@@ -127,13 +103,11 @@ Before the suite grades anything:
 sagiha bench --suite s0-core --runs 2 --mode aa --model <exact-version>
 ```
 
-This runs the unmodified harness twice and reports the score-delta distribution under pure stochasticity. Publish it in `benchmarks/noise-floor.md`.
+Calculates score-delta distributions under pure stochasticity (`benchmarks/noise-floor.md`). Re-measure whenever underlying model versions change to avoid confusing provider updates with harness changes.
 
-**Re-measure whenever the model version changes.** A provider updating a model underneath you is statistically indistinguishable from your harness changing — and without a current floor, that ambiguity silently contaminates every subsequent conclusion.
+## **Reporting Standard**
 
-## **Reporting**
-
-Never a bare percentage:
+Results must report variance, cost, latency, and gating metrics:
 
 ```
 Suite: s0-core v1 (30 tasks) · model <version> · harness 0.4.2 · config a3f9e1
@@ -147,4 +121,5 @@ Gate failures: tests_pass 5 · tests_unmodified 0 · coverage 2
 Degradations:  0
 ```
 
-`tests_unmodified 0` and `degradations 0` are validity preconditions, not scores. A run with either nonzero is discarded — the first means a candidate may have edited its grader, the second means capability silently disappeared mid-run. In both cases the headline number is not measuring what it claims to.
+> [!NOTE]
+> `tests_unmodified 0` and `degradations 0` are mandatory validity preconditions. Non-zero values invalidate the run.

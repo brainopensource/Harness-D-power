@@ -8,118 +8,74 @@ retrieval: excluded
 > [!NOTE]
 > **Working Proposal Disclaimer**: A working architectural proposal, refined iteratively as practical evaluation progresses.
 
-This guide sets up the reference **Tier 4 (Local)** environment named in
-[Model Tiering](../05-tech-stack/llm-providers-and-economics.md#2-model-tiering) — Ollama plus
-Qwen2.5-Coder, for offline and air-gapped operation at zero marginal cost. It installs **Ollama** on
-Linux (Fedora, Ubuntu, Debian, Arch, RHEL), pulls **Qwen2.5-Coder**, and verifies a chat session before
-wiring it into `config.toml`.
+Sets up Tier 4 (Local) inference per [Model Tiering](../05-tech-stack/llm-providers-and-economics.md#2-model-tiering) using Ollama and Qwen2.5-Coder for offline, zero-marginal-cost operation.
 
----
-
-## ⚡ **Quick Reference Commands**
+## ⚡ **Quick Reference**
 
 ```bash
-# 1. Install Ollama on Linux
+# 1. Install Ollama
 curl -fsSL https://ollama.com/install.sh | sh
 
-# 2. Download and run Qwen2.5-Coder 7B interactively
+# 2. Launch Qwen2.5-Coder 7B interactively
 ollama run qwen2.5-coder:7b
 
-# 3. Quick one-shot prompt from terminal
-ollama run qwen2.5-coder:7b "Write a Python script to fetch JSON data from an API."
+# 3. One-shot execution
+ollama run qwen2.5-coder:7b "Write a Python script to fetch JSON from an API."
 ```
-
----
 
 ## 📋 **Prerequisites**
 
 * **OS**: Linux (Fedora, Ubuntu, Debian, Arch, RHEL).
-* **RAM / VRAM**:
-  * **Qwen2.5-Coder 7B**: Requires ~5 GB RAM/VRAM. Runs smoothly on 8GB+ RAM or GPUs with 6GB+ VRAM.
-  * **Qwen2.5-Coder 14B**: Requires ~10 GB RAM/VRAM. Recommended for 16GB VRAM GPUs or 32GB system RAM.
-* **Hardware Acceleration**:
-  * **NVIDIA GPU**: CUDA drivers installed.
-  * **AMD GPU**: ROCm drivers installed (supported natively by Ollama on Linux).
+* **RAM / VRAM Requirements**:
+  * **Qwen2.5-Coder 7B**: ~5 GB RAM/VRAM (runs on 8GB+ RAM or 6GB+ VRAM).
+  * **Qwen2.5-Coder 14B**: ~10 GB RAM/VRAM (requires 16GB VRAM GPU or 32GB RAM).
+* **Hardware Acceleration**: NVIDIA (CUDA) or AMD (ROCm).
 
----
-
-## 🚀 **Step 1: Install Ollama on Linux**
-
-Run the official Linux installation script:
+## 🚀 **Installation & Service Management**
 
 ```bash
+# Install
 curl -fsSL https://ollama.com/install.sh | sh
-```
 
-### **Manage Systemd Service**
-Ollama runs in the background as a systemd service (`ollama.service`).
-
-```bash
-# Check service status
+# Systemd Service Controls
 sudo systemctl status ollama
-
-# Start service (if stopped)
 sudo systemctl start ollama
-
-# Enable on system boot
 sudo systemctl enable ollama
 ```
 
----
-
-## 📦 **Step 2: Download & Launch Qwen2.5-Coder 7B**
-
-Run the following command to download model weights and open an interactive chat session:
+## 📦 **Model Execution**
 
 ```bash
+# 7B Model (Default)
 ollama run qwen2.5-coder:7b
+
+# 14B Model (Higher intelligence, requires 16GB VRAM / 32GB RAM)
+ollama run qwen2.5-coder:14b
 ```
 
-> [!TIP]
-> If your system has **16GB VRAM** or **32GB RAM**, you can run the higher-intelligence 14B version:
-> ```bash
-> ollama run qwen2.5-coder:14b
-> ```
-
----
-
-## 💬 **Step 3: Chatting with the AI in Terminal**
-
-### **Interactive Mode**
-Type your prompt directly when the `>>>` prompt appears:
-
-```text
->>> Write a Python function using asyncio to process tasks concurrently.
-```
-
-### **Useful Interactive Commands**
+### **Interactive Session Controls**
 
 | Command | Action |
 | :--- | :--- |
-| `/help` | Show interactive help and command menu |
-| `/clear` | Clear active conversation context |
-| `/set system "..."` | Customize system prompt (e.g., `/set system "You are a Rust expert."`) |
+| `/help` | Show interactive help menu |
+| `/clear` | Clear conversation context |
+| `/set system "..."` | Override system prompt |
 | `"""` | Enter multi-line input mode |
 | `/bye` or `Ctrl+D` | Exit chat session |
 
-### **One-Shot Terminal Commands (CLI Pipe Integration)**
+### **CLI Pipeline & Pipe Integration**
 
 ```bash
-# Ask a direct question
+# Direct prompt query
 ollama run qwen2.5-coder:7b "Explain Python context managers with an example."
 
-# Pipe code into model for code review
+# Pipe code into model for auditing
 cat main.py | ollama run qwen2.5-coder:7b "Audit this Python code for bugs and security issues."
 ```
 
----
+## 🔌 **IDE & API Integration**
 
-## 🔌 **Step 4: IDE & API Integration**
-
-### **1. VS Code / VSCodium (via Continue.dev)**
-1. Install the **Continue** extension in VS Code.
-2. Open `~/.continue/config.json`.
-3. Add Ollama configuration:
+### **VS Code / VSCodium (`~/.continue/config.json`)**
 
 ```json
 {
@@ -138,8 +94,7 @@ cat main.py | ollama run qwen2.5-coder:7b "Audit this Python code for bugs and s
 }
 ```
 
-### **2. Local REST API Endpoint**
-Ollama exposes a REST API at `http://localhost:11434`.
+### **REST API Endpoint (`http://localhost:11434`)**
 
 ```bash
 curl http://localhost:11434/api/generate -d '{
@@ -149,53 +104,31 @@ curl http://localhost:11434/api/generate -d '{
 }'
 ```
 
----
-
-## 🛠️ **Step 5: Ollama Management Cheat Sheet**
+## 🛠️ **Management Commands**
 
 | Command | Description |
 | :--- | :--- |
-| `ollama list` | List all downloaded models on your machine |
-| `ollama ps` | Show currently active models loaded in VRAM/RAM |
-| `ollama show qwen2.5-coder:7b` | Show parameters, template, and system prompt |
-| `ollama stop qwen2.5-coder:7b` | Unload model from VRAM/RAM memory |
-| `ollama rm qwen2.5-coder:7b` | Delete model weights from disk |
+| `ollama list` | List downloaded models |
+| `ollama ps` | Show currently loaded active models |
+| `ollama show qwen2.5-coder:7b` | Inspect model configuration, parameters, and system prompt |
+| `ollama stop qwen2.5-coder:7b` | Unload model from VRAM/RAM |
+| `ollama rm qwen2.5-coder:7b` | Delete model from disk |
 
----
+## 🔍 **Troubleshooting**
 
-## 🔍 **Troubleshooting (AMD / NVIDIA Linux)**
+* **AMD ROCm Override**: If GPU is unrecognized, set `export HSA_OVERRIDE_GFX_VERSION=10.3.0` in `~/.bashrc`.
+* **VRAM Monitoring**: `nvidia-smi` (NVIDIA) or `rocm-smi` / `radeontop` (AMD).
 
-* **AMD ROCm Override (if GPU is not automatically detected)**:
-  ```bash
-  echo 'export HSA_OVERRIDE_GFX_VERSION=10.3.0' >> ~/.bashrc
-  source ~/.bashrc
-  ```
-* **Check Memory Consumption**:
-  * NVIDIA: `nvidia-smi`
-  * AMD: `rocm-smi` or `radeontop`
+## 🔗 **SAGIHA Integration**
 
----
-
-## 🔗 **Wiring Into SAGIHA**
-
-Once `ollama run qwen2.5-coder:7b` answers, bind it as the `local` tier in `config.toml`
-([Configuration Reference](../05-tech-stack/configuration-reference.md)) — no other file changes,
-since routing is [composition, not a port method](../05-tech-stack/llm-providers-and-economics.md#roles-bind-tiers-to-call-sites):
+Configure in `config.toml` (see [Configuration Reference](../05-tech-stack/configuration-reference.md) and [Roles Bind Tiers](../05-tech-stack/llm-providers-and-economics.md#roles-bind-tiers-to-call-sites)):
 
 ```toml
 [model.tiers.local]
-provider = "openai-compatible"   # Ollama speaks the OpenAI-compatible API
-model    = "qwen2.5-coder:7b"
-base_url = "http://localhost:11434/v1"
+provider   = "openai-compatible"
+model      = "qwen2.5-coder:7b"
+base_url   = "http://localhost:11434/v1"
 max_tokens = 8192
 ```
 
-Point any role at it directly (`[model.roles] execution = "local"`), or bind it as `fallback` so the
-harness degrades to local inference when the primary tier's breaker opens
-([Error Taxonomy](../03-contracts-and-models/error-taxonomy.md)). For a fully air-gapped run, point
-every role in `[model.roles]` at `local` — no other config changes, since role resolution is a lookup,
-not a code path.
-
-Read [Local GPU Target](../05-tech-stack/llm-providers-and-economics.md#3-local-gpu-target-16gb-vram)
-before treating this as a drop-in replacement for a frontier tier: zero marginal cost is not zero
-cost, and slower inference lengthens every DMARTIC cycle even as it lowers dollars-per-task.
+Assign `[model.roles] execution = "local"` or set `local` as fallback during circuit-breaker trips ([Error Taxonomy](../03-contracts-and-models/error-taxonomy.md)). Note performance tradeoffs discussed in [Local GPU Target](../05-tech-stack/llm-providers-and-economics.md#3-local-gpu-target-16gb-vram).

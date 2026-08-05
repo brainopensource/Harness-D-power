@@ -1,4 +1,4 @@
-# ⚡ SAGIHA — Super AGI Harness Agent v0.1.0
+# ⚡ SAGIHA — Super AGI Harness Agent v0.2.1
 
 > **SOTA Autonomous Coding Harness for Frontier LLMs — Built on Capability Security, Microkernel Dispatch, Deterministic Replay, and Declarative Workflow Orchestration.**
 

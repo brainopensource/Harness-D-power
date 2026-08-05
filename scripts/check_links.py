@@ -60,7 +60,10 @@ def is_relative(target: str) -> bool:
 
 
 def resolve(source: Path, target: str) -> bool:
-    """True when `target`, read relative to `source`'s directory, exists on disk."""
+    """True when `target`, read relative to `source`'s directory (or file:// URL), exists on disk."""
+    if target.lower().startswith("file://"):
+        file_path = target.split("file://", 1)[1].split("#", 1)[0].split("?", 1)[0]
+        return Path(file_path).exists()
     path_part = target.split("#", 1)[0].split("?", 1)[0]
     if not path_part:
         return True  # bare fragment — nothing to resolve

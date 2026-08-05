@@ -3,7 +3,11 @@ status: rationale
 updated: 2026-08-01
 title: SOTA Harness Infrastructure & Autonomous AGI Coding Agent Architectural Briefing
 source: docs/rationale/reference/harness_research_2026.md
+retrieval: excluded
 ---
+> [!NOTE]
+> **LLM / AI AGENT NOTICE**: This file is a historical rationale, research reference, or benchmark log (`retrieval: excluded`). It is excluded from active search indexing and context retrieval. Do not cite this file as normative status or active code contracts.
+
 
 # SOTA Harness Infrastructure & Autonomous AGI Coding Agent Architectural Briefing
 
@@ -11,7 +15,7 @@ source: docs/rationale/reference/harness_research_2026.md
 
 This document provides a comprehensive, highly detailed, yet concise architectural briefing for constructing a **State-of-the-Art (SOTA) Meta-Harness Infrastructure** and a **World-Class Autonomous AGI Coding Agent** capable of operating for long sessions (days to weeks) on complex multi-tasking software engineering goals.
 
-It condenses the PhD-level specifications, mathematical formulations, protocol designs, execution engines, and technology stacks from [`harness_research_2026.md`](file:///home/rock_dev/Code/Harness/docs/rationale/reference/harness_research_2026.md) into 11 structured chapters totaling under 1,500 lines for rapid reference and implementation.
+It condenses the PhD-level specifications, mathematical formulations, protocol designs, execution engines, and technology stacks from [`harness_research_2026.md`](harness_research_2026.md) into 11 structured chapters totaling under 1,500 lines for rapid reference and implementation.
 
 ---
 

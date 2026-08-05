@@ -128,7 +128,7 @@ async def ensure_index(kernel: Kernel) -> None:
 
 async def build_retrieval_seed(indexer: Indexer, goal: str, top_k: int) -> tuple[RetrievalHit, ...]:
     """Query the indexer with a task goal and return construction-time retrieval hits."""
-    hits = await indexer.neighbors(goal, limit=top_k)
+    hits = await indexer.search(goal, limit=top_k)
     return tuple(hits)
 
 
@@ -153,7 +153,6 @@ def _wire_retrieval(config: Config) -> tuple[Indexer, CodeGraph, IndexService] |
         workspace_root,
         indexer,
         code_graph,
-        max_chunk_tokens=config.retrieval.max_chunk_tokens,
     )
     return indexer, code_graph, index_service
 
@@ -401,6 +400,15 @@ class KernelCandidateExecutor:
 
         system_prompt = await resolve_system_prompt(worktree_path)
 
+        # AD-5: retrieval-before-edit, same as the single-shot path — see that call site's
+        # comment. Seed-only-by-shape (ADR-0021).
+        retrieval_seed: tuple[RetrievalHit, ...] = ()
+        if candidate_config.retrieval.enabled and kernel.indexer is not None:
+            await ensure_index(kernel)
+            retrieval_seed = await build_retrieval_seed(
+                kernel.indexer, task.goal, candidate_config.retrieval.top_k
+            )
+
         loop = RunLoop(
             model_provider=kernel.model_provider,
             policy_engine=kernel.policy_engine,
@@ -408,6 +416,7 @@ class KernelCandidateExecutor:
             tool_registry=kernel.tool_registry,
             trajectory_store=kernel.trajectory_store,
             bus=kernel.bus,
+            max_steps=kernel.config.governor.max_steps_per_run,
             tool_schemas=list(kernel.tool_schemas),
             evaluator=kernel.evaluator,
             workspace=kernel.workspace,
@@ -416,6 +425,8 @@ class KernelCandidateExecutor:
             branch_id=branch_id,
             temperature=temperature,
             system_prompt=system_prompt,
+            repair=kernel.config.repair,
+            retrieval_seed=retrieval_seed,
         )
 
         candidate_task = task.model_copy(update={"parent_task_id": task.task_id})

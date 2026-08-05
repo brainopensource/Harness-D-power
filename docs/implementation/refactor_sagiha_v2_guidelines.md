@@ -1,3 +1,8 @@
+---
+status: historical
+retrieval: excluded
+updated: 2026-08-01
+---
 # SAGIHA v2 — Refactor & Improvement Guidelines
 
 **Audience:** the senior developer (or coding agent) who will execute the v2 re-baseline.

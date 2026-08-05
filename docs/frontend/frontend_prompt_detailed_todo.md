@@ -1,3 +1,8 @@
+---
+status: rationale
+retrieval: excluded
+updated: 2026-08-01
+---
 # SAGIHA & AETHER — Senior Frontend Architecture Prompt & Master Development Plan
 
 > **System Prompt for Senior Frontend Engineer / AI Agent**  
@@ -10,20 +15,20 @@
 ## 1. Executive Summary & Architectural Invariants
 
 ### 1.1 Architecture & Code Location
-- **Workspace Monorepo Root:** [`frontend/`](file:///home/rock_dev/Code/Harness/frontend)
-- **Desktop GUI App (`@sagiha/gui`):** [`frontend/apps/gui`](file:///home/rock_dev/Code/Harness/frontend/apps/gui) — Tauri v2 (Rust window host) + React 18+ / Vite / Tailwind CSS.
-- **Terminal CLI App (`@sagiha/cli`):** [`frontend/apps/cli`](file:///home/rock_dev/Code/Harness/frontend/apps/cli) — Node ESM + React Ink (`ink`) for rich, interactive TUI directly inside terminal emulators.
-- **Shared UI Library (`@sagiha/ui`):** [`frontend/packages/ui`](file:///home/rock_dev/Code/Harness/frontend/packages/ui) — Pure, reusable React component primitives, design tokens, charts, and layout components shared 100% between GUI and TUI adapters.
-- **Shared Protocol & Client (`@sagiha/protocol`):** [`frontend/packages/protocol`](file:///home/rock_dev/Code/Harness/frontend/packages/protocol) — TypeScript schemas generated from Pydantic models in [`src/sagiha/domain/`](file:///home/rock_dev/Code/Harness/src/sagiha/domain/), WebSocket client, REST client, and state hooks.
-- **Mock Engine (`@sagiha/mock-engine`):** [`frontend/packages/mock-engine`](file:///home/rock_dev/Code/Harness/frontend/packages/mock-engine) — High-fidelity mock engine simulating real-time WebSocket event streams, step execution, and gate reports for features planned in future backend sprints.
+- **Workspace Monorepo Root:** [`frontend/`](../../frontend)
+- **Desktop GUI App (`@sagiha/gui`):** [`frontend/apps/gui`](../../frontend/apps/gui) — Tauri v2 (Rust window host) + React 18+ / Vite / Tailwind CSS.
+- **Terminal CLI App (`@sagiha/cli`):** [`frontend/apps/cli`](../../frontend/apps/cli) — Node ESM + React Ink (`ink`) for rich, interactive TUI directly inside terminal emulators.
+- **Shared UI Library (`@sagiha/ui`):** [`frontend/packages/ui`](../../frontend/packages/ui) — Pure, reusable React component primitives, design tokens, charts, and layout components shared 100% between GUI and TUI adapters.
+- **Shared Protocol & Client (`@sagiha/protocol`):** [`frontend/packages/protocol`](../../frontend/packages/protocol) — TypeScript schemas generated from Pydantic models in [`src/sagiha/domain/`](../../src/sagiha/domain), WebSocket client, REST client, and state hooks.
+- **Mock Engine (`@sagiha/mock-engine`):** [`frontend/packages/mock-engine`](../../frontend/packages/mock-engine) — High-fidelity mock engine simulating real-time WebSocket event streams, step execution, and gate reports for features planned in future backend sprints.
 
 ### 1.2 Backend Reference & Ground Truth
-- Backend microkernel and contracts are located in [`src/sagiha/`](file:///home/rock_dev/Code/Harness/src/sagiha).
+- Backend microkernel and contracts are located in [`src/sagiha/`](../../src/sagiha).
 - Reference specifications:
-  - Roadmap & Sprint Plan: [`docs/implementation/development_plan_v2.md`](file:///home/rock_dev/Code/Harness/docs/implementation/development_plan_v2.md)
-  - Refactoring & Contract Invariants: [`refactor_sagiha_v2_guidelines.md`](file:///home/rock_dev/Code/Harness/refactor_sagiha_v2_guidelines.md)
-  - Next-Gen Architecture Spec: [`docs/rationale/reviews/next_gen_architecture_specs.md`](file:///home/rock_dev/Code/Harness/docs/rationale/reviews/next_gen_architecture_specs.md)
-  - AETHER AGI Evolution: [`docs/rationale/reviews/agi_evolution_path.md`](file:///home/rock_dev/Code/Harness/docs/rationale/reviews/agi_evolution_path.md)
+  - Roadmap & Sprint Plan: [`docs/implementation/development_plan_v2.md`](../implementation/development_plan_v2.md)
+  - Refactoring & Contract Invariants: [`refactor_sagiha_v2_guidelines.md`](../implementation/refactor_sagiha_v2_guidelines.md)
+  - Next-Gen Architecture Spec: [`docs/rationale/reviews/next_gen_architecture_specs.md`](../rationale/reviews/next_gen_architecture_specs.md)
+  - AETHER AGI Evolution: [`docs/rationale/reviews/agi_evolution_path.md`](../rationale/reviews/agi_evolution_path.md)
 
 ---
 
@@ -79,7 +84,7 @@ Execute the following development plan sequentially. Mark tasks as done (`- [x]`
 
 - [x] **Task FE-0.1 — Codebase & Protocol Contract Audit**
   - Conduct a complete audit of `frontend/` monorepo structure, `@sagiha/protocol` types, and `src/sagiha/domain/` Pydantic models.
-  - Verify alignment with [`refactor_sagiha_v2_guidelines.md`](file:///home/rock_dev/Code/Harness/refactor_sagiha_v2_guidelines.md) and [`development_plan_v2.md`](file:///home/rock_dev/Code/Harness/docs/implementation/development_plan_v2.md).
+  - Verify alignment with [`refactor_sagiha_v2_guidelines.md`](../implementation/refactor_sagiha_v2_guidelines.md) and [`development_plan_v2.md`](../implementation/development_plan_v2.md).
 
 - [x] **Task FE-0.2 — Task Wave Mapping & Execution Briefing**
   - Map out the execution waves and dependencies across all packages:

@@ -134,6 +134,29 @@ BUILTIN_SCHEMAS: dict[str, dict[str, Any]] = {
     "run_command": RUN_COMMAND_SCHEMA,
 }
 
+#: Registered only when an indexer and code graph are wired — i.e. when
+#: `retrieval.enabled` is true. Kept separate so a consumer that cannot reach a
+#: live registry (the exporter) can still reconstruct the real tool set.
+CODE_INTEL_SCHEMAS: dict[str, dict[str, Any]] = {
+    "find_symbols": FIND_SYMBOLS_SCHEMA,
+    "get_skeleton": GET_SKELETON_SCHEMA,
+    "impacted_by": IMPACTED_BY_SCHEMA,
+}
+
+
+def schemas_for(*, code_intel: bool) -> dict[str, dict[str, Any]]:
+    """The tool schemas a run has, given whether code-intel tools were enabled.
+
+    `register_builtin_tools` composes a *superset* of `BUILTIN_SCHEMAS` at
+    runtime. Anything reconstructing a run's tool list from the static dict alone
+    understates it for retrieval-enabled runs (audit m-7). Both the registry and
+    the exporter derive from this one function so they cannot disagree.
+    """
+    schemas = dict(BUILTIN_SCHEMAS)
+    if code_intel:
+        schemas.update(CODE_INTEL_SCHEMAS)
+    return schemas
+
 
 def register_builtin_tools(
     registry: DefaultToolRegistry,
@@ -242,7 +265,8 @@ def register_builtin_tools(
     for name, schema, effect, handler, trusted in specs:
         registry.register_handler(name, schema, effect, handler, trusted_output=trusted)
 
-    schemas: dict[str, dict[str, Any]] = dict(BUILTIN_SCHEMAS)
+    code_intel = indexer is not None and code_graph is not None
+    schemas: dict[str, dict[str, Any]] = schemas_for(code_intel=code_intel)
 
     if indexer is not None and code_graph is not None:
 
@@ -275,6 +299,5 @@ def register_builtin_tools(
         ]
         for name, schema, effect, handler, trusted in code_intel_specs:
             registry.register_handler(name, schema, effect, handler, trusted_output=trusted)
-            schemas[name] = schema
 
     return schemas

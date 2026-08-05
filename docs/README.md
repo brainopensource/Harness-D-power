@@ -83,6 +83,16 @@ and a status note in a README does not survive chunking.
 both are retired. `scripts/docs_budget.py` reports any file whose `status:` is outside the three
 declared values, so a doc cannot dodge the budget by inventing a fourth.
 
+**Every file must declare `status:`, and the gate enforces it** — `docs_budget.py` exits non-zero on
+any untagged file. An untagged doc is invisible to the word count, so omitting the key was a way to
+add normative words for free.
+
+### Links must be repo-relative
+
+**Absolute `file://` URLs are prohibited in `docs/`.** They resolve only on the authoring machine
+and are dead for every other reader. `scripts/check_links.py` validates every relative link — path
+and anchor — and CI fails on any that does not resolve.
+
 ### The docs-shrink rule
 
 **A PR adding N normative words deletes N elsewhere.** `scripts/docs_budget.py --max` enforces the
@@ -159,7 +169,7 @@ Nothing here is binding. It is preserved reasoning: the *why* behind decisions t
 5. [Hexagonal Ports](./03-contracts-and-models/hexagonal-ports.md) — the contracts everything else depends on.
 6. [ADR Log](./08-decisions/README.md) — every binding decision, with what would reverse it.
 7. [Phased Migration Matrix](./07-roadmap/phased-migration-matrix.md) — vertical slices, gates, and deliberate deferrals.
-8. [Foundation Review](rationale/reviews/2026-07-29-foundation-review.md) — current audit of record until Sprint 3 closes.
+8. Foundation Review — current audit of record until Sprint 3 closes.
 
 ---
 

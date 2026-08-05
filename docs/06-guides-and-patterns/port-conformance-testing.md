@@ -10,13 +10,11 @@ retrieval: excluded
 
 ## **Why This Module Exists**
 
-"Swappable adapters" is the most common unenforced claim in hexagonal architectures. Asserting that replacing an adapter never requires changes to consumers is free; making it true requires a mechanism. Without one the guarantee fails silently on the day it is first exercised — the SQLite adapter is swapped for LanceDB, retrieval quietly degrades, and a month is spent blaming prompts.
-
-**Conformance suites are that mechanism.** They are the reason the phased migration matrix is safe to execute, and they are a Day-0 deliverable, not a later refinement.
+Conformance testing validates that swapping an adapter never requires consumer code modifications. Conformance suites provide the mechanical guarantee making phased backend migrations safe to execute.
 
 ## **The Pattern**
 
-One behavioral suite per port, parametrized over **every** adapter implementing it:
+One behavioral test suite per port, parametrized across **all** implementing adapters:
 
 ```python
 # tests/contracts/test_memory_conformance.py
@@ -41,7 +39,7 @@ async def test_invalidated_facts_are_excluded(memory):
 
 
 async def test_as_of_read_sees_prior_state(memory):
-    """Bi-temporal read: a query as-of an earlier time still sees the old fact."""
+    """Bi-temporal read: a query as-of an earlier time sees prior state."""
     ...
 
 
@@ -52,40 +50,36 @@ async def test_timestamps_are_timezone_aware(memory):
 
 ## **What to Test**
 
-Test the **contract**, never the implementation:
+Test port contracts rather than specific adapter implementations:
 
-| Test this | Not this |
-| :---- | :---- |
+| Test Contract Requirements | Avoid Testing Implementation Details |
+| :--- | :--- |
 | Round-trip semantics | Table or file layout |
-| Ordering and ranking guarantees | Specific scores |
+| Ordering and ranking guarantees | Specific score numbers |
 | Error types on invalid input | Error message strings |
-| Aware-UTC timestamps | Storage precision |
-| Idempotency where promised | Internal call counts |
+| Timezone-aware UTC timestamps | Storage precision |
+| Promised idempotency | Internal call counts |
 | Empty, missing, and boundary cases | Backend-specific quirks |
-
-A suite that passes only for one adapter is testing an implementation, and it will block the very migration it was written to protect.
 
 ## **Rules**
 
-1. **Every adapter is in the suite.** An adapter absent from it is unsupported.
-2. **The suite is the migration acceptance test.** A new backend ships when the existing suite passes unchanged — that, and nothing else, is what "swappable" means operationally.
-3. **Bugs become conformance tests.** When one adapter has a behavior the others do not, the divergence is a contract ambiguity: resolve it in the port's documentation, then encode it for everyone.
-4. **`isinstance` is not conformance.** `@runtime_checkable` checks method presence only, never signatures. An adapter with wrong argument types passes it, which is worse than no check because it *looks* like verification.
+1. **Mandatory Inclusion**: Every adapter must be included in its port's conformance suite.
+2. **Migration Acceptance Gate**: A backend ships only when the existing conformance suite passes without modification.
+3. **Bugs to Tests**: Adapter behavioral divergences must be resolved in the port spec and added to the suite.
+4. **No `isinstance` Equivalence**: `@runtime_checkable` verifies method presence only, not signatures. Conformance tests provide the true operational check.
 
-## **Parity Beyond the Suite**
+## **Parity Beyond Conformance**
 
-For high-risk migrations — the memory and index tiers especially — conformance is necessary but not sufficient, since both adapters can satisfy the contract while returning materially different results:
+For high-risk components (memory and indexing):
 
-* **Shadow reads**: run both adapters, serve one, log divergence. Cheap, and it catches ranking drift a contract test cannot express.
-* **Golden trajectory replay**: replay recorded runs against the new adapter and diff the retrieved context.
-* **Retrieval metrics**: recall@k on the labelled query set must not regress. Task success alone hides retrieval regressions inside end-to-end noise.
+* **Shadow Reads**: Execute old and new adapters concurrently; log output divergence.
+* **Golden Trajectory Replay**: Replay recorded runs against new adapters and diff context responses.
+* **Retrieval Metrics**: Benchmark `recall@k` on labelled sets to prevent retrieval degradation.
 
-## **In CI**
+## **CI Enforcement**
 
 ```bash
-pytest tests/contracts/     # all ports × all adapters
-lint-imports                # agency/ cannot import runtime/ or adapters/
-mypy --strict src/
+pytest tests/contracts/     # All ports × all adapters
+lint-imports                # CAR layer contract enforcement
+mypy --strict src/          # Type verification
 ```
-
-These three commands are the architecture's load-bearing guarantees, checked mechanically. Everything else in this documentation suite is a description of intent; this is the part that holds.

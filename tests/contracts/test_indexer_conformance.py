@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import sqlite3
 from pathlib import Path
+from typing import Any
 
 import pytest
 
-from sagiha.adapters.indexer.fts5 import FTS5Indexer
+from sagiha.adapters.indexer.fts5 import FTS5Indexer, _fts_query
 
 FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "retrieval_mini"
 
@@ -20,7 +22,7 @@ async def test_reindex_finds_symbols_and_skeleton(tmp_path: Path) -> None:
     skel = await idx.get_skeleton("pkg/util.py")
     assert "def greet" in skel
     assert "return f" not in skel
-    hits = await idx.neighbors("greet", limit=10)
+    hits = await idx.search("greet", limit=10)
     assert hits
     assert all(0.0 <= h.score <= 1.0 for h in hits)
 
@@ -29,7 +31,159 @@ async def test_reindex_finds_symbols_and_skeleton(tmp_path: Path) -> None:
 async def test_excluded_frontmatter_not_indexed(tmp_path: Path) -> None:
     idx = FTS5Indexer(db_path=str(tmp_path / "index.db"))
     await idx.reindex_root(FIXTURE)
-    hits = await idx.neighbors("UNIQUE_EXCLUDED_TOKEN_XYZ", limit=20)
+    hits = await idx.search("UNIQUE_EXCLUDED_TOKEN_XYZ", limit=20)
     assert hits == []
-    visible = await idx.neighbors("VISIBLE_DOC_TOKEN_ABC", limit=20)
+    visible = await idx.search("VISIBLE_DOC_TOKEN_ABC", limit=20)
     assert any("VISIBLE_DOC_TOKEN_ABC" in h.chunk for h in visible)
+
+
+# --- C-1 regression: goal-shaped queries are searches, not FTS5 syntax errors ---
+
+
+@pytest.fixture
+async def indexed(tmp_path: Path) -> FTS5Indexer:
+    idx = FTS5Indexer(db_path=str(tmp_path / "index.db"))
+    await idx.reindex_root(FIXTURE)
+    return idx
+
+
+@pytest.mark.asyncio
+async def test_goal_shaped_query_returns_same_paths_as_bare_keyword(
+    indexed: FTS5Indexer,
+) -> None:
+    """C-1: a realistic goal string must retrieve what its keyword does.
+
+    Before the fix, FTS5 parsed `greet()` as query syntax and raised
+    `fts5: syntax error near ")"`, which a bare `except` turned into `[]`.
+    """
+    bare = await indexed.search("greet", limit=10)
+    goal = await indexed.search("Fix the bug in greet() so it returns a name", limit=10)
+
+    assert bare, "fixture must contain a `greet` chunk for this test to mean anything"
+    assert goal, "goal-shaped query returned nothing — C-1 has regressed"
+    assert {h.path for h in bare} <= {h.path for h in goal}
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "handle greet's input",  # apostrophe
+        "add greet - use Greeter",  # bare hyphen (column-syntax trap)
+        "call greet() twice",  # parentheses
+        "fix util:greet mapping",  # colon
+        "greet AND shout",  # bare boolean operator
+    ],
+)
+@pytest.mark.asyncio
+async def test_punctuated_queries_search_instead_of_erroring(indexed: FTS5Indexer, query: str) -> None:
+    """Each of these raised `fts5: syntax error` before the fix, and the bare
+    `except` converted it to `[]`. Every one carries a token the fixture has,
+    so a non-empty result is the only honest answer.
+    """
+    assert await indexed.search(query, limit=10)
+
+
+@pytest.mark.asyncio
+async def test_punctuation_only_query_returns_empty_without_touching_the_db(
+    indexed: FTS5Indexer, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A query with no usable token is a true empty — answer it without SQL."""
+
+    def _no_connections(*args: Any, **kwargs: Any) -> Any:  # pragma: no cover - must not run
+        raise AssertionError("search() opened the database for an unusable query")
+
+    monkeypatch.setattr(sqlite3, "connect", _no_connections)
+    assert await indexed.search("()  -- :: !", limit=10) == []
+
+
+@pytest.mark.asyncio
+async def test_real_operational_error_propagates_instead_of_returning_empty(
+    indexed: FTS5Indexer,
+) -> None:
+    """Only `no such table` is a true empty. Everything else is a lying instrument."""
+    with sqlite3.connect(indexed._db_path) as conn:
+        conn.execute("DROP TABLE chunks")
+        conn.execute("CREATE TABLE chunks (path TEXT, chunk TEXT)")  # exists, but not FTS5
+        conn.commit()
+
+    with pytest.raises(sqlite3.OperationalError):
+        await indexed.search("greet", limit=10)
+
+
+@pytest.mark.asyncio
+async def test_cold_index_returns_empty_not_error(tmp_path: Path) -> None:
+    idx = FTS5Indexer(db_path=str(tmp_path / "cold.db"))
+    with sqlite3.connect(idx._db_path) as conn:
+        conn.execute("DROP TABLE chunks")
+        conn.commit()
+    assert await idx.search("greet", limit=10) == []
+
+
+def test_fts_query_quotes_terms_and_drops_operators() -> None:
+    assert _fts_query("greet") == '"greet"'
+    assert _fts_query("greet AND farewell") == '"greet" OR "farewell"'
+    assert _fts_query("call greet() twice") == '"call" OR "greet" OR "twice"'
+    assert _fts_query("()  -- ::") == ""
+    assert _fts_query("a bc") == '"bc"'  # 1-char tokens dropped as noise
+
+
+# --- W6: shared symbol namespace (M-3) and chunk envelope (M-5) ---
+
+
+@pytest.mark.asyncio
+async def test_chunk_symbol_paths_match_graph_defines(tmp_path: Path) -> None:
+    """M-3: the indexer and the code graph must name the same symbol identically.
+
+    They previously did not: `chunking._module_name` took the last path segment
+    (`pkg/util.py` → `util`) while `treesitter._module_name` took the full dotted
+    path (`pkg.util`). The same function was `util.greet` in an FTS `symbol_path`
+    and `pkg.util.greet` in a graph `defines` edge, so cross-referencing a
+    retrieval hit to a graph node silently failed.
+    """
+    from sagiha.adapters.code_graph.treesitter import TreeSitterCodeGraph
+    from sagiha.adapters.indexer.chunking import analyze_python_source, parse_python
+
+    rel = "pkg/util.py"
+    source = (FIXTURE / rel).read_bytes()
+
+    chunks, _symbols = analyze_python_source(rel, source)
+    graph = TreeSitterCodeGraph(db_path=str(tmp_path / "graph.db"), workspace_root=FIXTURE)
+    edges, _meta = graph.index_file_from_tree(rel, source, parse_python(source))
+    defines = {e.dst for e in edges if e.kind == "defines"}
+
+    assert chunks, "fixture produced no chunks"
+    assert defines, "graph recorded no `defines` edges for the fixture"
+
+    chunk_symbols = {c.symbol_path for c in chunks}
+    assert chunk_symbols <= defines, (
+        f"indexer and graph disagree on symbol naming — indexer-only: {sorted(chunk_symbols - defines)}"
+    )
+
+
+def test_chunk_text_carries_path_symbol_signature_envelope() -> None:
+    """M-5: an indexed chunk must be readable standalone and matchable by path."""
+    from sagiha.adapters.indexer.chunking import analyze_python_source
+
+    rel = "pkg/util.py"
+    chunks, _ = analyze_python_source(rel, (FIXTURE / rel).read_bytes())
+    greet = next(c for c in chunks if c.symbol_path.endswith(".greet"))
+
+    header, _, body = greet.text.partition("\n---\n")
+    assert header.splitlines() == [rel, "pkg.util.greet", "def greet(name: str) -> str:"]
+    assert body == greet.body, "the raw span must survive intact after the envelope"
+
+
+@pytest.mark.asyncio
+async def test_search_matches_on_path_fragment_and_on_dotted_symbol(
+    indexed: FTS5Indexer,
+) -> None:
+    """M-5's payoff: BM25 can only match what is in the indexed text.
+
+    A goal usually names a file or a dotted symbol, neither of which appeared in
+    a raw AST span. Both must now retrieve the chunk.
+    """
+    by_path = await indexed.search("util", limit=20)
+    by_symbol = await indexed.search("pkg.util.greet", limit=20)
+
+    assert any(h.path == "pkg/util.py" for h in by_path), "path fragment did not retrieve"
+    assert any(h.path == "pkg/util.py" for h in by_symbol), "dotted symbol did not retrieve"

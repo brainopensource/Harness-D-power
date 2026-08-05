@@ -237,6 +237,11 @@ class GovernorConfig(BaseModel):
     max_spend_usd_per_hour: float = 20.0
     max_wall_clock_s: int = 7200
     max_steps_per_run: int = 200
+    #: Overrides `max_steps_per_run` when the terminal profile is selected — Terminal-Bench
+    #: tasks are long-horizon (dozens of shell commands), one step budget for everything would
+    #: either starve them or let coding-profile runs run needlessly long. `None` (default)
+    #: means "same axis, same number" — not a second, disconnected knob (v2-S7g, AD-9).
+    terminal_max_steps_per_run: int | None = None
     tokens_per_minute: int = 200_000
 
 
@@ -265,7 +270,6 @@ class RetrievalConfig(BaseModel):
 
     enabled: bool = False
     chunk_strategy: Literal["ast_bounded", "fixed_window"] = "ast_bounded"
-    max_chunk_tokens: int = 1024
     top_k: int = 20
     graph_expansion_hops: int = 2
 
@@ -344,6 +348,36 @@ class SearchConfig(BaseModel):
     #: Best-of-N degenerates into single-shot at N× cost — see `diversity_ratio` (S4.2d).
     candidate_temperatures: tuple[float, ...] = (0.0, 0.6, 0.9)
     scoring: ScoringConfig = Field(default_factory=ScoringConfig)
+    #: Total gate evaluations allowed across **all** candidates combined in one `propose()` call
+    #: (not per-candidate). `candidates=4` with `max_repair_rounds=3` is up to 4 * (1 + 3) = 16
+    #: full agent runs plus test-suite executions for a single task — unbounded, this makes the
+    #: N=4 Best-of-N ablation cell unaffordable once v2-S7f's in-place `RepairConfig` is also
+    #: active on each candidate. Once the running total hits this cap, remaining candidates skip
+    #: further repair rounds and are graded as-is.
+    max_total_gate_evaluations: int = 12
+
+
+class RepairConfig(BaseModel):
+    """In-place gate-failure repair (v2-S7f) — the same trajectory re-enters on a failed gate,
+    rather than `SearchConfig.max_repair_rounds`'s candidate-level revision into a new sibling.
+
+    `enabled` defaults `False`: the honest-negative doctrine that governs `RetrievalConfig.enabled`
+    and `SearchConfig.enabled` applies here too — repair changes the agent's fundamental shape and
+    widens run-to-run variance, so it is turned on only after a measured A/A + ablation re-run
+    (v2-S7f's R1c) shows a positive effect, never assumed at ship time.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    enabled: bool = False
+    #: Total gate evaluations = this + 1 (the initial attempt).
+    max_attempts: int = 3
+    #: How much of the failing check's stdout/stderr re-enters the prompt as repair feedback.
+    output_tail_lines: int = 120
+    #: Abandon repair when two consecutive attempts report the identical failure signature
+    #: (same failed gate names + same output tail) — the agent is not making progress, and
+    #: burning the remaining attempts on an unchanging failure only adds cost.
+    stop_on_no_progress: bool = True
 
 
 class GatesConfig(BaseModel):
@@ -475,6 +509,7 @@ class Config(BaseModel):
     retrieval: RetrievalConfig = Field(default_factory=RetrievalConfig)
     context: ContextConfig = Field(default_factory=ContextConfig)
     search: SearchConfig = Field(default_factory=SearchConfig)
+    repair: RepairConfig = Field(default_factory=RepairConfig)
     gates: GatesConfig = Field(default_factory=GatesConfig)
     telemetry: TelemetryConfig = Field(default_factory=TelemetryConfig)
     aoi: AOIConfig = Field(default_factory=AOIConfig)

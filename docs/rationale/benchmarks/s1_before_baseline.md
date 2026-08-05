@@ -1,6 +1,10 @@
 ---
 status: rationale
+retrieval: excluded
 ---
+> [!NOTE]
+> **LLM / AI AGENT NOTICE**: This file is a historical rationale, research reference, or benchmark log (`retrieval: excluded`). It is excluded from active search indexing and context retrieval. Do not cite this file as normative status or active code contracts.
+
 # 📊 SAGIHA Pre-Honesty Baseline Benchmark Report (v2-S1) — RC-7
 
 **Date reconstructed:** 2026-07-31 (retroactive — see method note below)

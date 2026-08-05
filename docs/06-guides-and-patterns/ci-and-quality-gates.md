@@ -8,31 +8,29 @@ retrieval: excluded
 > [!NOTE]
 > **Working Proposal Disclaimer**: A working architectural proposal, refined iteratively as practical evaluation progresses.
 
-The architecture's guarantees are only real to the extent CI enforces them. Everything else in this suite describes intent; this is the part that holds.
+CI mechanically enforces architectural guarantees, layer isolation, conformance, and determinism.
 
 ## **The Gate Sequence**
 
-> **Current CI sequence, per `.github/workflows/ci.yml`.** Sprint 3a closed D28 (replay job flags)
-> and D29 (`tests/unit/` never ran) — both are enforced now, not planned. `tests/integration/` does
-> not exist yet and stays **Planned**.
+> **Current CI sequence (`.github/workflows/ci.yml`)**: Sprint 3a closed D28 (replay job flags) and D29 (`tests/unit/` inclusion). `tests/integration/` remains **Planned**.
 
 ```bash
-ruff format --check .          # formatting
-ruff check .                   # lint
-pyright                        # types, strict — BLOCKING
-mypy src/                      # types, second opinion — advisory
-lint-imports                   # CAR layer boundaries — BLOCKING
-pytest tests/contracts/        # port conformance, all adapters — BLOCKING
-pytest tests/ --cov=src/sagiha # full suite incl. tests/unit/, 80% coverage floor — BLOCKING
-pytest tests/integration/      # integration — Planned
-sagiha replay <run_id> --verify --cassette … --workspace …   # replay determinism — BLOCKING
+ruff format --check .          # Formatting
+ruff check .                   # Linting
+pyright                        # Strict type checking — BLOCKING
+mypy src/                      # Type advisory check — advisory
+lint-imports                   # CAR layer contract enforcement — BLOCKING
+pytest tests/contracts/        # Port conformance for all adapters — BLOCKING
+pytest tests/ --cov=src/sagiha # Unit/contract suite (80% coverage floor) — BLOCKING
+pytest tests/integration/      # Integration suite — Planned
+sagiha replay <run_id> --verify --cassette … --workspace …   # Replay determinism — BLOCKING
 ```
 
-Four are blocking for architectural rather than hygienic reasons: types, layer contracts, conformance, and replay determinism. Each corresponds to a property the rest of the documentation *claims*, and a claim nobody checks is decoration.
+Blocking architectural gates: type safety, CAR layer boundaries, port conformance, and replay determinism.
 
 ## **Layer Contracts (`.importlinter`)**
 
-The CAR model is enforced here or nowhere.
+Enforces the Clean Architecture / Ports-Adapters-Runtime (CAR) boundaries:
 
 ```ini
 [importlinter]
@@ -91,11 +89,12 @@ layers =
     sagiha.domain
 ```
 
-`tcb-isolation` is the one to watch. If the policy engine or evaluator ever imports from `agency` or `aoi`, the trusted computing base has acquired a dependency on code the outer loop may mutate — and the isolation described in [RHI](../04-workflows-and-loops/rhi-outer-loop.md) becomes fiction. This contract is the mechanical proof it hasn't happened.
+> [!IMPORTANT]
+> `tcb-isolation` ensures policy/evaluator components remain independent of outer-loop mutable agency/AOI code, preserving isolation described in [RHI](../04-workflows-and-loops/rhi-outer-loop.md).
 
-## **Protecting the Trusted Computing Base**
+## **Protecting the Trusted Computing Base (TCB)**
 
-Layer contracts stop *import* leakage; a separate check stops *edit* leakage. In `.github/workflows/ci.yml` (GitHub Actions):
+In `.github/workflows/ci.yml`:
 
 ```yaml
 - name: Reject TCB modifications from agent-authored branches
@@ -109,7 +108,7 @@ Layer contracts stop *import* leakage; a separate check stops *edit* leakage. In
     fi
 ```
 
-Note what this protects against: not a malicious agent, but a **well-optimized** one. An improver scored on benchmark results has an obvious gradient toward editing the benchmark, and it will find that gradient without any intent to cheat.
+Prevents self-improving agents from modifying evaluation metrics or policy rules.
 
 ## **Conformance Matrix**
 
@@ -120,15 +119,11 @@ strategy:
 run: pytest tests/contracts/test_${{ matrix.port }}_conformance.py -v
 ```
 
-`port_shape` is the odd one out: it is a **meta-conformance** suite that checks the shape of the
-contracts themselves rather than the behavior of an adapter — no `Dict[str, Any]` across a boundary,
-every method `async`, every payload serializable, no `Grant` in a public signature. See
-[Remoteable Ports](../02-architecture/remoteable-ports.md) and
-[Contracts to Code](../implementation/contracts-to-code.md).
+* Each job tests one port across **all** implementing adapters.
+* `port_shape` tests meta-conformance (async signatures, serializable payloads, no untyped dicts). See [Remoteable Ports](../02-architecture/remoteable-ports.md) and [Contracts to Code](../implementation/contracts-to-code.md).
+* Guarantees swappability required by the [migration matrix](../07-roadmap/phased-migration-matrix.md).
 
-Each job runs one port's suite across **every** adapter implementing it. A new adapter is not "done" until it appears in that parametrization and passes unchanged — that is the operational meaning of swappable, and the mechanism that makes the [migration matrix](../07-roadmap/phased-migration-matrix.md) safe to execute.
-
-### Example Behavioral Tests
+### Conformance Test Samples
 
 ```python
 # tests/contracts/test_policy_conformance.py
@@ -153,38 +148,25 @@ async def test_always_gate_holds_under_every_profile(kernel): ...
 async def test_unknown_profile_name_is_refused_at_composition(config): ...
 ```
 
-The profile suite exists because [execution profiles](../02-architecture/execution-profiles.md)
-introduce exactly one behavioral risk: a run that mounts fewer ports could be mistaken for a run that
-passed fewer checks. The first two tests close it. The next two assert the invariant that a profile
-subtracts capability but never supervision — the failure mode where a config key becomes a
-privilege-escalation surface.
+Profile tests ensure [execution profiles](../02-architecture/execution-profiles.md) subtract capability without relaxing supervision or policy enforcement.
 
 ## **Replay Determinism**
 
-> **Live since Sprint 3a (2026-07-30).** The `replay` job in `.github/workflows/ci.yml` runs this
-> against a committed fixture cassette generated by `scripts/gen_replay_fixture.py` — no more
-> hand-written cassette JSON. The command below (`--verify-all --fixtures …`) was the stub's
-> placeholder shape and never matched the CLI (D28); the real contract takes a run id:
+Replays recorded cassettes without external API calls (live since Sprint 3a, 2026-07-30):
 
 ```bash
 sagiha replay <run_id> --verify --cassette tests/fixtures/replay_smoke/cassette.json \
   --workspace tests/fixtures/replay_smoke/workspace --trajectory-db /tmp/replay_check.db
 ```
 
-Replays a recorded cassette and asserts the recorded request digest matches on re-assembly. This is
-what turns "record/replay determinism" from a claim into a test, and it runs with **zero API calls**,
-so it is fast and free on every PR. Today's fixture is one trivial turn; extending it to a corpus of
-recorded trajectories that must all replay byte-for-byte is Block 2 scope, alongside E0-lite.
+Validates kernel determinism against non-seeded randomness, wall-clock variance, or side-effect leaks.
 
-A failure here means the kernel became sensitive to something outside the recording — wall-clock time, dict ordering, an un-seeded random, or an un-classified side effect. All four are real bugs that would otherwise surface as unreproducible agent behavior weeks later.
+## **Code Coverage Floors**
 
-## **Coverage**
+* **Overall codebase**: ≥ 80% line coverage.
+* **Security & Core Domain** (`sagiha/kernel/policy`, `sagiha/domain`): ≥ 95% line coverage.
 
-Line coverage ≥ 80% overall; **≥ 95% on `sagiha/kernel/policy` and `sagiha/domain`**. The higher bar tracks blast radius: a policy bug is a security incident, and a domain-model bug corrupts every trajectory written while it existed.
-
-Coverage is a floor, not a goal. The conformance suites are the real quality signal, and a PR that raises coverage while weakening a conformance test is a regression.
-
-## **Pre-Commit**
+## **Pre-Commit Configuration**
 
 ```yaml
 repos:
@@ -204,11 +186,11 @@ repos:
         entry: detect-secrets-hook
 ```
 
-`lint-imports` runs pre-commit deliberately. Discovering a layer violation after a large refactor is expensive; discovering it at the commit that introduced it is trivial.
+`lint-imports` runs pre-commit to catch architectural layering regressions immediately.
 
-## **Benchmarks Do Not Run Per-PR**
+## **Scheduled Benchmark Runs**
 
-Costed suites run nightly and on release tags, never on every push — a few hundred tasks × several dollars × k repetitions is not a per-PR expense.
+Costly evaluation suites run nightly, not per-PR:
 
 ```yaml
 on:
@@ -216,8 +198,8 @@ on:
   workflow_dispatch:
 ```
 
-Nightly publishes task success with variance, cost per successful task, cache hit rate, and retrieval recall@10 — and re-measures the **A/A noise floor** whenever the model version changes, since every subsequent comparison depends on a current baseline.
+Tracks task resolution, cost per success, cache hit ratios, and retrieval recall@10 while monitoring A/A noise floors.
 
-## **Agent-Authored PRs**
+## **Agent-Authored PR Rules**
 
-When SAGIHA opens a PR against its own repository it runs the identical pipeline, plus: TCB path check, mandatory human review, and no self-merge. The harness gets no privileges in its own repository that a human contributor lacks — that symmetry is the whole point of the trusted computing base.
+PRs created by `SAGIHA` undergo identical CI pipelines plus TCB path validation, mandatory human review, and strict self-merge prohibition.

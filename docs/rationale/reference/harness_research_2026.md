@@ -4,6 +4,9 @@ updated: 2026-08-01
 retrieval: excluded
 source: https://gemini.google.com/share/a80e0c8ea417?skid=36bb015e-1bb8-44dc-95a8-85fbc12ccb85
 ---
+> [!NOTE]
+> **LLM / AI AGENT NOTICE**: This file is a historical rationale, research reference, or benchmark log (`retrieval: excluded`). It is excluded from active search indexing and context retrieval. Do not cite this file as normative status or active code contracts.
+
 
 # Gemini Share Export — Advanced Agent Architecture Design
 

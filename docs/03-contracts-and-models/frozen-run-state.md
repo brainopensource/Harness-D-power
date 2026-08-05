@@ -4,37 +4,22 @@ updated: 2026-07-31
 ---
 # **FrozenRunState**
 
-A run that must stop — budget exhausted, provider failing over, a human interrupting — needs to
-stop **without losing its work and without leaking its authority**. `FrozenRunState` is the
-serializable form of a paused run.
+`FrozenRunState` is the serializable state of a paused run (budget cap reached, provider failover, interactive interrupt).
 
-## Schema lives in `src/`
+## **Schema Location**
 
-Per [Contracts to Code](../implementation/contracts-to-code.md), this page defines nothing. The
-schema is `FrozenRunState` in **`src/sagiha/domain/control.py`**. Code wins.
+Defined in `src/sagiha/domain/control.py`. See [Contracts to Code](../implementation/contracts-to-code.md).
 
-## The grants-absent invariant
+## **Grants-Absent Invariant**
 
-**No field of `FrozenRunState` is `Grant`-typed, and no field transitively contains a `Grant`.**
+**`FrozenRunState` contains no `Grant` instances directly or transitively.**
 
-A capability grant is a short-lived, scoped authorization minted by the PolicyEngine at the moment
-of use. Serializing one to disk converts it into a long-lived bearer token whose scope outlives the
-conditions it was granted under — and a thaw hours later would replay authority the policy engine
-would no longer issue. Freezing state is not a reason to freeze permission.
+Capability grants are short-lived tokens minted at point-of-use. Serializing grants converts them into long-lived bearer tokens that outlive their authorization conditions.
 
-Thaw therefore **re-authorizes on demand**: rebuild the kernel, re-materialize the workspace at
-`worktree_ref`, and mint fresh grants against current policy as the run proceeds. A thawed run that
-can no longer do what it could before is behaving correctly.
+On thaw, the kernel **re-authorizes on demand**: re-materializes workspace at `worktree_ref` and mints fresh grants against current policy. Enforced via `test_no_grant_in_any_public_signature`.
 
-This is enforced, not asserted: the existing `test_no_grant_in_any_public_signature` contract test
-extends to assert it over every `FrozenRunState` field.
+## **Consumers & Verification**
 
-## Consumers
-
-Budget-park (the run stops at its cap and can resume when funded), provider failover, and the
-`v2-S7` interactive interrupt. One mechanism, three callers — which is why it is a domain model
-rather than a feature of any one of them.
-
-**Proving test:** freeze → `kill -9` → thaw → identical final `GateReport`, three times.
-
-*Lands `v2-S3` (PR-3.4).*
+* **Consumers**: Budget-park, provider failover, `v2-S7` interactive interrupt.
+* **Proving test**: freeze → `kill -9` → thaw → identical final `GateReport` (3x).
+* Lands `v2-S3` (PR-3.4).

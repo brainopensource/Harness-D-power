@@ -69,7 +69,7 @@ content only; does not delete the file from the worktree.
 
 ```python
 class RetrievalConfig(BaseModel):
-    enabled: bool = False          # NEW — mirrors search.enabled honesty
+    enabled: bool = False  # NEW — mirrors search.enabled honesty
     chunk_strategy: Literal["ast_bounded", "fixed_window"] = "ast_bounded"
     max_chunk_tokens: int = 1024
     top_k: int = 20

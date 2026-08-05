@@ -3,6 +3,9 @@ status: rationale
 updated: 2026-07-30
 retrieval: excluded
 ---
+> [!NOTE]
+> **LLM / AI AGENT NOTICE**: This file is a historical rationale, research reference, or benchmark log (`retrieval: excluded`). It is excluded from active search indexing and context retrieval. Do not cite this file as normative status or active code contracts.
+
 # **SAGIHA — Super AGI Harness Agent**
 
 ### **A Self-Evolving Multi-LLM Orchestration Framework for Autonomous Software Engineering**

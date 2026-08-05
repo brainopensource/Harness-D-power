@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from sagiha.agency.context.assembler import ContextAssembler, result_message
 from sagiha.agency.context.compactor import ExchangeCompactor
 from sagiha.agency.freeze import clear_freeze, load_freeze, persist_freeze
-from sagiha.domain.config import ContextConfig, PricingConfig
+from sagiha.domain.config import ContextConfig, PricingConfig, RepairConfig
 from sagiha.domain.content import (
     Message,
     TextBlock,
@@ -29,6 +29,8 @@ from sagiha.domain.events import (
     ModelCallCompleted,
     ModelCallStarted,
     ProviderFailover,
+    RepairAbandoned,
+    RepairAttemptStarted,
     RunCompleted,
     RunFailed,
     RunStarted,
@@ -42,6 +44,7 @@ from sagiha.domain.work import (
     AcceptanceCriterion,
     CostSummary,
     GateReport,
+    RepairContext,
     TaskSpec,
 )
 from sagiha.kernel.bus import EventBus
@@ -68,6 +71,44 @@ DEFAULT_SYSTEM_PROMPT = (
     "To solve the task, you MUST use the provided tools (apply_edit, run_command). "
     "When creating or editing a file, call apply_edit directly instead of conversational text."
 )
+
+
+@dataclass
+class _StepPhaseOutcome:
+    """What one pass of the step loop produced — either a repair attempt or the initial
+    attempt. Bundles the locals `_step_phase`'s extraction pulled out of `run()` so the outer
+    repair loop (v2-S7f) can accumulate cost/state across multiple phases without `run()`
+    reaching into a still-running phase's internals."""
+
+    parked: bool = False
+    failed: bool = False
+    stuck: bool = False
+    frozen_snap: FrozenRunState | None = None
+    run_usd: float = 0.0
+    run_input_tokens: int = 0
+    run_output_tokens: int = 0
+    run_model_calls: int = 0
+    #: `seq` to pass as `start_seq` to the next phase, so step ids never collide across
+    #: repair attempts.
+    next_seq: int = 0
+
+
+def render_repair_prompt(repair: RepairContext) -> str:
+    """Plain by design — the model needs the traceback, not coaching."""
+    lines = [
+        f"Your previous attempt did not pass. This is repair attempt {repair.attempt}.",
+        "",
+    ]
+    for criterion in repair.failed_criteria:
+        lines += [f"FAILED CHECK: {criterion.check}", "```", criterion.output.strip()[-4000:], "```", ""]
+    if repair.failed_gates:
+        lines += [f"FAILED GATES: {', '.join(repair.failed_gates)}", ""]
+    lines += [
+        "Diagnose the failure from the output above and fix it. "
+        "Do not modify test files. Do not add suppressions (# type: ignore, # noqa, "
+        "pytest.mark.skip) — those fail the gate.",
+    ]
+    return "\n".join(lines)
 
 
 @dataclass
@@ -112,6 +153,7 @@ class RunLoop:
         branch_id: str = "main",
         temperature: float | None = None,
         retrieval_seed: tuple[RetrievalHit, ...] = (),
+        repair: RepairConfig | None = None,
     ) -> None:
         self._model = model_provider
         self._policy = policy_engine
@@ -138,6 +180,9 @@ class RunLoop:
         self._context_config = context or ContextConfig()
         self._compactor = compactor
         self._retrieval_seed = retrieval_seed
+        #: `RepairConfig()` (enabled=False) preserves legacy single-attempt behavior for every
+        #: caller that does not pass one — see `test_repair_disabled_matches_legacy`.
+        self._repair = repair or RepairConfig()
         #: RC-8: required, never default-constructed here. `agency` building its own
         #: `GateEvaluator` meant the layer being judged also chose its judge — a TCB object
         #: constructed outside the composition root, where the `tcb-isolation` contract cannot
@@ -153,6 +198,30 @@ class RunLoop:
 
     def _tool_signature(self, name: str, arguments: dict[str, object]) -> str:
         payload = json.dumps({"tool": name, "args": arguments}, sort_keys=True)
+        return hashlib.sha256(payload.encode()).hexdigest()
+
+    def _build_repair_context(self, attempt: int, gate_report: GateReport) -> RepairContext:
+        failed_criteria = tuple(c for c in gate_report.criteria if c.required and not c.passed)
+        failed_gates = tuple(
+            name for name in sorted(gate_report.required_gates) if getattr(gate_report, name, None) is False
+        )
+        output_lines: list[str] = []
+        for criterion in failed_criteria:
+            output_lines.extend(criterion.output.splitlines())
+        tail = "\n".join(output_lines[-self._repair.output_tail_lines :])
+        return RepairContext(
+            attempt=attempt,
+            failed_criteria=failed_criteria,
+            failed_gates=failed_gates,
+            truncated_output=tail,
+        )
+
+    def _repair_signature(self, repair: RepairContext) -> str:
+        """Identifies "the same failure" across attempts for `stop_on_no_progress` — same
+        failed gates, same output tail. Deliberately excludes `attempt` itself."""
+        payload = json.dumps(
+            {"failed_gates": repair.failed_gates, "output": repair.truncated_output}, sort_keys=True
+        )
         return hashlib.sha256(payload.encode()).hexdigest()
 
     def _build_assembler(self, task: TaskSpec, existing_steps: list[TrajectoryStep]) -> ContextAssembler:
@@ -293,6 +362,106 @@ class RunLoop:
         self._assembler = assembler
         steps: list[TrajectoryStep] = list(existing_steps)
         signature_counts: dict[str, int] = {}
+        run_started = time.monotonic()
+
+        parked = False
+        failed = False
+        frozen_snap: FrozenRunState | None = None
+        total_usd = 0.0
+        total_input_tokens = 0
+        total_output_tokens = 0
+        total_model_calls = 0
+        gate_report: GateReport | None = None
+        repair_signatures: set[str] = set()
+        seq = start_seq
+        attempt = 0
+
+        while True:
+            attempt += 1
+            outcome = await self._step_phase(task, ctx, assembler, steps, signature_counts, start_seq=seq)
+            total_usd += outcome.run_usd
+            total_input_tokens += outcome.run_input_tokens
+            total_output_tokens += outcome.run_output_tokens
+            total_model_calls += outcome.run_model_calls
+            seq = outcome.next_seq
+            if outcome.frozen_snap is not None:
+                frozen_snap = outcome.frozen_snap
+
+            if outcome.parked:
+                parked = True
+                break
+            if outcome.failed:
+                failed = True
+                break
+
+            gate_report = await self._evaluator.evaluate(task, ctx)
+            await self._bus.emit(GateEvaluated(run_id=ctx.run_id, gate_report=gate_report, attempt=attempt))
+
+            if gate_report.admitted or not self._repair.enabled or attempt > self._repair.max_attempts:
+                break
+
+            repair = self._build_repair_context(attempt, gate_report)
+            signature = self._repair_signature(repair)
+            if self._repair.stop_on_no_progress and signature in repair_signatures:
+                await self._bus.emit(
+                    RepairAbandoned(run_id=ctx.run_id, reason="no_progress", attempt=attempt)
+                )
+                break
+            repair_signatures.add(signature)
+
+            assembler.append_repair_turn(render_repair_prompt(repair))
+            await self._bus.emit(
+                RepairAttemptStarted(run_id=ctx.run_id, attempt=attempt + 1, failed_gates=repair.failed_gates)
+            )
+            # Fresh attempt: repeated tool calls from a prior attempt must not immediately
+            # trip stuck-loop detection in the next one.
+            signature_counts.clear()
+
+        if gate_report is None:
+            gate_report = await self._evaluator.evaluate(task, ctx)
+            await self._bus.emit(GateEvaluated(run_id=ctx.run_id, gate_report=gate_report, attempt=attempt))
+
+        if parked:
+            status = "input-required"
+        elif failed:
+            status = "failed"
+        else:
+            status = "completed"
+        await self._trajectory.upsert_run(RunRecord(run_id=ctx.run_id, task=task, status=status))
+        run_cost = CostSummary(
+            usd=total_usd,
+            input_tokens=total_input_tokens,
+            output_tokens=total_output_tokens,
+            wall_clock_s=time.monotonic() - run_started,
+            model_calls=total_model_calls,
+        )
+        await self._bus.emit(RunCompleted(run_id=ctx.run_id, gate_report=gate_report, cost=run_cost))
+        return RunLoopResult(
+            task=task,
+            gate_report=gate_report,
+            steps=steps,
+            run_id=ctx.run_id,
+            cost=run_cost,
+            parked=parked,
+            frozen=frozen_snap,
+        )
+
+    async def _step_phase(
+        self,
+        task: TaskSpec,
+        ctx: RunContext,
+        assembler: ContextAssembler,
+        steps: list[TrajectoryStep],
+        signature_counts: dict[str, int],
+        *,
+        start_seq: int,
+    ) -> _StepPhaseOutcome:
+        """One pass of the step loop — the initial attempt, or one v2-S7f repair attempt.
+
+        Extracted from `run()` unchanged in behavior (see `test_repair_disabled_matches_legacy`,
+        which pins byte-identical output with `RepairConfig(enabled=False)`); the only new thing
+        is that `run()` may call this more than once per `run()` call.
+        """
         stuck = False
         failed = False
         parked = False
@@ -301,7 +470,7 @@ class RunLoop:
         run_input_tokens = 0
         run_output_tokens = 0
         run_model_calls = 0
-        run_started = time.monotonic()
+        seq = start_seq - 1
 
         for seq in range(start_seq, start_seq + self._max_steps):
             self._next_seq = seq
@@ -534,31 +703,16 @@ class RunLoop:
                 )
                 break
 
-        gate_report = await self._evaluator.evaluate(task, ctx)
-        if parked:
-            status = "input-required"
-        elif failed:
-            status = "failed"
-        else:
-            status = "completed"
-        await self._trajectory.upsert_run(RunRecord(run_id=ctx.run_id, task=task, status=status))
-        run_cost = CostSummary(
-            usd=run_usd,
-            input_tokens=run_input_tokens,
-            output_tokens=run_output_tokens,
-            wall_clock_s=time.monotonic() - run_started,
-            model_calls=run_model_calls,
-        )
-        await self._bus.emit(GateEvaluated(run_id=ctx.run_id, gate_report=gate_report))
-        await self._bus.emit(RunCompleted(run_id=ctx.run_id, gate_report=gate_report, cost=run_cost))
-        return RunLoopResult(
-            task=task,
-            gate_report=gate_report,
-            steps=steps,
-            run_id=ctx.run_id,
-            cost=run_cost,
+        return _StepPhaseOutcome(
             parked=parked,
-            frozen=frozen_snap,
+            failed=failed,
+            stuck=stuck,
+            frozen_snap=frozen_snap,
+            run_usd=run_usd,
+            run_input_tokens=run_input_tokens,
+            run_output_tokens=run_output_tokens,
+            run_model_calls=run_model_calls,
+            next_seq=seq + 1,
         )
 
 

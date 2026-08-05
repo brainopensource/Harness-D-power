@@ -13,7 +13,7 @@ from sagiha import Config, build_kernel
 from sagiha.adapters.tools.registry import DefaultToolRegistry
 from sagiha.adapters.trajectory.sqlite import SQLiteTrajectoryStore
 from sagiha.agency.run_loop import RunLoop, make_task
-from sagiha.domain.config import SandboxConfig, ModelConfig, TelemetryConfig, WorkspaceConfig
+from sagiha.domain.config import ModelConfig, SandboxConfig, TelemetryConfig, WorkspaceConfig
 from sagiha.domain.content import EffectClass, Message, ModelRequest, TextBlock, ToolCall, ToolResult
 from sagiha.domain.control import Decision, RunContext
 from sagiha.domain.events import Event, ToolCallRequested

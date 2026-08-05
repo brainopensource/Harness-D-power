@@ -40,7 +40,7 @@ async def _run_or_resume(
     checks: list[str],
     workspace: str,
     cassette_path: str,
-    max_steps: int,
+    max_steps: int | None,
     trajectory_db: str,
     resume: str | None,
     mode: str = "replay",
@@ -87,6 +87,7 @@ async def _run_or_resume(
 
     if stream_json:
         import sys
+
         from sagiha.domain.events import Event
 
         async def _stream_event(ev: Event) -> None:
@@ -130,7 +131,7 @@ async def _run_or_resume(
         tool_registry=kernel.tool_registry,
         trajectory_store=kernel.trajectory_store,
         bus=kernel.bus,
-        max_steps=max_steps,
+        max_steps=max_steps if max_steps is not None else kernel.config.governor.max_steps_per_run,
         tool_schemas=list(kernel.tool_schemas),
         evaluator=kernel.evaluator,
         workspace=kernel.workspace,
@@ -138,6 +139,7 @@ async def _run_or_resume(
         context=kernel.config.context,
         retrieval_seed=retrieval_seed,
         system_prompt=system_prompt,
+        repair=kernel.config.repair,
     )
 
     ctx = RunContext(
@@ -161,7 +163,9 @@ def run(
     ),
     workspace: str = typer.Option(".", "--workspace", "-w"),
     cassette: str | None = typer.Option(None, "--cassette", "-c"),
-    max_steps: int = typer.Option(20, "--max-steps"),
+    max_steps: int | None = typer.Option(
+        None, "--max-steps", help="Override GovernorConfig.max_steps_per_run for this run"
+    ),
     trajectory_db: str = typer.Option(".sagiha/trajectories.db", "--trajectory-db"),
     resume: str | None = typer.Option(
         None, "--resume", help="Continue an interrupted run_id instead of starting a new task"
@@ -266,12 +270,14 @@ async def _do_replay(
         tool_registry=tool_registry,
         trajectory_store=kernel.trajectory_store,
         bus=kernel.bus,
+        max_steps=kernel.config.governor.max_steps_per_run,
         tool_schemas=list(kernel.tool_schemas),
         evaluator=kernel.evaluator,
         workspace=kernel.workspace,
         pricing=kernel.config.pricing,
         context=kernel.config.context,
         system_prompt=system_prompt,
+        repair=kernel.config.repair,
     )
     new_run_id = str(uuid.uuid4())
     ctx = RunContext(
@@ -440,15 +446,30 @@ def bench(
         help="Two comma-separated arms to compare, e.g. 'single_shot,bon'. Runs both and reports "
         "the paired delta. Requires --aa (or --noise-floor) so the delta is judged against a floor.",
     ),
+    model_name: str = typer.Option("qwen2.5-coder:7b", "--model-name", help="Model name for live mode"),
+    base_url: str = typer.Option(
+        "http://localhost:11434/v1", "--base-url", help="OpenAI-compatible endpoint URL"
+    ),
+    api_key_env: str = typer.Option(
+        "", "--api-key-env", help="Env var holding the API key (e.g. OPENROUTER_API_KEY)"
+    ),
     noise_floor_path: str = typer.Option(
         "",
         "--noise-floor",
         help="Path to a previously written A/A report JSON, reused as the floor for --compare.",
     ),
+    sandbox_runtime: str = typer.Option(
+        "container",
+        "--sandbox-runtime",
+        help="'container' (ADR-0016 perimeter, default) or 'subprocess' (no Podman; a worktree's "
+        ".git file points outside the container's mounted leaf, so 'container' cannot yet resolve "
+        "a worktree's gitdir — use 'subprocess' until that mount gap is fixed).",
+    ),
 ) -> None:
     """Run E0 evaluation benchmark over a harvested task suite."""
 
     from sagiha.domain.benchmark import BenchmarkRun, ComparisonResult, NoiseFloor
+    from sagiha.domain.config import ModelConfig, ModelTierConfig, SandboxConfig
     from sagiha.e0.harvester import Harvester
     from sagiha.e0.reporter import BenchmarkReporter
     from sagiha.e0.runner import BenchmarkRunner
@@ -466,14 +487,36 @@ def bench(
         "live" if mode == "live" else ("record" if mode == "record" else "replay")
     )
 
+    # An imported suite's `repo` is a dataset name, not a path on disk; the per-task
+    # repo cache resolves those. Only fall back to it when it really is a directory.
+    workspace_root = suite.repo if Path(suite.repo).is_dir() else "."
+
+    tier = ModelTierConfig(
+        provider="openai-compatible",
+        model=model_name,
+        base_url=base_url,
+        api_key_env=api_key_env,
+    )
+    bench_model = ModelConfig(
+        mode=mode_val,
+        tiers={"local": tier, "workhorse": tier},
+        roles={"execution": "local"},
+    )
+
+    if sandbox_runtime not in ("container", "subprocess"):
+        typer.echo(f"--sandbox-runtime must be 'container' or 'subprocess', got {sandbox_runtime!r}")
+        raise SystemExit(1)
+
     def _runner(strategy: Literal["single_shot", "bon"]) -> BenchmarkRunner:
         return BenchmarkRunner(
             suite=suite,
             model_mode=mode_val,
             cassette_path=cassette,
-            workspace_root=suite.repo,
+            workspace_root=workspace_root,
             strategy=strategy,
             agent_id=f"sagiha-{strategy}",
+            model_config=bench_model,
+            sandbox=SandboxConfig(runtime=sandbox_runtime),
         )
 
     nf: NoiseFloor | None = None
@@ -568,8 +611,11 @@ async def _do_export(
     spdx_license: str | None,
     redact_patterns: list[str],
     include_reasoning: bool,
+    code_intel: bool,
 ) -> ExportOutcome:
-    from sagiha.adapters.tools.builtins import BUILTIN_SCHEMAS, TOOL_DESCRIPTIONS
+    import logging
+
+    from sagiha.adapters.tools.builtins import TOOL_DESCRIPTIONS, schemas_for
     from sagiha.adapters.trajectory.sqlite import SQLiteTrajectoryStore
     from sagiha.domain.content import ToolSchema
     from sagiha.domain.trajectory import RunRecord, TrajectoryStep
@@ -583,9 +629,15 @@ async def _do_export(
         ledger.append(f"REFUSED: export requires an allowlisted SPDX license, got {spdx_license!r}")
         return ExportOutcome(ledger=ledger, samples=[], refused=True)
 
+    # m-7: the tool set is reconstructed through the same helper the registry
+    # uses, so a retrieval-enabled run no longer exports the builtin-only list it
+    # never had. Trajectories carry no registry snapshot — that is the S7
+    # follow-up — so this remains a reconstruction, and the residual uncertainty
+    # is warned about per run rather than silently papered over.
+    schemas = schemas_for(code_intel=code_intel)
     tool_schemas = tuple(
-        ToolSchema(name=name, description=TOOL_DESCRIPTIONS[name], parameters=BUILTIN_SCHEMAS[name])
-        for name in sorted(BUILTIN_SCHEMAS)
+        ToolSchema(name=name, description=TOOL_DESCRIPTIONS[name], parameters=schemas[name])
+        for name in sorted(schemas)
     )
     store = SQLiteTrajectoryStore(trajectory_db)
     records: list[RunRecord] = await store.list_runs()
@@ -600,6 +652,17 @@ async def _do_export(
         elig = assess(record, steps, events)
         eligibility_by_run[record.run_id] = elig
         if elig.eligible:
+            # m-7: the trajectory records no registry snapshot, so the tool list
+            # attached to this sample is reconstructed from the flag above rather
+            # than read back from the run. Say so, per run, by name — a sample
+            # carrying a tool list the run did not have is a silently wrong label.
+            logging.getLogger(__name__).warning(
+                "run %s: tool schemas reconstructed with code_intel=%s, not read from the "
+                "trajectory. If this run executed under a different retrieval setting, its "
+                "exported tool list is wrong. Registry snapshots are an S7 follow-up.",
+                record.run_id,
+                code_intel,
+            )
             ledger.append(f"  eligible {record.run_id}")
         else:
             ledger.append(f"  excluded {record.run_id}: {', '.join(elig.reasons())}")
@@ -639,13 +702,29 @@ async def _do_export(
 def init(
     workspace: str = typer.Option(".", "--workspace", "-w", help="Repository root to initialize"),
     force: bool = typer.Option(False, "--force", help="Overwrite an existing AGENTS.md"),
+    reindex: bool = typer.Option(
+        False, "--reindex", help="Build the code graph first, and describe it in AGENTS.md"
+    ),
 ) -> None:
     """Generate AGENTS.md from toolchain detection and repository layout."""
     from sagiha.outer_loop.init.generate import generate_agents_md
 
     root = Path(workspace).resolve()
+
+    # `graph=None` was passed unconditionally, which made generate.py's
+    # `## Code graph` renderer unreachable (audit m-1). Load an existing graph,
+    # or build one on --reindex.
+    graph = None
+    graph_db = root / ".sagiha" / "code_graph.db"
+    if reindex or graph_db.exists():
+        from sagiha.adapters.code_graph.treesitter import TreeSitterCodeGraph
+
+        graph = TreeSitterCodeGraph(db_path=str(graph_db), workspace_root=root)
+        if reindex:
+            asyncio.run(graph.rebuild_from_root(root))
+
     try:
-        path = asyncio.run(generate_agents_md(root, graph=None, force=force))
+        path = asyncio.run(generate_agents_md(root, graph=graph, force=force))
     except FileExistsError as exc:
         typer.echo(str(exc))
         raise SystemExit(1) from exc
@@ -663,6 +742,14 @@ def export(
     out: str = typer.Option("data/", "--out", "-o", help="Output directory for the JSONL file"),
     spdx_license: str | None = typer.Option(
         None, "--spdx-license", help="SPDX identifier of the exported repo (fails closed if omitted)"
+    ),
+    code_intel: bool = typer.Option(
+        False,
+        "--code-intel/--no-code-intel",
+        help=(
+            "Whether the exported runs had code-intelligence tools registered "
+            "(retrieval.enabled). Defaults to the config default, false."
+        ),
     ),
     include_reasoning: bool = typer.Option(
         False, "--include-reasoning", help="Include reasoning blocks (provider-policy permitting)"
@@ -691,6 +778,7 @@ def export(
             spdx_license=spdx_license,
             redact_patterns=redact_patterns,
             include_reasoning=include_reasoning,
+            code_intel=code_intel,
         )
     )
 

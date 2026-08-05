@@ -1,6 +1,7 @@
 ---
-status: normative
-updated: 2026-07-29
+status: rationale
+retrieval: excluded
+updated: 2026-08-01
 ---
 # **Contracts to Code**
 

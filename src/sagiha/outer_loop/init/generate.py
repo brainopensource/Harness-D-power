@@ -7,9 +7,8 @@ from pathlib import Path
 
 from anyio import Path as APath
 
+from sagiha.adapters.indexer.walk import SKIP_DIRS
 from sagiha.ports.code_graph import CodeGraph
-
-_SKIP_DIRS = frozenset({".git", ".venv", "venv", "node_modules", "__pycache__", ".sagiha"})
 
 
 async def generate_agents_md(root: Path, *, graph: CodeGraph | None, force: bool) -> Path:
@@ -44,17 +43,47 @@ def _detect_toolchains(root: Path) -> list[str]:
     return toolchains or ["Unknown — no standard manifest detected"]
 
 
+def _strip_src_prefix(rel: str) -> str:
+    """Drop a leading `src/` segment.
+
+    A src-layout package is imported as `sagiha.domain`, never `src.sagiha.domain`
+    — the `src/` directory is a build-layout detail, not part of the module path
+    (audit m-2).
+    """
+    return rel[len("src/") :] if rel.startswith("src/") else rel
+
+
 def _discover_python_modules(root: Path) -> list[str]:
-    modules: list[str] = []
+    """Dotted module names for the packages and modules under *root*.
+
+    Two prior defects (m-2): every name carried a `src.` prefix that no import
+    statement would ever use, and the `elif "/" not in rel` clause collected only
+    *top-level* loose modules — so `sagiha/composition.py`, a submodule inside a
+    discovered package, was dropped entirely.
+    """
+    package_roots: set[str] = set()
+    loose: list[str] = []
+
     for file_path in sorted(root.rglob("*.py")):
-        if any(part in _SKIP_DIRS for part in file_path.parts):
+        if any(part in SKIP_DIRS for part in file_path.parts):
             continue
-        rel = file_path.relative_to(root).as_posix()
+        rel = _strip_src_prefix(file_path.relative_to(root).as_posix())
         if rel.endswith("__init__.py"):
-            modules.append(rel[: -len("/__init__.py")].replace("/", "."))
-        elif "/" not in rel:
-            modules.append(rel[:-3])
-    return sorted(set(modules))
+            package = rel[: -len("/__init__.py")] if "/" in rel else ""
+            if package:
+                package_roots.add(package)
+        else:
+            loose.append(rel[: -len(".py")])
+
+    modules = {pkg.replace("/", ".") for pkg in package_roots}
+    for module in loose:
+        parent = module.rsplit("/", 1)[0] if "/" in module else ""
+        # A non-package module counts when it is top-level or sits under a
+        # package we actually discovered — not merely anywhere on disk.
+        if not parent or any(parent == pkg or parent.startswith(f"{pkg}/") for pkg in package_roots):
+            modules.add(module.replace("/", "."))
+
+    return sorted(modules)
 
 
 def _layout_lines(root: Path) -> list[str]:

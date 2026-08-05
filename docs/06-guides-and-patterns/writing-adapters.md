@@ -8,12 +8,12 @@ retrieval: excluded
 > [!NOTE]
 > **Working Proposal Disclaimer**: A working architectural proposal, refined iteratively as practical evaluation progresses.
 
-## **The Pattern**
+## **Implementation Workflow**
 
-1. **Read the Protocol** in `sagiha/ports/`. Structural typing means you do **not** inherit from it — implementing the methods is sufficient, and inheriting couples you needlessly.
-2. **Implement the methods**, accepting and returning the declared Pydantic models. No `Dict[str, Any]` crosses the boundary.
-3. **Add your adapter to the conformance suite** — the required step, detailed below.
-4. **Wire it in the composition root** (`composition.py`). There is no container to register with and no discovery to trigger.
+1. **Inspect Port Protocol**: Protocols reside in `sagiha/ports/`. Python structural subtyping (`Protocol`) requires implementing methods without subclass inheritance.
+2. **Implement Methods with Typed Models**: Accept and return Pydantic domain models. Never pass raw `Dict[str, Any]` across port boundaries.
+3. **Register in Conformance Suite**: Add the new adapter fixture to the port's conformance suite (mandatory).
+4. **Wire in Composition Root**: Instantiate and inject the adapter in `composition.py` (no dynamic service locator or container needed).
 
 ```python
 # sagiha/adapters/memory/my_store.py
@@ -21,13 +21,13 @@ from sagiha.ports.memory import Memory
 from sagiha.domain.memory import MemoryRecord, RecallQuery, Recall
 
 
-class MyStore:  # no base class needed
+class MyStore:  # Structural typing; no base class required
     async def remember(self, record: MemoryRecord) -> str: ...
     async def recall(self, query: RecallQuery) -> list[Recall]: ...
     async def invalidate(self, memory_id: str, at: datetime) -> None: ...
 ```
 
-## **Step 3 Is Not Optional**
+## **Mandatory Conformance Testing**
 
 ```python
 # tests/contracts/test_memory_conformance.py
@@ -35,22 +35,19 @@ class MyStore:  # no base class needed
 def memory(request): ...
 ```
 
-An adapter that is not in the conformance suite is not a supported adapter. This is the mechanism that makes the migration matrix executable rather than aspirational — see [Port Conformance Testing](./port-conformance-testing.md).
+Every adapter must pass the port's conformance suite to be supported (see [Port Conformance Testing](./port-conformance-testing.md)). 
 
-Note that `isinstance(obj, Memory)` is **not** a validity check. `@runtime_checkable` verifies method *presence* only, never signatures, so an implementation taking entirely wrong argument types passes it. Static checking plus the conformance suite are the real gates.
+> [!WARNING]
+> `@runtime_checkable` checks method presence only, not signature types. Static type checks and conformance suites are mandatory for verification.
 
-## **Rules That Keep the Hexagon Intact**
+## **Hexagonal Isolation Rules**
 
-**Speak domain language, not storage language.** If your adapter's method names leak its backend (`store_vector`, `execute_cypher`, `get_path`), the port is wrong and every consumer is now coupled to your implementation. The previous `LongTermMemory.store_vector(key, vector)` port is the cautionary example: it forced the core to own the embedding model and could not have accepted a text-episode graph engine at all.
+* **Domain Language Abstraction**: Method names must reflect domain operations, not backend storage specifics (e.g., avoid backend-coupled names like `store_vector` or `execute_cypher`).
+* **Self-Contained Infrastructure**: Manage connection pools, retries, embeddings, and migrations internally or via constructor injection.
+* **Strict Typed Returns**: Avoid returning unvalidated `Dict[str, Any]` dictionaries.
+* **Timezone-Aware Timestamps**: Use aware UTC timestamps (`utc_now()`) exclusively.
+* **Prompt Failure vs. Blocking**: Raise typed errors immediately when backends are unreachable; never hang execution.
 
-**Own your infrastructure concerns.** Embedding, connection pooling, retries, and schema migration live inside the adapter. If callers must do something before calling you, that requirement belongs in your constructor.
+## **Adapters with Side Effects**
 
-**Return typed models.** A `Dict[str, Any]` return means consumers hardcode key names no type checker can see — worse coupling than a concrete class, because it fails silently and cannot be refactored.
-
-**Aware-UTC timestamps only.** Use `utc_now()`. Naive datetimes break bi-temporal comparison across adapters.
-
-**Degrade, never stall.** If your backend is unavailable, raise a typed error promptly. A hung adapter blocks the agent loop; a failed one is recoverable.
-
-## **Adapters With Side Effects**
-
-Anything touching the filesystem, network, or processes takes a `Grant` parameter and declares an `EffectClass`. Without the grant your adapter is unreachable from Agency — which is the enforcement working as designed, not a bug to route around.
+Adapters executing filesystem, network, or process operations must accept a `Grant` object and declare an `EffectClass` for policy enforcement.

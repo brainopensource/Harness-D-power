@@ -242,6 +242,26 @@ class ContextAssembler:
         self._record_open_files(assistant)
         self._exchanges.append(Exchange.build(assistant, results, tainted=tainted))
 
+    def append_repair_turn(self, text: str) -> None:
+        """Append harness-authored gate-failure feedback (v2-S7f `RepairConfig`) as a
+        user-role message following the last exchange, so the next model call sees its own
+        prior turn plus the failure — no second system prompt, prefix cache intact (AD-2).
+
+        `trusted=True` by construction (`domain/events.py` docstring on the caller side
+        explains why: the text is derived from this run's own test output, not external
+        content) — never wrapped in `<untrusted-data>`, never marks the run tainted.
+        """
+        if not self._exchanges:
+            raise ValueError("append_repair_turn requires at least one prior exchange")
+        last = self._exchanges[-1]
+        repair_message = Message(role="user", content=[TextBlock(text=text)])
+        self._exchanges[-1] = Exchange.build(
+            last.assistant,
+            (*last.results, repair_message),
+            tainted=last.tainted,
+            is_summary=last.is_summary,
+        )
+
     def _record_open_files(self, assistant: Message) -> None:
         for block in assistant.content:
             if not isinstance(block, ToolUseBlock) or block.tool_name not in _OPEN_FILE_TOOLS:

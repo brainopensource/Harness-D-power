@@ -5,9 +5,9 @@ updated: 2026-07-30
 # **Architecture Decision Records**
 
 > [!NOTE]
-> **Working Proposal Disclaimer**: A working architectural proposal, refined iteratively as practical evaluation progresses.
+> **Working Proposal Disclaimer**: Architectural decisions refined iteratively.
 
-Binding decisions, each with the reasoning that produced it and the conditions that would reverse it. A decision without a recorded rationale gets re-litigated every few months; one without a reversal condition becomes dogma.
+Binding decisions with rationale and explicit reversal conditions.
 
 ## **Status Values**
 
@@ -52,40 +52,28 @@ Binding decisions, each with the reasoning that produced it and the conditions t
 **Date**: YYYY-MM-DD
 
 ## Context
-What forced a decision. The constraints, not the conclusion.
+What forced a decision (constraints, not conclusions).
 
 ## Decision
-What was decided, stated so a reader can act on it.
+Actionable decision.
 
 ## Consequences
-What this makes easy, what it makes hard, what it forecloses.
+Impact and trade-offs.
 
 ## Reversal Conditions
-The specific evidence that would justify revisiting this.
+Specific evidence required to revisit.
 ```
 
-### The two `Status` fields are not a duplication
+### Dual Status Fields
 
-Every ADR carries a status in **two** places, and an audit flagged this as drift. It is not — they
-are different axes, and collapsing them would lose information:
-
-| Where | Values | Means |
+| Where | Values | Meaning |
 | :--- | :--- | :--- |
-| Front matter `status:` | `normative` / `rationale` / `historical` | The **docs taxonomy** — is this file binding, and does it count against the word budget? Read by `scripts/docs_budget.py` and the `v2-S6` retrieval indexer. See [docs/README.md](../README.md) |
-| Body `**Status**:` | `Proposed` / `Accepted` / `Superseded by ADR-YYYY` | The **decision lifecycle** — has this call been made, and does it still stand? |
+| Frontmatter `status:` | `normative` / `rationale` / `historical` | Documentation taxonomy for budget tracking & retrieval indexer. See [docs/README.md](../README.md). |
+| Body `**Status**:` | `Proposed` / `Accepted` / `Superseded by ADR-YYYY` | Decision lifecycle status. |
 
-An ADR is `status: normative` from the moment it is written, including while its decision is still
-`Proposed` — the file binds as the record of an open question. A `Superseded` ADR stays `normative`
-too: superseded decisions are still the authoritative account of what was decided and why, and
-demoting them would hide the reversal from exactly the reader who needs it.
-
-**ADRs are exempt from the normative word budget.** They are short, high-value, and each one
-*replaces* long-form derivation elsewhere.
-
-**Reversal Conditions is the section that matters most.** Most of these decisions trade capability for simplicity on the basis of current scale or current tooling. Writing down what would change our mind is what separates an engineering decision from an ideological one — and it is what lets a future maintainer (human or agent) re-open a question legitimately instead of either obeying or ignoring the record.
+- **Budget Exemption**: ADRs are exempt from the normative word budget as high-density decision records.
+- **Reversal Conditions**: Explicit criteria defining when to revisit decisions.
 
 ## **Relationship to Agent Memory**
 
-Decisions the *agent* makes while working in a target repository are written to `docs/decisions/` **in that repository**, using this same format. Repository-resident decisions are versioned by git, reviewable in a pull request, and portable across harnesses — see [Neural-Symbolic Memory](../02-architecture/neural-symbolic-memory.md).
-
-This directory records decisions about SAGIHA itself.
+Agent decisions within target repositories are written to `docs/decisions/` using this format (versioned in git, portable across harnesses). See [Neural-Symbolic Memory](../02-architecture/neural-symbolic-memory.md). This directory records decisions for SAGIHA itself.

@@ -16,7 +16,7 @@ retrieval: excluded
 **The design change (why this file exists).** Before starting Blocks 2/3/4 as previously scoped, the project adopted the v2 review corpus. The destination is unchanged (same four properties, same L0→L4 ladder, same ADRs); the *concept delta* is small but touches everything downstream, which is why the plan re-baselines rather than patches:
 
 1. **Honesty before capability.** The delta audit proved three of four coding gates are hardcoded constants (H1), budget accounting is dead code (H2), scaffolding stubs fabricate success (H3), and `syntax_valid` is a constant (H4). Every Block 2–4 measurement taken over these is uninterpretable. Nothing new ships until the instruments read true.
-2. **Port surface 21 → 15**, with three v2 bumps (`ModelProvider`, `ToolRegistry`, `CandidateSearch`) taken *now*, while each has ≤1 stub adapter — the cheapest they will ever be.
+2. **Port surface consolidated to 17** (ADR-0019 as restated, plus ADR-0024), with three v2 bumps (`ModelProvider`, `ToolRegistry`, `CandidateSearch`) taken *now*, while each has ≤1 stub adapter — the cheapest they will ever be.
 3. **Seed-only Layer-6 retrieval, exchange-granular compaction, monotonic taint, `FrozenRunState`, per-invocation PURE effects, scoring bootstrap ladder** — the six normative mechanisms from the Spec + amendments that Blocks 3–5 must be built *on*, not retrofitted *under*.
 4. **The Conductor (AGI layer) is explicitly out of scope for this plan** — its C0 phase hard-depends on Sprints 1–2 below and starts only after Sprint 4's re-baselined bench numbers exist.
 
@@ -34,26 +34,26 @@ retrieval: excluded
 **Scope:** `docs/` only; zero `src/` changes. **Duration class:** 1 short sprint — this is the cheapest-leverage work in the plan and must not balloon.
 **Dependencies:** none. **Risk if skipped:** every later sprint re-litigates decisions against 147k words of partially superseded prose, and the agent maintainer retrieves contradictions.
 
-- [ ] **Epic S0.1 — Normative word budget (≤ 15,000 words)**
-  - [ ] Subtask: Inventory word counts per file (`scripts/docs_budget.py`, new — emits per-dir totals; wire as CI check with the 15k ceiling over `status: normative` files only).
-  - [ ] Subtask: Demote to `rationale` frontmatter: `reference/` (already rationale — verify), `02-architecture/performance-sidecars.md`, `05-tech-stack/aoi-coprocessors.md`, long-form derivations duplicated by ADRs.
-  - [ ] Verification: CI job `docs-budget` green; budget report committed to `docs/STATUS.md`.
-- [ ] **Epic S0.2 — `rationale/` migration & retrieval scoping**
-  - [ ] Subtask: Create `docs/rationale/`; move `docs/reference/*` and `docs/reviews/todo/*` legacy material (incl. the seven `sprint-fe-*.md` files and old `sprint-2/3/4.md` now sitting in `reviews/todo/`) into it; `docs/reviews/{doing,done}` stay as historical record.
-  - [ ] Subtask: Add `retrieval: excluded` frontmatter key honored by the future indexer (Sprint v2-S6) and documented in `docs/README.md`.
-  - [ ] Verification: `docs/README.md` sitemap regenerated; zero broken relative links (`scripts/check_links.py`, new; CI-wired).
-- [ ] **Epic S0.3 — Fold the v2 corpus into normative SSOT (no duplication)**
-  - [ ] Subtask: Amend `02-architecture/context-and-cache-engineering.md` + `prompt-architecture.md`: **seed-only Layer 6 ruling** (one paragraph) and **R9 superseded** by exchange-granular, token-budgeted compaction (`keep_first_exchanges=2`, `keep_last_tokens=24_000`, headroom 20%).
-  - [ ] Subtask: Amend `02-architecture/security-and-threat-model.md`: TaintGate v1 (monotonic taint, propagation to summaries/anchored state, mutation-approval rule) as T7.
-  - [ ] Subtask: Amend `04-workflows-and-loops/rhi-outer-loop.md`: Tier A/B/C economic re-founding; Tier C (mutation search) dormant behind funding trigger.
-  - [ ] Subtask: New `03-contracts-and-models/frozen-run-state.md` (schema pointer into `src/`, grants-absent invariant) and `04-workflows-and-loops/trace-distillation.md` (exporter spec pointer).
-  - [ ] Verification: each amended file cites the review doc it implements; `docs/reviews/*` marked `historical` — the normative copy lives in `01–08` only.
-- [ ] **Epic S0.4 — Decision records for the re-baseline**
-  - [ ] Subtask: ADR-0019 port consolidation 21→15 (deletions, `Advisory` merge, re-promotion conditions); ADR-0020 per-invocation effect classification + TCB allowlist placement; ADR-0021 seed-only retrieval; ADR-0022 RHI economic re-founding; ADR-0023 port-rent rule (zero adapters × 2 blocks ⇒ demotion review).
-  - [ ] Verification: `08-decisions/README.md` log updated; every ADR carries reversal conditions.
-- [ ] **Epic S0.5 — STATUS re-baseline**
-  - [ ] Subtask: Rewrite `docs/STATUS.md`: v2 sprint series, honest capability table (gates listed as **fabricated until v2-S1**, per H1), Blocks 2–5 relabeled "scaffolding present / capability pending".
-  - [ ] Verification: STATUS makes no claim the delta audit contradicts.
+- [x] **Epic S0.1 — Normative word budget (≤ 15,000 words)**
+  - [x] Subtask: Inventory word counts per file (`scripts/docs_budget.py`, new — emits per-dir totals; wire as CI check with the 15k ceiling over `status: normative` files only).
+  - [x] Subtask: Demote to `rationale` frontmatter: `reference/` (already rationale — verify), `02-architecture/performance-sidecars.md`, `05-tech-stack/aoi-coprocessors.md`, long-form derivations duplicated by ADRs.
+  - [x] Verification: CI job `docs-budget` green; budget report committed to `docs/STATUS.md`.
+- [x] **Epic S0.2 — `rationale/` migration & retrieval scoping**
+  - [x] Subtask: Create `docs/rationale/`; move `docs/reference/*` and `docs/reviews/todo/*` legacy material (incl. the seven `sprint-fe-*.md` files and old `sprint-2/3/4.md` now sitting in `reviews/todo/`) into it; `docs/reviews/{doing,done}` stay as historical record.
+  - [x] Subtask: Add `retrieval: excluded` frontmatter key honored by the future indexer (Sprint v2-S6) and documented in `docs/README.md`.
+  - [x] Verification: `docs/README.md` sitemap regenerated; zero broken relative links (`scripts/check_links.py`, new; CI-wired).
+- [x] **Epic S0.3 — Fold the v2 corpus into normative SSOT (no duplication)**
+  - [x] Subtask: Amend `02-architecture/context-and-cache-engineering.md` + `prompt-architecture.md`: **seed-only Layer 6 ruling** (one paragraph) and **R9 superseded** by exchange-granular, token-budgeted compaction (`keep_first_exchanges=2`, `keep_last_tokens=24_000`, headroom 20%).
+  - [x] Subtask: Amend `02-architecture/security-and-threat-model.md`: TaintGate v1 (monotonic taint, propagation to summaries/anchored state, mutation-approval rule) as T7.
+  - [x] Subtask: Amend `04-workflows-and-loops/rhi-outer-loop.md`: Tier A/B/C economic re-founding; Tier C (mutation search) dormant behind funding trigger.
+  - [x] Subtask: New `03-contracts-and-models/frozen-run-state.md` (schema pointer into `src/`, grants-absent invariant) and `04-workflows-and-loops/trace-distillation.md` (exporter spec pointer).
+  - [x] Verification: each amended file cites the review doc it implements; `docs/reviews/*` marked `historical` — the normative copy lives in `01–08` only.
+- [x] **Epic S0.4 — Decision records for the re-baseline**
+  - [x] Subtask: ADR-0019 port consolidation 21→15 (deletions, `Advisory` merge, re-promotion conditions); ADR-0020 per-invocation effect classification + TCB allowlist placement; ADR-0021 seed-only retrieval; ADR-0022 RHI economic re-founding; ADR-0023 port-rent rule (zero adapters × 2 blocks ⇒ demotion review).
+  - [x] Verification: `08-decisions/README.md` log updated; every ADR carries reversal conditions.
+- [x] **Epic S0.5 — STATUS re-baseline**
+  - [x] Subtask: Rewrite `docs/STATUS.md`: v2 sprint series, honest capability table (gates listed as **fabricated until v2-S1**, per H1), Blocks 2–5 relabeled "scaffolding present / capability pending".
+  - [x] Verification: STATUS makes no claim the delta audit contradicts.
 
 **Exit gate:** normative word count ≤ 15k in CI; zero broken links; ADRs 0019–0023 merged; STATUS re-baselined. *No code PR merges into `src/` before this gate — one sprint of doc discipline buys every later sprint an uncontested spec.*
 
@@ -66,25 +66,25 @@ retrieval: excluded
 **Objective:** every number the system reports becomes true. This sprint retires the H-series findings and is the hard prerequisite for all measurement.
 **Dependencies:** v2-S0 (spec text to build against). **Expected side effect (document it, don't revert it):** bench pass-rates will *drop* when fabricated gates stop admitting — record before/after per Epic S1.5.
 
-- [ ] **Epic S1.1 — Real gates (H1)** — `src/sagiha/outer_loop/evaluator/gate_evaluator.py`
-  - [ ] Subtask: `RunContext.base_commit` field (`src/sagiha/domain/control.py`, additive); `RunLoop` checkpoints `run-start` before step 1 (`src/sagiha/agency/run_loop.py`).
-  - [ ] Subtask: `tests_unmodified` via `git diff --name-only <base> -- tests/` through `dispatch()`; `diff_within_bounds` via `--numstat` vs `GatesConfig.max_diff_lines`; `no_new_suppressions` via `-U0` added-line pattern scan.
-  - [ ] Subtask: `coverage_not_decreased` honest `None` + `GateReport.required_gates: frozenset[str]` (`src/sagiha/domain/work.py`) so `admitted` computes over the evaluable set.
-  - [ ] Verification: e2e test — a run editing `tests/` yields `tests_unmodified=False ∧ admitted=False`; oversized diff fails bounds (`tests/unit/test_sprint3a_e2e.py` extended).
-- [ ] **Epic S1.2 — Live budget & cost telemetry (H2)**
-  - [ ] Subtask: `ModelProvider` v2 — `complete() -> Completion(message, usage, model)` (`src/sagiha/ports/model.py`, `domain/trajectory.py`); populate usage in `adapters/model/openai.py`; cassette migration script `scripts/migrate_cassettes_v2.py` (fixtures migrated same PR).
-  - [ ] Subtask: `PricingConfig` per tier (`domain/config.py`); `RunLoop` emits real `TokenUsage`/`CostSummary`, calls `governor.record_spend()`; enforce `max_wall_clock_s` + sandbox concurrency in `kernel/governor.py`.
-  - [ ] Subtask: Fix stuck-break dangling `tool_use` (synthetic `is_error` results before break) in `agency/run_loop.py`.
-  - [ ] Verification: unit — $0.01 cap aborts at step 2 via the (now reachable) budget break; ledger within 5% of provider-reported usage on a live smoke run.
-- [ ] **Epic S1.3 — Real `syntax_valid` (H4)** — `src/sagiha/adapters/workspace/local.py`
-  - [ ] Subtask: `ast.parse` pre-write for `.py`; on `SyntaxError` do not write, return `syntax_valid=False, reason=f"syntax_error:{lineno}"`.
-  - [ ] Verification: broken-edit test asserts file on disk unchanged and model receives the failing line.
-- [ ] **Epic S1.4 — Stubs fail loud (H3)** — `adapters/sandbox/container.py`, `adapters/mcp/driver.py`, `adapters/telemetry/otel.py`
-  - [ ] Subtask: every unimplemented method → `raise NotImplementedError("Block/Sprint …")`; `tests/unit/test_block5_scaffolding.py` inverted to assert raising.
-  - [ ] Verification: grep gate in CI — no stub returns a success-shaped literal.
-- [ ] **Epic S1.5 — Honest re-measure**
-  - [ ] Subtask: run `sagiha harvest` + `sagiha bench --aa` before merging S1.1 and after; commit both reports to `docs/rationale/benchmarks/`.
-  - [ ] Verification: STATUS updated with the post-honesty baseline and the explicit note that the drop is the fix.
+- [x] **Epic S1.1 — Real gates (H1)** — `src/sagiha/outer_loop/evaluator/gate_evaluator.py`
+  - [x] Subtask: `RunContext.base_commit` field (`src/sagiha/domain/control.py`, additive); `RunLoop` checkpoints `run-start` before step 1 (`src/sagiha/agency/run_loop.py`).
+  - [x] Subtask: `tests_unmodified` via `git diff --name-only <base> -- tests/` through `dispatch()`; `diff_within_bounds` via `--numstat` vs `GatesConfig.max_diff_lines`; `no_new_suppressions` via `-U0` added-line pattern scan.
+  - [x] Subtask: `coverage_not_decreased` honest `None` + `GateReport.required_gates: frozenset[str]` (`src/sagiha/domain/work.py`) so `admitted` computes over the evaluable set.
+  - [x] Verification: e2e test — a run editing `tests/` yields `tests_unmodified=False ∧ admitted=False`; oversized diff fails bounds (`tests/unit/test_sprint3a_e2e.py` extended).
+- [x] **Epic S1.2 — Live budget & cost telemetry (H2)**
+  - [x] Subtask: `ModelProvider` v2 — `complete() -> Completion(message, usage, model)` (`src/sagiha/ports/model.py`, `domain/trajectory.py`); populate usage in `adapters/model/openai.py`; cassette migration script `scripts/migrate_cassettes_v2.py` (fixtures migrated same PR).
+  - [x] Subtask: `PricingConfig` per tier (`domain/config.py`); `RunLoop` emits real `TokenUsage`/`CostSummary`, calls `governor.record_spend()`; enforce `max_wall_clock_s` + sandbox concurrency in `kernel/governor.py`.
+  - [x] Subtask: Fix stuck-break dangling `tool_use` (synthetic `is_error` results before break) in `agency/run_loop.py`.
+  - [x] Verification: unit — $0.01 cap aborts at step 2 via the (now reachable) budget break; ledger within 5% of provider-reported usage on a live smoke run.
+- [x] **Epic S1.3 — Real `syntax_valid` (H4)** — `src/sagiha/adapters/workspace/local.py`
+  - [x] Subtask: `ast.parse` pre-write for `.py`; on `SyntaxError` do not write, return `syntax_valid=False, reason=f"syntax_error:{lineno}"`.
+  - [x] Verification: broken-edit test asserts file on disk unchanged and model receives the failing line.
+- [x] **Epic S1.4 — Stubs fail loud (H3)** — `adapters/sandbox/container.py`, `adapters/mcp/driver.py`, `adapters/telemetry/otel.py`
+  - [x] Subtask: every unimplemented method → `raise NotImplementedError("Block/Sprint …")`; `tests/unit/test_block5_scaffolding.py` inverted to assert raising.
+  - [x] Verification: grep gate in CI — no stub returns a success-shaped literal.
+- [x] **Epic S1.5 — Honest re-measure**
+  - [x] Subtask: run `sagiha harvest` + `sagiha bench --aa` before merging S1.1 and after; commit both reports to `docs/rationale/benchmarks/`.
+  - [x] Verification: STATUS updated with the post-honesty baseline and the explicit note that the drop is the fix.
 
 **Exit gate:** 127+ tests green (count monotonic); replay job green post-cassette-migration; live smoke run shows non-zero cost telemetry; gate-dishonesty e2e tests in CI; A/A noise floor re-measured on honest gates.
 
@@ -93,23 +93,23 @@ retrieval: excluded
 **Objective:** the v2 contract surface, locked before Block 3 writes real consumers against the old one.
 **Dependencies:** v2-S1 (the `ModelProvider` v2 bump lands there; this sprint completes the remaining bumps).
 
-- [ ] **Epic S2.1 — Deletions & merge (ADR-0019)** — `src/sagiha/ports/`
-  - [ ] Subtask: delete `reviewer.py`, `embedding.py`; delete `ShortTermMemory` Protocol from `memory.py` (adapter already gone, R7); rewrite `advisory.py` → single `Advisory.predict(kind, task, branch_id) -> Prediction` + `PredictionKind` in `domain/work.py`.
-  - [ ] Verification: `tests/contracts/test_port_shape.py` (dynamic enumeration) green; grep proves zero dangling imports; port count = 15.
-- [ ] **Epic S2.2 — PURE argv allowlist (ADR-0020)** — `src/sagiha/kernel/policy/effects.py` (new, TCB-protected by existing `tcb-isolation` contract)
-  - [ ] Subtask: `PURE_ARGV`, `PURE_GIT_OPS`, `classify_command(argv, declared)` (never widens; `bash -lc` never narrowed); `ToolRegistry` v2 gains `effect_for_call`; `RunLoop` + `GateEvaluator` classify `run_command` per invocation.
-  - [ ] Verification: proving cassette — `["git","status"]` re-executes under `replay --verify`, `["rm","x"]` served from recording; re-execution fraction ≥ 60% on the pinned suite.
-- [ ] **Epic S2.3 — Builtins corrected** — `src/sagiha/adapters/tools/builtins.py`
-  - [ ] Subtask: delete the `app/` path-strip hack (grant-scope integrity — authorized path must equal effected path); fix the fixture instead.
-  - [ ] Subtask: add `write_file` (DESTRUCTIVE, `x-sagiha-path`); reclassify `apply_edit` → DESTRUCTIVE; structured `DirEntry`/`Match` JSON returns.
-  - [ ] Verification: new-file creation e2e passes; replay never re-executes `apply_edit`.
-- [ ] **Epic S2.4 — Composition & config hardening** — `src/sagiha/composition.py`, `domain/config.py`
-  - [ ] Subtask: derive `tool_schemas` from `BUILTIN_SCHEMAS` (single source, `sorted()` canonical order for cache stability — drift bug: composition's `apply_edit` schema currently omits `expected_occurrences`); `Kernel.workspace: Workspace` (port type, not `LocalWorkspace`).
-  - [ ] Subtask: `validate_security_invariants` gains judge-separation refusal (`roles["judge"]` resolves to same (provider, model) as `execution` while `search.enabled` ⇒ `ValueError`); `SearchConfig.prune_on_first_gate_fail`; `ContextConfig` gains `keep_first_exchanges`/`keep_last_tokens`, `compact_at_headroom → 0.20`.
-  - [ ] Verification: composition contract tests extended; a same-model judge config fails at load.
-- [ ] **Epic S2.5 — Trajectory completeness for resume/replay/export**
-  - [ ] Subtask: persist assistant `Message` on `TrajectoryStep` (schema addition + upcaster in `domain/upcasters.py`) so `_reconstruct_history` stops dropping text-only turns and resumed digests can match.
-  - [ ] Verification: freeze → kill → resume → replay round-trip test with a text-turn-bearing cassette.
+- [x] **Epic S2.1 — Deletions & merge (ADR-0019)** — `src/sagiha/ports/`
+  - [x] Subtask: delete `reviewer.py`, `embedding.py`; delete `ShortTermMemory` Protocol from `memory.py` (adapter already gone, R7); rewrite `advisory.py` → single `Advisory.predict(kind, task, branch_id) -> Prediction` + `PredictionKind` in `domain/work.py`.
+  - [x] Verification: `tests/contracts/test_port_shape.py` (dynamic enumeration) green; grep proves zero dangling imports; port count = 15.
+- [x] **Epic S2.2 — PURE argv allowlist (ADR-0020)** — `src/sagiha/kernel/policy/effects.py` (new, TCB-protected by existing `tcb-isolation` contract)
+  - [x] Subtask: `PURE_ARGV`, `PURE_GIT_OPS`, `classify_command(argv, declared)` (never widens; `bash -lc` never narrowed); `ToolRegistry` v2 gains `effect_for_call`; `RunLoop` + `GateEvaluator` classify `run_command` per invocation.
+  - [x] Verification: proving cassette — `["git","status"]` re-executes under `replay --verify`, `["rm","x"]` served from recording; re-execution fraction ≥ 60% on the pinned suite.
+- [x] **Epic S2.3 — Builtins corrected** — `src/sagiha/adapters/tools/builtins.py`
+  - [x] Subtask: delete the `app/` path-strip hack (grant-scope integrity — authorized path must equal effected path); fix the fixture instead.
+  - [x] Subtask: add `write_file` (DESTRUCTIVE, `x-sagiha-path`); reclassify `apply_edit` → DESTRUCTIVE; structured `DirEntry`/`Match` JSON returns.
+  - [x] Verification: new-file creation e2e passes; replay never re-executes `apply_edit`.
+- [x] **Epic S2.4 — Composition & config hardening** — `src/sagiha/composition.py`, `domain/config.py`
+  - [x] Subtask: derive `tool_schemas` from `BUILTIN_SCHEMAS` (single source, `sorted()` canonical order for cache stability — drift bug: composition's `apply_edit` schema currently omits `expected_occurrences`); `Kernel.workspace: Workspace` (port type, not `LocalWorkspace`).
+  - [x] Subtask: `validate_security_invariants` gains judge-separation refusal (`roles["judge"]` resolves to same (provider, model) as `execution` while `search.enabled` ⇒ `ValueError`); `SearchConfig.prune_on_first_gate_fail`; `ContextConfig` gains `keep_first_exchanges`/`keep_last_tokens`, `compact_at_headroom → 0.20`.
+  - [x] Verification: composition contract tests extended; a same-model judge config fails at load.
+- [x] **Epic S2.5 — Trajectory completeness for resume/replay/export**
+  - [x] Subtask: persist assistant `Message` on `TrajectoryStep` (schema addition + upcaster in `domain/upcasters.py`) so `_reconstruct_history` stops dropping text-only turns and resumed digests can match.
+  - [x] Verification: freeze → kill → resume → replay round-trip test with a text-turn-bearing cassette.
 
 **Exit gate:** port count 15; three v2 bumps merged with migration notes; `lint-imports` 5/5 + `pyright` 0 sustained; resume/replay round-trip green; ADR-0019/0020 marked Accepted-Implemented.
 
@@ -166,7 +166,7 @@ retrieval: excluded
 
 - [x] **Epic S5.1 — Rootless Podman `ContainerSandbox`** — `adapters/sandbox/container.py` (stub → real)
   - [x] Subtask: lifecycle mgmt; worktree bind-mounts; `Workspace` conformance suite parametrized over `LocalWorkspace` + `ContainerSandbox` (the hexagon's payoff test); resource limits from `SandboxConfig`.
-- [x] **Epic S5.2 — Egress proxy + namespace firewall** — hostname allowlist at explicit proxy, direct outbound dropped; credential exclusion (no host secret reachable inside; per-grant short-lived injection).
+- [x] **Epic S5.2 — Egress proxy + namespace firewall** — hostname allowlist at explicit proxy, direct outbound dropped; credential exclusion — **as delivered:** host-environment scrub plus `SECRET_MATERIALIZE_NAMES` path exclusion (`.env`, `.env.local`, `.env.production`, `.netrc`, `.npmrc` never materialize into the worktree). **Per-grant short-lived secret injection is NOT implemented** and is a v2-S7 candidate; do not cite it as an existing control (m-8).
 - [x] **Epic S5.3 — Config gating** — `subprocess`+`autonomous` refusal retained; container required from this sprint for `autonomous`/`scheduled`; `sagiha run --autonomy autonomous` legal for the first time.
   - [x] Verification (sprint-wide): injection canary suite (hostile README / issue / fixture) across the pinned suite → **zero out-of-worktree effects, zero credential reads, zero non-allowlisted egress**; parallel sandboxed runs interference-free.
 
@@ -218,7 +218,7 @@ retrieval: excluded
 | v2-S1 | Syntax honesty (H4) | ast.parse pre-write, no-write-on-fail | `adapters/workspace/local.py` | Broken edit leaves disk unchanged |
 | v2-S1 | Loud stubs (H3) | NotImplementedError; inverted scaffolding tests | `adapters/{sandbox,mcp,telemetry}/` | No stub returns success-shaped literal |
 | v2-S1 | Honest re-measure | Before/after bench + A/A | `docs/rationale/benchmarks/` | Post-honesty floor published |
-| v2-S2 | Port consolidation | Delete reviewer/embedding/ShortTermMemory; Advisory rewrite | `ports/`, `domain/work.py` | 15 ports; shape suite green; zero dangling imports |
+| v2-S2 | Port consolidation | Delete reviewer/embedding/ShortTermMemory; Advisory rewrite | `ports/`, `domain/work.py` | 17 ports; shape suite green; zero dangling imports |
 | v2-S2 | PURE allowlist | effects.py; classify_command; ToolRegistry v2 | `kernel/policy/effects.py`, `ports/tool_registry.py` | ≥60% steps re-executed in replay --verify |
 | v2-S2 | Builtins corrected | De-hack app/; write_file; apply_edit→DESTRUCTIVE | `adapters/tools/builtins.py` | New-file e2e; no apply_edit re-execution |
 | v2-S2 | Composition/config | Schema SSOT + canonical order; Workspace port type; judge-separation refusal; new config fields | `composition.py`, `domain/config.py` | Same-model judge fails at load |

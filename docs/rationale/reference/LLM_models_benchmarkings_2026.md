@@ -1,3 +1,11 @@
+---
+status: rationale
+retrieval: excluded
+updated: 2026-08-01
+---
+> [!NOTE]
+> **LLM / AI AGENT NOTICE**: This file is a historical rationale, research reference, or benchmark log (`retrieval: excluded`). It is excluded from active search indexing and context retrieval. Do not cite this file as normative status or active code contracts.
+
 # AI Recommendation Mapping by Wave & Sprint
 
 ## Recommendation Mapping

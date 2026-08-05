@@ -7,20 +7,42 @@ v1 retrieval is lexical + graph; dense tier deferred until recall@10 misses.
 from __future__ import annotations
 
 import logging
+import re
 import sqlite3
+from collections.abc import Sequence
 from pathlib import Path
+from typing import Final
 
 from anyio.to_thread import run_sync
 
-from sagiha.adapters.indexer.chunking import analyze_python_source
+from sagiha.adapters.indexer.chunking import Chunk, analyze_python_source
 from sagiha.adapters.indexer.frontmatter import is_retrieval_excluded
+from sagiha.adapters.indexer.walk import SKIP_DIRS, TEXT_EXTENSIONS
 from sagiha.domain.content import Symbol
 from sagiha.domain.graph import RetrievalHit, SymbolRef
 
 logger = logging.getLogger(__name__)
 
-_SKIP_DIRS = frozenset({".git", ".venv", "venv", "node_modules", "__pycache__", ".sagiha"})
-_TEXT_EXTENSIONS = frozenset({".md", ".mdx"})
+
+_FTS_OPERATORS: Final = frozenset({"AND", "OR", "NOT", "NEAR"})
+
+
+def _fts_query(text: str) -> str:
+    """Convert free text into a safe FTS5 MATCH expression.
+
+    FTS5 parses its argument as *query syntax*, not as literal text, so raw goal
+    text containing `(`, `)`, `'`, `-` or `:` is a syntax error rather than a
+    search (defect C-1). Tokenize on word characters, drop 1-char noise and bare
+    boolean operators, quote every surviving term, and OR them together — seed
+    retrieval is recall-oriented, so a disjunction is the right default.
+
+    Returns `""` when no usable token survives; callers must treat that as a
+    true empty and must not touch the database.
+    """
+    tokens = [
+        token for token in re.findall(r"\w+", text) if len(token) >= 2 and token.upper() not in _FTS_OPERATORS
+    ]
+    return " OR ".join(f'"{token}"' for token in tokens)
 
 
 class FTS5Indexer:
@@ -64,8 +86,55 @@ class FTS5Indexer:
         conn.execute("DELETE FROM chunks WHERE path = ?", (path,))
         conn.execute("DELETE FROM symbols WHERE path = ?", (path,))
 
+    # --- public write surface (m-4) ------------------------------------------
+    # `IndexService` used to open `sqlite3.connect(indexer._db_path)` and issue
+    # its own DELETE/INSERT against the chunks/symbols schema. That coupled a
+    # coordinator to this adapter's private storage layout. These two methods
+    # are the whole surface it needs; the FTS schema stays in here.
+
+    def indexed_paths(self) -> set[str]:
+        """Every path with rows in the index — the input to orphan pruning (m-5)."""
+        with sqlite3.connect(self._db_path) as conn:
+            rows = conn.execute("SELECT path FROM chunks UNION SELECT path FROM symbols").fetchall()
+            return {row[0] for row in rows}
+
+    def clear_path(self, path: str) -> None:
+        """Drop every chunk and symbol row recorded for *path*."""
+        with sqlite3.connect(self._db_path) as conn:
+            self._clear_path(conn, path)
+            conn.commit()
+
+    def replace_file_chunks(
+        self,
+        path: str,
+        chunks: Sequence[Chunk],
+        symbols: Sequence[tuple[str, str, str, int, str]],
+    ) -> None:
+        """Atomically replace all indexed content for *path*."""
+        with sqlite3.connect(self._db_path) as conn:
+            self._clear_path(conn, path)
+            for chunk in chunks:
+                conn.execute(
+                    "INSERT INTO chunks(path, chunk) VALUES (?, ?)",
+                    (path, chunk.text),
+                )
+            for sym_path, name, kind, line, signature in symbols:
+                conn.execute(
+                    "INSERT INTO symbols(path, name, kind, line, signature) VALUES (?, ?, ?, ?, ?)",
+                    (sym_path, name, kind, line, signature),
+                )
+            conn.commit()
+
+    def replace_file_text(self, path: str, body: str | None) -> None:
+        """Replace *path* with a single text chunk, or with nothing when `body` is None."""
+        with sqlite3.connect(self._db_path) as conn:
+            self._clear_path(conn, path)
+            if body is not None:
+                conn.execute("INSERT INTO chunks(path, chunk) VALUES (?, ?)", (path, body))
+            conn.commit()
+
     def _index_python(self, conn: sqlite3.Connection, path: str, source: str) -> None:
-        chunks, symbols = analyze_python_source(path, source.encode("utf-8"), max_chunk_tokens=1024)
+        chunks, symbols = analyze_python_source(path, source.encode("utf-8"))
         for chunk in chunks:
             conn.execute(
                 "INSERT INTO chunks(path, chunk) VALUES (?, ?)",
@@ -104,7 +173,7 @@ class FTS5Indexer:
                 self._index_markdown(conn, path, source)
             conn.commit()
 
-    async def reindex_root(self, root: Path, *, max_chunk_tokens: int = 1024) -> int:
+    async def reindex_root(self, root: Path) -> int:
         """Walk *root* and index supported source files. Returns file count."""
 
         def _sync() -> int:
@@ -112,16 +181,14 @@ class FTS5Indexer:
             for file_path in sorted(root.rglob("*")):
                 if not file_path.is_file():
                     continue
-                if any(part in _SKIP_DIRS for part in file_path.parts):
+                if any(part in SKIP_DIRS for part in file_path.parts):
                     continue
                 rel = file_path.relative_to(root).as_posix()
                 if file_path.suffix == ".py":
                     source = file_path.read_text(encoding="utf-8")
                     with sqlite3.connect(self._db_path) as conn:
                         self._clear_path(conn, rel)
-                        chunks, symbols = analyze_python_source(
-                            rel, source.encode("utf-8"), max_chunk_tokens=max_chunk_tokens
-                        )
+                        chunks, symbols = analyze_python_source(rel, source.encode("utf-8"))
                         for chunk in chunks:
                             conn.execute(
                                 "INSERT INTO chunks(path, chunk) VALUES (?, ?)",
@@ -137,7 +204,7 @@ class FTS5Indexer:
                             )
                         conn.commit()
                     count += 1
-                elif file_path.suffix in _TEXT_EXTENSIONS:
+                elif file_path.suffix in TEXT_EXTENSIONS:
                     source = file_path.read_text(encoding="utf-8")
                     with sqlite3.connect(self._db_path) as conn:
                         self._clear_path(conn, rel)
@@ -196,8 +263,13 @@ class FTS5Indexer:
 
         return await run_sync(_sync)
 
-    async def neighbors(self, query: str, limit: int = 20) -> list[RetrievalHit]:
-        """Find chunks matching an FTS query, scored 0–1."""
+    async def search(self, query: str, limit: int = 20) -> list[RetrievalHit]:
+        """Find chunks matching free-text *query*, scored 0–1."""
+        match_expr = _fts_query(query)
+        if not match_expr:
+            # No usable token survived tokenization. That is a true empty, and
+            # answering it without a round-trip is honest, not a swallow.
+            return []
 
         def _sync() -> list[RetrievalHit]:
             with sqlite3.connect(self._db_path) as conn:
@@ -210,11 +282,14 @@ class FTS5Indexer:
                         ORDER BY rank
                         LIMIT ?
                         """,
-                        (query, limit),
+                        (match_expr, limit),
                     )
                     rows = cursor.fetchall()
-                except sqlite3.OperationalError:
-                    return []
+                except sqlite3.OperationalError as exc:
+                    if "no such table" in str(exc):
+                        return []  # cold index — a true empty
+                    logger.warning("FTS5 query failed for %r: %s", query, exc)
+                    raise
                 if not rows:
                     return []
                 ranks = [row[2] for row in rows]

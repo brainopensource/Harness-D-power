@@ -4,17 +4,20 @@ updated: 2026-07-29
 ---
 # ADR-0008: Native Provider SDKs, No Universal Abstraction Layer
 
-**Status**: Accepted
+**Status**: Accepted  
 **Date**: 2026-07-28
 
 ## Context
-A universal layer such as LiteLLM buys 100+ providers for one integration. It pays for them by normalizing to a lowest common denominator, and the three capabilities this harness depends on most are exactly what gets normalized: provider-specific prompt cache control (`cache_control`), extended-thinking blocks whose signatures must round-trip verbatim to continue a tool-use turn, and per-provider tool-use semantics.
+Universal abstraction layers (e.g., LiteLLM) strip provider-specific features like prompt cache controls (`cache_control`), extended-thinking blocks, and custom tool semantics.
 
 ## Decision
-Native first-party SDKs — `anthropic`, `openai`, `google-genai` — as separate adapters behind one `ModelProvider` port. No LiteLLM dependency. The `openai` SDK with a `base_url` override covers OpenAI-compatible endpoints (Ollama, vLLM, LM Studio, OpenRouter, Together, Groq), which collapses the long-tail argument for a universal layer.
+- Use native SDKs (`anthropic`, `openai`, `google-genai`) behind a single `ModelProvider` port.
+- No LiteLLM dependency.
+- Use `openai` SDK with `base_url` overrides for OpenAI-compatible endpoints (Ollama, vLLM, OpenRouter, Groq).
 
 ## Consequences
-Full fidelity on caching, reasoning continuity, and tool semantics — the first of which is the single largest cost lever in the system. Each tier-1 provider costs a small adapter, which the conformance suite keeps honest. **Model-agnosticism is preserved at the port, not at the SDK**: zero lock-in comes from `ModelProvider` being one narrow interface, not from routing through someone else's abstraction.
+- Retains provider features (caching, reasoning continuity, tool schemas).
+- Model agnosticism is preserved at the port level, supported by contract testing.
 
 ## Reversal Conditions
-A provider appears that is neither tier-1 nor OpenAI-compatible and matters enough to support, and hand-writing its adapter proves materially more expensive than adopting a universal layer for that one case.
+- Non-tier-1 / non-OpenAI-compatible provider becomes critical and writing a dedicated adapter is prohibitively expensive.

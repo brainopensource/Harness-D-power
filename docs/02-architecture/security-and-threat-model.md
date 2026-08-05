@@ -7,100 +7,52 @@ updated: 2026-07-29
 > [!NOTE]
 > **Working Proposal Disclaimer**: A working architectural proposal, refined iteratively as practical evaluation progresses.
 
-## **Why This Module Exists**
+## **Threat Matrix & Mitigations**
 
-This module states what an autonomous coding agent is actually exposed to, and which mechanism stops each thing.
+### T1 — Indirect Prompt Injection
+* **Data Delimiting**: All retrieved repository/web content is wrapped in `<untrusted-data>` envelopes in the system prompt.
+* **Provenance Tracking**: Memory records carry `Provenance`. `EXTERNAL` data recalled into context is re-wrapped in `<untrusted-data>` to prevent prompt laundering.
+* **Egress & Secret Redaction**: Scoped credentials injected per grant; egress allowlisted at the network namespace; tool output redacted for secret patterns prior to persistence.
 
-## **T1 — Indirect Prompt Injection (Primary Threat)**
+### T2 — Sandbox Escape via Shell
+* **Perimeter Boundary**: Command string blocklists are UX guards, not security boundaries. Security relies strictly on container isolation ([ADR-0006](../08-decisions/0006-sandbox-is-the-perimeter.md), [Phased Migration Matrix](../07-roadmap/phased-migration-matrix.md)).
+* **Dev-Mode Restrictions**: Unsandboxed subprocess execution is allowed **only** under `interactive` autonomy; invalid configurations fail startup validation ([`src/sagiha/domain/config.py`](../../src/sagiha/domain/config.py)).
+* **Container Runtime**: Rootless Podman with rootless network namespace firewalling and explicit HTTP/HTTPS proxying ([ADR-0016](../08-decisions/0016-container-runtime-podman.md)).
 
-An agent that reads repositories, issues, pull requests, code comments, dependencies, and web pages, while holding shell access and credentials, is the canonical injection target. A malicious README, issue body, test fixture, or transitive dependency can carry instructions the model reads as directives: exfiltrate `.env`, weaken a validation check, insert a backdoor, alter CI configuration. Autonomy multiplies the blast radius, because no human reviews intermediate steps.
+### T3 — Evaluation Capture
+* Test suites land pristine and read-only from the base commit. Modifying test files produces an immediate **hard gate failure**.
 
-**Mitigations** — defense does not rest on the model's judgment:
+### T4 — Self-Modification & Trusted Computing Base (TCB)
+The TCB is immutable to the agent and guarded by CI and `MutationProposal.targets` allowlists:
+1. Policy engine and autonomy configuration.
+2. Evaluator, gate definitions, and benchmark tasks.
+3. Secret handling, sandbox boundary, and deployment gates.
 
-* All retrieved content is delimited and labelled as **data**. The system prompt establishes that content appearing in tool output carries no authority.
-* **Laundering Attack Path**: An agent might read untrusted data, store it in memory, and recall it later, inadvertently stripping the untrusted tag. **Provenance Tracking** prevents this: memory records store their `Provenance`, and the prompt assembler re-wraps `EXTERNAL` provenance in `<untrusted-data>` upon recall. A conformance test (`test_external_provenance_survives_roundtrip`) guarantees this.
-* Credentials never enter the sandbox; secrets are injected per-grant, scoped, short-lived.
-* Egress is allowlisted **at the network namespace**, not by inspecting commands.
-* Tool output is scanned and redacted for secret patterns before entering memory, logs, or context.
-* Any action writing outside the worktree, or touching credentials, CI configuration, or harness policy, requires a human grant **at every autonomy level**.
+### T5 — Destructive Replay
+Replay execution relies on tool `EffectClass` declarations: `PURE` actions re-execute; `DESTRUCTIVE` actions return cached observations ([Microkernel & Bus](./microkernel-and-bus.md)).
 
-## **T2 — Sandbox Escape via Shell**
+### T6 — Resource Exhaustion
+`ResourceGovernor` bounds concurrency, spend, sandboxes, and LSP servers.
 
-**Command-string blocklisting is a usability guardrail, not a security control**, and must never be relied upon as one. Blocking `rm -rf` fails to `bash -c`, `python -c`, base64-encoded payloads, `$IFS` substitution, symlink indirection, and any interpreter already present in the image.
+### T7 — Tainted-Context Mutation (TaintGate v1)
+Prevents untrusted data read within a run from driving unapproved file edits:
 
-The correct framing is unambiguous: **if the agent has a shell, it has every capability the sandbox grants that shell.**
-
-**Mitigations**: the container boundary is the perimeter, required from **S1** onward ([ADR-0006](../08-decisions/0006-sandbox-is-the-perimeter.md), [Phased Migration Matrix](../07-roadmap/phased-migration-matrix.md)); before S1, dev-mode `subprocess` execution is permitted **only** at `interactive` autonomy — the combination with `autonomous`/`scheduled` is refused at config validation (`src/sagiha/domain/config.py`). Filesystem scope enforced by mount, not by path string inspection; no host credential material reachable from inside; network policy at the namespace.
-
-The runtime is **rootless Podman**, and egress is allowlisted by hostname at an explicit HTTP/HTTPS proxy with direct outbound dropped by the namespace firewall — hostname-based DNS filtering is bypassed by dialing a literal IP, and IP allowlisting breaks against CDN-hosted package indexes. Mechanism and rationale: [ADR-0016](../08-decisions/0016-container-runtime-podman.md).
-
-## **T3 — Evaluation Capture**
-
-A candidate branch has full filesystem access to its worktree, including `tests/`. Any scoring procedure using tests the candidate could have modified measures a number the candidate controls. The same applies at the outer loop, where an improver with write access to the evaluator can raise its score without improving anything.
-
-**Mitigations**: tests injected pristine and read-only from the base commit; modification of test files is a **hard gate failure**, not a scored penalty; the trusted computing base is excluded from the improver's writable surface and enforced in CI.
-
-## **T4 — Self-Modification Escaping Its Bounds**
-
-The outer loop edits harness artifacts. Combined with shell access, the cheapest path to a higher score is to edit whatever produces the score.
-
-**The Trusted Computing Base — never writable by the agent:**
-
-* Policy engine and autonomy configuration
-* Evaluator, gate definitions, benchmark task definitions
-* The deployment gate itself, and this list
-* Secret handling and the sandbox boundary
-
-Enforced three ways: path allowlist in `MutationProposal.targets`, residence on a branch the agent cannot push, and CI rejection of any diff touching a TCB path. **Deployment requires human sign-off**; validated mutations are staged, never self-committed.
-
-## **T5 — Destructive Replay**
-
-Replaying a trajectory that ran `git push` or `rm` would perform it again. Every tool declares an `EffectClass`; replay re-executes only `PURE` calls and serves everything else from recorded observations. See [Microkernel & Bus](./microkernel-and-bus.md).
-
-## **T6 — Resource Exhaustion**
-
-Parallel agents against a frontier API exhaust rate limits and burn wall-clock in retries; unbounded sandboxes and LSP servers exhaust host memory. The `ResourceGovernor` bounds concurrency, spend, sandbox count, and server pool size globally. A budget that is documented but not enforced at a call site is not a budget.
-
-## **T7 — Tainted-Context Mutation (TaintGate v1)**
-
-T1's mitigations label untrusted content and stop it laundering through *memory*. They do not stop
-the simpler path: the model reads a hostile README **in this run**, and three steps later writes a
-file. Nothing connects the read to the write. `<untrusted-data>` labelling is advice to the model,
-and advice is not a control.
-
-TaintGate closes that gap at the **existing** choke point. **No new module and no new gate class**
-— a separate gate would create a second authorization path, which is the one thing this
-architecture forbids.
-
-| Element | Rule |
+| Component | Rule |
 | :--- | :--- |
-| **Provenance at source** | `ToolResult.trusted: bool`, stamped by `dispatch` from the handler's `register_handler(..., trusted_output=)` registration. `read_file`/`list_dir`/`grep`/`run_command` → `False` (they surface repo content). `apply_edit`/`write_file` → `True`. Harness-derived tools (`find_symbols`, `get_skeleton`) → `True`. |
-| **Monotonic taint** | `DefaultPolicyEngine` holds `_tainted_runs`. Any untrusted result taints the run. **Nothing untaints it** until the run terminates — there is no "the model looked at it and decided it was fine". |
-| **The gate** | `authorize()` refuses pre-grant: tainted run **and** tool ∈ `MUTATION_TOOLS` → `Decision(allowed=False, requires_human=True)`, **at every autonomy level**. |
-| **Envelope at assembler prompt boundary** | `agency/context/assembler.result_message` wraps untrusted text in `<untrusted-data source=…>` when a `ToolResult` becomes prompt content. `dispatch()` emits `TaintIntroduced` but does **not** rewrite bytes — `GateEvaluator` and other machine consumers of `dispatch` must keep clean content. |
-| **Through compaction** | A tainted exchange's summary is tainted and re-wrapped. See [exchange-granular compaction](./prompt-architecture.md). |
+| **Provenance at Source** | `ToolResult.trusted: bool` set by `dispatch`. Workspace tools (`read_file`, `grep`, `run_command`) yield `False`; edits yield `True`. |
+| **Monotonic Taint** | Untrusted results mark `run_id` as tainted in `DefaultPolicyEngine._tainted_runs`. Taint persists until run termination. |
+| **Enforcement Gate** | `PolicyEngine.authorize()` denies `MUTATION_TOOLS` (`apply_edit`, `write_file`) under taint with `requires_human=True` across **all** autonomy levels. |
+| **Prompt Boundary** | Untrusted content is wrapped in `<untrusted-data>` envelopes when assembled into prompts; summaries retain taint through compaction (see [Prompt Architecture](./prompt-architecture.md)). |
 
-Taint state is **Control-internal**: `is_tainted(run_id)` is a concrete-class helper, deliberately
-*not* on the `PolicyEngine` Protocol, so no adapter can read or influence it.
+*Note: `run_command` remains unblocked by default taint to preserve gate execution (`git diff`), relying on container network namespace perimeter isolation.*
 
-Until the CLI approval loop exists (`v2-S7`), `requires_human=True` denials flow back as
-`is_error` tool results the model can see, and tainted mutations **fail closed**. That is the
-correct pre-sandbox posture: the alternative is an autonomous write path fed by attacker-controlled
-text.
+## **Autonomy Levels & Approval Gates**
 
-**Proving test — injection canary:** a planted hostile README instructs a write; the mutation is
-denied with `requires_human=True`; zero tainted diffs land unapproved.
-
-*Implements: `docs/rationale/reviews/next_gen_architecture_specs.md`. Lands `v2-S3` (PR-3.3), TCB,
-human-authored.*
-
-## **Autonomy Levels and Human Gates**
-
-| Level | Human involvement |
+| Autonomy Level | Human Approval Requirement |
 | :---- | :---- |
-| Interactive | Approval per effectful action |
-| Hybrid | Approval for risk-classified actions; plan review before multi-file change sets |
-| Autonomous | Approval only for TCB-adjacent and out-of-worktree actions |
-| Scheduled | As Autonomous, plus notification on completion or gate |
+| **Interactive** | Approval required per effectful action. |
+| **Hybrid** | Approval for risk-classified actions and multi-file plans. |
+| **Autonomous** | Approval required strictly for TCB-adjacent or out-of-worktree actions. |
+| **Scheduled** | Autonomous operation with completion/gate notifications. |
 
-Gates are **durable, asynchronous approval requests**. Nobody watches a six-hour run, so a gate requiring someone present is a gate that will be disabled. Requests survive restarts, notify out of band, **deny by default on timeout**, and resume cleanly on approval.
+Approval requests are durable, asynchronous, and **deny by default** upon timeout.

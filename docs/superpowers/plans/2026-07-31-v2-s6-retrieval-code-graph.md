@@ -1,3 +1,8 @@
+---
+status: historical
+retrieval: excluded
+updated: 2026-08-01
+---
 # v2-S6 Retrieval, Code Graph & Cold-Start Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
@@ -67,6 +72,7 @@ Create `tests/fixtures/retrieval_mini/pkg/util.py`:
 
 ```python
 """Util module."""
+
 
 def greet(name: str) -> str:
     """Return a greeting."""
@@ -205,6 +211,7 @@ Add fixture `pkg/client.py`:
 
 ```python
 from pkg.util import greet
+
 
 def main() -> None:
     print(greet("world"))
@@ -347,6 +354,7 @@ async def test_init_writes_agents_md(tmp_path: Path) -> None:
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "demo.py").write_text("def main():\n    pass\n", encoding="utf-8")
     from sagiha.outer_loop.init.generate import generate_agents_md
+
     path = await generate_agents_md(tmp_path, graph=None, force=False)
     text = path.read_text(encoding="utf-8")
     assert path.name == "AGENTS.md"

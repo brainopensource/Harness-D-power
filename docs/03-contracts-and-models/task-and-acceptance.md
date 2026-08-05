@@ -8,110 +8,43 @@ retrieval: excluded
 > [!NOTE]
 > **Working Proposal Disclaimer**: A working architectural proposal, refined iteratively as practical evaluation progresses.
 
-## **Why This Module Exists**
+## **Task Model**
 
-A bare string leaves **"done" undefined**, which cascades: the Evaluator has no target to evaluate against, the Plan Mode gate has nothing concrete to approve, and long-horizon work cannot resume after interruption. This is the deepest missing primitive for autonomy, since a system that cannot state what success means cannot recognize it.
+Contract models (`AcceptanceCriterion`, `TaskSpec`) reside in `src/sagiha/domain/work.py`. See [Contracts to Code](../implementation/contracts-to-code.md) and [Domain Schemas](./domain-schemas.md). Key semantics: `check` is a machine-executable command; non-`required` criteria rank candidates without admitting them; goal modifications produce new `TaskSpec` revisions (`revision + 1`).
 
-## **The Task Model**
+## **Machine-Checkable Criteria**
 
-The contract lives in **`src/sagiha/domain/work.py`** (`AcceptanceCriterion`, `TaskSpec`) — this
-document carries the rules and rationale only, per
-[Contracts to Code](../implementation/contracts-to-code.md). Key semantics: `check` is a
-machine-executable command run via `Toolchain`; non-`required` criteria rank but never admit; a
-mid-run goal change produces a **new revision**, never a mutation. Navigation copy in
-[Domain Schemas](./domain-schemas.md).
+Criteria must be machine-verifiable commands (`pytest`, `mypy --strict`, HTTP health checks). Non-verifiable items belong in `goal` as context.
 
-## **Acceptance Criteria Must Be Machine-Checkable**
+## **Execution Profiles & Unverified Completion**
 
-`check` holds a command or predicate that returns pass/fail without human interpretation:
+`profile` selects the [execution profile](../02-architecture/execution-profiles.md). Gated tasks require machine checks. Tasks with no acceptance criteria terminate on model self-completion, are opt-in only (`coding` profile remains default), and are **excluded from benchmarks and outer-loop training sets**.
 
-| Good | Bad |
-| :---- | :---- |
-| `pytest tests/test_auth.py::test_expiry` | "authentication works correctly" |
-| `mypy src/ --strict` exits 0 | "types are clean" |
-| `curl -sf localhost:8000/health` | "the service starts" |
-| No new entries in `# type: ignore` census | "code quality is maintained" |
+## **Pre-execution & Decomposition**
 
-Criteria that cannot be expressed as a check belong in `goal` as context, never in `acceptance`. This distinction is what keeps the Evaluator honest: it evaluates only what can be verified, and everything else is explicitly acknowledged as unverified.
+* **Pre-authored Criteria**: Acceptance criteria are specified during DMARTIC Design prior to token expenditure.
+* **Sub-task Decomposition**: Sub-tasks contain a `parent_task_id`. Parent criteria are verified independently of child completion.
+* **Disjoint Closures**: Sub-tasks executed in parallel must have disjoint file closures derived via `CodeGraph.impacted_by()`. Overlapping sub-tasks are serialized.
 
-## **Profiles and Unverified Completion**
+## **Durability & Status Lifecycle**
 
-`profile` selects the [execution profile](../02-architecture/execution-profiles.md) — which ports the
-run mounts and what admits its result. It does **not** relax this file's rules: wherever acceptance
-criteria exist, they must still be machine-checkable, under every profile.
-
-What a profile can change is whether criteria exist at all. Some work has no verifiable success
-condition — a question, an explanation, a conversation — and forcing a synthetic `check` onto it
-produces a criterion that is satisfied by anything, which is worse than none.
-
-> **A task with no acceptance criteria and no gates terminates on the model's own completion signal.
-> Nothing independently verifies it.**
-
-That is a genuine epistemic downgrade from everything else this architecture insists on, and it is
-stated here rather than buried in a profile table. Three consequences follow:
-
-* `coding` remains the default. Un-verified completion is opt-in, never the fallback.
-* The profile is recorded in `run.started` and persisted with the trajectory, so no later analysis,
-  benchmark report, or outer-loop training set can mistake an ungated run for a gated one.
-* Such runs are **excluded from benchmark suites and from outer-loop evidence** by construction —
-  there is no measurement to contribute.
-
-## **Acceptance Is Authored Before Execution**
-
-The Design step of DMARTIC produces the `TaskSpec` including its acceptance criteria, and — for gated risk classes — that spec is what the human approves. Writing criteria first has three effects: it forces the ambiguity out of the request before tokens are spent, it gives the reviewer something concrete to react to, and it prevents the criteria from being quietly retrofitted to whatever the agent happened to produce.
-
-## **Decomposition**
-
-Sub-tasks carry `parent_task_id`, forming a task tree. Two rules govern decomposition:
-
-* A parent's acceptance is not satisfied merely because every child's is. The parent's own criteria are checked independently, since integration failures live precisely in the gaps between correct parts.
-* Sub-tasks dispatched in parallel must have **disjoint file-set closures**, computed via `CodeGraph.impacted_by()`. Overlapping sub-tasks are serialized. Partitioning at dispatch time is far cheaper and more reliable than resolving conflicts at merge time.
-
-## **Durability and Resumption**
-
-`TaskSpec` is persisted, not held in memory. A run that is interrupted, gated on human approval, or resumed hours later reloads the spec and its trajectory. This is what makes asynchronous approval gates workable: the task waits durably rather than occupying a live process, and the human replies whenever they get to it.
-
-## **Status Transitions**
+`TaskSpec` is persisted to disk to support long-horizon execution and durable approval parking.
 
 ```
 submitted → working → { input-required | auth-required } → working → { completed | failed | canceled }
 ```
 
-`input-required` and `auth-required` are **first-class resting states**, not errors. A task parked on an approval request is healthy, and the system reports it as such rather than as a stall.
+`input-required` and `auth-required` represent healthy resting states for human-in-the-loop interactions.
 
-## **`PRDSpec` and `StoryBoard` (Macro Layer)**
+## **Macro Layer (`PRDSpec` & `StoryBoard`)**
 
-> [!IMPORTANT]
-> These models belong to the [workflow orchestration layer](../04-workflows-and-loops/workflow-orchestration-and-dags.md)
-> defined by [ADR-0018](../08-decisions/0018-native-workflow-dag.md), which is a **non-goal until
-> the inner loop closes** (Sprint 3's exit test). They are specified here now, ahead of
-> implementation, so `TaskSpec`'s decomposition rules above have a documented upstream producer —
-> they do not exist in `src/` yet and carry no runtime behavior today.
+Defined for the [workflow orchestration layer](../04-workflows-and-loops/workflow-orchestration-and-dags.md) ([ADR-0018](../08-decisions/0018-native-workflow-dag.md)); non-goal until the inner loop closes.
 
-`PRDGeneratorStep` turns a free-text prompt into a `PRDSpec`: scope, explicit non-goals, and
-constraints, structured enough that `StoryDecomposerStep` can act on it without re-interpreting the
-original prompt. A `PRDSpec` is not itself executable — it has no `check` and admits nothing.
+* **`PRDSpec`**: Generated by `PRDGeneratorStep` (scope, non-goals, constraints). Non-executable.
+* **`StoryBoard`**: Generated by `StoryDecomposerStep` holding ordered `StorySpec` items linked to `PRDSpec` with disjoint file closures.
+* **`StorySpec`**: Converted to `TaskSpec` with machine-checkable criteria upon picking by `CodingStep`.
 
-`StoryDecomposerStep` turns a `PRDSpec` into a `StoryBoard`: an ordered collection of `StorySpec`
-values. Each `StorySpec` carries a `parent_task_id`-equivalent link back to the `PRDSpec` and a
-disjoint file-set closure, computed the same way `TaskSpec` decomposition already requires above —
-this is the same rule, applied one layer higher, not a new one. A `StorySpec` is converted to a
-`TaskSpec` (with machine-checkable `acceptance`) only when `CodingStep` picks it off the board; the
-board itself holds no acceptance criteria of its own.
-
-**Lifecycle:**
-
-```
-PRDSpec:    drafted → decomposed → superseded (on prompt revision, never mutated)
-StoryBoard: open → story-in-progress → story-verified → board-complete
-StorySpec:  queued → active → { done | returned-to-board }
-```
-
-A `StorySpec` returned by `VerifierStep` goes back to `queued` with the `GateReport` attached as
-context for re-scoping — the same non-mutation discipline `TaskSpec` revisions already follow: a
-returned story is a new attempt, not an edited one.
-
-Once implementation begins, `PRDSpec`, `StoryBoard`, and `StorySpec` are defined in
-`src/sagiha/domain/work.py` beside `TaskSpec` and `AcceptanceCriterion`, per
-[Contracts to Code](../implementation/contracts-to-code.md). This document carries rules and
-rationale only.
+**Lifecycles**:
+* `PRDSpec`: `drafted → decomposed → superseded`
+* `StoryBoard`: `open → story-in-progress → story-verified → board-complete`
+* `StorySpec`: `queued → active → { done | returned-to-board }`

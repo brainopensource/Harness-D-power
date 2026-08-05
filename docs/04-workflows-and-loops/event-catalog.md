@@ -113,7 +113,7 @@ The **requested / authorized** split is deliberate: it makes the policy decision
 
 | Event | Payload | Emitted by | Consumers | Replay |
 | :--- | :--- | :--- | :--- | :--- |
-| `gate.evaluated` | `gate_report` | Evaluator | TS OT UI HK MI | ✅ |
+| `gate.evaluated` | `gate_report`, `attempt` | Evaluator | TS OT UI HK MI | ✅ |
 | `review.completed` | `review` | Reviewer | TS MI UI | ❌ |
 | `candidate.proposed` | `branch_id`, `strategy`, `budget_usd` | CandidateSearch | TS OT UI | ✅ |
 | `candidate.selected` | `branch_id`, `gate_report`, `selection_basis`, `diversity_ratio` | CandidateSearch | TS OT UI | ✅ |

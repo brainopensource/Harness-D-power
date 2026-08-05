@@ -90,6 +90,26 @@ class GateReport(BaseModel):
         return self.acceptance_met and all(getattr(self, name, None) is True for name in self.required_gates)
 
 
+class RepairContext(BaseModel):
+    """What the agent is told after a failed gate re-enters the same run (v2-S7f).
+
+    Structural, not free text — `render_repair_prompt` turns this into the message
+    `ContextAssembler.append_repair_turn` appends. Distinct from Best-of-N's candidate-level
+    revision (`SearchConfig.max_repair_rounds` in `adapters/search/best_of_n.py`): this repairs
+    *in place*, inside one trajectory; BoN revises into a new sibling candidate to rank.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    #: 1-based — attempt 1 is the first repair turn, following the initial (unnumbered) attempt.
+    attempt: int
+    failed_criteria: tuple[CriterionResult, ...] = ()
+    #: Names of required `GateReport` fields that reported an explicit `False` this attempt.
+    failed_gates: tuple[str, ...] = ()
+    #: Tail of the failing check's stdout/stderr — bounded by `RepairConfig.output_tail_lines`.
+    truncated_output: str = ""
+
+
 class ReviewFinding(BaseModel):
     model_config = ConfigDict(frozen=True)
 

@@ -87,11 +87,7 @@ def test_parse_symbol_ref_nested_method_resolves_module_path() -> None:
 
 @pytest.mark.asyncio
 async def test_index_file_stores_class_kind(code_graph: TreeSitterCodeGraph) -> None:
-    source = (
-        b"class Greeter:\n"
-        b"    def shout(self, name: str) -> str:\n"
-        b"        return name.upper()\n"
-    )
+    source = b"class Greeter:\n    def shout(self, name: str) -> str:\n        return name.upper()\n"
     tree = parse_python(source)
     edges, symbol_meta = code_graph.index_file_from_tree("pkg/util.py", source, tree)
     code_graph.replace_file_edges("pkg/util.py", edges, symbol_meta)

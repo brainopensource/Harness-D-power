@@ -1,0 +1,31 @@
+=== host facts ===
+git      : 0389f89 (refactor_aether_V210)
+python   : Python 3.14.6
+podman   : podman version 5.8.4
+date     : 2026-08-01T20:00:00Z
+
+=== pytest (full) ===
+358 passed, 0 failed
+
+=== pyright ===
+0 errors, 0 warnings
+
+=== lint-imports ===
+Contracts: 5 kept, 0 broken.
+
+=== ruff check ===
+All checks passed!
+
+=== ruff format --check ===
+308 files already formatted.
+
+=== docs budget ===
+OK: normative word count 14,899 is within ceiling 15,000.
+
+=== link integrity ===
+OK: every relative link in 122 markdown files under docs/ resolves.
+
+=== event catalog ===
+docs/04-workflows-and-loops/event-catalog.md is up to date (38 events)
+
+VERIFY: ALL GATES PASSED — P0 COMPLETE.
