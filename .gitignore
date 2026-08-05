@@ -94,7 +94,12 @@ logs/
 
 # Node (if ever used alongside)
 .sagiha/
+
+# Vendored reference harnesses — cloned for study, never imported, never committed.
+# See docs/rationale/rewrite/rewrite_v300_reference_teardowns.md
 /src/claude_code/
+/src/codex_cli/
 /src/grok_build/
 /src/hermes_agent/
+/src/hermes_self_evolution/
 /src/open_code/
