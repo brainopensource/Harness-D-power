@@ -15,7 +15,10 @@ you need to know what is true.
 | [`measurement.md`](./measurement.md) | 2 | **Normative.** The instrument protocol, the A/A floor, gate design |
 | [`decisions/`](./decisions/README.md) | 2 | ADRs. Every decision with its reversal condition |
 | [`STATUS.md`](./STATUS.md) | — | What is actually implemented. No claim without a line-level code read |
-| [`00/`](./00/) | 3 | Phase 0 trail — the audit, the fork adjudication, the decision record. History |
+| [`development/`](./development/core_skeletons_and_protocols.md) | 3 | Pre-Phase 1 engineering specs — skeletons, schemas, diagrams, stack. Superseded by code as it lands |
+| [`agile/`](./agile/README.md) | 3 | Roadmap, milestone exit gates, backlog, sprints. Gate tables are `normative`; the rest is `rationale` |
+| [`concepts/`](./concepts/README.md) | 3 | Phase 0 trail — the audit, the fork adjudication, the decision record. History |
+| [`fixes/`](./fixes/proposal_improvements_and_fixes.md) | 3 | The Phase 0 lock audit (D1–D21) and its execution roadmap. History once executed |
 
 ---
 
@@ -28,13 +31,25 @@ When a document and the code disagree, **the document is the bug**.
 from `domain/events.py` with a CI drift check. Port shapes are asserted by reflection. Nothing
 in this tree restates something a test already enforces.
 
-**Normative words are budgeted.** `scripts/docs_budget.py` enforces a ceiling in CI. A PR
-adding N normative words deletes N. ADRs are exempt — they are short, and each one *replaces*
-long-form derivation elsewhere.
+**Normative words are budgeted.** `scripts/docs_budget.py` enforces a **15,000-word ceiling**
+in CI. A PR adding N normative words deletes N. ADRs are exempt — they are short, and each one
+*replaces* long-form derivation elsewhere.
 
 **Every document declares a `status:`** — `normative`, `rationale`, or `historical`. Untagged
 fails the gate: an untagged file is invisible to the budget, which would make "no frontmatter"
 a way to add normative words for free.
+
+**Binding content declares itself binding.** `status:` is not a budget dial. If a table
+constrains what may ship, it is `normative` and it counts — which is why
+[`agile/milestones.md`](./agile/milestones.md) and [`agile/roadmap.md`](./agile/roadmap.md)
+carry `normative` despite living in a management directory: their exit gates decide when a
+phase ends. Tagging gate-bearing content `rationale` to stay under the ceiling is the one
+evasion this budget cannot detect, so it is named here and forbidden rather than left to
+judgement.
+
+**Both docs gates ship with a test proving they can fail.** `tests/unit/test_docs_gates.py`
+plants a dead link and an untagged file and asserts each gate returns non-zero. Before it
+existed, `STATUS.md` reported both gates green while both were red.
 
 **Five diagrams, total.** Layer graph · run-loop sequence · dispatch choke point · context
 prefix layout · phase dependency graph. Each encodes something a previous attempt got wrong.
@@ -50,6 +65,7 @@ Superseded. Everything under `docs/_archive/` is tagged `historical` and
 **This tree does not depend on it.** Anything load-bearing was carried forward into the
 documents above — the decisions into [`decisions/`](./decisions/README.md), the measurement
 history into [`measurement.md`](./measurement.md), the Phase 0 adjudication into
-[`00/`](./00/). The archive can be deleted without breaking a link or losing a binding claim.
+[`concepts/`](./concepts/README.md). The archive can be deleted without breaking a link or
+losing a binding claim.
 
 Read it as history, never as instructions. It audits `src/sagiha/`, which is retired.

@@ -185,7 +185,7 @@ flowchart LR
     subgraph CONSUMERS["consumers — no privileged access"]
         TUI["textual TUI"]
         CLI["CLI / CI reporter"]
-        TSTORE["TrajectooryStore adapter<br/>(sqlite, WAL) — durable log"]
+        TSTORE["TrajectoryStore adapter<br/>(sqlite, WAL) — durable log"]
         METRICS["measurement harvester<br/>(timers, token/layer costs)"]
     end
 

@@ -1,6 +1,12 @@
+---
+status: rationale
+retrieval: excluded
+updated: 2026-08-06
+---
+
 # PROPOSAL — Agile & Benchmark Refinement (`docs/agile/`, `measurement.md`)
 
-Companion to `PROPOSAL_ARCHITECTURAL_AUDIT.md` (defect IDs D1–D21 referenced throughout). This document does two things: critiques the M0–M3 plan as scheduled, and proposes the amended measurement protocol in ratifiable form.
+Companion to [`proposal_architecture_audit.md`](./proposal_architecture_audit.md) (defect IDs D1–D21 referenced throughout). This document does two things: critiques the M0–M3 plan as scheduled, and proposes the amended measurement protocol in ratifiable form.
 
 ---
 

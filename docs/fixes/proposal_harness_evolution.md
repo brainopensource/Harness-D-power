@@ -1,3 +1,9 @@
+---
+status: rationale
+retrieval: excluded
+updated: 2026-08-06
+---
+
 # PROPOSAL — Harness Evolution Blueprint
 
 **Question answered**: does the Phase 0/1 foundation (`spec.md`, `vision.md`, ADRs) evolve into an advanced autonomous system — knowledge graphs, long-term memory, MCP, multi-agent orchestration, self-modification — without a rewrite and without stalling execution now?

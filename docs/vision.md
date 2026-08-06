@@ -153,7 +153,7 @@ last one.
 | Why a decision went the way it did | [`decisions/`](./decisions/README.md) — ADRs with reversal conditions |
 | How anything gets measured | [`measurement.md`](./measurement.md) |
 | What is actually built | [`STATUS.md`](./STATUS.md) |
-| How Phase 0 reached its decisions | [`00/`](./00/) — the audit and decision trail |
+| How Phase 0 reached its decisions | [`concepts/`](./concepts/README.md) — the audit and decision trail |
 
 **Contracts live in code.** When a document and `src/aether/ports/` disagree, the code is
 right and the document is a bug.

@@ -31,11 +31,45 @@ Two facts change the sequencing:
 | :--- | :--- | :--- |
 | **M0** | `WorkflowStep[In, Out]` — node and socket types only. **No executor** | Near zero |
 | **M1a** | Walking skeleton runs as a **four-node linear graph** (`retrieve → generate → apply → evaluate`) through a trivial executor. Nodes execute unconditionally | Small |
+| **M1a+** | **The repair edge** — `evaluate →(fail, k)→ repair → apply → evaluate`, a bounded iteration | Small |
 | **M2** | **Per-node memoization keyed by input digest**; partial re-execution | Real |
 | **M3** | Branching, fan-out, conditional paths — parallel candidates as graph structure | Real |
 
 **The graph is the execution structure; the event stream is the observation structure.**
 Nodes emit events as they run; **events never drive node scheduling.**
+
+### The repair edge (rev. 2, 2026-08-06)
+
+[`vision.md`](../vision.md) §2 names the failing-test→context repair edge **"the single
+largest lever on score in the entire system."** Rev. 1's four-node pipeline terminates on
+first evaluation and cannot express it. The project's stated biggest lever had no node, no
+gate and no task.
+
+**A bounded cycle is still a DAG.** A repair loop with a static unroll bound `k` expands to
+`repair₁ … repair_k` at plan time, so the acyclic model is preserved exactly and no new
+execution semantics are introduced. Topologies declare it as a block:
+
+```
+repair: { from_node: evaluate, via_nodes: [repair, apply], back_to: evaluate,
+          max_iterations: k, budget_per_iteration: {...} }
+```
+
+Three constraints, enforced by the validator, not by convention:
+
+1. **`max_iterations` is mandatory and bounded** (1–16). An unbounded repair loop is the
+   "looping forever" failure `vision.md` names, expressed as a graph.
+2. **Each iteration reserves its own budget** through the governor's reserve/commit/release
+   triple — repair is where per-task cost actually escapes.
+3. **`on_instrument_error` never routes into repair.** A `GateReport` of `None` means the
+   instrument failed, not that the candidate is wrong; repairing against it teaches the loop
+   to fix the harness's own bugs. It routes to a terminal flag node
+   ([`measurement.md`](../measurement.md) §2, B4).
+
+Because repair is a *node* rather than logic hidden inside `generate`, it is memoizable at
+M2 and ablatable in isolation — which is the entire reason the graph abstraction exists.
+Repair-on vs repair-off is **M2's first capability ablation**, ahead of the generated-context
+and Architect/Editor ablations, because it is the largest expected effect and therefore the
+one whose measurement is worth the most.
 
 ## Consequences
 
@@ -47,6 +81,14 @@ phase where the abstraction starts earning its keep.
 
 A second load appears at decomposition: task dependencies with auto-unblocking. That is a
 real reason for the graph beyond memoization.
+
+A third, added in rev. 2: **the repair edge makes the node abstraction earn its keep at
+M1a+ rather than M2.** A pipeline that terminates on first evaluation would have made the
+graph look gratuitous for a whole milestone.
+
+**Node composition became data** in [ADR-0014](./0014-workflow-topology-is-data.md). Node
+*implementations* remain code; the four-node skeleton and the repair block above are the
+first declarative topologies. That amendment does not change any phase in the table.
 
 ## Reversal Conditions
 

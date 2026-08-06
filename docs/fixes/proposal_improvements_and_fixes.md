@@ -1,6 +1,33 @@
+---
+status: rationale
+retrieval: excluded
+updated: 2026-08-06
+---
+
 # PROPOSAL — Improvements & Fixes to Lock `docs/` for Development
 
-Consolidated, file-by-file change list. Every item cross-references the audit (D-numbers, `PROPOSAL_ARCHITECTURAL_AUDIT.md`) or the refinement docs. Ordered so the tree can be locked in **three PRs**: PR-1 (S1 blockers), PR-2 (spec/ADR amendments), PR-3 (hygiene). New ADRs are drafted in outline at the end.
+> **EXECUTED 2026-08-06.** This proposal has been applied to the tree and is now history; it
+> is not maintained. What is true is [`../spec.md`](../spec.md) and
+> [`../decisions/`](../decisions/README.md).
+>
+> **Two divergences from the text below, recorded so the difference is not read as drift:**
+>
+> 1. **Item 27 went the other way.** The recommendation was to rename `docs/concepts/` →
+>    `docs/00/`; the decision was to **keep `concepts/`** and fix the seven inbound links.
+>    The live tree names its directories (`decisions/`, `agile/`, `development/`, `fixes/`);
+>    `00/` was the archive's numbering convention and the archive is slated for deletion.
+> 2. **Item 29 went the other way.** The `status: operational` tag was not introduced.
+>    Gate-bearing files (`agile/milestones.md`, `agile/roadmap.md`) were retagged
+>    `status: normative` instead — they bind, so they count. Measured cost: 910 words against
+>    ~11,000 of headroom, so a third tag bought nothing a retag did not.
+>
+> **One defect this proposal missed**, found by running the gate rather than reading it: five
+> files under `docs/` carried no `status:` frontmatter — the four in this directory and
+> `concepts/rewrite_v300_agi_path_after_all_milestones_are_delivered.md`. The docs-budget job
+> was failing on those, not on word count (3,009 against a 15,000 ceiling). D6 diagnosed an
+> inflated ceiling; the gate was red for an unrelated reason.
+
+Consolidated, file-by-file change list. Every item cross-references the audit (D-numbers, [`proposal_architecture_audit.md`](./proposal_architecture_audit.md)) or the refinement docs. Ordered so the tree can be locked in **three PRs**: PR-1 (S1 blockers), PR-2 (spec/ADR amendments), PR-3 (hygiene). New ADRs are drafted in outline at the end.
 
 ---
 
@@ -47,7 +74,7 @@ Consolidated, file-by-file change list. Every item cross-references the audit (D
 16. **§5/§2**: add I11 (TaintGate) as a real invariant with enforcement (pinned injection-corpus red-team gate: zero capability grants from untrusted spans), replacing the current single sentence. Point at ADR-0015. (D16)
 17. **§9**: add the predecessor-code clause: repository-internal predecessor code may be ported verbatim when its claimed properties verify line-by-line, provenance noted in the module docstring. (D18)
 18. Add a one-paragraph **port versioning rule**: protocols additive-only within a minor version; breaking change = new protocol name entering under ADR-0005. (audit §2)
-19. Fix all `[`00/`](./00/)` links (see PR-3 item 27 for the directory decision).
+19. Fix all `00/` links (see PR-3 item 27 for the directory decision).
 
 ### `docs/measurement.md`
 20. **§3**: incorporate ADR-0003 rev.2 — derived N with pre-registered discordance assumption and 80% power at the minimal effect of interest; tiered N (50 smoke / ~150 admission / ~300 publication) or group-sequential with α-spending; pass-aggregation rule (primary = pass@1, first seeded pass; extra passes = flakiness estimate only); machine-declared gate family committed to TCB before any arm runs. (D1, D14, refinement §2.4)
@@ -78,7 +105,7 @@ Consolidated, file-by-file change list. Every item cross-references the audit (D
 
 ## New ADRs to draft (outlines)
 
-**ADR-0014 — Workflow topology is data.** Context: loop-engineering cadence and machine self-redesign both require topology variants without code PRs; ADR-0006's mutable surface excludes topology. Decision: topologies are hash-pinned declarative artifacts validated by a TCB schema/executor; static checks = socket type-compatibility, non-bypassable evaluator node, bounded iteration, declared fan-out; topologies join the ADR-0006 mutable surface, admitted only via ADR-0003 rev.2. Consequences: M1a skeleton is the first data topology (zero momentum cost); rollback = pin change. Reversal: ADR-0013's existing escape hatch extends — if unearned at M2, collapse to sequential pipeline. (Full rationale: `PROPOSAL_HARNESS_EVOLUTION_BLUEPRINT.md` §2.)
+**ADR-0014 — Workflow topology is data.** Context: loop-engineering cadence and machine self-redesign both require topology variants without code PRs; ADR-0006's mutable surface excludes topology. Decision: topologies are hash-pinned declarative artifacts validated by a TCB schema/executor; static checks = socket type-compatibility, non-bypassable evaluator node, bounded iteration, declared fan-out; topologies join the ADR-0006 mutable surface, admitted only via ADR-0003 rev.2. Consequences: M1a skeleton is the first data topology (zero momentum cost); rollback = pin change. Reversal: ADR-0013's existing escape hatch extends — if unearned at M2, collapse to sequential pipeline. (Full rationale: [`proposal_harness_evolution.md`](./proposal_harness_evolution.md) §2.)
 
 **ADR-0015 — TaintGate provenance model.** Context: pillar-3 injection defense currently one sentence. Decision: every context span carries a provenance label (`trusted-system`, `operator`, `agent`, `untrusted-external`, `untrusted-derived`); propagation is deterministic (outputs computed over untrusted spans are `untrusted-derived`); binding rule: untrusted/derived spans can never satisfy a policy predicate that grants or widens capability. Enforcement: pinned injection corpus in CI, gate = zero grants; corpus is TCB. Reversal: none on the binding rule; corpus contents revisable with audit trail.
 

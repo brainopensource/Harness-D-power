@@ -1,3 +1,9 @@
+---
+status: rationale
+retrieval: excluded
+updated: 2026-08-06
+---
+
 # PROPOSAL — Architectural Audit of `docs/` (AETHER v3.0.0)
 
 **Scope**: `docs/` tree only (root core, `concepts/`, `agile/`, `decisions/`). `_archive/` and `src/sagiha/` excluded per mandate.

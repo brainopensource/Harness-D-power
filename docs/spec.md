@@ -12,7 +12,8 @@ points at it — `src/aether/ports/` defines, `docs/spec.md` navigates.
 **When this document and the code disagree, the code is right and this document is the bug.**
 
 Decisions and their reversal conditions are ADRs under [`decisions/`](./decisions/README.md).
-Why any of it is so is [`vision.md`](./vision.md) and the Phase 0 trail in [`00/`](./00/).
+Why any of it is so is [`vision.md`](./vision.md) and the Phase 0 trail in
+[`concepts/`](./concepts/README.md).
 
 ---
 

@@ -57,5 +57,6 @@ and that exemption is abused by writing an essay.
 
 Where a decision can be a contract in code, write the contract and let the ADR point at it.
 
-**How these decisions were reached:** [`../00/`](../00/) — the audit register, the corrected
-brief, and the decision record. That trail is history and is not maintained.
+**How these decisions were reached:** [`../concepts/`](../concepts/README.md) — the audit
+register, the corrected brief, and the decision record. That trail is history and is not
+maintained.
