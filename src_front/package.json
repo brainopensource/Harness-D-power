@@ -1,0 +1,16 @@
+{
+  "name": "aether-frontend-suite",
+  "private": true,
+  "packageManager": "pnpm@11.20.0",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.0",
+    "typescript": "^5.7.0"
+  }
+}

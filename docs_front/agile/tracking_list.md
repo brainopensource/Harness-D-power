@@ -13,11 +13,11 @@ This tracking list serves as the central living document for monitoring the deve
 
 | Sprint | Scope / Focus | Total Tasks | Completed | In Progress | Pending | Progress (%) | Target Milestone |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
-| **Sprint FE-01** | Monorepo Setup, `@aether/core` Stores & Mock Replay Engine | 6 | 0 | 0 | 6 | `0%` | FE-01 Foundation |
-| **Sprint FE-02** | TUI CLI Development (`apps/cli` - React + Ink) | 5 | 0 | 0 | 5 | `0%` | FE-02 Terminal CLI |
+| **Sprint FE-01** | Monorepo Setup, `@aether/core` Stores & Mock Replay Engine | 6 | 6 | 0 | 0 | `100%` | FE-01 Foundation |
+| **Sprint FE-02** | TUI CLI Development (`apps/cli` - React + Ink) | 5 | 5 | 0 | 0 | `100%` | FE-02 Terminal CLI |
 | **Sprint FE-03** | GUI Canvas (`apps/desktop` - Tauri v2 + `xyflow`) | 5 | 0 | 0 | 5 | `0%` | FE-03 Desktop GUI |
 | **Sprint FE-04** | Monaco Diff Reviewer, McNemar Dashboard & Live WS | 4 | 0 | 0 | 4 | `0%` | FE-04 Integration |
-| **TOTAL** | **Full Front-End Client Suite** | **20** | **0** | **0** | **20** | `0%` | **V1.0 Release** |
+| **TOTAL** | **Full Front-End Client Suite** | **20** | **11** | **0** | **9** | `55%` | **V1.0 Release** |
 
 ---
 
@@ -35,7 +35,7 @@ This tracking list serves as the central living document for monitoring the deve
 
 > **Goal**: Scaffold `src_front/` pnpm monorepo, implement Zustand core stores, Zod event schema validators, `AetherWebsocketClient`, and `MockCassettePlayer` replay engine with pre-recorded cassettes.
 
-- [ ] **TASK-FE-000**: Monorepo Workspace & Turborepo Build Pipeline Setup
+- [x] **TASK-FE-000**: Monorepo Workspace & Turborepo Build Pipeline Setup
   - **Complexity**: 🟡 Medium | **Role**: Normal Developer
   - **Target Files**: `src_front/pnpm-workspace.yaml`, `src_front/package.json`, `src_front/turbo.json`, `src_front/.eslintrc.js`
   - **Dependencies**: None
@@ -44,7 +44,7 @@ This tracking list serves as the central living document for monitoring the deve
     2. `pnpm install` and `pnpm build` execute cleanly across all packages via Turborepo.
     3. Import linter rule blocks any cross-import pointing directly to backend `src/aether/`.
 
-- [ ] **TASK-FE-001**: Domain Event Types, Zod Schemas & Shared Contracts
+- [x] **TASK-FE-001**: Domain Event Types, Zod Schemas & Shared Contracts
   - **Complexity**: 🟢 Easy | **Role**: Junior Developer
   - **Target Files**: `src_front/packages/core/src/types/events.ts`, `src_front/packages/core/src/types/gate.ts`, `src_front/packages/core/src/types/budget.ts`
   - **Dependencies**: `TASK-FE-000`
@@ -52,7 +52,7 @@ This tracking list serves as the central living document for monitoring the deve
     1. TypeScript interfaces and Zod schemas defined for tri-state `GateStatus` (`PASSED`, `FAILED`, `NONE` instrument error), `GateReport`, `Provenance` labels, integer `BudgetDims`, `BridgeEvent` envelope, and wire payloads.
     2. Zod validation functions parse raw wire JSON into validated domain event objects.
 
-- [ ] **TASK-FE-002**: Partitioned Zustand Core Domain Stores
+- [x] **TASK-FE-002**: Partitioned Zustand Core Domain Stores
   - **Complexity**: 🟡 Medium | **Role**: Normal Developer
   - **Target Files**: `src_front/packages/core/src/stores/useEngineStore.ts`, `useWorkflowStore.ts`, `useBudgetStore.ts`, `usePatchStore.ts`, `useMetricsStore.ts`, `useTaintStore.ts`
   - **Dependencies**: `TASK-FE-001`
@@ -60,7 +60,7 @@ This tracking list serves as the central living document for monitoring the deve
     1. Six domain-partitioned Zustand stores implemented (`useEngineStore`, `useWorkflowStore`, `useBudgetStore`, `usePatchStore`, `useMetricsStore`, `useTaintStore`).
     2. Unit tests verify independent state updates without cross-store re-render pollution.
 
-- [ ] **TASK-FE-003**: WebSocket Protocol Client & SSE Transport Driver
+- [x] **TASK-FE-003**: WebSocket Protocol Client & SSE Transport Driver
   - **Complexity**: 🔴 Hard | **Role**: Senior Developer
   - **Target Files**: `src_front/packages/core/src/client/AetherWebsocketClient.ts`
   - **Dependencies**: `TASK-FE-001`, `TASK-FE-002`
@@ -68,7 +68,7 @@ This tracking list serves as the central living document for monitoring the deve
     1. `AetherWebsocketClient` manages bi-directional WebSocket connection, auto-reconnect, and SSE read-only fallback.
     2. Validates incoming wire events using Zod schemas and dispatches to Zustand stores.
 
-- [ ] **TASK-FE-004**: Deterministic Mock Cassette Replay Engine & Bundled Fixtures
+- [x] **TASK-FE-004**: Deterministic Mock Cassette Replay Engine & Bundled Fixtures
   - **Complexity**: 🔴 Hard | **Role**: Senior Developer
   - **Target Files**: `src_front/packages/mock-server/src/MockCassettePlayer.ts`, `src_front/packages/mock-server/cassettes/swe_bench_pass.json`, `repair_loop_ablation.json`
   - **Dependencies**: `TASK-FE-001`
@@ -76,7 +76,7 @@ This tracking list serves as the central living document for monitoring the deve
     1. `MockCassettePlayer` supports `loadCassette()`, `play(speedMultiplier)`, `pause()`, `resume()`, `stepForward()`.
     2. Cassette JSON files (`swe_bench_pass.json`, `repair_loop_ablation.json`) committed and verified for sequential replay.
 
-- [ ] **TASK-FE-005**: Shared Custom React Stream & Audit Hooks
+- [x] **TASK-FE-005**: Shared Custom React Stream & Audit Hooks
   - **Complexity**: 🟡 Medium | **Role**: Normal Developer
   - **Target Files**: `src_front/packages/core/src/hooks/useAetherStream.ts`, `useNodeTrace.ts`, `useBudget.ts`, `useTaintAudit.ts`
   - **Dependencies**: `TASK-FE-002`, `TASK-FE-003`, `TASK-FE-004`
@@ -90,7 +90,7 @@ This tracking list serves as the central living document for monitoring the deve
 
 > **Goal**: Implement terminal-based dashboard using React 19 + Ink with streaming log viewer, budget meters, gate status indicators, and interactive keybindings.
 
-- [ ] **TASK-FE-010**: React 19 + Ink TUI Application Shell & Executable Bundler
+- [x] **TASK-FE-010**: React 19 + Ink TUI Application Shell & Executable Bundler
   - **Complexity**: 🟡 Medium | **Role**: Normal Developer
   - **Target Files**: `src_front/apps/cli/src/App.tsx`, `src_front/apps/cli/src/index.tsx`, `src_front/apps/cli/package.json`
   - **Dependencies**: Sprint FE-01
@@ -98,7 +98,7 @@ This tracking list serves as the central living document for monitoring the deve
     1. `@aether/cli` boots an interactive terminal UI using Ink and Yoga flexbox layout.
     2. `tsup` compiles app into a standalone executable script (`aether-cli`).
 
-- [ ] **TASK-FE-011**: Terminal Header & Real-time Budget Meter Component
+- [x] **TASK-FE-011**: Terminal Header & Real-time Budget Meter Component
   - **Complexity**: 🟢 Easy | **Role**: Junior Developer
   - **Target Files**: `src_front/apps/cli/src/components/Header.tsx`, `src_front/apps/cli/src/components/BudgetMeter.tsx`
   - **Dependencies**: `TASK-FE-010`
@@ -106,21 +106,21 @@ This tracking list serves as the central living document for monitoring the deve
     1. Displays active run ID, topology name, step progress, and integer budget indicators (USD micros, prompt/completion tokens, wall-clock ms).
     2. Updates live upon receiving `BudgetLeaseUpdated` events.
 
-- [ ] **TASK-FE-012**: Terminal Turn Log Stream & LLM Delta Parser
+- [x] **TASK-FE-012**: Terminal Turn Log Stream & LLM Delta Parser
   - **Complexity**: 🟡 Medium | **Role**: Normal Developer
   - **Target Files**: `src_front/apps/cli/src/components/TurnLogStream.tsx`
   - **Dependencies**: `TASK-FE-010`
   - **Acceptance Criteria**:
     1. Parses `ModelStreamDelta` events and streams text output and tool calls smoothly without terminal screen flickering.
 
-- [ ] **TASK-FE-013**: Terminal Tri-state Gate Indicator & Taint Audit Badges
+- [x] **TASK-FE-013**: Terminal Tri-state Gate Indicator & Taint Audit Badges
   - **Complexity**: 🟢 Easy | **Role**: Junior Developer
   - **Target Files**: `src_front/apps/cli/src/components/GateStatusIndicator.tsx`, `src_front/apps/cli/src/components/TaintAuditBadge.tsx`
   - **Dependencies**: `TASK-FE-010`
   - **Acceptance Criteria**:
     1. Renders `PASSED` (✓ green), `FAILED` (✗ red), and `NONE` (⚠ amber with instrument error detail). `NONE` is never rendered as passed.
 
-- [ ] **TASK-FE-014**: CLI Interactive Keybindings & Command Runner
+- [x] **TASK-FE-014**: CLI Interactive Keybindings & Command Runner
   - **Complexity**: 🟡 Medium | **Role**: Normal Developer
   - **Target Files**: `src_front/apps/cli/src/components/CommandRunner.tsx`
   - **Dependencies**: `TASK-FE-010`
