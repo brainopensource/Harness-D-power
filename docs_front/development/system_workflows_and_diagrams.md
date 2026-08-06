@@ -176,14 +176,14 @@ sequenceDiagram
     U->>UI: Review Monaco Diff -> Accept
     UI->>ST: acceptDiff(diffId, hunks)
     ST->>DR: Dispatch {commandType: "AcceptDiff"}
-    DR->>EN: Commit patch to worktree
+    DR->>EN: apply_patch via authorize->verify->lease->dispatch->release (operator provenance)
 
     U->>UI: Click 'Cancel Run'
     UI->>ST: cancelRun(reason)
     ST->>DR: Dispatch {commandType: "CancelRun"}
     DR->>EN: Release leases, halt execution
 
-    Note over DR,EN: Backend validates all inbound commands.<br/>Unauthorized or invalid commands return RPC Error.
+    Note over DR,EN: Backend validates all inbound commands.<br/>Unauthorized or invalid commands return RPC Error.<br/>AcceptDiff does not bypass the hard evaluation gates (I7-I9) —<br/>it is an operator-provenance effect, not a benchmark admission.
 ```
 
 ---

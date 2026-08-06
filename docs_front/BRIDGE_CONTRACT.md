@@ -7,7 +7,7 @@ updated: 2026-08-06
 
 This normative specification defines the communication protocol between the headless backend engine (`src/aether/engine.py`) and the front-end applications (`apps/cli` and `apps/desktop`).
 
-> **Event type naming rule**: Event type strings are **generated from `domain/events.py`** with a CI drift check (spec §8). The TypeScript discriminator union in `@aether/core/types/events.ts` MUST be CI-generated from the same source. The event names listed in this document are **provisional** — the canonical names are whatever `domain/events.py` defines. Until that module lands, the front-end uses the names below.
+> **Event type naming rule**: Event type strings are **generated from `domain/events.py`** with a CI drift check (spec §8). The TypeScript discriminator union in `@aether/core/types/events.ts` MUST be CI-generated from the same source. The event names listed in this document are **provisional PascalCase placeholders**, not a naming convention to preserve — the predecessor's `domain/events.py` used dot-separated wire values (e.g. `run.started`, `tool.call_authorized`), and `src/aether/domain/events.py` is expected to follow the same convention. Hand-written Zod schemas MUST NOT assume PascalCase literals; treat every name below as replaced wholesale once the generator runs.
 
 ---
 
@@ -140,6 +140,13 @@ interface BridgeEvent {
 | `EffectDenied` | `runId`, `effectClass`, `descriptor`, `decision`, `rationale` | An effect was rejected (display in taint audit panel). |
 | `TaintSpanEmitted` | `spanId`, `label: Provenance`, `text`, `source` | Context span assembled or produced (TaintGate audit). |
 
+**Open question — `TaintSpanEmitted` granularity**: `taint_gate.py` propagation (spec's
+`agency/context/`) runs deterministically and in-memory on every context assembly, which may be
+far higher frequency than a per-run WebSocket stream should carry. Whether every span gets a
+discrete event, or the UI derives labels from `ModelStreamDelta`/`ToolResult` metadata instead,
+is not yet decided and should be settled against real assembly frequency once
+`src/aether/agency/context/` exists — not assumed from this table.
+
 #### Budget & Resource Events
 
 | Event Type (provisional) | Payload Fields | Description |
@@ -179,6 +186,13 @@ interface BridgeCommand {
 | `RejectDiff` | `runId`, `diffId`, `reason?` | Rejects a proposed code patch with optional rationale. |
 | `ApproveMutation` | `candidateHash`, `familyId` | Approves a meta-loop proposed topology or prompt mutation (M4–M5). |
 | `RollbackTopology` | `targetHash` | Triggers structural topology rollback to a prior hash pin. |
+
+**`AcceptDiff` / `RejectDiff` scope**: these commands carry operator intent for a patch surfaced
+in the Code Diff Drawer. They are not a bypass of the hard evaluation gates (spec §2, I7–I9) —
+the backend applies an accepted diff through the same `authorize → verify grant → acquire lease
+→ dispatch → release` path (spec §5) as any other effect, labeled with `operator` provenance
+(ADR-0015). They do not admit a candidate into the meta-loop's benchmark/optimization pipeline;
+that admission is decided exclusively by the `EvaluatorPort`'s hard gates.
 
 ---
 

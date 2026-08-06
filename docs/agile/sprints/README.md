@@ -29,7 +29,7 @@ Writing `sprint-06.md` today is not planning. It is a forecast wearing a task li
 
 | Sprint | Goal | Milestones / blockers closed | Tasks |
 | :--- | :--- | :--- | :--- |
-| [**01**](./sprint-01.md) | Enforcement migration, pure domain, ports behind mocks, repo cache | M0 · B1 · B2a · B4 | `000` `001` `002` `003` `004` `005` `006` `010` `013` |
+| [**01**](./sprint-01.md) | Enforcement migration, pure domain, kernel choke point, ports behind mocks, repo cache | M0 · B1 · B2a · B4 | `000` `001` `002` `003` `004` `005` `006` `010` `013` |
 | [**02**](./sprint-02.md) | Real adapters, walking skeleton, the two F1 timers | M1a · B2b | `011` `017` `018` `019` `020` `021` `022` `026` `034` |
 | [**03**](./sprint-03.md) | Repair edge, evaluation container, manifests, **the floor run** | M1a+ · B3 · **A/A floor** | `012` `014` `015` `016` `023` |
 
@@ -58,7 +58,7 @@ These are not sprint files and should not become sprint files until the sprint b
 
 | Sprint | Track 1 — architecture | Track 2 — instrument |
 | :--- | :--- | :--- |
-| **01** | `000` `001` `002` `003` `004` `005` `006` | `010` `013` |
+| **01** | `000` `001` `002` `003` `004` `005` `006` (~3d) | `010` `013` (~3d) |
 | **02** | `017` `018` `020` `022` `026` `034` | `011` `019` `021` |
 | **03** | `023` | `012` `014` `015` `016` + the floor run |
 

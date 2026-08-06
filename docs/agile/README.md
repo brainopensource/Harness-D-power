@@ -23,7 +23,10 @@ This directory contains the operational management documentation for **AETHER v3
 | [`roadmap.md`](./roadmap.md) | Phased execution DAG (M0–M3) and instrument unblocking timeline |
 | [`milestones.md`](./milestones.md) | Quantitative, falsifiable exit gates and tripwires for all phases |
 | [`backlog.md`](./backlog.md) | Complete prioritized epic & task inventory with normative pointers |
-| [`sprints/sprint-01.md`](./sprints/sprint-01.md) | **Current Sprint**: M0 Domain/Ports, Blocker B1 utility, and core timers |
+| [`sprints/README.md`](./sprints/README.md) | **Sprint map** — what is planned in full, what is shape only, and why the horizon ends at the A/A floor |
+| [`sprints/sprint-01.md`](./sprints/sprint-01.md) | **Current Sprint**: TCB migration, pure domain, ports behind mocks, repo cache (B1) |
+| [`sprints/sprint-02.md`](./sprints/sprint-02.md) | Real adapters, the walking skeleton, the two F1 timers (M1a, B2b) |
+| [`sprints/sprint-03.md`](./sprints/sprint-03.md) | Repair edge, evaluation container, **the A/A floor run** (M1a+, B3) |
 
 ---
 

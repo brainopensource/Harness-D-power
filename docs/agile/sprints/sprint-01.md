@@ -10,7 +10,7 @@ updated: 2026-08-06
 * **Tripwire Window**: 5 Business Days (2026-08-06 to 2026-08-12)
 * **Position in the plan**: [`sprints/README.md`](./README.md)
 
-> **This sprint runs two tracks in parallel.** Serially its tripwires sum to 7 days against a 5-day window. Track 1 (Tasks 1–4, ~3d) and Track 2 (Tasks 5–6, ~4d) share only Task 0, which blocks both. One developer on both tracks trips the ADR-0009 tripwire on day one — that is the signal to split the work, not to compress it.
+> **This sprint runs two tracks in parallel.** Serially its tripwires sum to ~7 days against a 5-day window. **Track 1 — architecture**: Tasks 1, 2, 4, 5 (M0, ~3d). **Track 2 — instrument**: Tasks 3 and 6 (B1 + B4, ~3d), which depend on nothing in Track 1. They share only Task 0, which blocks both. One developer across both tracks trips the [ADR-0009](../../decisions/0009-gates-are-the-schedule.md) tripwire on day one — that is the signal to staff the second track or re-scope, never to compress the estimate.
 
 > **Task 0 is blocking and lands first.** It is not a formality: until it merges, [ADR-0006](../../decisions/0006-tcb-boundary-and-meta-loop-authority.md) is enforced by nothing while CI reports green. Every other task in this sprint creates `src/aether/` files, and each one that lands ahead of Task 0 widens that window.
 
@@ -51,14 +51,24 @@ updated: 2026-08-06
   2. Resolves **100% of base commits for the pinned floor-manifest task set** with zero `fatal: invalid reference:` errors.
   3. Cache is **content-addressed and offline-replayable**: a re-run with the network disabled resolves every base commit from cache. *(The previous gate, "zero network errors", was environment luck rather than a capability.)*
 
-### Task 4: Implement WorkflowStep Node & Socket Types (`TASK-004`)
+### Task 4: Kernel Dispatch & Policy Engine Choke Point (`TASK-003`)
+* **Target Seam**: `src/aether/kernel/dispatch.py`, `src/aether/kernel/policy.py`
+* **Specification Pointer**: [`spec.md` §5](../../spec.md#5-execution), [`spec.md` §2 (I5, I8)](../../spec.md#2-invariants), [ADR-0006](../../decisions/0006-tcb-boundary-and-meta-loop-authority.md)
+* **Acceptance Criteria**:
+  1. `authorize → verify grant → acquire lease → dispatch → release`. **`verify` runs immediately before the effect**, not at authorization — arguments change between issuance and use, and a resumed run can carry a stale grant.
+  2. Architecture test proves **no bypass path**: no adapter is invoked outside `dispatch.py`.
+  3. **The concrete `PolicyEngine` lives in `kernel/`, never `adapters/`** ([`spec.md` §4](../../spec.md#4-ports) residency rule). Put it in `adapters/` and `tcb-isolation` silently stops covering it.
+  4. Grants are kernel-internal — **no `Grant` appears in any public port signature**.
+* **Why it is in this sprint**: M0 Exit Gate 3 (`tcb-isolation`) needs `kernel/policy` to exist for the contract to select anything, and Task 0's rule is that a contract selecting nothing forbids nothing.
+
+### Task 5: Implement WorkflowStep Node & Socket Types (`TASK-004`)
 * **Target Seam**: `src/aether/workflow/step.py`
 * **Specification Pointer**: [ADR-0013 (M0)](../../decisions/0013-workflow-dag-phased.md)
 * **Acceptance Criteria**:
   1. `WorkflowStep[In, Out]` lands with socket types; steps receive **no adapter handles** — effects reach a dispatch facade injected by the executor, so the choke point is unavoidable by type.
   2. Pyright strict check passes with zero errors.
 
-### Task 5: Typed Tri-State `GateReport` (`TASK-013`) — pulled forward from M2
+### Task 6: Typed Tri-State `GateReport` (`TASK-013`) — pulled forward from M2
 * **Target Seam**: `src/aether/domain/gate.py`
 * **Specification Pointer**: [`measurement.md` §2 (B4)](../../measurement.md#2-instrument-blockers), [`milestones.md` B4](../milestones.md#blocker-b4--typed-instrument-error-handling)
 * **Acceptance Criteria**:
