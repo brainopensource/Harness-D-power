@@ -46,8 +46,9 @@ Rather than treating agent execution as a opaque black-box terminal loop, AETHER
 Users can visually construct, inspect, and tweak execution topologies. Nodes represent workflow steps (`Retrieve`, `Generate`, `Apply`, `Evaluate`, `Repair`), while edges denote data sockets and tri-state evaluation routing (`on_pass`, `on_fail`, `on_instrument_error`).
 
 ### Pillar 2: Live Execution Trace & Taint Audit
-Every node on the canvas reflects its execution state in real time:
-* **Idle** (gray) $\rightarrow$ **Running** (animated pulse) $\rightarrow$ **Passed** (green) / **Failed** (red) / **Instrument Error** (amber).
+Every node on the canvas reflects its execution state in real time, using the backend's **tri-state `GateStatus` enum** (`domain/gate.py`):
+* **Idle** (gray) → **Running** (animated pulse) → **Passed** / `GateStatus.PASSED` (green) / **Failed** / `GateStatus.FAILED` (red) / **Instrument Error** / `GateStatus.NONE` (amber).
+* `GateStatus.NONE` is semantically distinct from `FAILED`: it means the evaluation instrument itself errored (e.g., container crash, test command hash mismatch) — per B4 rule, it is excluded from the statistical denominator, never treated as a test failure.
 * Clicking any node or context span reveals its **TaintGate provenance label** (`trusted-system`, `operator`, `agent`, `untrusted-external`, `untrusted-derived`) per ADR-0015.
 
 ### Pillar 3: Split Code Diff & Patch Review

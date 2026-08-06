@@ -71,6 +71,21 @@ def resolve(source: Path, target: str) -> bool:
     return candidate.exists()
 
 
+def _display_path(md: Path) -> Path:
+    """Path to show in output: repo-relative when possible, absolute otherwise.
+
+    `md.relative_to(REPO_ROOT)` raises ValueError for any `--docs-root` outside the repo,
+    and it sat on the *failure* branch — so the reporting path crashed instead of reporting,
+    and only for trees that actually contained a dead link. It was found by
+    `tests/unit/test_docs_gates.py`, which checks the tree in a tmp dir: the first test to
+    plant a dead link is the first run that ever reached this line.
+    """
+    try:
+        return md.relative_to(REPO_ROOT)
+    except ValueError:
+        return md
+
+
 def check(docs_root: Path, *, list_all: bool = False) -> list[DeadLink]:
     dead: list[DeadLink] = []
     for md in sorted(docs_root.rglob("*.md")):
@@ -79,10 +94,9 @@ def check(docs_root: Path, *, list_all: bool = False) -> list[DeadLink]:
                 continue
             ok = resolve(md, target)
             if list_all:
-                rel = md.relative_to(REPO_ROOT)
-                print(f"{'ok  ' if ok else 'DEAD'} {rel} -> {target}")
+                print(f"{'ok  ' if ok else 'DEAD'} {_display_path(md)} -> {target}")
             if not ok:
-                dead.append(DeadLink(md.relative_to(REPO_ROOT), target))
+                dead.append(DeadLink(_display_path(md), target))
     return dead
 
 

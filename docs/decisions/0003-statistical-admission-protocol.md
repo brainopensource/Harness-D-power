@@ -30,13 +30,16 @@ committed target.** Monte-Carlo simulation of exact McNemar against a true +10-p
 
 | Discordance (p₀₁ / p₁₀) | N=50 | N=100 | N=200 | N=300 |
 | :--- | :--- | :--- | :--- | :--- |
-| clean (.12/.02) | 0.31 | 0.74 | 0.98 | 1.00 |
-| noisy (.20/.10) | 0.19 | 0.39 | 0.70 | 0.87 |
-| very noisy (.30/.20) | 0.12 | 0.25 | 0.49 | 0.67 |
+| clean (.12/.02) | 0.32 | 0.73 | 0.97 | 1.00 |
+| noisy (.20/.10) | 0.18 | 0.38 | 0.70 | 0.88 |
+| very noisy (.30/.20) | 0.12 | 0.25 | 0.48 | 0.66 |
+
+*(α = 0.05, 20,000 Monte-Carlo iterations, `seed=7`, stdlib only. Re-derivable from those
+four parameters and nothing else.)*
 
 Those are **before** the Holm–Bonferroni penalty. Holm tests the smallest p-value against
 `α/m`; in a five-hypothesis family the first comparison faces α = 0.01, where N = 50 yields
-**0.04–0.10 power**.
+**0.04–0.11 power**.
 
 A protocol that rejects nine true improvements in ten is not conservative. It is an engine
 for discarding real work, and its modal output — *"nothing clears the floor"* — is

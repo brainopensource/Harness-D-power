@@ -23,8 +23,8 @@ The front-end suite provides two primary interfaces to interact with the headles
 | :--- | :---: | :--- |
 | [`vision.md`](./vision.md) | 1 | Orientation, mission statement, UX principles, and altitude architecture. |
 | [`spec.md`](./spec.md) | 2 | **Normative.** Structural specification, invariants, state synchronization, and zero-privilege rules. |
-| [`BRIDGE_CONTRACT.md`](./BRIDGE_CONTRACT.md) | 2 | **Normative.** WebSocket/SSE event stream protocol, event schema mapping, and Mock/Live dual-mode engine. |
-| [`architecture.md`](./architecture.md) | 2 | Detailed monorepo package layout (`src_front/`), Zustand store topology, and component hierarchies. |
+| [`BRIDGE_CONTRACT.md`](./BRIDGE_CONTRACT.md) | 2 | **Normative.** WebSocket/SSE event stream protocol, shared type definitions (GateStatus, Provenance, BudgetDims), event schema mapping, command registry, and mock cassette engine. |
+| [`architecture.md`](./architecture.md) | 2 | Detailed monorepo package layout (`src_front/`), Zustand store topology (6 stores), DAG topology rendering specification, and component hierarchies. |
 | [`decisions/README.md`](./decisions/README.md) | 2 | Front-End Architecture Decision Records (ADR-F series). |
 | [`agile/roadmap.md`](./agile/roadmap.md) | 3 | Phased front-end roadmap (Sprint FE-01 to FE-04). |
 | [`agile/sprints/sprint-fe-01.md`](./agile/sprints/sprint-fe-01.md) | 3 | Sprint FE-01 implementation backlog and acceptance criteria. |
@@ -39,7 +39,7 @@ All front-end source code resides in `src_front/` configured as a **pnpm / Turbo
 src_front/
 ├── packages/
 │   ├── core/            # Shared React hooks, Zustand state stores, event stream client, domain models
-│   ├── ui-components/   # Shared presentation components & themes (Tailwind CSS)
+│   ├── ui-components/   # Desktop-GUI-only Tailwind components (not consumed by CLI)
 │   └── mock-server/     # Deterministic event cassette player for offline development & mock testing
 ├── apps/
 │   ├── cli/             # TUI CLI application (React + Ink)
@@ -56,3 +56,4 @@ src_front/
 * **Code Wins**: Contracts live in `src_front/packages/core/`. Documents navigate; code defines.
 * **Headless Decoupling**: The front-end has zero direct imports from `src/aether/`. All communication occurs via typed events over WebSocket/SSE ([`BRIDGE_CONTRACT.md`](./BRIDGE_CONTRACT.md)).
 * **Mock/Live Transparency**: Every front-end component functions identically whether consuming live engine events or mock cassette playback.
+* **Event Schema CI Generation**: TypeScript event types in `@aether/core/types/events.ts` are generated from `domain/events.py` with a CI drift check. Manual event type definitions are provisional.

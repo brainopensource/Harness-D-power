@@ -4,7 +4,7 @@ updated: 2026-08-05
 ---
 # ADR-0001: Python-First; Compiled Sidecars Only on a Measured Trigger
 
-**Status**: Accepted · **Date**: 2026-08-05 · **Fork**: F1
+**Status**: Accepted (provisional) · **Date**: 2026-08-05 · **Fork**: F1
 
 ## Context
 

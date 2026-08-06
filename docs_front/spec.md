@@ -27,13 +27,30 @@ All front-end applications (`apps/cli` and `apps/desktop`) import foundational s
 
 ```typescript
 // packages/core export structure
-export * from "./stores/useEngineStore";
-export * from "./stores/useWorkflowStore";
-export * from "./hooks/useAetherStream";
-export * from "./hooks/useTaintAudit";
+
+// Stores — one per state domain
+export * from "./stores/useEngineStore";      // connection, active run, raw event log
+export * from "./stores/useWorkflowStore";    // DAG nodes, edges, node execution states
+export * from "./stores/useTaintStore";       // context spans and TaintGate provenance labels
+export * from "./stores/useBudgetStore";      // budget ledger (reserved/committed/remaining)
+export * from "./stores/usePatchStore";       // pending code diffs from agent nodes
+export * from "./stores/useMetricsStore";     // self-improvement scores, A/B test results
+
+// Hooks
+export * from "./hooks/useAetherStream";      // event stream subscription (live + mock)
+export * from "./hooks/useTaintAudit";        // taint provenance inspection
+export * from "./hooks/useNodeTrace";         // per-node execution trace
+export * from "./hooks/useBudget";            // budget consumption helpers
+
+// Clients
 export * from "./client/AetherWebsocketClient";
 export * from "./client/MockCassettePlayer";
+
+// Types (CI-generated from domain/events.py)
 export * from "./types/events";
+export * from "./types/workflow";
+export * from "./types/budget";
+export * from "./types/gate";                 // GateStatus, GateReport, Provenance
 ```
 
 ---
@@ -47,12 +64,13 @@ export * from "./types/events";
   * `<TurnLogStream />`: Live streaming view of model messages, tool calls, and execution outputs.
   * `<TaskProgressHeader />`: Active run ID, budget meter (micro-USD, prompt/completion tokens, wall-clock ms), and active step indicator.
   * `<TaintAuditBadge />`: Visual label indicating context span provenance.
+  * `<GateStatusIndicator />`: Tri-state rendering — `PASSED` (green ✓), `FAILED` (red ✗), `NONE` (amber ⚠ with instrument error detail).
 
 ### 3.2 Desktop GUI (`src_front/apps/desktop`)
 * **Technology Stack**: Tauri v2 + React 19 + `xyflow` (React Flow) + Monaco Editor + Tailwind CSS + `@aether/core`.
 * **Platform Target**: Windows 11 / 10 (`x86_64-pc-windows-msvc`) and Linux (`x86_64-unknown-linux-gnu`).
 * **Key Views**:
-  1. **Workflow Canvas View**: Full n8n/ComfyUI-style node graph editor with interactive connection handles, socket type checks, and mini-map.
-  2. **Live Execution Trace Panel**: Embedded turn-by-turn inspector showing prompt prefix layers (L1–L5), raw LLM completions, and tool executions.
-  3. **Code Diff Drawer**: Monaco Editor side-by-side patch reviewer.
+  1. **Workflow Canvas View**: Full n8n/ComfyUI-style node graph editor with interactive connection handles, socket type checks, and mini-map. Custom edge rendering for conditional routing (`on_pass` green, `on_fail` red, `on_instrument_error` amber). Repair loop subgraphs rendered with bounded iteration badge. Fan-out sites rendered with candidate count and sequencing indicator.
+  2. **Live Execution Trace Panel**: Embedded turn-by-turn inspector showing prompt prefix layers (L1–L5), raw LLM completions, and tool executions. Node gate reports rendered with tri-state `GateStatus` (Passed/Failed/None with instrument error detail).
+  3. **Code Diff Drawer**: Monaco Editor side-by-side patch reviewer with `AcceptDiff` / `RejectDiff` command integration.
   4. **Self-Improvement Dashboard**: Statistical charts rendering A/B McNemar test results, Holm–Bonferroni adjusted p-values, and cost deltas.
