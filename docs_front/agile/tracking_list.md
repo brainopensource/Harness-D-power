@@ -15,9 +15,9 @@ This tracking list serves as the central living document for monitoring the deve
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
 | **Sprint FE-01** | Monorepo Setup, `@aether/core` Stores & Mock Replay Engine | 6 | 6 | 0 | 0 | `100%` | FE-01 Foundation |
 | **Sprint FE-02** | TUI CLI Development (`apps/cli` - React + Ink) | 5 | 5 | 0 | 0 | `100%` | FE-02 Terminal CLI |
-| **Sprint FE-03** | GUI Canvas (`apps/desktop` - Tauri v2 + `xyflow`) | 5 | 0 | 0 | 5 | `0%` | FE-03 Desktop GUI |
-| **Sprint FE-04** | Monaco Diff Reviewer, McNemar Dashboard & Live WS | 4 | 0 | 0 | 4 | `0%` | FE-04 Integration |
-| **TOTAL** | **Full Front-End Client Suite** | **20** | **11** | **0** | **9** | `55%` | **V1.0 Release** |
+| **Sprint FE-03** | GUI Canvas (`apps/desktop` - Tauri v2 + `xyflow`) | 5 | 5 | 0 | 0 | `100%` | FE-03 Desktop GUI |
+| **Sprint FE-04** | Monaco Diff Reviewer, McNemar Dashboard & Live WS | 4 | 4 | 0 | 0 | `100%` | FE-04 Integration |
+| **TOTAL** | **Full Front-End Client Suite** | **20** | **20** | **0** | **0** | `100%` | **V1.0 Release** |
 
 ---
 
@@ -133,7 +133,7 @@ This tracking list serves as the central living document for monitoring the deve
 
 > **Goal**: Build Tauri v2 Rust desktop application shell with dark glassmorphism styling, `xyflow` workflow DAG canvas, custom node/edge renderers, and live trace inspection panel.
 
-- [ ] **TASK-FE-020**: Tauri v2 Desktop Shell & Native Window Integration
+- [x] **TASK-FE-020**: Tauri v2 Desktop Shell & Native Window Integration
   - **Complexity**: 🟡 Medium | **Role**: Normal Developer
   - **Target Files**: `src_front/apps/desktop/src-tauri/Cargo.toml`, `src_front/apps/desktop/src-tauri/src/main.rs`, `src_front/apps/desktop/vite.config.ts`
   - **Dependencies**: Sprint FE-01
@@ -141,21 +141,21 @@ This tracking list serves as the central living document for monitoring the deve
     1. Tauri v2 app launches window on Windows/Linux rendering React 19 SPA.
     2. Installer bundle size $< 15\text{ MB}$, idle memory $< 40\text{ MB}$.
 
-- [ ] **TASK-FE-021**: Design System & Tailwind CSS v4 Glassmorphism Theme
+- [x] **TASK-FE-021**: Design System & Tailwind CSS v4 Glassmorphism Theme
   - **Complexity**: 🟢 Easy | **Role**: Junior Developer
   - **Target Files**: `src_front/packages/ui-components/src/Button.tsx`, `Card.tsx`, `Badge.tsx`, `Modal.tsx`
   - **Dependencies**: `TASK-FE-020`
   - **Acceptance Criteria**:
     1. High-aesthetic dark-mode glassmorphism component library using Tailwind CSS v4.
 
-- [ ] **TASK-FE-022**: `xyflow` Workflow DAG Canvas Core Engine
+- [x] **TASK-FE-022**: `xyflow` Workflow DAG Canvas Core Engine
   - **Complexity**: 🔴 Hard | **Role**: Senior Developer
   - **Target Files**: `src_front/apps/desktop/src/components/canvas/WorkflowCanvas.tsx`
   - **Dependencies**: `TASK-FE-020`
   - **Acceptance Criteria**:
     1. Integrates `xyflow` (React Flow) with drag-and-drop nodes, zoom/pan controls, mini-map, and automatic graph layout algorithms.
 
-- [ ] **TASK-FE-023**: Custom DAG Node & Conditional Edge Renderers
+- [x] **TASK-FE-023**: Custom DAG Node & Conditional Edge Renderers
   - **Complexity**: 🔥 Very Hard | **Role**: Senior Specialist (Canvas/Graph)
   - **Target Files**: `src_front/apps/desktop/src/components/canvas/CustomNode.tsx`, `ConditionalEdge.tsx`, `RepairLoopGroup.tsx`
   - **Dependencies**: `TASK-FE-022`
@@ -163,7 +163,7 @@ This tracking list serves as the central living document for monitoring the deve
     1. Custom SVG edges render conditional routing (`on_pass` green, `on_fail` red, `on_instrument_error` amber dotted line).
     2. Bounding box groups render repair loop iterations and Best-of-N candidate lane expansion.
 
-- [ ] **TASK-FE-024**: Live Trace Inspector Side-Panel
+- [x] **TASK-FE-024**: Live Trace Inspector Side-Panel
   - **Complexity**: 🔴 Hard | **Role**: Senior Developer
   - **Target Files**: `src_front/apps/desktop/src/components/trace/LiveTraceInspector.tsx`, `SpanViewer.tsx`
   - **Dependencies**: `TASK-FE-022`
@@ -176,28 +176,28 @@ This tracking list serves as the central living document for monitoring the deve
 
 > **Goal**: Implement Monaco side-by-side patch diff reviewer, McNemar statistical self-improvement dashboard, taint audit panel, and end-to-end live backend / mock cassette switching.
 
-- [ ] **TASK-FE-030**: Monaco Side-by-Side Patch Diff Reviewer Component
+- [x] **TASK-FE-030**: Monaco Side-by-Side Patch Diff Reviewer Component
   - **Complexity**: 🟡 Medium | **Role**: Normal Developer
   - **Target Files**: `src_front/apps/desktop/src/components/diff/MonacoDiffEditor.tsx`
   - **Dependencies**: Sprint FE-03
   - **Acceptance Criteria**:
     1. Integrated Monaco Diff Editor displays unified git patches side-by-side with interactive Accept/Reject diff triggers.
 
-- [ ] **TASK-FE-031**: Self-Improvement & McNemar Statistical Dashboard
+- [x] **TASK-FE-031**: Self-Improvement & McNemar Statistical Dashboard
   - **Complexity**: 🟡 Medium | **Role**: Normal Developer
   - **Target Files**: `src_front/apps/desktop/src/components/metrics/McNemarChart.tsx`, `MetricsDashboard.tsx`
   - **Dependencies**: Sprint FE-03
   - **Acceptance Criteria**:
     1. Renders statistical A/B test results, Holm–Bonferroni adjusted p-values, cost deltas, and benchmark time-series charts.
 
-- [ ] **TASK-FE-032**: Taint Gate Provenance Audit Panel
+- [x] **TASK-FE-032**: Taint Gate Provenance Audit Panel
   - **Complexity**: 🟡 Medium | **Role**: Normal Developer
   - **Target Files**: `src_front/apps/desktop/src/components/trace/TaintAuditPanel.tsx`
   - **Dependencies**: Sprint FE-03
   - **Acceptance Criteria**:
     1. Context span inspector displays provenance tags (`TRUSTED_SYSTEM`, `OPERATOR`, `AGENT`, `UNTRUSTED_EXTERNAL`, `UNTRUSTED_DERIVED`) with visual risk highlights.
 
-- [ ] **TASK-FE-033**: Live Engine WS Integration & Dual-Mode Cassette Replay Switch
+- [x] **TASK-FE-033**: Live Engine WS Integration & Dual-Mode Cassette Replay Switch
   - **Complexity**: 🔴 Hard | **Role**: Senior Developer
   - **Target Files**: `src_front/apps/desktop/src/App.tsx`, `src_front/apps/cli/src/App.tsx`
   - **Dependencies**: `TASK-FE-003`, `TASK-FE-004`, `TASK-FE-014`, `TASK-FE-024`
