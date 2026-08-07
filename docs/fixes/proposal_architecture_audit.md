@@ -1,5 +1,5 @@
 ---
-status: rationale
+status: historical
 retrieval: excluded
 updated: 2026-08-06
 ---

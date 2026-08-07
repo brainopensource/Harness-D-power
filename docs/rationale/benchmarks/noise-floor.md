@@ -73,7 +73,7 @@ That is the next instrument task, not a floor result.
 is recorded as showing nothing. That rule is the one that would have saved the
 predecessor, whose 2026-08-01 attempt printed `mean_delta: 0.000` and
 `Pass rate: 0.0%` from 30 tasks that all failed at worktree setup
-([the archived write-up](../../_archive/rationale/benchmarks/noise-floor.md) keeps
-those numbers only so nobody re-derives them and mistakes them for a result).
+(the archived write-up kept those numbers only so nobody re-derived them and
+mistook them for a result; the archive has since been removed).
 The same rule applies to a floor that was never run: this file says so rather
 than leaving a template that could be mistaken for one.

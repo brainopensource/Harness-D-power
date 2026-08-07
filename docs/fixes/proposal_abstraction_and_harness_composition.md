@@ -410,6 +410,20 @@ operations that are currently code changes:
 - **"Show me why it failed"** → the trajectory store is append-only and byte-deterministic on
   replay. A GUI trajectory viewer is a bus consumer with zero engine changes.
 
+### 3.4 The subgraph canvas, once fragments exist
+
+Topology fragments (`TASK-060`, §8) give a visual client two display states rather than one,
+and this is the clearest argument for why fragments are a *data* feature rather than a
+rendering trick:
+
+- **Collapsed** — a composite step (`use: edit_and_judge`) renders as one node with a badge.
+- **Expanded** — clicking reveals its internal sub-nodes (`apply → evaluate → repair`) *and
+  their child-lease budget limits*, because the expansion the client draws is the same
+  expansion the validator ran before it (§8.3 rule 1).
+
+A canvas that can only draw the flat graph forces every topology to be flat. Nothing here
+requires a canvas to exist; it records what fragments buy one when it does.
+
 **The honest caveat:** none of this makes a run *valid*. A GUI that makes it easy to launch
 arms makes it equally easy to launch arms before the floor exists, which
 [ADR-0002](../decisions/0002-no-number-before-the-floor.md) forbids with no reversal condition.
@@ -570,7 +584,37 @@ So the honest ranking is by *plausible* trigger, and none of these is a decision
 payload types live in the module that imports its concrete peers. `domain/effects.py` (§4.2)
 is not a nicety here; it is the enabling change.
 
-### 5.4 The protocol question, answered conservatively
+### 5.4 Wire schemas, concretely
+
+Two worked examples, so the shape is not left to imagination. Both are JSON-RPC over a Unix
+socket, carrying exactly the payloads the port already declares.
+
+**Rust AST/symbol indexer** — the `Indexer` port (`build` / `search` / `outline`):
+
+```json
+{ "jsonrpc": "2.0", "method": "indexer.search_symbols", "id": 1,
+  "params": { "worktree_path": "repo/src", "query": "def parse_diff", "max_results": 5 } }
+```
+
+**Go container sandbox** — `SandboxRunner`, **not** the evaluator:
+
+```json
+{ "jsonrpc": "2.0", "method": "sandbox.run", "id": 2,
+  "params": { "container_spec": { "image_digest": "sha256:7c2c2467…",
+                                  "network": "none", "read_only_root": true },
+              "test_command": "pytest tests/unit/test_core.py" } }
+```
+
+> **The distinction in that second example is load-bearing.** An earlier draft put
+> `evaluator.evaluate` behind this protocol. That is not admissible:
+> [`spec.md` §4](../spec.md#4-ports)'s TCB residency rule requires the concrete `Evaluator` to
+> live in `measurement/`, never `adapters/`, because that is what makes `aether-tcb-isolation`
+> *select* it — and selecting it is how I7 is enforced. **Moving the judge out of process moves
+> it out of the contract.** The extractable component is the `SandboxRunner`
+> (`domain/sandbox.py`, `adapters/sandbox/podman.py`); `RealEvaluator` stays in-process and
+> keeps deciding `PASSED`/`FAILED`/`NONE`. Only container orchestration crosses the wire.
+
+### 5.5 The protocol question, answered conservatively
 
 There is no need to adopt gRPC, Cap'n Proto or any IDL. The wire format is already decided by
 I2/I3: **JSON over the descriptor field**, with Pydantic models as the schema of record and

@@ -10,8 +10,8 @@ A word is a whitespace-separated token in the markdown **body** (YAML frontmatte
 excluded, since it is metadata, not prose the retriever will ever surface).
 
 Usage:
-    uv run python scripts/docs_budget.py                 # report, always exit 0
-    uv run python scripts/docs_budget.py --max 54000     # exit 1 if normative total exceeds
+    uv run python scripts/docs_budget.py                 # report AND gate (--max defaults to the CI ceiling)
+    uv run python scripts/docs_budget.py --max 0         # report + untagged check, no ceiling
     uv run python scripts/docs_budget.py --format md     # committable into docs/STATUS.md
 """
 
@@ -30,6 +30,14 @@ DOCS_ROOT = REPO_ROOT / "docs"
 #: so a doc cannot dodge the budget by inventing a new status value.
 BUDGETED_STATUSES = frozenset({"normative"})
 DECLARED_STATUSES = frozenset({"normative", "rationale", "historical"})
+
+#: The CI ceiling, and the default for `--max`. It is a default rather than a
+#: required flag because `--max` used to default to None and `main()` returns 0
+#: before any check when it is None — so the bare `python scripts/docs_budget.py`
+#: printed its own list of untagged files and exited 0. A gate with an invocation
+#: that cannot fail is the defect class measurement.md §5 names; the bare
+#: invocation is now the CI invocation.
+DEFAULT_MAX = 15_000
 
 #: ADRs are exempt from the budget (guidelines §4.3): they are short, high-value, and
 #: each one *replaces* long-form derivation elsewhere. Budgeting them would incentivise
@@ -203,8 +211,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--max",
         type=int,
-        default=None,
-        help="fail (exit 1) when the sum over `status: normative` files exceeds this",
+        default=DEFAULT_MAX,
+        help=(
+            "fail (exit 1) when the sum over `status: normative` files exceeds this. "
+            "Defaults to the CI ceiling so the bare invocation IS the gate — passing "
+            "--max 0 disables the ceiling check while keeping the untagged-file check."
+        ),
     )
     parser.add_argument("--format", choices=("text", "md"), default="text")
     parser.add_argument("--docs-root", type=Path, default=DOCS_ROOT)
@@ -212,9 +224,6 @@ def main(argv: list[str] | None = None) -> int:
 
     entries = collect(args.docs_root)
     print(render(entries, args.max, args.format))
-
-    if args.max is None:
-        return 0
 
     failed = False
 
@@ -240,7 +249,7 @@ def main(argv: list[str] | None = None) -> int:
         failed = True
 
     budgeted_words = sum(e.words for e in entries if e.budgeted)
-    if budgeted_words > args.max:
+    if args.max > 0 and budgeted_words > args.max:
         print(
             f"\nFAIL: normative word count {budgeted_words:,} exceeds ceiling {args.max:,} "
             f"(over by {budgeted_words - args.max:,}).\n"

@@ -9,8 +9,8 @@ updated: 2026-08-07
 an ADR with a reversal condition ([`spec.md` §9](../spec.md#9-standing-rules)). Every cost
 figure below is a **projection at list price**, not a measurement, and is marked as such.
 
-This document extends [`proposal_workflows_S3-5_meta.md`](./proposal_workflows_S3-5_meta.md),
-which sketched the hybrid idea. It differs in one respect: before proposing the topologies, it
+This document supersedes an earlier sketch of the hybrid idea (`proposal_workflows_S3-5_meta.md`,
+since deleted — its cost claims did not survive the code read below). It differs in one respect: before proposing the topologies, it
 reports **what a line-level read of the tree says about whether they can run at all.** The
 answer is that the hybrid topology already sitting in `workflows/` cannot, for six separate
 reasons, and five of them are invisible at runtime — they degrade to a wrong number rather
@@ -75,7 +75,7 @@ Six defects, each verified against the tree:
 A seventh constraint is not a defect but bounds the design: **there are no conditional edges.**
 `_topological_order` (`executor.py:96`) walks a single linear chain, and `when: on_pass |
 on_fail` is [TASK-035](../agile/backlog.md), scheduled for M3. The escalating cascade in
-`proposal_workflows_S3-5_meta.md` §4A is **not expressible in a valid topology today**.
+the escalating cascade is **not expressible in a valid topology today**.
 
 **H1 and H2 compose into the worst case in the set.** H1 makes the hybrid arm fail as an
 instrument error; a plausible fix for H1 alone leaves H2 standing, and then the arm runs, works,
@@ -328,7 +328,7 @@ These need no ADR; they are corrections to things that already claim to be true.
 | :--- | :--- |
 | `hybrid_architect_editor_v1.yaml` is committed (`23cd1b4`) and undocumented | Add a header comment naming TASK-042/043/045 as its blockers, **or** delete it. An unrunnable topology in `workflows/` will be run by someone |
 | `implemented_sprint_3.5_complete_report.md` §3.6 describes a reflector edge that does not exist | Correct the sentence or ship TASK-046 |
-| Nine files fail the declared `status:` taxonomy | `scripts/docs_budget.py` exits **1** today. Six are `docs/workflows/*.md`, one is `fixes/proposal_workflows_S3-5_meta.md` (`status: proposal` is not in `{normative, rationale, historical}`). `STATUS.md` records this gate as Green |
+| ~~Nine files fail the declared `status:` taxonomy~~ | **Resolved 2026-08-07.** `docs/workflows/` was consolidated into `docs/architecture_diagrams.md`, the invalid `status: proposal` file was deleted, and `docs_budget.py` now gates on its bare invocation. Exits 0 |
 | `deepseek/deepseek-chat` is unpriced | Add to `PRICES` from the rate card, or stop naming it |
 
 ---

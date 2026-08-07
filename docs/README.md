@@ -15,10 +15,13 @@ you need to know what is true.
 | [`measurement.md`](./measurement.md) | 2 | **Normative.** The instrument protocol, the A/A floor, gate design |
 | [`decisions/`](./decisions/README.md) | 2 | ADRs. Every decision with its reversal condition |
 | [`STATUS.md`](./STATUS.md) | — | What is actually implemented. No claim without a line-level code read |
-| [`development/`](./development/core_skeletons_and_protocols.md) | 3 | Pre-Phase 1 engineering specs — skeletons, schemas, diagrams, stack. Superseded by code as it lands |
-| [`agile/`](./agile/README.md) | 3 | Roadmap, milestone exit gates, backlog, sprints. Gate tables are `normative`; the rest is `rationale` |
-| [`concepts/`](./concepts/README.md) | 3 | Phase 0 trail — the audit, the fork adjudication, the decision record. History |
-| [`fixes/`](./fixes/proposal_improvements_and_fixes.md) | 3 | The Phase 0 lock audit (D1–D21) and its execution roadmap. History once executed |
+| [`agile/`](./agile/README.md) | 3 | Roadmap, milestone exit gates, backlog, sprints, coverage audit, release plan. Gate tables are `normative`; the rest is `rationale` |
+| [`architecture_diagrams.md`](./architecture_diagrams.md) | 3 | Four Mermaid diagrams: orchestration, inner loop, outer loop, dispatch lifecycle. **Shows the target architecture — parts are unbuilt** |
+| [`development/`](./development/core_skeletons_and_protocols.md) | 3 | Pre-Phase 1 engineering specs — skeletons, schemas, stack. Superseded by code as it lands |
+| [`fixes/`](./fixes/proposal_abstraction_and_harness_composition.md) | 3 | Design proposals and audits. The largest directory: read the one your task names, not the folder |
+| [`rationale/benchmarks/`](./rationale/benchmarks/README.md) | 3 | Where measured results land — the noise floor, the F1 timers. Empty of numbers until the floor runs |
+| [`benchmarks/`](./benchmarks/README.md) | 3 | SWE-bench task samples with pinned base commits |
+| [`concepts/`](./concepts/README.md) | — | Phase 0 trail — the audit, the fork adjudication, the decision record. History, `retrieval: excluded` |
 
 ---
 

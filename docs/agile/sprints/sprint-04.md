@@ -37,12 +37,12 @@ updated: 2026-08-07
 * **Why it matters**: the pre-registered baseline is *"no retrieval beyond benchmark-provided context."* With the assertions in the prompt, the harness measures whether a model can satisfy an assertion it was shown. `internal__clamp_low-046` — the model emitted `return b` and satisfied `assert f(6, 9) == 9` — is that mode in action, and the gate had no capability that could object.
 
 ### Task 3: CI Green at Step One, and Gates That Match Reality
-* **Target Seam**: `.github/workflows/ci.yml`, `scripts/gen_event_catalog.py`, `docs/workflows/*.md`, `docs/STATUS.md`
+* **Target Seam**: `.github/workflows/ci.yml`, `scripts/gen_event_catalog.py`, `scripts/docs_budget.py`, `docs/STATUS.md`
 * **Specification Pointer**: [`measurement.md` §5](../../measurement.md#5-gate-design), [ADR-0009](../../decisions/0009-gates-are-the-schedule.md)
 * **Acceptance Criteria**:
   1. `ruff format .` across the tree (**43 files** as of 2026-08-07) and the **16** `ruff check` errors fixed. **CI dies at step one today**, so `pyright` and `lint-imports` have never actually executed in CI despite passing locally and being recorded Green.
   2. The event-catalog gate stops pointing at `docs/_archive/04-workflows-and-loops/event-catalog.md` — an archived file it exits 1 on. `gen_event_catalog.py --check` exits **1** today.
-  3. `check_links.py` exits 0. One dead link remains: `proposal_architectural_abstraction_and_harness_engineering_gem.md` uses absolute `file:///home/rocha/...` URLs, which is the exact defect the gate was written to catch. *(The `status:` taxonomy failures recorded in earlier audits were fixed in commit `37ffef9`; `docs_budget.py` now exits 0 and normative sits at 13,687/15,000.)*
+  3. `check_links.py` and `docs_budget.py` both exit 0. **`docs_budget.py`'s `--max` now defaults to the CI ceiling** — the bare invocation used to `return 0` before any check, so it reported its own untagged-file list and passed. A gate with an invocation that cannot fail is the defect class `measurement.md` §5 names.
   4. `TCB_PATHS` extended to select the evaluator, manifests, families, validator and executor — **it selects none of them today**; it names `src/aether/kernel/policy`, `src/aether/kernel/dispatch`, and three `src/sagiha/` paths from the retiring tree — plus the **reverse** drift test (spec → fragment), which does not exist.
   5. `implemented_sprint_3.5_complete_report.md` moves from `normative` to `rationale`, and its resolve-rate table is re-captioned as wiring verification: N=1–5, no family declared, assertions injected.
   6. `STATUS.md`'s deviations section records that **I11 is not enforced on the model path** — `DefaultPolicyEngine`'s predicate is correct, but nothing produces untrusted spans there, and repo content is labelled `AGENT` precisely so the tool loop keeps working.
