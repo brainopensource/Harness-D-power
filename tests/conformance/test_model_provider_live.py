@@ -12,20 +12,22 @@ import pytest
 from aether.adapters.model_provider.openai_compatible import OpenAICompatibleProvider
 from aether.domain.model_io import ModelMessage, ModelRequest, StopEvent
 from aether.domain.taint import Provenance, TaintSpan
-from tests.live_support import LOCAL_BASE_URL, LOCAL_MODEL, require_live_model
+from tests.live_support import LOCAL_BASE_URL, require_live_model
 
 
 @pytest.mark.live
 async def test_local_endpoint_streams_a_real_completion() -> None:
-    require_live_model()
+    # Whatever this endpoint actually serves — a hardcoded model turns "the
+    # endpoint serves something else" into a false adapter failure.
+    model = require_live_model()
 
     from datetime import UTC, datetime
 
     from aether.domain.ids import SpanId
 
-    provider = OpenAICompatibleProvider(LOCAL_BASE_URL, LOCAL_MODEL)
+    provider = OpenAICompatibleProvider(LOCAL_BASE_URL, model)
     request = ModelRequest(
-        model=LOCAL_MODEL,
+        model=model,
         messages=(
             ModelMessage(
                 role="user",
@@ -46,4 +48,6 @@ async def test_local_endpoint_streams_a_real_completion() -> None:
     events = [event async for event in provider.stream(request)]
 
     assert isinstance(events[-1], StopEvent)
-    assert events[-1].reason != "provider_error"
+    assert events[-1].reason != "provider_error", (
+        f"endpoint {LOCAL_BASE_URL} rejected a completion for model {model!r}"
+    )

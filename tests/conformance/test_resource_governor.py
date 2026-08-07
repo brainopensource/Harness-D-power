@@ -1,5 +1,5 @@
 """ResourceGovernor conformance: mock and real ledger share the reserve/commit/
-release/remaining contract (ADR-0005 rev. 2); the real ledger additionally
+release/spent contract (ADR-0005 rev. 2); the real ledger additionally
 proves atomic overrun bookkeeping and parent-refund semantics (TASK-034)."""
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ def test_governor_satisfies_protocol(governor: object) -> None:
 
 
 @pytest.mark.parametrize("governor_factory", [InMemoryResourceGovernor, ResourceGovernor])
-async def test_reserve_commit_updates_remaining(governor_factory) -> None:  # noqa: ANN001
+async def test_reserve_commit_updates_spent(governor_factory) -> None:  # noqa: ANN001
     governor = governor_factory()
     run_id = RunId("run-1")
     lease = await governor.reserve(run_id, BudgetDims(usd_micros=100))
@@ -30,8 +30,8 @@ async def test_reserve_commit_updates_remaining(governor_factory) -> None:  # no
 
     await governor.commit(lease.lease_id, Actuals(dims=BudgetDims(usd_micros=40)))
 
-    remaining = await governor.remaining(run_id)
-    assert remaining.usd_micros == 40
+    spent = await governor.spent(run_id)
+    assert spent.usd_micros == 40
 
 
 @pytest.mark.parametrize("governor_factory", [InMemoryResourceGovernor, ResourceGovernor])
@@ -53,8 +53,8 @@ async def test_real_governor_overrun_debits_reality_and_is_recorded() -> None:
 
     await governor.commit(lease.lease_id, Actuals(dims=BudgetDims(usd_micros=25)))
 
-    remaining = await governor.remaining(run_id)
-    assert remaining.usd_micros == 25  # reality debited exactly as spent, not clamped
+    spent = await governor.spent(run_id)
+    assert spent.usd_micros == 25  # reality debited exactly as spent, not clamped
     overruns = governor.overruns()
     assert len(overruns) == 1
     assert overruns[0].reserved.usd_micros == 10
@@ -104,3 +104,52 @@ async def test_real_governor_concurrent_reserves_are_atomic() -> None:
     denied = [r for r in results if isinstance(r, ReservationDenied)]
     assert len(granted) == 10  # exactly 100/10, never over-granted under concurrency
     assert len(denied) == 10
+
+
+# --- Sprint 3.5 A3: `remaining()` used to return `spent()`. Two names, two
+# facts, and a test for each — a caller writing `if remaining < cost: stop`
+# against the old behaviour got the inverted answer. ---
+
+
+async def test_spent_and_remaining_are_different_facts() -> None:
+    governor = ResourceGovernor()
+    run_id = RunId("run-1")
+    governor.seed_run_budget(run_id, BudgetDims(usd_micros=100))
+
+    lease = await governor.reserve(run_id, BudgetDims(usd_micros=40))
+    assert not isinstance(lease, ReservationDenied)
+    await governor.commit(lease.lease_id, Actuals(dims=BudgetDims(usd_micros=30)))
+
+    spent = await governor.spent(run_id)
+    remaining = await governor.remaining(run_id)
+
+    assert spent.usd_micros == 30
+    assert remaining is not None
+    assert remaining.usd_micros == 70  # 100 ceiling - 30 actually spent
+    assert remaining.usd_micros != spent.usd_micros
+
+
+async def test_an_unbounded_run_has_no_remainder_rather_than_zero() -> None:
+    """`None` is not `BudgetDims()`. Reporting zeros for a run with no ceiling
+    reads as "exhausted" to every caller that checks it."""
+    governor = ResourceGovernor()
+
+    assert await governor.remaining(RunId("unseeded")) is None
+    assert await governor.spent(RunId("unseeded")) == BudgetDims()
+
+
+async def test_remaining_falls_as_the_run_spends() -> None:
+    governor = ResourceGovernor()
+    run_id = RunId("run-1")
+    governor.seed_run_budget(run_id, BudgetDims(usd_micros=100))
+
+    readings: list[int] = []
+    for _ in range(3):
+        lease = await governor.reserve(run_id, BudgetDims(usd_micros=20))
+        assert not isinstance(lease, ReservationDenied)
+        await governor.commit(lease.lease_id, Actuals(dims=BudgetDims(usd_micros=20)))
+        current = await governor.remaining(run_id)
+        assert current is not None
+        readings.append(current.usd_micros)
+
+    assert readings == [80, 60, 40]

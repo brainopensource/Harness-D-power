@@ -101,7 +101,10 @@ extend-exclude = [
     "src/grok_build",
     "src/hermes_agent",
     "src/hermes_self_evolution",
+    "src/kimi_cli",
     "src/open_code",
+    "src/openhands",
+    "src/reasonix",
 ]
 
 [tool.ruff.lint]

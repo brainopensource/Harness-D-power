@@ -43,7 +43,12 @@ from aether.measurement.statistics import (
     validate_family,
 )
 
-FIXTURES = Path(__file__).parent.parent.parent / "fixtures" / "statistics"
+# Deliberately NOT tests/fixtures/statistics/ — that directory belongs to the
+# predecessor's own `e0.statistics` fixture suite, and a first pass here
+# overwrote its `holm.json` and broke collection of the whole test run. The
+# verbatim port has its own fixtures precisely so the two can diverge in shape
+# without either one silently rewriting the other.
+FIXTURES = Path(__file__).parent.parent.parent / "fixtures" / "aether_statistics"
 FAMILY_FIXTURES = Path(__file__).parent.parent.parent / "fixtures" / "families"
 MALFORMED_FAMILIES = FAMILY_FIXTURES / "malformed"
 

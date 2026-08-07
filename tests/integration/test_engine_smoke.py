@@ -177,3 +177,47 @@ async def test_engine_run_passes_api_key_header(fixture_repo, tmp_path) -> None:
         assert route.called
         assert route.calls.last.request.headers.get("Authorization") == "Bearer sk-or-v1-testkey123"
 
+
+
+async def test_the_previously_dead_events_reach_the_trajectory_store(fixture_repo, tmp_path) -> None:  # noqa: ANN001
+    """Sprint 3.5: `EffectDispatched` and `GateReportEmitted` were declared in
+    the catalog and emitted by nothing. A client subscribing to them received
+    silence. This asserts they arrive on a real run."""
+    repo_path, base_commit = fixture_repo
+    trajectory_db = str(tmp_path / "trajectory.db")
+    test_command = f"{sys.executable} -c \"import sys; sys.exit(0)\""
+
+    task = Task(
+        task_id="events-1",  # type: ignore[arg-type]
+        repo=repo_path,
+        base_commit=base_commit,
+        instructions="No-op.",
+        environment_image_digest="sha256:" + "a" * 64,
+        test_command_hash=hash_command(test_command),
+        source=TaskSource(manifest_hash="sha256:" + "b" * 64, instance_id="events-1"),
+    )
+
+    with respx.mock:
+        respx.post(f"{MODEL_BASE_URL}/chat/completions").mock(
+            return_value=httpx.Response(
+                200, content=_sse({"choices": [{"delta": {}, "finish_reason": "stop"}]})
+            )
+        )
+        result = await engine.run(
+            task,
+            repo_path=repo_path,
+            worktrees_root=str(tmp_path / "worktrees"),
+            topology_path=f"{WORKFLOWS_ROOT}/linear_v1.yaml",
+            resolve_command=lambda spec: test_command,
+            model_base_url=MODEL_BASE_URL,
+            trajectory_db_path=trajectory_db,
+            entry_file="README.md",
+        )
+
+    from aether.adapters.trajectory_store.sqlite import SqliteTrajectoryStore
+
+    store = SqliteTrajectoryStore(trajectory_db)
+    kinds = [event.event_type async for event in store.replay(result.run_id)]
+
+    assert "effect_dispatched" in kinds  # one per dispatched effect
+    assert "gate_report_emitted" in kinds  # the verdict, on the bus not just in a return value

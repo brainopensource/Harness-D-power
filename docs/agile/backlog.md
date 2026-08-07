@@ -76,7 +76,7 @@ This backlog catalogs all Epics and User Stories for building AETHER v3.0.0. All
 * **Normative Specs**: [`measurement.md` §2 (B2)](../measurement.md#2-instrument-blockers), [ADR-0005](../decisions/0005-eight-ports-adapter-first.md)
 * **Exit Criteria**: Passes the `ModelProvider` conformance suite. Enforces the request's token ceilings — conservation is kernel policy, not adapter courtesy.
 
-### TASK-012: Statistical Engine & A/A Variance Floor
+### TASK-012: Statistical Engine & A/A Variance Floor — ✅ DONE (Sprint 3)
 * **Description**: Port `e0/statistics.py` verbatim (exact McNemar, Holm–Bonferroni, seeded bootstrap), then add the rev. 2 layer: derived-N power simulation and the family gatekeeper.
 * **Target Files**: `src/aether/measurement/statistics.py`, `src/aether/measurement/families/`
 * **Normative Specs**: [`measurement.md` §3](../measurement.md#3-the-aa-variance-floor), [ADR-0003 rev. 2](../decisions/0003-statistical-admission-protocol.md), [`spec.md` §9](../spec.md#9-standing-rules) (predecessor-code clause — provenance in the module docstring)
@@ -88,27 +88,27 @@ This backlog catalogs all Epics and User Stories for building AETHER v3.0.0. All
 * **Normative Specs**: [`measurement.md` §2 (B4)](../measurement.md#2-instrument-blockers), [`milestones.md` B4](./milestones.md#blocker-b4--typed-instrument-error-handling)
 * **Exit Criteria**: Exit-127, uncollectable tests and test-command-hash mismatch all yield `NONE`, never `FAILED`. `NONE` outcomes are **excluded from the resolve-rate denominator** and reported separately. Negative test required.
 
-### TASK-014: Task-Manifest Tooling & Bidirectional Validity Canary
+### TASK-014: Task-Manifest Tooling & Bidirectional Validity Canary — ✅ DONE (Sprint 3)
 * **Description**: Build, pin and validate task manifests; run the per-task canary; publish exclusions.
 * **Target Files**: `src/aether/measurement/manifest.py`, `src/aether/measurement/schemas/manifest_schema.yaml`
 * **Normative Specs**: [`measurement.md` §4.2–4.3](../measurement.md#42-splits-and-why-they-are-pinned), [`measurement.md` §6](../measurement.md#6-what-a-claim-needs-before-it-is-published), [`schemas_and_contracts.md` §2](../development/schemas_and_contracts.md)
 * **Exit Criteria**: A task enters a manifest only if the **gold patch passes and the empty patch fails** on our instrument. **Exclusions are published with a reason** — silent exclusion is the overfitting vector. Manifest and split assignment are TCB; a change is a new hash.
 
-### TASK-016: Evaluation Container & B3 Canary (Blocker B3)
+### TASK-016: Evaluation Container & B3 Canary (Blocker B3) — ✅ DONE (Sprint 3)
 * **Description**: Rootless Podman evaluation container — the isolation that makes a candidate diff visible to the gate scoring it.
 * **Target Files**: `src/aether/adapters/sandbox/podman.py`, `containers/eval/`
 * **Normative Specs**: [`measurement.md` §2 (B3)](../measurement.md#2-instrument-blockers), [`tech_stack_and_infra.md` §3](../development/tech_stack_and_infra.md), [ADR-0008](../decisions/0008-shell-ast-classifies.md)
 * **Exit Criteria**: `--network none`, `--cap-drop all`, `--security-opt no-new-privileges`, read-only root, image **created from digest, never tag**. Two mounts only: the task worktree (RW) and pinned image layers (RO) — **no `.pth` leakage by construction**. **Canary: a deliberately broken candidate must fail evaluation**, and the canary runs in the A/A floor environment before the floor run.
 * **Why it matters**: the `.pth` leak is the one instrument defect that *produced numbers*.
 
-### TASK-019: Evaluator Implementation (TCB) — ✅ DONE (Sprint 2, uncontained; B3 containerization is Sprint 3)
+### TASK-019: Evaluator Implementation (TCB) — ✅ DONE (Sprint 2; containerized in Sprint 3 via TASK-016)
 * **Description**: The judge. Runs the task's pinned test command in the evaluation container and returns a tri-state `GateReport`.
 * **Target Files**: `src/aether/measurement/evaluator.py`
 * **Normative Specs**: [`spec.md` §4](../spec.md#4-ports) (TCB port residency), [`spec.md` §2 (I7)](../spec.md#2-invariants), [ADR-0006](../decisions/0006-tcb-boundary-and-meta-loop-authority.md)
 * **Exit Criteria**: **Lives in `measurement/`, never `adapters/`** — the residency rule is what makes `tcb-isolation` select it. Verifies the test command against the manifest's `test_command_hash` before running; a mismatch is `NONE`, not a result. `import-linter` proves it cannot import `agency/` or `workflow/`.
 * **Named as**: the first real adapter for the `Evaluator` port under [ADR-0005](../decisions/0005-eight-ports-adapter-first.md) rev. 2.
 
-### TASK-015: Comparative-Lift Rig (`HarnessUnderTest`)
+### TASK-015: Comparative-Lift Rig (`HarnessUnderTest`) — ✅ DONE (Sprint 3, seam + bare-model arm; OpenHands arm still out of scope)
 * **Description**: A runner seam producing paired outcomes for (harness, model, manifest) through **our** evaluator. Arms: bare-model baseline, AETHER, OpenHands.
 * **Target Files**: `src/aether/measurement/runner.py`
 * **Normative Specs**: [`measurement.md` §6](../measurement.md#6-what-a-claim-needs-before-it-is-published), [ADR-0005](../decisions/0005-eight-ports-adapter-first.md) (measurement is a tool, not a port)
@@ -143,7 +143,7 @@ This backlog catalogs all Epics and User Stories for building AETHER v3.0.0. All
 * **Exit Criteria**: Passes both conformance suites. **All paths are repo-relative strings — no `Path` crosses the port** (I3). One worktree per candidate under a run-scoped root. This is where the worktree-creation timer (`TASK-021`) lives.
 * **Named as**: the first real adapter for the `Workspace`/`WorktreeManager` boundary.
 
-### TASK-018: Built-in Tool Registry & Tool-Execution Container — ✅ DONE (Sprint 2, uncontained; container image is Sprint 3/B3)
+### TASK-018: Built-in Tool Registry & Tool-Execution Container — ✅ DONE (Sprint 2, uncontained; **its own** container image remains open — Sprint 3 containerized the evaluator, not the tool registry)
 * **Description**: `ToolRegistry` adapter with the built-in tool set, executing in a **separate** container from the evaluator.
 * **Target Files**: `src/aether/adapters/tools/builtin.py`, `containers/tools/`
 * **Normative Specs**: [ADR-0005](../decisions/0005-eight-ports-adapter-first.md), [ADR-0015](../decisions/0015-taintgate-provenance-model.md), [ADR-0016](../decisions/0016-mcp-integration-trust-model.md)
@@ -157,7 +157,7 @@ This backlog catalogs all Epics and User Stories for building AETHER v3.0.0. All
 * **Exit Criteria**: Passes conformance. WAL mode, no ORM. **Never dropped under backpressure** — display consumers are drop-oldest, the durable log and the measurement harvester are not. Replay from it is byte-for-byte deterministic.
 * **Named as**: the first real adapter for `TrajectoryStore`.
 
-### TASK-023: Repair Node & Bounded-Iteration Construct
+### TASK-023: Repair Node & Bounded-Iteration Construct — ✅ DONE (Sprint 3)
 * **Description**: The repair edge — `evaluate →(fail, k)→ repair → apply → evaluate`, statically unrolled.
 * **Target Files**: `src/aether/workflow/nodes/repair.py`, `src/aether/agency/repair.py`, `workflows/linear_repair_v1.yaml`
 * **Normative Specs**: [ADR-0013 rev. 2](../decisions/0013-workflow-dag-phased.md), [`milestones.md` M1a+](./milestones.md#milestone-m1a--bounded-repair-edge)
@@ -314,7 +314,7 @@ Every row is worked by **The Developer** — there is one team, not a role hiera
 | `TASK-021` | Worktree & AST Performance Timers | M1a (Sprint 2) | **1** · Very Easy | Two stopwatches and an honest write-up | Times worktree creation and AST parse-and-validate, publishes with hardware and method recorded. Simple instrumentation with outsized downstream leverage: these two numbers directly decide ADR-0001's Python-vs-Rust (F1) fork. |
 | `TASK-026` | SQLite Trajectory Store Adapter | M1a (Sprint 2) | **2** · Easy | An append-only SQLite log, no ORM, no cleverness | Durable event log in WAL mode, behaving as one more bus consumer (`append`/`replay`/`latest_seq`). Well-specified and contained; the only real constraint — never dropped under backpressure, alongside the measurement harvester — is a policy decision enforced by TASK-022, not extra code here. |
 
-### Sprint 3 — The Repair Edge and the Floor
+### Sprint 3 — The Repair Edge and the Floor (code + instruments done; the floor run itself is deferred)
 
 | Task ID | Feature / Component | Milestone | Complexity | The Developer — why | Technical Complexity & Rationale |
 | :--- | :--- | :--- | :---: | :--- | :--- |

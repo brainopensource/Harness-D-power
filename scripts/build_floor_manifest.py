@@ -103,7 +103,16 @@ def _module_source(body: str) -> str:
 
 
 def _tests_source(assertion: str) -> str:
-    return f"import sys\nfrom mod import f\n\ntry:\n    {assertion}\nexcept AssertionError:\n    sys.exit(1)\nsys.exit(0)\n"
+    return (
+        "import sys\n"
+        "from mod import f\n"
+        "\n"
+        "try:\n"
+        f"    {assertion}\n"
+        "except AssertionError:\n"
+        "    sys.exit(1)\n"
+        "sys.exit(0)\n"
+    )
 
 
 def _constants(shape: str, index: int) -> tuple[int, int]:
@@ -171,6 +180,13 @@ def generate_task(workdir: Path, index: int) -> TaskCandidate:
     )
 
 
+def _write(path: Path, text: str) -> None:
+    """Kept out of the async body: ruff's ASYNC240 is right that blocking
+    pathlib calls do not belong in a coroutine, and this script's I/O is
+    setup, not part of the measured work."""
+    path.write_text(text, encoding="utf-8")
+
+
 def eval_image_digest(runtime: str, tag: str = "aether/eval:build") -> str | None:
     result = subprocess.run(
         [runtime, "image", "inspect", "-f", "{{.Id}}", tag], capture_output=True, text=True
@@ -181,9 +197,7 @@ def eval_image_digest(runtime: str, tag: str = "aether/eval:build") -> str | Non
     return digest if digest.startswith("sha256:") else f"sha256:{digest}"
 
 
-async def build(args: argparse.Namespace) -> int:
-    workdir = Path(args.workdir)
-    workdir.mkdir(parents=True, exist_ok=True)
+async def build(args: argparse.Namespace, workdir: Path, out_dir: Path) -> int:
 
     digest = ""
     sandbox = None
@@ -254,10 +268,8 @@ async def build(args: argparse.Namespace) -> int:
         created_at=datetime.now(UTC),
     )
 
-    out_dir = Path(args.out)
-    out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"{args.manifest_id}.yaml"
-    out_path.write_text(dump_manifest(manifest), encoding="utf-8")
+    _write(out_path, dump_manifest(manifest))
 
     admitted = len(manifest["tasks"])
     excluded = len(manifest["validity_gate"]["exclusions"])
@@ -287,7 +299,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--timeout-ms", type=int, default=120_000)
     parser.add_argument("--split-seed", type=int, default=7)
     args = parser.parse_args(argv)
-    return asyncio.run(build(args))
+    workdir = Path(args.workdir)
+    workdir.mkdir(parents=True, exist_ok=True)
+    out_dir = Path(args.out)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    return asyncio.run(build(args, workdir, out_dir))
 
 
 if __name__ == "__main__":

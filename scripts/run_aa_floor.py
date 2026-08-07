@@ -111,9 +111,9 @@ class _StubHandler(BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length", "0"))
         self.rfile.read(length)
         body = (
-            'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n'
-            "data: [DONE]\n\n"
-        ).encode()
+            b'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n'
+            b"data: [DONE]\n\n"
+        )
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Content-Length", str(len(body)))
@@ -142,7 +142,6 @@ async def run_arm(
     model_base_url: str,
     api_key: str | None,
 ) -> ArmRun:
-    Path(args.workdir).mkdir(parents=True, exist_ok=True)
     results: list[TaskOutcome] = []
     for index, entry in enumerate(tasks, start=1):
         instance_id = entry["instance_id"]
@@ -224,6 +223,13 @@ def _file_hash(path: Path) -> str:
     return "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _write(path: Path, text: str) -> None:
+    """Report writing lives outside the coroutine's hot path (ruff ASYNC240):
+    blocking pathlib calls in a coroutine are a real smell even in a script."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+
+
 def _lockfile_hash() -> str:
     lock = REPO_ROOT / "uv.lock"
     return _file_hash(lock) if lock.exists() else "(no uv.lock)"
@@ -249,6 +255,7 @@ def build_report(
         "max_ms": max(wall) if wall else 0,
     }
     rate_a, rate_b = resolve_rate(arm_a), resolve_rate(arm_b)
+    ci_lo, ci_hi = floor.confidence_interval
     return f"""---
 status: rationale
 updated: {datetime.now(UTC).date().isoformat()}
@@ -272,7 +279,7 @@ remains untaken and is blocked on per-task environment images.
 | Resolve rate, arm A | {'n/a' if rate_a is None else f'{rate_a:.1%}'} |
 | Resolve rate, arm B | {'n/a' if rate_b is None else f'{rate_b:.1%}'} |
 | Mean absolute A/A drift | {floor.mean_delta:.4f} |
-| Bootstrap CI (α={floor.alpha}, 2000 iters, seed {floor.seed}) | [{floor.confidence_interval[0]:.4f}, {floor.confidence_interval[1]:.4f}] |
+| Bootstrap CI (α={floor.alpha}, 2000 iters, seed {floor.seed}) | [{ci_lo:.4f}, {ci_hi:.4f}] |
 | **Discordance p₀₁** | **{floor.p01:.4f}** |
 | **Discordance p₁₀** | **{floor.p10:.4f}** |
 | Discordant pairs | {floor.n_discordant} |
@@ -324,12 +331,7 @@ systematically.
 # ------------------------------------------------------------------ main
 
 
-async def main_async(args: argparse.Namespace) -> int:
-    manifest_path = Path(args.manifest)
-    if not manifest_path.exists():
-        print(f"no manifest at {manifest_path}; run scripts/build_floor_manifest.py", file=sys.stderr)
-        return 2
-    manifest = load_manifest(manifest_path.read_text(encoding="utf-8"))
+async def main_async(args: argparse.Namespace, manifest: dict[str, Any]) -> int:
     manifest_sha = manifest_hash(manifest)
 
     if not args.uncontained:
@@ -395,16 +397,18 @@ async def main_async(args: argparse.Namespace) -> int:
 
     report = build_report(floor, arm_a, arm_b, family, p_value, adjusted, elapsed)
     out = Path(args.report)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(report, encoding="utf-8")
+    _write(out, report)
     raw = out.with_suffix(".json")
-    raw.write_text(
+    _write(
+        raw,
         json.dumps(
-            {"arm_a": arm_a.model_dump(mode="json"), "arm_b": arm_b.model_dump(mode="json"),
-             "floor": floor.model_dump(mode="json")},
+            {
+                "arm_a": arm_a.model_dump(mode="json"),
+                "arm_b": arm_b.model_dump(mode="json"),
+                "floor": floor.model_dump(mode="json"),
+            },
             indent=2,
         ),
-        encoding="utf-8",
     )
     print(f"\nwrote {out}\nwrote {raw}")
     return 0
@@ -425,7 +429,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--dry-run", action="store_true", help="stub endpoint, no spend, no report")
     args = parser.parse_args(argv)
-    return asyncio.run(main_async(args))
+    Path(args.workdir).mkdir(parents=True, exist_ok=True)
+
+    manifest_path = Path(args.manifest)
+    if not manifest_path.exists():
+        print(f"no manifest at {manifest_path}; run scripts/build_floor_manifest.py", file=sys.stderr)
+        return 2
+    manifest = load_manifest(manifest_path.read_text(encoding="utf-8"))
+    return asyncio.run(main_async(args, manifest))
 
 
 if __name__ == "__main__":

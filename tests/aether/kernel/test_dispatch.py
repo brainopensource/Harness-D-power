@@ -68,8 +68,8 @@ async def test_success_path_calls_authorize_reserve_adapter_commit_in_order() ->
 
     assert outcome.status == "ok"
     assert len(adapter.calls) == 1
-    remaining = await governor.remaining(RunId("r1"))
-    assert remaining.usd_micros == 5  # committed actuals landed
+    spent = await governor.spent(RunId("r1"))
+    assert spent.usd_micros == 5  # committed actuals landed
 
 
 async def test_denied_request_never_reaches_governor_or_adapter() -> None:
@@ -108,8 +108,11 @@ async def test_budget_denied_never_reaches_adapter() -> None:
         async def release(self, lease_id):  # noqa: ANN001, ANN201
             raise AssertionError("release() must not be called — nothing was leased")
 
-        async def remaining(self, run_id):  # noqa: ANN001, ANN201
+        async def spent(self, run_id):  # noqa: ANN001, ANN201
             return BudgetDims()
+
+        async def remaining(self, run_id):  # noqa: ANN001, ANN201
+            return None
 
     dispatcher = Dispatcher(
         policy=DefaultPolicyEngine(), governor=_AlwaysDenyBudget(), adapters={"read": adapter}
@@ -130,4 +133,4 @@ async def test_adapter_exception_releases_lease_and_propagates_never_swallowed()
         await dispatcher.dispatch(_request(), cost_estimate=BudgetDims(usd_micros=10))
 
     assert governor._reserved == {}  # released, not left dangling
-    assert await governor.remaining(RunId("r1")) == BudgetDims()  # never committed
+    assert await governor.spent(RunId("r1")) == BudgetDims()  # never committed

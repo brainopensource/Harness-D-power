@@ -8,7 +8,7 @@ author: Tech Lead B
 
 ## Executive Summary
 
-This report presents a deep architectural comparison between **AETHER v3.0.0** (as specified in [`docs/spec.md`](file:///F:/Coding/Harness-D-power/docs/spec.md)) and **Reasonix** (as audited in `docs/_archive/competitors_research/tech_lead_B/`).
+This report presents a deep architectural comparison between **AETHER v3.0.0** (as specified in [`docs/spec.md`](../spec.md)) and **Reasonix** (as audited in `docs/_archive/competitors_research/tech_lead_B/`).
 
 This comparison evaluates both systems as **fully realized, production-grade agent harnesses**, comparing their security perimeters, transport protocols, workflow DAG topologies, evaluation gates, and prompt cache engineering.
 

@@ -161,7 +161,7 @@ def main():
             f"* **Repository**: `{repo}`",
             f"* **Base Commit**: `{base_commit}`",
             f"* **Repo Clone URL**: `https://github.com/{repo}.git`",
-            f"* **Problem Summary**:",
+            "* **Problem Summary**:",
             f"  > {problem_desc.replace('\n', ' ')}",
             ""
         ])

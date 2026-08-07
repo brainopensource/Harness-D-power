@@ -140,8 +140,11 @@ class InMemoryResourceGovernor:
     async def release(self, lease_id: LeaseId) -> None:
         self._reserved.pop(lease_id, None)
 
-    async def remaining(self, run_id: RunId) -> BudgetDims:
+    async def spent(self, run_id: RunId) -> BudgetDims:
         return self._spent.get(run_id, BudgetDims())
+
+    async def remaining(self, run_id: RunId) -> BudgetDims | None:
+        return None  # this double seeds no ceiling, so the run is unbounded
 
 
 class InMemoryTrajectoryStore:

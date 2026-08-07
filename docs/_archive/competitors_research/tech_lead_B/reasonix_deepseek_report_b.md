@@ -193,7 +193,7 @@ When `agent.planner_model` specifies a different model than the executor, Reason
 
 ### 4.2 Task Contracts & Pause Policy
 
-Work is structured around **Task Contracts** ([`TASK_CONTRACT.md`](file:///F:/Coding/Harness-D-power/src/reasonix/docs/TASK_CONTRACT.md)):
+Work is structured around **Task Contracts** (`src/reasonix/docs/TASK_CONTRACT.md`):
 * **Context**: Purpose and audience of the task.
 * **Request**: Single, unambiguous action.
 * **Output Format**: Expected structure and required sections.
@@ -210,7 +210,7 @@ Work is structured around **Task Contracts** ([`TASK_CONTRACT.md`](file:///F:/Co
 
 ## 5. Memory, Context, Search & Index Architecture
 
-Reasonix implements **Context Engine v2** ([`SESSION_MEMORY_RETRIEVAL.md`](file:///F:/Coding/Harness-D-power/src/reasonix/docs/SESSION_MEMORY_RETRIEVAL.md)), separating standing rules from background facts.
+Reasonix implements **Context Engine v2** (`src/reasonix/docs/SESSION_MEMORY_RETRIEVAL.md`), separating standing rules from background facts.
 
 ```mermaid
 graph TD

@@ -1,56 +1,17 @@
-[
-  {
-    "p": [
-      0.01
-    ],
-    "adjusted": [
-      0.01
-    ]
-  },
-  {
-    "p": [
-      0.01,
-      0.04
-    ],
-    "adjusted": [
-      0.02,
-      0.04
-    ]
-  },
-  {
-    "p": [
-      0.04,
-      0.01
-    ],
-    "adjusted": [
-      0.04,
-      0.02
-    ]
-  },
-  {
-    "p": [
-      0.001,
-      0.02,
-      0.03,
-      0.9
-    ],
-    "adjusted": [
-      0.004,
-      0.06,
-      0.06,
-      0.9
-    ]
-  },
-  {
-    "p": [
-      0.5,
-      0.5,
-      0.5
-    ],
-    "adjusted": [
-      1.0,
-      1.0,
-      1.0
-    ]
-  }
-]
+{
+  "description": "Holm-Bonferroni step-down correction, hand-computed against the standard algorithm (sort ascending, multiply by (m-rank), enforce monotonicity by running max).",
+  "cases": [
+    {
+      "pvalues": [0.01, 0.04, 0.03, 0.005, 0.02],
+      "expected_adjusted": [0.04, 0.06, 0.06, 0.025, 0.06]
+    },
+    {
+      "pvalues": [0.05],
+      "expected_adjusted": [0.05]
+    },
+    {
+      "pvalues": [],
+      "expected_adjusted": []
+    }
+  ]
+}

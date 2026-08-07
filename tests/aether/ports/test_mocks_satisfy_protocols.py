@@ -59,8 +59,8 @@ async def test_in_memory_resource_governor_reserve_commit_release() -> None:
     lease = await governor.reserve(run_id, BudgetDims(usd_micros=100))
     assert not hasattr(lease, "shortfall")  # i.e. a real Lease, not ReservationDenied
     await governor.commit(lease.lease_id, Actuals(dims=BudgetDims(usd_micros=40)))  # type: ignore[union-attr]
-    remaining = await governor.remaining(run_id)
-    assert remaining.usd_micros == 40
+    spent = await governor.spent(run_id)
+    assert spent.usd_micros == 40
 
 
 async def test_in_memory_trajectory_store_replay_filters_by_seq() -> None:

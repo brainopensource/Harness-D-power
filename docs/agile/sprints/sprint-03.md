@@ -68,13 +68,22 @@ updated: 2026-08-06
 
 ---
 
-## Milestone Gates Closed
+## Milestone Gates Closed — as executed
 
-| Gate | Closed by |
-| :--- | :--- |
-| B3 · 1–3 | Task 1 (Gate 3 jointly with Task 5) |
-| M1a+ · 1–4 | Task 3 |
-| A/A floor | Task 5 |
+| Gate | Closed by | State |
+| :--- | :--- | :--- |
+| B3 · 1–3 | Task 1 | **Closed.** `adapters/sandbox/podman.py` + `containers/eval/`; canary 7/7 with `AETHER_REQUIRE_CONTAINER=1`, including two negative tests proving the probes can go red. Runner is Docker on this host (the documented `--runtime docker` fallback; Podman is not installed) |
+| M1a+ · 1–4 | Task 3 | **Closed.** `workflows/linear_repair_v1.yaml`, static unroll in `workflow/executor.py`, `NONE` never routes into repair, per-iteration parent leases, tail-biased context |
+| Manifest & validity canary | Task 2 | **Closed.** `benchmarks/manifests/internal-floor-01.yaml` (`sha256:7c2c2467…`), 84 tasks screened bidirectionally through the container |
+| Statistics & rig | Task 4 | **Closed.** Verbatim port + derived-N (reproduces ADR-0003's table in all 12 cells) + family gatekeeper; `HarnessUnderTest` seam with the bare-model arm |
+| A/A floor | Task 5 | **Not taken — deferred by decision.** The instrument is complete and rehearsed with zero API calls (`scripts/run_aa_floor.py --dry-run`); the arms cost real spend and were postponed. See [`noise-floor.md`](../../rationale/benchmarks/noise-floor.md) |
+
+### Deviations from this plan, and why
+
+1. **CPU/memory limits are not lease-derived** (Task 1 criterion 1). `BudgetDims` has no such dimension; they are composition-frozen `ContainerLimits`. Wall-clock *is* lease-derived.
+2. **No `agency/repair.py`** (Task 3 target seam). `aether-layers` makes `aether.agency` and `aether.workflow` independent siblings — importing one from the other breaks a contract that is currently 9-for-9. A split needs an ADR, not a sprint task.
+3. **Two schema extensions**: the manifest exclusion enum gains `instrument_error`, and `repair.budget_per_iteration` becomes required and must cover its chain. Both are recorded in the schema files themselves.
+4. **The floor's suite is internal, not SWE-bench.** Every SWE-bench task needs a per-task environment image; none exists, so the canary would exclude all 15 sample tasks as `instrument_error`. That is the next instrument task.
 
 ---
 
