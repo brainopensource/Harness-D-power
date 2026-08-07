@@ -5,7 +5,7 @@
   "type": "module",
   "bin": "./dist/index.js",
   "scripts": {
-    "build": "tsup src/index.tsx --format esm --bundle",
+    "build": "tsup src/index.tsx --format esm",
     "dev": "tsx src/index.tsx",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit"
@@ -13,11 +13,12 @@
   "dependencies": {
     "@aether/core": "workspace:*",
     "@aether/mock-server": "workspace:*",
-    "ink": "^5.1.0",
+    "ink": "^7.1.1",
     "react": "^19.0.0"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
+    "tsconfig-paths": "^4.2.0",
     "tsup": "^8.3.5",
     "tsx": "^4.19.2",
     "typescript": "^5.7.0"

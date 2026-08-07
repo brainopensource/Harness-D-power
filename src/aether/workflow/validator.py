@@ -50,9 +50,34 @@ def check_schema(topology: dict[str, Any]) -> None:
         raise TopologyValidationError("schema", exc.message) from exc
 
 
+def _repair_edges(topology: dict[str, Any]) -> list[dict[str, str]]:
+    """The edges a `repair` block implies once unrolled:
+    `from_node -> via_nodes[0] -> ... -> via_nodes[-1] -> back_to`.
+
+    They are not in `edges` — a repair block is a *bounded loop*, and writing
+    it as ordinary edges would make the graph cyclic and fail acyclicity. They
+    are still real edges at run time, so the socket check must see them; a
+    repair chain whose types do not line up would fail at the third iteration
+    of a benchmark run instead of at load time.
+    """
+    repair = topology.get("repair")
+    if repair is None:
+        return []
+    nodes = _node_map(topology)
+    chain = [repair.get("from_node"), *repair.get("via_nodes", []), repair.get("back_to")]
+    # Unknown node ids are `bounded_iteration`'s to report — it runs first and
+    # names them precisely. Reporting them here as a socket mismatch would
+    # point the reader at the wrong rule.
+    return [
+        {"from": a, "to": b}
+        for a, b in zip(chain, chain[1:], strict=False)
+        if a in nodes and b in nodes
+    ]
+
+
 def check_socket_compatibility(topology: dict[str, Any], node_sockets: Mapping[str, tuple[str, str]]) -> None:
     nodes = _node_map(topology)
-    for edge in topology["edges"]:
+    for edge in [*topology["edges"], *_repair_edges(topology)]:
         from_node = nodes.get(edge["from"])
         to_node = nodes.get(edge["to"])
         if from_node is None or to_node is None:
@@ -135,6 +160,57 @@ def check_bounded_iteration(topology: dict[str, Any]) -> None:
                 "bounded_iteration", f"repair.via_nodes references unknown node '{via}'"
             )
 
+    # The loop must open and close on the judge. A repair block hanging off a
+    # non-evaluate node would iterate on something that is not a verdict, and
+    # a `back_to` that is not the evaluate node would let an unjudged patch
+    # out of the loop — I7 with extra steps.
+    for field in ("from_node", "back_to"):
+        node = nodes[repair[field]]
+        if node["kind"] != "evaluate":
+            raise TopologyValidationError(
+                "bounded_iteration",
+                f"repair.{field} must name an evaluate-kind node, got '{repair[field]}' "
+                f"of kind '{node['kind']}' — a repair loop that does not close on the judge "
+                "lets an unjudged candidate out of the loop",
+            )
+    # Each iteration reserves its own budget and every node inside it carves a
+    # child lease from that reservation (ADR-0013 rev. 2 / spec §5). An
+    # iteration budget smaller than the chain it funds is not a tight budget —
+    # it is a repair block that silently never runs, which is indistinguishable
+    # from one that runs and never helps. That distinction is the entire point
+    # of the M2 repair ablation, so it is checked here, at load time.
+    per_iteration = repair.get("budget_per_iteration")
+    if per_iteration is None:
+        raise TopologyValidationError(
+            "bounded_iteration",
+            "repair.budget_per_iteration is required: without it every node in the loop is "
+            "denied its child lease and the repair block is a silent no-op",
+        )
+    chain_nodes: list[str] = [*repair["via_nodes"], repair["back_to"]]
+    required: dict[str, int] = {}
+    for node_id in chain_nodes:
+        node_budget: dict[str, int] = nodes[node_id].get("budget") or {}
+        for dim, value in node_budget.items():
+            required[dim] = required.get(dim, 0) + int(value)
+    granted: dict[str, int] = per_iteration
+    short = {
+        dim: (need, granted.get(dim, 0)) for dim, need in required.items() if granted.get(dim, 0) < need
+    }
+    if short:
+        detail = ", ".join(f"{dim}: needs {need}, has {has}" for dim, (need, has) in sorted(short.items()))
+        raise TopologyValidationError(
+            "bounded_iteration",
+            f"repair.budget_per_iteration does not cover the nodes it funds ({detail})",
+        )
+
+    if repair["from_node"] in {edge["from"] for edge in topology["edges"]}:
+        raise TopologyValidationError(
+            "bounded_iteration",
+            f"repair.from_node '{repair['from_node']}' has an outgoing edge in the main graph; "
+            "the unroll runs after the linear chain terminates, so the loop's entry node must "
+            "be that chain's terminal node",
+        )
+
 
 def check_declared_fanout(topology: dict[str, Any]) -> None:
     fan_out = topology.get("fan_out")
@@ -163,8 +239,11 @@ def validate_topology(topology: dict[str, Any], node_sockets: Mapping[str, tuple
     """Runs the schema pass plus all five static checks. No `--force` flag —
     a topology failing any check is refused, full stop."""
     check_schema(topology)
+    # `bounded_iteration` runs before the socket check so a malformed repair
+    # block is reported as a malformed repair block, not as a downstream socket
+    # mismatch in the chain it implies.
+    check_bounded_iteration(topology)
     check_socket_compatibility(topology, node_sockets)
     check_evaluator_termination(topology)
-    check_bounded_iteration(topology)
     check_declared_fanout(topology)
     check_budget_annotation(topology)

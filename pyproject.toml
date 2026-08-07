@@ -59,6 +59,7 @@ testpaths = ["tests"]
 addopts = "--strict-markers"
 markers = [
   "podman: requires rootless Podman and the sagiha/runtime:latest image (v2-S5 perimeter)",
+  "container: requires a container runtime and aether/eval:build (B3 perimeter, TASK-016)",
   "live: requires a live local OpenAI-compatible endpoint on :11434 (B2b perimeter)",
 ]
 

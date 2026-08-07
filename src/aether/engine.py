@@ -17,6 +17,7 @@ from typing import Any
 from uuid import uuid4
 
 from aether.adapters.model_provider.openai_compatible import OpenAICompatibleProvider
+from aether.adapters.sandbox.podman import ContainerSandbox
 from aether.adapters.tools.builtin import BuiltinToolRegistry
 from aether.adapters.trajectory_store.sqlite import SqliteTrajectoryStore
 from aether.adapters.workspace.git_cli import GitCliWorkspace, GitCliWorktreeManager
@@ -33,8 +34,9 @@ from aether.ports.trajectory_store import StoredEvent
 from aether.workflow.dispatch_facade import DispatchFacade
 from aether.workflow.executor import WorkflowExecutor
 from aether.workflow.nodes.apply import ApplyStep
-from aether.workflow.nodes.evaluate import EvaluateStep
+from aether.workflow.nodes.evaluate import EvaluatedCandidate, EvaluateStep
 from aether.workflow.nodes.generate import GenerateStep
+from aether.workflow.nodes.repair import RepairStep
 from aether.workflow.nodes.retrieve import RetrieveStep, TaskInput
 from aether.workflow.step import WorkflowStep
 from aether.workflow.validator import load_topology, validate_topology
@@ -45,7 +47,10 @@ NODE_SOCKETS: dict[str, tuple[str, str]] = {
     "retrieve": ("TaskInput", "RetrievedContext"),
     "generate": ("RetrievedContext", "GeneratedPatch"),
     "apply": ("GeneratedPatch", "AppliedPatch"),
-    "evaluate": ("AppliedPatch", "GateReport"),
+    "evaluate": ("AppliedPatch", "EvaluatedCandidate"),
+    # The repair edge closes the loop: evaluate's output is repair's input, and
+    # repair's output re-enters apply (TASK-023, workflows/linear_repair_v1.yaml).
+    "repair": ("EvaluatedCandidate", "GeneratedPatch"),
 }
 
 
@@ -67,7 +72,11 @@ async def run(
     api_key: str | None = None,
     trajectory_db_path: str = ":memory:",
     entry_file: str = "README.md",
+    sandbox_runtime: str | None = None,
 ) -> RunResult:
+    """`sandbox_runtime` ("podman" | "docker") puts the evaluator inside the B3
+    container (TASK-016). Left None the judge runs uncontained — fine for the
+    smoke suite, never valid for a published number (measurement.md §2 B3)."""
     run_id = RunId(f"run-{uuid4().hex[:12]}")
 
     workspace = GitCliWorkspace(worktrees_root)
@@ -75,7 +84,8 @@ async def run(
     tool_registry = BuiltinToolRegistry(workspace, worktrees_root)
     resolved_api_key = model_api_key or api_key
     model_provider = OpenAICompatibleProvider(model_base_url, model_name, api_key=resolved_api_key)
-    evaluator = RealEvaluator(worktrees_root, resolve_command)
+    sandbox = ContainerSandbox(sandbox_runtime) if sandbox_runtime is not None else None
+    evaluator = RealEvaluator(worktrees_root, resolve_command, sandbox=sandbox)
     governor = ResourceGovernor()
     dispatcher = build_dispatcher(workspace, tool_registry, model_provider, evaluator, governor)
     trajectory_store = SqliteTrajectoryStore(trajectory_db_path)
@@ -95,6 +105,7 @@ async def run(
         "generate": GenerateStep(facade, model_name=model_name, tool_catalog=tool_catalog),
         "apply": ApplyStep(facade),
         "evaluate": EvaluateStep(facade),
+        "repair": RepairStep(facade, model_name=model_name),
     }
     executor = WorkflowExecutor(topology, steps, bus, governor)
 
@@ -102,7 +113,8 @@ async def run(
     initial = TaskInput(task=task, worktree=worktree)
 
     try:
-        gate_report = await executor.execute(run_id, initial)
+        outcome = await executor.execute(run_id, initial)
+        gate_report = outcome.report if isinstance(outcome, EvaluatedCandidate) else outcome
     finally:
         await _drain_to_trajectory_store(bus, trajectory_store, "trajectory_store")
 

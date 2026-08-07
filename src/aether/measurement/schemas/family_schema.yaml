@@ -1,0 +1,136 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "aether://schemas/family/1.0.0"
+title: AETHER Statistical Gate Family (pre-registration)
+type: object
+additionalProperties: false
+required: [schema_version, family_id, registered_at, manifest_hash, model_fingerprint,
+           outcome, alpha_family, correction, sample, power, arms, hypotheses, cost_criterion]
+
+properties:
+  schema_version: { type: string, pattern: '^1\.\d+\.\d+$' }
+  family_id: { type: string, pattern: '^[a-z][a-z0-9_-]{2,63}$' }
+  registered_at: { type: string, format: date-time }
+  registered_commit:
+    type: string
+    pattern: '^[0-9a-f]{40}$'
+    description: The commit that landed this file — provably before any arm ran.
+  manifest_hash: { type: string, pattern: '^sha256:[0-9a-f]{64}$' }
+  model_fingerprint:
+    type: string
+    description: Provider + model id + endpoint fingerprint, identical across arms.
+
+  outcome:
+    type: object
+    additionalProperties: false
+    required: [primary, aggregation]
+    properties:
+      primary: { type: string, const: resolve_pass_at_1 }
+      aggregation:
+        type: string
+        const: first_seeded_pass
+        description: >
+          Primary outcome = pass@1 on the FIRST seeded pass. Additional passes
+          estimate within-arm flakiness, reported separately, never merged
+          post hoc.
+      extra_passes_per_arm: { type: integer, minimum: 0, maximum: 4 }
+
+  alpha_family: { type: number, exclusiveMinimum: 0, maximum: 0.1, default: 0.05 }
+  correction: { type: string, const: holm_bonferroni }
+
+  sample:
+    type: object
+    additionalProperties: false
+    required: [tier, n, split]
+    properties:
+      tier:
+        type: string
+        enum: [smoke, admission, publication]
+        description: smoke (directional only — NEVER admits) · admission · publication.
+      n: { type: integer, minimum: 50 }
+      split:
+        type: string
+        enum: [dev, holdout, sealed]
+        description: >
+          Binding pairs — smoke:dev, admission:holdout, publication:sealed.
+          statistics.validate_family rejects mismatches (a smoke run on sealed
+          data burns the publication set for nothing).
+
+  power:
+    type: object
+    additionalProperties: false
+    description: >
+      N is DERIVED, not asserted. The discordance assumption comes from the
+      A/A floor + baseline runs and is named here; the power simulation
+      (stdlib Monte-Carlo, seeded) is re-runnable from these fields alone.
+    required: [minimal_effect_pts, assumed_p01, assumed_p10, target_power, simulation_seed]
+    properties:
+      minimal_effect_pts: { type: number, exclusiveMinimum: 0 }
+      assumed_p01: { type: number, minimum: 0, maximum: 1 }
+      assumed_p10: { type: number, minimum: 0, maximum: 1 }
+      target_power: { type: number, minimum: 0.7, maximum: 0.99, default: 0.8 }
+      simulation_seed: { type: integer }
+      derived_n:
+        type: integer
+        minimum: 50
+        description: >
+          The N the simulation produced for these parameters, recorded so a
+          reviewer can re-run derive_n_for_family and diff. Advisory: the
+          binding value is sample.n, and a mismatch is a review question.
+      sequential:
+        type: object
+        additionalProperties: false
+        description: Optional group-sequential design (early stop for large true effects).
+        required: [looks, alpha_spending]
+        properties:
+          looks: { type: array, minItems: 1, items: { type: integer, minimum: 25 } }
+          alpha_spending: { type: string, enum: [obrien_fleming, pocock] }
+
+  arms:
+    type: array
+    minItems: 2
+    items:
+      type: object
+      additionalProperties: false
+      required: [arm_id, harness_id, config_hash]
+      properties:
+        arm_id: { type: string }
+        harness_id:
+          type: string
+          description: HarnessUnderTest id — bare_model, aether, open_hands, ...
+        config_hash: { type: string, pattern: '^sha256:[0-9a-f]{64}$' }
+        topology_hash:
+          type: string
+          pattern: '^sha256:[0-9a-f]{64}$'
+          description: Required when harness_id == aether (ADR-0014 identity).
+
+  hypotheses:
+    type: array
+    minItems: 1
+    description: >
+      The declared family Holm–Bonferroni corrects across. Adding a hypothesis
+      after registration = a NEW family file (new hash); there is no amend.
+    items:
+      type: object
+      additionalProperties: false
+      required: [hypothesis_id, arm_a, arm_b, direction, statistic]
+      properties:
+        hypothesis_id: { type: string }
+        arm_a: { type: string }
+        arm_b: { type: string }
+        direction: { type: string, enum: [b_gt_a, two_sided] }
+        statistic: { type: string, const: exact_mcnemar }
+        ci: { type: object, properties: { method: { const: seeded_bootstrap },
+                                          iterations: { type: integer, const: 2000 },
+                                          seed: { type: integer } },
+              required: [method, iterations, seed], additionalProperties: false }
+
+  cost_criterion:
+    type: object
+    additionalProperties: false
+    description: >
+      Admission requires cost-per-resolved-task non-inferior within the
+      declared margin — not raw cost flat (ADR-0003 rev. 2 §4).
+    required: [metric, max_increase_pct]
+    properties:
+      metric: { type: string, const: usd_per_resolved_task }
+      max_increase_pct: { type: number, minimum: 0, maximum: 100, default: 20 }

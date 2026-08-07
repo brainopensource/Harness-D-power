@@ -1,7 +1,7 @@
 """Typed event catalog (TASK-022, spec.md §8) — generated docs, CI drift-
 checked via `scripts/gen_aether_event_catalog.py --check`.
 
-M1a-minimal: the seven events the walking skeleton's executor and dispatcher
+M1a-minimal plus the repair edge: the eight events the walking skeleton's executor and dispatcher
 actually emit this sprint. Events never schedule nodes (spec.md §8) — this is
 an observational record, not a control-flow mechanism. `EVENT_TYPES` is the
 single source of truth both the generated doc and the drift check read from;
@@ -64,6 +64,19 @@ class GateReportEmitted(Frozen):
     report: GateReport
 
 
+class RepairIterationStarted(Frozen):
+    """One unrolled iteration of a bounded repair block (TASK-023). Emitted so
+    the repair edge's cost is visible per iteration when its M2 ablation is
+    taken — an unobservable lever cannot be ablated."""
+
+    kind: Literal["repair_iteration_started"] = "repair_iteration_started"
+    run_id: RunId
+    at: AwareDatetime
+    iteration: int
+    max_iterations: int
+    from_node: NodeId
+
+
 class RunCompleted(Frozen):
     kind: Literal["run_completed"] = "run_completed"
     run_id: RunId
@@ -78,6 +91,7 @@ Event = (
     | EffectDispatched
     | BudgetOverrunEmitted
     | GateReportEmitted
+    | RepairIterationStarted
     | RunCompleted
 )
 
@@ -90,5 +104,6 @@ EVENT_TYPES: tuple[type[Frozen], ...] = (
     EffectDispatched,
     BudgetOverrunEmitted,
     GateReportEmitted,
+    RepairIterationStarted,
     RunCompleted,
 )

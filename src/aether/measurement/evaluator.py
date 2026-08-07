@@ -1,21 +1,31 @@
-"""TCB Evaluator (TASK-019) — runs the task's pinned test command in the
-worktree and returns a typed tri-state `GateReport`.
+"""TCB Evaluator (TASK-019 + TASK-016) — runs the task's pinned test command
+against the candidate worktree and returns a typed tri-state `GateReport`.
 
 Must live here, in `measurement/`, never `adapters/` — this residency is what
 makes the `aether-tcb-isolation` import-linter contract select it (spec.md
-§4). `import-linter` proves this module cannot import `aether.agency` or
-`aether.workflow` (I7).
+§4). `import-linter` proves this module cannot import `aether.agency`,
+`aether.workflow` or `aether.adapters` (I7).
 
 B4 contract: exit code 0 is PASSED, exit code 1 is FAILED (a real test
 failure), and every other outcome — a `test_command_hash` mismatch, a missing
-binary, a timeout, or any other nonzero exit — is `GateStatus.NONE` with
-`instrument_error` set. NONE is never silently reported as FAILED; it is
-excluded from the resolve-rate denominator (measurement.md §2 B4).
+binary, a timeout, a container that never started, or any other nonzero exit
+— is `GateStatus.NONE` with `instrument_error` set. NONE is never silently
+reported as FAILED; it is excluded from the resolve-rate denominator
+(measurement.md §2 B4).
 
-Ships uncontained this sprint — B3 containerization (TASK-016) is Sprint 3.
-The pinned task manifest (TASK-014) doesn't exist yet either: `resolve_command`
-is the seam a manifest-driven resolver plugs into later; for now callers (the
-M1a smoke path, composition.py) supply one directly.
+**Two execution modes, one mapping.** With a `sandbox` injected the command
+runs inside the B3 evaluation container (`adapters/sandbox/podman.py`); with
+none it runs uncontained via `asyncio.subprocess`, which is what keeps the
+conformance suite runnable on a machine with no container runtime. The
+uncontained mode is a CI convenience and is **not** valid for a published
+number: `measurement.md` §2 requires the B3 canary to pass in the floor
+environment first, and the canary is meaningless without the container.
+
+The sandbox arrives as a structural `SandboxRunner` (below), never as an
+import of the adapter — the TCB contract forbids this module from importing
+`aether.adapters`, and the layer contract forbids adapters importing
+`aether.measurement`. A Protocol declared here, satisfied structurally there,
+is the only shape that respects both.
 """
 
 from __future__ import annotations
@@ -25,12 +35,33 @@ import hashlib
 import os
 import shlex
 from collections.abc import Callable
+from typing import Protocol, runtime_checkable
 
 from aether.domain.gate import GateReport, GateStatus
+from aether.domain.sandbox import ContainerLimits, ContainerResult, ContainerSpec
 from aether.domain.workspace import WorktreeRef
 from aether.ports.evaluator import EvalSpec
 
 _TAIL_CHARS = 4000  # tail-biased truncation: keep the failure block, not the pass list
+
+#: `PYTHONDONTWRITEBYTECODE=1` is a B3-class defence, not tidiness, and the
+#: container path sets it too. CPython invalidates a cached `.pyc` on
+#: (mtime seconds, source size); a repair iteration that edits a line without
+#: changing the file's length, inside the same second, satisfies both — so the
+#: interpreter reuses the *previous* candidate's bytecode and the gate scores a
+#: diff it never ran. That is the B3 failure mode exactly: a candidate's change
+#: invisible to the judge. Caught by tests/integration/test_repair_e2e.py, which
+#: is why the repair edge is where it surfaced: nothing before it re-evaluated
+#: the same worktree twice.
+_EVAL_ENV = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
+
+
+@runtime_checkable
+class SandboxRunner(Protocol):
+    """The container boundary the evaluator needs. Not a port (ADR-0005 rev. 2
+    ratifies eight port areas); a structural collaborator of the TCB."""
+
+    async def run(self, spec: ContainerSpec) -> ContainerResult: ...
 
 
 def hash_command(command: str) -> str:
@@ -41,8 +72,28 @@ def _worktree_path(worktrees_root: str, worktree: WorktreeRef) -> str:
     return os.path.join(worktrees_root, worktree.run_id, worktree.worktree_id)
 
 
-def _tail(text: str, limit: int = _TAIL_CHARS) -> str:
+def tail_biased(text: str, limit: int = _TAIL_CHARS) -> str:
+    """Tail-biased truncation. Test output is failure-at-the-end shaped: the
+    traceback is what a reader — and the repair edge (TASK-023) — needs, the
+    pass list is what burns the budget. Public because the repair node feeds
+    the same output into context and must not invent a second truncation
+    strategy that disagrees with what the gate reported."""
     return text[-limit:]
+
+
+def _report_from_exit(exit_code: int, output: str) -> GateReport:
+    """The single B4 mapping. Both execution modes route through it so the
+    contained and uncontained paths cannot drift apart."""
+    if exit_code == 0:
+        return GateReport(gate="tests", status=GateStatus.PASSED, detail=output)
+    if exit_code == 1:
+        return GateReport(gate="tests", status=GateStatus.FAILED, detail=output)
+    return GateReport(
+        gate="tests",
+        status=GateStatus.NONE,
+        detail=output,
+        instrument_error=f"exit {exit_code}: instrument/harness failure, not a test failure",
+    )
 
 
 class RealEvaluator:
@@ -50,9 +101,25 @@ class RealEvaluator:
     locating a worktree from `(run_id, worktree_id)` — no `Path` crosses the
     `EvalSpec` boundary (I3)."""
 
-    def __init__(self, worktrees_root: str, resolve_command: Callable[[EvalSpec], str]) -> None:
+    def __init__(
+        self,
+        worktrees_root: str,
+        resolve_command: Callable[[EvalSpec], str],
+        sandbox: SandboxRunner | None = None,
+        limits: ContainerLimits | None = None,
+        layers_host_path: str | None = None,
+    ) -> None:
         self._worktrees_root = worktrees_root
         self._resolve_command = resolve_command
+        self._sandbox = sandbox
+        self._limits = limits or ContainerLimits()
+        self._layers_host_path = layers_host_path
+
+    @property
+    def is_contained(self) -> bool:
+        """Whether this evaluator is the B3-isolated instrument. Read by the
+        floor runner: a number taken with this False is not publishable."""
+        return self._sandbox is not None
 
     async def evaluate(self, spec: EvalSpec) -> GateReport:
         command = self._resolve_command(spec)
@@ -67,14 +134,44 @@ class RealEvaluator:
             )
 
         path = _worktree_path(self._worktrees_root, spec.worktree)
-        timeout_s = spec.timeout_ms / 1000
+        if self._sandbox is not None:
+            return await self._evaluate_contained(spec, command, path)
+        return await self._evaluate_uncontained(spec, command, path)
 
+    async def _evaluate_contained(self, spec: EvalSpec, command: str, path: str) -> GateReport:
+        assert self._sandbox is not None
+        result = await self._sandbox.run(
+            ContainerSpec(
+                image_digest=spec.image_digest,
+                command=command,
+                worktree_host_path=path,
+                layers_host_path=self._layers_host_path,
+                timeout_ms=spec.timeout_ms,
+                limits=self._limits,
+            )
+        )
+        if result.launch_error is not None:
+            return GateReport(
+                gate="tests",
+                status=GateStatus.NONE,
+                instrument_error=f"container did not start: {result.launch_error}",
+            )
+        if result.timed_out:
+            return GateReport(
+                gate="tests",
+                status=GateStatus.NONE,
+                instrument_error=f"timed out after {spec.timeout_ms}ms",
+            )
+        return _report_from_exit(result.exit_code, tail_biased(result.stdout + result.stderr))
+
+    async def _evaluate_uncontained(self, spec: EvalSpec, command: str, path: str) -> GateReport:
         try:
             proc = await asyncio.create_subprocess_exec(
                 *shlex.split(command),
                 cwd=path,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
+                env=_EVAL_ENV,
             )
         except FileNotFoundError as exc:
             return GateReport(
@@ -82,7 +179,7 @@ class RealEvaluator:
             )
 
         try:
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout_s)
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=spec.timeout_ms / 1000)
         except TimeoutError:
             proc.kill()
             await proc.communicate()
@@ -90,17 +187,5 @@ class RealEvaluator:
                 gate="tests", status=GateStatus.NONE, instrument_error=f"timed out after {spec.timeout_ms}ms"
             )
 
-        exit_code = proc.returncode
-        output = _tail((stdout + stderr).decode(errors="replace"))
-
-        if exit_code == 0:
-            return GateReport(gate="tests", status=GateStatus.PASSED, detail=output)
-        if exit_code == 1:
-            return GateReport(gate="tests", status=GateStatus.FAILED, detail=output)
-
-        return GateReport(
-            gate="tests",
-            status=GateStatus.NONE,
-            detail=output,
-            instrument_error=f"exit {exit_code}: instrument/harness failure, not a test failure",
-        )
+        exit_code = proc.returncode if proc.returncode is not None else -1
+        return _report_from_exit(exit_code, tail_biased((stdout + stderr).decode(errors="replace")))

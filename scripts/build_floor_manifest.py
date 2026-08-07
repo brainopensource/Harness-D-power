@@ -1,0 +1,241 @@
+#!/usr/bin/env python3
+"""Generate and pin the internal task manifest the A/A floor runs on (TASK-014).
+
+**Why an internal suite.** Every SWE-bench task needs its own environment image
+with that repository's dependencies installed at that commit. Building 50 of
+those is hours of work and many GB, and until they exist a SWE-bench floor
+cannot be taken at all — `measurement.md` §2 B1/B3. An internal suite of
+single-bug Python repair tasks is a *different* instrument measuring the same
+thing the A/A floor is for: the variance of two identical configurations of
+this harness. The number it produces is a floor **for this suite**, and the
+write-up says so in its first line.
+
+**Deterministic by construction.** The repos are generated from a seed, with
+pinned author identity and pinned commit dates, so regenerating the suite on
+another machine produces byte-identical trees *and identical base commit
+SHAs*. The manifest stays valid across machines, which is what makes the floor
+re-runnable rather than a one-off.
+
+Every task is screened by the real bidirectional canary before it is pinned:
+the gold patch must pass and the empty patch must fail, on the same evaluator
+the floor will use. Failures are published with a reason, never dropped.
+
+    python3 scripts/build_floor_manifest.py --n 50 --runtime docker
+    python3 scripts/build_floor_manifest.py --n 4 --uncontained   # quick check
+"""
+
+from __future__ import annotations
+
+import argparse
+import asyncio
+import os
+import subprocess
+import sys
+from datetime import UTC, datetime
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO_ROOT / "src"))
+
+from aether.adapters.sandbox.podman import ContainerSandbox, runtime_available  # noqa: E402
+from aether.measurement.evaluator import RealEvaluator  # noqa: E402
+from aether.measurement.manifest import (  # noqa: E402
+    TaskCandidate,
+    assign_splits,
+    build_manifest,
+    dump_manifest,
+    manifest_hash,
+    screen_all,
+)
+from aether.measurement.validity import WorktreeValidityInstrument  # noqa: E402
+
+DEFAULT_WORKDIR = Path.home() / ".cache" / "aether" / "internal_suite"
+DEFAULT_OUT = REPO_ROOT / "benchmarks" / "manifests"
+TEST_COMMAND = "python3 run_tests.py"
+
+#: Deterministic git identity and timestamps: same inputs, same SHAs, on any
+#: machine. Without these the manifest's base commits would differ per run and
+#: the pinned manifest would be unusable anywhere but the machine that built it.
+GIT_ENV = {
+    **os.environ,
+    "GIT_AUTHOR_NAME": "AETHER Suite Generator",
+    "GIT_AUTHOR_EMAIL": "suite@aether.invalid",
+    "GIT_COMMITTER_NAME": "AETHER Suite Generator",
+    "GIT_COMMITTER_EMAIL": "suite@aether.invalid",
+    "GIT_AUTHOR_DATE": "2026-01-01T00:00:00+00:00",
+    "GIT_COMMITTER_DATE": "2026-01-01T00:00:00+00:00",
+}
+
+#: (name, buggy body, fixed body, assertion) — one small, unambiguous defect
+#: each. Deliberately easy: the floor measures *variance between two identical
+#: configurations*, and a suite nothing can solve produces a degenerate floor
+#: where every pair agrees for the wrong reason.
+BUG_FAMILIES: list[tuple[str, str, str, str]] = [
+    ("add", "return a - b", "return a + b", "assert f(2, 3) == 5"),
+    ("sub", "return a + b", "return a - b", "assert f(5, 3) == 2"),
+    ("mul", "return a + b", "return a * b", "assert f(3, 4) == 12"),
+    ("max_of", "return a if a < b else b", "return a if a > b else b", "assert f(9, 4) == 9"),
+    ("min_of", "return a if a > b else b", "return a if a < b else b", "assert f(9, 4) == 4"),
+    ("abs_diff", "return a - b", "return abs(a - b)", "assert f(3, 8) == 5"),
+    ("clamp_low", "return a", "return max(a, b)", "assert f(1, 4) == 4"),
+    ("is_even", "return a % 2 == 1", "return a % 2 == 0", "assert f(4, 0) is True"),
+    ("pow_of", "return a * b", "return a**b", "assert f(2, 5) == 32"),
+    ("floor_div", "return a / b", "return a // b", "assert f(7, 2) == 3"),
+]
+
+
+def _git(*args: str, cwd: Path) -> str:
+    return subprocess.run(
+        ["git", *args], cwd=cwd, check=True, capture_output=True, text=True, env=GIT_ENV
+    ).stdout
+
+
+def _module_source(body: str) -> str:
+    return f"def f(a, b):\n    {body}\n"
+
+
+def _tests_source(assertion: str) -> str:
+    return f"import sys\nfrom mod import f\n\ntry:\n    {assertion}\nexcept AssertionError:\n    sys.exit(1)\nsys.exit(0)\n"
+
+
+def generate_task(workdir: Path, index: int) -> TaskCandidate:
+    """One deterministic single-bug repair task, as a real git repository."""
+    family, buggy, fixed, assertion = BUG_FAMILIES[index % len(BUG_FAMILIES)]
+    instance_id = f"internal__{family}-{index:03d}"
+    repo = workdir / instance_id
+
+    if not (repo / ".git").is_dir():
+        repo.mkdir(parents=True, exist_ok=True)
+        _git("init", "-q", "-b", "main", cwd=repo)
+        (repo / "mod.py").write_text(_module_source(buggy))
+        (repo / "run_tests.py").write_text(_tests_source(assertion))
+        (repo / "README.md").write_text(
+            f"# {instance_id}\n\n`mod.f` is wrong. The test in `run_tests.py` says how.\n"
+        )
+        _git("add", ".", cwd=repo)
+        _git("commit", "-q", "-m", f"{instance_id}: base", cwd=repo)
+
+    base_commit = _git("rev-parse", "HEAD", cwd=repo).strip()
+
+    # The gold patch, produced by the same `git diff` the workspace adapter
+    # will later apply — a gold patch generated by a different tool than the
+    # one that applies it is a canary for the wrong thing.
+    (repo / "mod.py").write_text(_module_source(fixed))
+    gold_patch = _git("diff", cwd=repo)
+    _git("checkout", "--", "mod.py", cwd=repo)
+
+    return TaskCandidate(
+        instance_id=instance_id,
+        repo=f"internal/{family}",
+        base_commit=base_commit,
+        environment_image_digest="",  # filled in by the caller from the built image
+        test_command=TEST_COMMAND,
+        gold_patch=gold_patch,
+        split="dev",
+    )
+
+
+def eval_image_digest(runtime: str, tag: str = "aether/eval:build") -> str | None:
+    result = subprocess.run(
+        [runtime, "image", "inspect", "-f", "{{.Id}}", tag], capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        return None
+    digest = result.stdout.strip()
+    return digest if digest.startswith("sha256:") else f"sha256:{digest}"
+
+
+async def build(args: argparse.Namespace) -> int:
+    workdir = Path(args.workdir)
+    workdir.mkdir(parents=True, exist_ok=True)
+
+    digest = ""
+    sandbox = None
+    if not args.uncontained:
+        if not runtime_available(args.runtime):
+            print(f"{args.runtime} not on PATH; use --uncontained to screen without B3", file=sys.stderr)
+            return 2
+        resolved = eval_image_digest(args.runtime)
+        if resolved is None:
+            print(
+                "aether/eval:build not found. Build it first:\n"
+                f"  python3 scripts/build_eval_image.py --runtime {args.runtime}",
+                file=sys.stderr,
+            )
+            return 2
+        digest = resolved
+        sandbox = ContainerSandbox(args.runtime)
+    else:
+        # A digest is still required by the schema — the manifest records the
+        # environment even when this screening run did not isolate itself.
+        digest = "sha256:" + "0" * 64
+
+    candidates = [
+        generate_task(workdir, i).model_copy(update={"environment_image_digest": digest})
+        for i in range(args.n)
+    ]
+    splits = assign_splits([c.instance_id for c in candidates], seed=args.split_seed)
+    candidates = [c.model_copy(update={"split": splits[c.instance_id]}) for c in candidates]
+
+    print(f"generated {len(candidates)} tasks in {workdir}")
+    print(f"screening with the bidirectional canary ({'contained' if sandbox else 'UNCONTAINED'})…")
+
+    verdicts = []
+    for candidate in candidates:
+        instrument = WorktreeValidityInstrument(
+            repo_path=str(workdir / candidate.instance_id),
+            worktrees_root=str(workdir / "_worktrees"),
+            evaluator=RealEvaluator(
+                str(workdir / "_worktrees"),
+                resolve_command=lambda spec: TEST_COMMAND,
+                sandbox=sandbox,
+            ),
+            timeout_ms=args.timeout_ms,
+        )
+        verdict = (await screen_all([candidate], instrument, repeats=args.repeats))[0]
+        verdicts.append(verdict)
+        mark = "admit " if verdict.admitted else "EXCLUDE"
+        print(f"  {mark} {candidate.instance_id} ({verdict.reason or 'gold passes, empty fails'})")
+
+    manifest = build_manifest(
+        manifest_id=args.manifest_id,
+        suite="internal",
+        candidates=candidates,
+        verdicts=verdicts,
+        instrument_contained=sandbox is not None,
+        instrument_runtime=args.runtime if sandbox is not None else None,
+        instrument_image_digest=digest if sandbox is not None else None,
+        repeats=args.repeats,
+        created_at=datetime.now(UTC),
+    )
+
+    out_dir = Path(args.out)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / f"{args.manifest_id}.yaml"
+    out_path.write_text(dump_manifest(manifest), encoding="utf-8")
+
+    admitted = len(manifest["tasks"])
+    excluded = len(manifest["validity_gate"]["exclusions"])
+    print(f"\nadmitted {admitted}, excluded {excluded}")
+    print(f"manifest: {out_path}")
+    print(f"hash:     {manifest_hash(manifest)}")
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--n", type=int, default=50, help="tasks to generate (floor tier needs >= 50)")
+    parser.add_argument("--manifest-id", default="internal-floor-01")
+    parser.add_argument("--workdir", default=str(DEFAULT_WORKDIR))
+    parser.add_argument("--out", default=str(DEFAULT_OUT))
+    parser.add_argument("--runtime", default="docker", choices=["podman", "docker"])
+    parser.add_argument("--uncontained", action="store_true", help="screen without the B3 container")
+    parser.add_argument("--repeats", type=int, default=1, help="gold-patch repeats, for flakiness")
+    parser.add_argument("--timeout-ms", type=int, default=120_000)
+    parser.add_argument("--split-seed", type=int, default=7)
+    args = parser.parse_args(argv)
+    return asyncio.run(build(args))
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

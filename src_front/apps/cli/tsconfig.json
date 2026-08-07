@@ -4,12 +4,6 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
-    "baseUrl": ".",
-    "paths": {
-      "@aether/core": ["../../packages/core/src/index.ts"],
-      "@aether/mock-server": ["../../packages/mock-server/src/index.ts"],
-      "@aether/ui-components": ["../../packages/ui-components/src/index.ts"]
-    },
     "declaration": true,
     "strict": true,
     "esModuleInterop": true,

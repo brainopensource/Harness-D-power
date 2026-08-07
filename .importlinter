@@ -96,6 +96,8 @@ source_modules =
     aether.kernel.policy
     aether.kernel.dispatch
     aether.measurement.evaluator
+    aether.measurement.manifest
+    aether.measurement.statistics
 forbidden_modules =
     aether.agency
     aether.workflow

@@ -1,0 +1,30 @@
+schema_version: "1.0.0"
+family_id: bad_unknown_arm
+registered_at: "2026-09-15T00:00:00Z"
+manifest_hash: "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+model_fingerprint: "openai_compatible:test-model:ep-a1"
+outcome: { primary: resolve_pass_at_1, aggregation: first_seeded_pass, extra_passes_per_arm: 1 }
+alpha_family: 0.05
+correction: holm_bonferroni
+sample: { tier: admission, n: 150, split: holdout }
+power:
+  minimal_effect_pts: 10
+  assumed_p01: 0.12
+  assumed_p10: 0.02
+  target_power: 0.8
+  simulation_seed: 7
+arms:
+  - { arm_id: repair_off, harness_id: aether,
+      config_hash: "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      topology_hash: "sha256:3333333333333333333333333333333333333333333333333333333333333333" }
+  - { arm_id: repair_on, harness_id: aether,
+      config_hash: "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+      topology_hash: "sha256:5555555555555555555555555555555555555555555555555555555555555555" }
+hypotheses:
+  - hypothesis_id: repair_lifts_resolve
+    arm_a: an_arm_nobody_declared
+    arm_b: repair_on
+    direction: b_gt_a
+    statistic: exact_mcnemar
+    ci: { method: seeded_bootstrap, iterations: 2000, seed: 7 }
+cost_criterion: { metric: usd_per_resolved_task, max_increase_pct: 20 }

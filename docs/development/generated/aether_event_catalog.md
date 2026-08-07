@@ -22,5 +22,6 @@ control-flow mechanism.
 | `effect_dispatched` | `effect_class`, `status` |
 | `budget_overrun_emitted` | `overrun` |
 | `gate_report_emitted` | `node_id`, `report` |
+| `repair_iteration_started` | `iteration`, `max_iterations`, `from_node` |
 | `run_completed` | `final_status` |
 

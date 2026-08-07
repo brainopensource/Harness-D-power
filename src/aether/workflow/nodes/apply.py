@@ -17,6 +17,10 @@ class AppliedPatch(Frozen):
     worktree: WorktreeRef
     applied: bool
     detail: str = ""
+    # The diff that was applied, carried forward: the repair edge (TASK-023)
+    # needs to see the attempt it is repairing, not just that one happened.
+    patch_text: str = ""
+    iteration: int = 0
 
 
 class ApplyStep(WorkflowStep[GeneratedPatch, AppliedPatch]):
@@ -31,5 +35,10 @@ class ApplyStep(WorkflowStep[GeneratedPatch, AppliedPatch]):
         args = ApplyPatchArgs(worktree=payload.worktree, unified_diff=payload.patch_text)
         result = await self._dispatch.apply_patch(args, BudgetDims(wall_clock_ms=10000))
         return AppliedPatch(
-            task=payload.task, worktree=payload.worktree, applied=result.applied, detail=result.detail
+            task=payload.task,
+            worktree=payload.worktree,
+            applied=result.applied,
+            detail=result.detail,
+            patch_text=payload.patch_text,
+            iteration=payload.iteration,
         )

@@ -25,6 +25,7 @@ class GeneratedPatch(Frozen):
     task: Task
     worktree: WorktreeRef
     patch_text: str
+    iteration: int = 0  # 0 = first attempt; >0 = produced by the repair edge
 
 
 class GenerateStep(WorkflowStep[RetrievedContext, GeneratedPatch]):
@@ -112,6 +113,20 @@ class GenerateStep(WorkflowStep[RetrievedContext, GeneratedPatch]):
                 )
                 messages.append(ModelMessage(role="tool", spans=result.spans))
 
+        raw_patch = "".join(patch_text_parts)
+        cleaned_lines: list[str] = []
+        in_diff = False
+        for line in raw_patch.splitlines():
+            if line.startswith("```"):
+                continue
+            if line.startswith(("diff --git", "--- ", "+++ ", "@@ ")):
+                in_diff = True
+            if in_diff:
+                cleaned_lines.append(line)
+
+        final_patch = "\n".join(cleaned_lines) if cleaned_lines else raw_patch
+
         return GeneratedPatch(
-            task=payload.task, worktree=payload.worktree, patch_text="".join(patch_text_parts)
+            task=payload.task, worktree=payload.worktree, patch_text=final_patch
         )
+

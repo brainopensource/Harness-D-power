@@ -12,6 +12,7 @@ here; there is no DI container and no runtime registration.
 from __future__ import annotations
 
 import json
+import time
 from typing import Any, Literal
 
 from aether.adapters.model_provider.openai_compatible import OpenAICompatibleProvider
@@ -106,8 +107,22 @@ def build_adapter_table(
 
     async def _evaluate(request: EffectRequest, lease: Lease) -> EffectOutcome:
         spec = EvalSpec.model_validate_json(request.descriptor)
+        # Wall-clock comes from the lease, not from the caller's wish: an
+        # evaluation may not outlive the reservation the governor granted it.
+        # (Memory/CPU/pids have no `BudgetDims` dimension to come from and are
+        # composition-frozen `ContainerLimits` instead — sprint-03.md records
+        # that gap rather than papering over it.)
+        ceiling = lease.reserved.wall_clock_ms
+        if 0 < ceiling < spec.timeout_ms:
+            spec = spec.model_copy(update={"timeout_ms": ceiling})
+        started = time.monotonic()
         report = await evaluator.evaluate(spec)
-        return EffectOutcome(status="ok", result_json=report.model_dump_json())
+        elapsed_ms = int((time.monotonic() - started) * 1000)
+        return EffectOutcome(
+            status="ok",
+            actuals=Actuals(dims=BudgetDims(wall_clock_ms=elapsed_ms)),
+            result_json=report.model_dump_json(),
+        )
 
     return {
         "read": _read,
