@@ -14,7 +14,6 @@ import { CommandRunner } from "./components/CommandRunner";
 export const App: React.FC = () => {
   const [player] = useState(() => new MockCassettePlayer());
   const [cassetteIndex, setCassetteIndex] = useState(0);
-  const [, setTick] = useState(0);
 
   const cassettes = [
     { name: "swe_bench_pass.json", data: sweBenchPassCassette },
@@ -23,12 +22,8 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     player.loadCassetteData(cassettes[cassetteIndex].data);
-    const unsubscribe = player.subscribe(() => {
-      setTick((t) => t + 1);
-    });
     return () => {
       player.stop();
-      unsubscribe();
     };
   }, [cassetteIndex, player]);
 
@@ -36,17 +31,14 @@ export const App: React.FC = () => {
 
   const handlePlay = (speed: number) => {
     player.play(speed);
-    setTick((t) => t + 1);
   };
 
   const handlePause = () => {
     player.pause();
-    setTick((t) => t + 1);
   };
 
   const handleStep = () => {
     player.stepForward();
-    setTick((t) => t + 1);
   };
 
   const handleSwitchCassette = () => {
