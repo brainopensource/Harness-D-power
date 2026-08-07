@@ -87,6 +87,7 @@ def _candidate(upstream, test_command: str, **overrides: object) -> TaskCandidat
         "environment_image_digest": DIGEST,
         "test_command": test_command,
         "gold_patch": gold_patch,
+        "problem_statement": "`calc.add` returns the wrong value for negative operands.",
         "split": "dev",
     }
     base.update(overrides)

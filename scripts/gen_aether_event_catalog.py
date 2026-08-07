@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate docs/development/generated/aether_event_catalog.md from
+"""Generate docs/architecture/generated/aether_event_catalog.md from
 aether.domain.events.EVENT_TYPES.
 
 A hand-maintained event registry drifts from the code within a sprint (the
@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-OUTPUT_PATH = REPO_ROOT / "docs" / "development" / "generated" / "aether_event_catalog.md"
+OUTPUT_PATH = REPO_ROOT / "docs" / "architecture" / "generated" / "aether_event_catalog.md"
 
 sys.path.insert(0, str(REPO_ROOT / "src"))
 

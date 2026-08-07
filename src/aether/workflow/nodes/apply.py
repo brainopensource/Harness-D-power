@@ -34,6 +34,12 @@ class AppliedPatch(Frozen):
     #: Paths actually written. Empty for a diff that did not apply.
     files_changed: tuple[str, ...] = ()
     iteration: int = 0
+    #: Set when *our instrument* failed before the candidate could be judged —
+    #: today, only a `provider_error` completion. `EvaluateStep` turns this into
+    #: `GateStatus.NONE` instead of running the tests, because a worktree the
+    #: model never got to edit is not a failed attempt. Distinct from `detail`,
+    #: which reports why a *real* model reply could not be applied.
+    instrument_error: str | None = None
 
 
 class ApplyStep(WorkflowStep[GeneratedPatch, AppliedPatch]):
@@ -46,6 +52,25 @@ class ApplyStep(WorkflowStep[GeneratedPatch, AppliedPatch]):
         self._edit_format = get_edit_format(edit_format)
 
     async def run(self, ctx: StepContext, payload: GeneratedPatch) -> AppliedPatch:
+        # Checked before parsing, because there is nothing to parse: a provider
+        # error yields an empty completion, which is indistinguishable from a
+        # model that answered with nothing. Scoring the two the same way put our
+        # own transport failures into the resolve-rate denominator as task
+        # failures (measurement.md §2 B4).
+        if payload.stop_reason == "provider_error":
+            return AppliedPatch(
+                task=payload.task,
+                worktree=payload.worktree,
+                applied=False,
+                detail="the model provider did not return a completion",
+                patch_text=payload.raw_output,
+                iteration=payload.iteration,
+                instrument_error=(
+                    "model provider failed (transport, HTTP or truncated stream); "
+                    "no completion was produced, so this candidate was never measured"
+                ),
+            )
+
         # The node's own format wins over whatever produced the text: a
         # topology that generates one shape and applies another is a
         # configuration error, and honouring the apply node's declaration is

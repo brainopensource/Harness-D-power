@@ -146,14 +146,32 @@ async def run_arm(
     for index, entry in enumerate(tasks, start=1):
         instance_id = entry["instance_id"]
         repo_path = Path(args.suite_dir) / instance_id
+        # The manifest states the problem; the runner does not invent one.
+        # Until 2026-08-07 this was a single hard-coded sentence handed to every
+        # task in the manifest, which is the harness-arm face of the same defect
+        # that had the baseline arm formatting the SWE-bench template with the
+        # bare `instance_id` (audit F1). A manifest entry without the field is
+        # refused rather than papered over: it means the manifest predates the
+        # field and must be rebuilt before it can carry a measured run.
+        problem_statement = str(entry.get("problem_statement", "")).strip()
+        if not problem_statement:
+            results.append(
+                TaskOutcome(
+                    task_id=instance_id,
+                    status=GateStatus.NONE,
+                    detail=(
+                        f"{instance_id}: manifest entry has no problem_statement; rebuild the "
+                        "manifest with scripts/build_floor_manifest.py (measurement.md §4.1)"
+                    ),
+                )
+            )
+            continue
+
         task = Task(
             task_id=instance_id,  # type: ignore[arg-type]
             repo=entry["repo"],
             base_commit=entry["base_commit"],
-            instructions=(
-                "`mod.f` in this repository is wrong. `run_tests.py` asserts the correct "
-                "behaviour. Produce a unified diff that fixes `mod.py`."
-            ),
+            instructions=problem_statement,
             environment_image_digest=entry["environment_image_digest"],
             test_command_hash=entry["test_command_hash"],
             source=TaskSource(manifest_hash=manifest_sha, instance_id=instance_id),

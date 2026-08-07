@@ -157,7 +157,22 @@ class ResourceGovernor:
             prior = self._spent.get(lease.run_id, BudgetDims())
             self._spent[lease.run_id] = _add(prior, actuals.dims)
 
-            refund = BudgetDims() if overran else _sub(lease.reserved, actuals.dims)
+            # `reserved - actual`, **including when that is negative**. This is
+            # the line that makes the ceiling real, and until 2026-08-07 it read
+            # `BudgetDims() if overran else ...`, which clamped an overrun's
+            # refund to zero and therefore never debited the excess from the
+            # pool. Combined with every call site estimating `usd_micros=0`,
+            # `_run_root_remaining[run].usd_micros` stayed at exactly the seeded
+            # value for the whole run no matter what was spent — a dollar cap
+            # that could not fire, which is the same defect class as a contract
+            # that selects no files. `BudgetOverrun`'s own docstring already
+            # said "reality is debited regardless"; the ledger now agrees with it.
+            #
+            # A negative remainder is the intended terminal state, not a bug: it
+            # is what makes the *next* reserve() fail closed. Reserving the
+            # priced estimate up front (`TASK-044`) is what moves the denial from
+            # the next call to this one; it is a separate, additive change.
+            refund = _sub(lease.reserved, actuals.dims)
             self._refund(lease, refund)
 
         # Emitted outside the lock: the bus is another component, and awaiting

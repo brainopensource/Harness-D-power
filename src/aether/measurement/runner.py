@@ -68,6 +68,34 @@ def template_hash(template: str = SWEBENCH_INFERENCE_TEMPLATE) -> str:
     return "sha256:" + hashlib.sha256(template.encode()).hexdigest()
 
 
+class MissingProblemStatement(ValueError):
+    """A candidate reached a measured path with no issue text.
+
+    Raised rather than defaulted. Both call sites below used to substitute
+    `candidate.instance_id`, so the pre-registered baseline formatted the
+    official SWE-bench template with a string like `django__django-11099` and
+    the harness arm received the same as its `Task.instructions`. Both arms were
+    equally uninformed, so *lift* would not have been biased — it would have
+    been `0 - 0`, and the A/A floor would have characterised the variance of a
+    harness that was never told what to do.
+
+    `PairedRunner.run_arm` already maps an arm that raises to `GateStatus.NONE`,
+    so this surfaces as a published instrument error per task rather than as a
+    silent zero.
+    """
+
+
+def _problem_statement(candidate: TaskCandidate) -> str:
+    statement = candidate.problem_statement.strip()
+    if not statement:
+        raise MissingProblemStatement(
+            f"{candidate.instance_id!r} has no problem_statement. A manifest built after "
+            "2026-08-07 cannot omit it; `internal-floor-01` predates the field and must be "
+            "rebuilt before it is used for a measured run (measurement.md §4.1)."
+        )
+    return statement
+
+
 @runtime_checkable
 class HarnessUnderTest(Protocol):
     """One arm of a comparative run.
@@ -136,7 +164,7 @@ class BareModelHarness:
         span = TaintSpan(
             span_id=SpanId(f"bare-model-{candidate.instance_id}"),
             label=Provenance.OPERATOR,
-            text=self._template.format(problem_statement=candidate.instance_id),
+            text=self._template.format(problem_statement=_problem_statement(candidate)),
             source=f"manifest:{candidate.instance_id}",
             created_at=datetime.now(UTC),
         )
@@ -264,7 +292,7 @@ def candidate_to_task(candidate: TaskCandidate, manifest_hash: str) -> Task:
         task_id=TaskId(candidate.instance_id),
         repo=candidate.repo,
         base_commit=candidate.base_commit,
-        instructions=candidate.instance_id,
+        instructions=_problem_statement(candidate),
         environment_image_digest=candidate.environment_image_digest,
         test_command_hash=hash_command(candidate.test_command),
         source=TaskSource(manifest_hash=manifest_hash, instance_id=candidate.instance_id),
@@ -297,6 +325,7 @@ __all__ = [
     "SWEBENCH_INFERENCE_TEMPLATE",
     "BareModelHarness",
     "HarnessUnderTest",
+    "MissingProblemStatement",
     "PairedRunner",
     "candidate_to_task",
     "instrument_tuple",

@@ -53,6 +53,27 @@ def extract_targets(text: str) -> list[str]:
     return [t.strip("<>") for t in targets]
 
 
+#: `retrieval: excluded` in a document's frontmatter. Same predicate
+#: `docs_budget.py` already applies to the word ceiling, applied here for the
+#: same reason: a file no retrieval surfaces and no live document links *into*
+#: cannot send a reader anywhere, so its internal links are not a live gate.
+#:
+#: Without this the gate was permanently red — 109 dead links across 93 files,
+#: 96 of them inside `docs/_archive/`, which `README.md` describes as deletable
+#: "without breaking a link or losing a binding claim". A gate that is red for
+#: content the tree has declared non-load-bearing gets reported green from
+#: memory instead of re-run, which is exactly what happened to `STATUS.md`.
+#: Excluded files are counted and printed, never silently skipped.
+_RETRIEVAL_EXCLUDED = re.compile(r"^retrieval:\s*excluded\s*$", re.MULTILINE)
+
+
+def is_retrieval_excluded(text: str) -> bool:
+    head = text.split("---", 2)
+    if len(head) < 3 or head[0].strip():
+        return False  # no leading frontmatter block
+    return bool(_RETRIEVAL_EXCLUDED.search(head[1]))
+
+
 def is_relative(target: str) -> bool:
     if not target or target.startswith("#"):
         return False
@@ -86,10 +107,17 @@ def _display_path(md: Path) -> Path:
         return md
 
 
-def check(docs_root: Path, *, list_all: bool = False) -> list[DeadLink]:
+def check(
+    docs_root: Path, *, list_all: bool = False, skipped: list[Path] | None = None
+) -> list[DeadLink]:
     dead: list[DeadLink] = []
     for md in sorted(docs_root.rglob("*.md")):
-        for target in extract_targets(md.read_text(encoding="utf-8")):
+        text = md.read_text(encoding="utf-8")
+        if is_retrieval_excluded(text):
+            if skipped is not None:
+                skipped.append(_display_path(md))
+            continue
+        for target in extract_targets(text):
             if not is_relative(target):
                 continue
             ok = resolve(md, target)
@@ -106,11 +134,21 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--docs-root", type=Path, default=DOCS_ROOT)
     args = parser.parse_args(argv)
 
-    dead = check(args.docs_root, list_all=args.list)
+    skipped: list[Path] = []
+    dead = check(args.docs_root, list_all=args.list, skipped=skipped)
     total_files = sum(1 for _ in args.docs_root.rglob("*.md"))
+    checked = total_files - len(skipped)
+
+    if skipped:
+        # Printed, never silent. "How many files does this gate not cover" is
+        # the first question to ask of any gate reporting green.
+        print(f"`retrieval: excluded`, not checked: {len(skipped)} file(s)")
+        if args.list:
+            for path in skipped:
+                print(f"skip {path}")
 
     if dead:
-        print(f"\n{len(dead)} dead relative link(s) across {total_files} files:", file=sys.stderr)
+        print(f"\n{len(dead)} dead relative link(s) across {checked} checked files:", file=sys.stderr)
         for d in dead:
             print(f"  {d}", file=sys.stderr)
         print(
@@ -120,7 +158,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 1
 
-    print(f"OK: every relative link in {total_files} markdown files under docs/ resolves.")
+    print(f"OK: every relative link in {checked} checked markdown files under docs/ resolves.")
     return 0
 
 

@@ -174,3 +174,60 @@ def test_a_path_escaping_the_worktree_is_refused(path: str) -> None:
 
     assert not parsed.files
     assert parsed.errors and "escape the worktree" in parsed.errors[0]
+
+
+def test_an_unlabelled_block_is_never_written_to_a_guessed_path() -> None:
+    """Audit F7 / `TASK-049`.
+
+    The parser used to fall back to "the only `.py` token anywhere in the
+    reply" and then to "the *first* `.py` token in the reply, prose included."
+    A repair prompt quotes the failing test output, so the first `.py` token in
+    a repair reply is routinely the test file — this reproducibly wrote a
+    whole-file rewrite over `run_tests.py`.
+
+    With I7 (`tests_unmodified`) not yet enforced, that let a candidate
+    overwrite the tests grading it and score `PASSED`. A guessed target is now
+    no edit at all.
+    """
+    reply = (
+        "The failure is in run_tests.py line 12 (`assert add(2, 2) == 4`).\n"
+        "Here is the corrected code:\n\n"
+        "```python\n"
+        "def add(a, b):\n"
+        "    return a + b\n"
+        "```\n"
+    )
+
+    parsed = WholeFileCodeblockFormat().parse(reply)
+
+    assert parsed.files == (), "a target read out of prose is a guess, not an instruction"
+    assert parsed.errors
+    assert "run_tests.py" not in str(parsed.files)
+
+
+def test_a_sole_py_token_in_the_reply_is_still_not_a_target() -> None:
+    """The narrower of the two deleted fallbacks. It looks safe — one candidate,
+    so no ambiguity — but "unambiguous" is not "stated", and the token it lands
+    on is whatever the model happened to mention."""
+    reply = "I rewrote mod.py:\n\n```python\ndef f():\n    return 1\n```\n"
+
+    parsed = WholeFileCodeblockFormat().parse(reply)
+
+    assert parsed.files == ()
+    assert parsed.errors
+
+
+def test_a_path_the_model_actually_stated_is_still_honoured() -> None:
+    """The fix must not break recovery for models that label their work in one
+    of the three supported ways — that would trade a correctness bug for a
+    capability regression."""
+    fmt = WholeFileCodeblockFormat()
+
+    fenced = fmt.parse("```python:mod.py\ndef f():\n    return 1\n```")
+    assert [f.repo_rel_path for f in fenced.files] == ["mod.py"]
+
+    commented = fmt.parse("```python\n# filename: mod.py\ndef f():\n    return 1\n```")
+    assert [f.repo_rel_path for f in commented.files] == ["mod.py"]
+
+    headed = fmt.parse("=== mod.py ===\n```python\ndef f():\n    return 1\n```")
+    assert [f.repo_rel_path for f in headed.files] == ["mod.py"]

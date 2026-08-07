@@ -104,6 +104,26 @@ forbidden_modules =
     aether.evolution
     aether.adapters
 
+[importlinter:contract:aether-workflow-tcb-isolation]
+name = AETHER: the workflow schema, validator and executor are TCB (spec.md §6)
+type = forbidden
+source_modules =
+    aether.workflow.validator
+    aether.workflow.executor
+forbidden_modules =
+    aether.agency
+    aether.evolution
+    aether.adapters
+# A separate contract rather than two more source_modules on
+# `aether-tcb-isolation`, because that contract forbids `aether.workflow` and
+# these two modules legitimately import `aether.workflow.step`. `spec.md` §6
+# lists "workflow schema, validator and executor" as immutable TCB and
+# PHASE-0-LOCK L7 locks it; until 2026-08-07 no contract selected them, so the
+# strongest claim in the lock about topology validation was enforced by nothing
+# while CI stayed green — the exact trap ADR-0006 names about itself.
+# `workflow/nodes/*` is deliberately NOT here: nodes import `aether.composition`
+# and are mutable-surface code, not TCB.
+
 [importlinter:contract:aether-layers]
 name = AETHER: full architectural lattice (spec.md §3)
 type = layers

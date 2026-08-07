@@ -37,7 +37,7 @@ from aether.composition import ReadArgs
 from aether.domain.budget import BudgetDims
 from aether.domain.gate import GateStatus
 from aether.domain.ids import SpanId
-from aether.domain.model_io import ModelMessage, ModelRequest, TextDelta
+from aether.domain.model_io import ModelMessage, ModelRequest, StopEvent, StopReason, TextDelta
 from aether.domain.taint import Provenance, TaintSpan
 from aether.domain.workspace import WorktreeRef
 from aether.measurement.evaluator import tail_biased
@@ -180,12 +180,19 @@ class RepairStep(WorkflowStep[EvaluatedCandidate, GeneratedPatch]):
         events = await self._dispatch.model(request, BudgetDims(prompt_tokens=self._max_tokens))
 
         patch_parts = [event.text for event in events if isinstance(event, TextDelta)]
+        # Same reason as `GenerateStep`: a provider failure inside a repair
+        # iteration must not be scored as the iteration failing to fix the bug.
+        stop_reason: StopReason = "end"
+        for event in events:
+            if isinstance(event, StopEvent):
+                stop_reason = event.reason
         return GeneratedPatch(
             task=payload.task,
             worktree=payload.worktree,
             raw_output="".join(patch_parts),
             edit_format=self._edit_format.name,
             iteration=payload.iteration + 1,
+            stop_reason=stop_reason,
         )
 
 

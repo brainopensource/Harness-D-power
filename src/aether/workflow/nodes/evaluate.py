@@ -13,7 +13,7 @@ the same class of hole the socket types exist to close.
 from __future__ import annotations
 
 from aether.domain.budget import BudgetDims
-from aether.domain.gate import GateReport
+from aether.domain.gate import GateReport, GateStatus
 from aether.domain.ids import Frozen
 from aether.domain.task import Task
 from aether.domain.workspace import WorktreeRef
@@ -41,6 +41,26 @@ class EvaluateStep(WorkflowStep[AppliedPatch, EvaluatedCandidate]):
         self._timeout_ms = timeout_ms
 
     async def run(self, ctx: StepContext, payload: AppliedPatch) -> EvaluatedCandidate:
+        # An instrument failure upstream is reported as one, and the tests are
+        # not run: executing them would score an unmodified worktree and return
+        # a confident FAILED for a candidate that was never produced. The
+        # executor's "NONE never routes into repair" rule then covers this for
+        # free — repairing against our own transport failure would teach the
+        # loop to fix the harness instead of the task.
+        if payload.instrument_error is not None:
+            return EvaluatedCandidate(
+                task=payload.task,
+                worktree=payload.worktree,
+                report=GateReport(
+                    gate="tests",
+                    status=GateStatus.NONE,
+                    detail=payload.detail,
+                    instrument_error=payload.instrument_error,
+                ),
+                patch_text=payload.patch_text,
+                iteration=payload.iteration,
+            )
+
         spec = EvalSpec(
             task_id=payload.task.task_id,
             worktree=payload.worktree,

@@ -158,3 +158,31 @@ def test_every_registered_kind_builds_with_empty_params() -> None:
     for kind, factory in registry.items():
         step = factory({})
         assert step.node_kind == kind
+
+
+def test_node_sockets_matches_what_the_steps_actually_declare() -> None:
+    """`NODE_SOCKETS` is the only thing `check_socket_compatibility` reads, and
+    it is a hand-written map of *strings*.
+
+    The validator therefore checks a shadow of the type system against itself.
+    Nothing tied the shadow to `WorkflowStep.input_type` / `output_type`, so
+    changing a step's socket type left every topology validating against the
+    stale pair — a whole class of edge mismatch that would surface as an
+    `AttributeError` several nodes downstream, mid-benchmark, instead of at
+    load. This is that missing edge (audit F6).
+    """
+    from aether.engine import NODE_SOCKETS, build_step_registry
+
+    registry = build_step_registry(None, model_name="m")  # type: ignore[arg-type]
+
+    assert set(registry) == set(NODE_SOCKETS), (
+        "every registered kind declares sockets and vice versa; "
+        f"registry-only={set(registry) - set(NODE_SOCKETS)} "
+        f"sockets-only={set(NODE_SOCKETS) - set(registry)}"
+    )
+    for kind, factory in registry.items():
+        step = factory({})
+        assert NODE_SOCKETS[kind] == (step.input_type.__name__, step.output_type.__name__), (
+            f"NODE_SOCKETS[{kind!r}] is {NODE_SOCKETS[kind]} but {type(step).__name__} declares "
+            f"({step.input_type.__name__}, {step.output_type.__name__})"
+        )

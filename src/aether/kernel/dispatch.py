@@ -42,6 +42,23 @@ AdapterFn = Callable[[EffectRequest, Lease], Awaitable[EffectOutcome]]
 AdapterTable = Mapping[str, AdapterFn]
 
 
+class UnknownEffectClass(KeyError):
+    """No adapter is registered for the request's `effect_class`.
+
+    A composition bug, not a policy decision — so it raises rather than
+    returning a `denied` outcome, which would make an unwired adapter
+    indistinguishable from a refusal the policy engine actually made.
+
+    It is raised **before** a lease is acquired. The bare `self._adapters[...]`
+    lookup it replaces sat between `reserve()` and the `try` that releases, so
+    an unknown effect class leaked its lease permanently: never released, never
+    committed, and subtracted from the run's ceiling for the rest of the run.
+    Unreachable with today's closed adapter table; reachable the moment MCP
+    (ADR-0016), an attenuated subagent grant (ADR-0017) or `TASK-042`'s
+    per-node router adds an effect class.
+    """
+
+
 class Dispatcher:
     def __init__(
         self,
@@ -88,13 +105,20 @@ class Dispatcher:
 
         self._verify(decision, request)  # 2 verify @ effect-time
 
+        # Resolved before the lease exists, so a missing adapter cannot leak one.
+        adapter = self._adapters.get(request.effect_class)
+        if adapter is None:
+            raise UnknownEffectClass(
+                f"no adapter registered for effect_class {request.effect_class!r}; "
+                f"registered: {sorted(self._adapters)}"
+            )
+
         lease = await self._governor.reserve(request.run_id, cost_estimate)  # 3 lease
         if isinstance(lease, ReservationDenied):
             await self._emit(request, "budget_denied")
             return EffectOutcome(status="budget_denied", reservation_denied=lease)
 
-        adapter = self._adapters[request.effect_class]  # 4 dispatch
-        try:
+        try:  # 4 dispatch
             outcome = await adapter(request, lease)
             await self._governor.commit(lease.lease_id, outcome.actuals)
             await self._emit(request, outcome.status)

@@ -45,6 +45,7 @@ def _candidate(instance_id: str = "org__repo-1", **overrides: object) -> TaskCan
         "environment_image_digest": DIGEST,
         "test_command": "python3 -m pytest -q tests/test_x.py",
         "gold_patch": "diff --git a/x b/x\n",
+        "problem_statement": f"{instance_id}: x() returns the wrong value for empty input.",
     }
     base.update(overrides)
     return TaskCandidate(**base)  # type: ignore[arg-type]
@@ -379,3 +380,93 @@ def test_the_repo_set_is_derived_from_the_manifest() -> None:
     ]
 
     assert repos_in(_build(verdicts, candidates)) == ["org/one", "org/two"]
+
+
+def test_a_task_with_no_problem_statement_cannot_enter_a_manifest() -> None:
+    """Audit F1. `TaskCandidate` carried no issue text at all, so the manifest
+    schema could not express the one thing the harness is asked to act on, and
+    `runner.py` silently substituted the `instance_id`.
+
+    The gate is at build time because that is the last cheap moment: a manifest
+    is TCB data and pinning one is a hash, not an edit.
+    """
+    candidate = _candidate("org__repo-1", problem_statement="   ")
+    verdict = CanaryVerdict(
+        instance_id="org__repo-1",
+        admitted=True,
+        gold_status=GateStatus.PASSED,
+        empty_status=GateStatus.FAILED,
+    )
+
+    with pytest.raises(ManifestValidationError) as exc_info:
+        build_manifest(
+            manifest_id="floor-smoke-01",
+            suite="internal",
+            candidates=[candidate],
+            verdicts=[verdict],
+            instrument_contained=True,
+            created_at=CREATED,
+        )
+
+    assert exc_info.value.check == "problem_statement"
+
+
+def test_an_excluded_task_needs_no_problem_statement() -> None:
+    """The gate applies to what is *admitted*. A task excluded because its image
+    would not build is published with its reason and never posed to a model, so
+    demanding issue text for it would block a legitimate manifest."""
+    candidate = _candidate("org__repo-1", problem_statement="")
+    verdict = CanaryVerdict(
+        instance_id="org__repo-1",
+        admitted=False,
+        gold_status=GateStatus.NONE,
+        empty_status=GateStatus.NONE,
+        reason=ExclusionReason.IMAGE_UNBUILDABLE,
+    )
+
+    manifest = build_manifest(
+        manifest_id="floor-smoke-01",
+        suite="internal",
+        candidates=[candidate, _candidate("org__repo-2")],
+        verdicts=[
+            verdict,
+            CanaryVerdict(
+                instance_id="org__repo-2",
+                admitted=True,
+                gold_status=GateStatus.PASSED,
+                empty_status=GateStatus.FAILED,
+            ),
+        ],
+        instrument_contained=True,
+        created_at=CREATED,
+    )
+
+    assert [t["instance_id"] for t in manifest["tasks"]] == ["org__repo-2"]
+    assert manifest["tasks"][0]["problem_statement"]
+
+
+def test_the_problem_statement_is_part_of_the_manifests_identity() -> None:
+    """Two manifests posing different questions are different instruments, so
+    they must not share a hash (measurement.md §6)."""
+    verdicts = [
+        CanaryVerdict(
+            instance_id="org__repo-1",
+            admitted=True,
+            gold_status=GateStatus.PASSED,
+            empty_status=GateStatus.FAILED,
+        )
+    ]
+
+    def _build(statement: str) -> str:
+        return manifest_hash(
+            build_manifest(
+                manifest_id="floor-smoke-01",
+                suite="internal",
+                candidates=[_candidate("org__repo-1", problem_statement=statement)],
+                verdicts=verdicts,
+                instrument_contained=True,
+                created_at=CREATED,
+            )
+        )
+
+    assert _build("the parser drops the final token") != _build("the parser drops the first token")

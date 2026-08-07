@@ -29,6 +29,7 @@ from aether.domain.ids import Frozen, SpanId
 from aether.domain.model_io import (
     ModelMessage,
     ModelRequest,
+    StopReason,
     TextDelta,
     ToolCallDelta,
     ToolCallRef,
@@ -61,6 +62,14 @@ class GeneratedPatch(Frozen):
     raw_output: str = ""
     edit_format: str = DEFAULT_EDIT_FORMAT
     iteration: int = 0  # 0 = first attempt; >0 = produced by the repair edge
+    #: Why the completion ended. Carried because `provider_error` is *our*
+    #: failure, not the task's: without it a 429, a socket reset or a read
+    #: timeout arrives here as an empty `raw_output`, which `ApplyStep` reads as
+    #: "the model produced no edit" and the gate then scores `FAILED` on an
+    #: unmodified worktree. B4 was built for the evaluator and not for the
+    #: provider, and the asymmetry was invisible because both paths end in a
+    #: `GateReport`. Consumed by `ApplyStep` -> `EvaluateStep`.
+    stop_reason: StopReason = "end"
 
     @property
     def patch_text(self) -> str:
@@ -135,6 +144,15 @@ class GenerateStep(WorkflowStep[RetrievedContext, GeneratedPatch]):
             ModelMessage(role="user", spans=spans),
         ]
         patch_text_parts: list[str] = []
+        stop_reason: StopReason = "end"
+        # What actually justifies the *next* request, which is not the same set
+        # as what justified the first. Tool output is `UNTRUSTED_EXTERNAL` at
+        # birth and is fed back to the model, so from round 2 on it can steer a
+        # tool call. Passing only the round-0 spans meant `DefaultPolicyEngine`
+        # evaluated `any(span.label in UNTRUSTED ...)` over a set that could not
+        # contain an untrusted span by construction, which made I11's predicate
+        # dead code on the one path it exists for (spec.md §5, ADR-0015).
+        justifying: tuple[TaintSpan, ...] = spans
 
         for _round in range(self.MAX_ROUNDS):
             request = ModelRequest(
@@ -146,7 +164,6 @@ class GenerateStep(WorkflowStep[RetrievedContext, GeneratedPatch]):
             events = await self._dispatch.model(request, BudgetDims(prompt_tokens=self._max_tokens))
 
             tool_calls: dict[str, dict[str, str]] = {}
-            stop_reason = "end"
             for event in events:
                 if isinstance(event, TextDelta):
                     patch_text_parts.append(event.text)
@@ -184,16 +201,19 @@ class GenerateStep(WorkflowStep[RetrievedContext, GeneratedPatch]):
                     call_id=call_id,
                     name=info["name"],
                     args_json=info["args"] or "{}",
-                    justifying_spans=tuple(s.span_id for s in spans),
+                    justifying_spans=tuple(s.span_id for s in justifying),
                 )
                 result = await self._dispatch.shell(
                     ShellArgs(worktree=payload.worktree, call=tool_call),
                     BudgetDims(wall_clock_ms=30000),
-                    justifying_spans=spans,
+                    justifying_spans=justifying,
                 )
                 messages.append(
                     ModelMessage(role="tool", spans=result.spans, tool_call_id=call_id)
                 )
+                # Now in the model's context, therefore justifying whatever it
+                # asks for next. Monotone: a span never loses its label here.
+                justifying = (*justifying, *result.spans)
 
         # Parsing belongs to the format, not to this node: the prompt that
         # asked for a shape and the parser that reads it are the same object.
@@ -202,5 +222,6 @@ class GenerateStep(WorkflowStep[RetrievedContext, GeneratedPatch]):
             worktree=payload.worktree,
             raw_output="".join(patch_text_parts),
             edit_format=self._edit_format.name,
+            stop_reason=stop_reason,
         )
 

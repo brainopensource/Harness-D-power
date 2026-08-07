@@ -121,6 +121,12 @@ class UnifiedDiffFormat:
 
 _FENCE = re.compile(r"```(?:python|py)?[:\s]*(?P<path>[\w./\-]+\.py)\s*\n(?P<code>.*?)```", re.DOTALL)
 
+#: Recovery for models that fence code without labelling the fence itself.
+#: Both of these read a path the model **stated**; neither infers one.
+_UNLABELLED_FENCE = re.compile(r"```(?:python|py)?\s*\n(?P<code>.*?)```", re.DOTALL)
+_HEADER_FILE = re.compile(r"===\s*([\w./\-]+\.py)\s*===")
+_COMMENT_FILE = re.compile(r"^#\s*(?:filename:\s*)?([\w./\-]+\.py)")
+
 
 class WholeFileCodeblockFormat:
     """Complete files in fenced blocks labelled with their path.
@@ -170,53 +176,65 @@ class WholeFileCodeblockFormat:
             files.append(FileEdit(repo_rel_path=path, text=code + "\n"))
 
         if not files and not errors:
-            _UNLABELLED_FENCE = re.compile(r"```(?:python|py)?\s*\n(?P<code>.*?)```", re.DOTALL)
-            _HEADER_FILE = re.compile(r"===\s*([\w./\-]+\.py)\s*===")
-            _COMMENT_FILE = re.compile(r"^#\s*(?:filename:\s*)?([\w./\-]+\.py)")
-            
-            for match in _UNLABELLED_FENCE.finditer(raw):
-                code = match.group("code").strip()
-                path = None
-                
-                lines = code.splitlines()
-                if lines:
-                    m = _COMMENT_FILE.match(lines[0])
-                    if m:
-                        path = m.group(1)
-                
-                if not path:
-                    before_text = raw[:match.start()]
-                    headers = _HEADER_FILE.findall(before_text)
-                    if headers:
-                        path = headers[-1]
-                        
-                if not path:
-                    py_files = [f for f in set(re.findall(r"\b[\w./\-]+\.py\b", raw)) if f.endswith(".py")]
-                    if len(py_files) == 1:
-                        path = py_files[0]
-
-                if not path:
-                    # Single file mode fallback when target is present in prompt context
-                    match_mod = re.search(r"\b([\w./\-]+\.py)\b", raw)
-                    if match_mod:
-                        path = match_mod.group(1)
-
-                if path:
-                    if path.startswith("/") or ".." in Path(path).parts:
-                        errors.append(f"{path}: path must be repo-relative and must not escape the worktree")
-                        continue
-                    try:
-                        ast.parse(code)
-                    except SyntaxError as exc:
-                        errors.append(f"{path}: not valid Python ({exc.msg} at line {exc.lineno})")
-                        continue
-                    files.append(FileEdit(repo_rel_path=path, text=code + "\n"))
-                else:
-                    errors.append("unlabelled codeblock found but could not infer file path")
+            files.extend(self._recover_unlabelled(raw, errors))
 
         if not files and not errors and raw.strip():
             errors.append("no labelled ```python:<path> block found in the model's output")
         return ParsedEdit(kind="whole_files", files=tuple(files), errors=tuple(errors))
+
+    def _recover_unlabelled(self, raw: str, errors: list[str]) -> list[FileEdit]:
+        """Recover a fence the model forgot to label — **only** when the model
+        stated the path somewhere else.
+
+        Two recoveries survive: a `# filename: path.py` first line inside the
+        block, and a `=== path.py ===` header preceding it. Both read a path the
+        model *wrote down*.
+
+        Two former fallbacks are deliberately gone. When no explicit label was
+        found, this method used to pick the sole `.py` token appearing anywhere
+        in the reply — and, failing that, the *first* `.py` token in the reply,
+        prose included. Since the repair prompt quotes the failing test output,
+        the first `.py` token in a repair reply is routinely the test file, and
+        this reproducibly wrote a whole-file rewrite over `run_tests.py`. With
+        I7 (`tests_unmodified`) not yet enforced, a candidate could therefore
+        overwrite the tests grading it and score `PASSED`. There is no resolve
+        rate that survives that, so a guessed target is now no edit at all —
+        which the repair edge can read and act on, unlike a silent mis-write.
+        """
+        recovered: list[FileEdit] = []
+        for match in _UNLABELLED_FENCE.finditer(raw):
+            code = match.group("code").strip()
+            path: str | None = None
+
+            lines = code.splitlines()
+            if lines:
+                labelled = _COMMENT_FILE.match(lines[0])
+                if labelled:
+                    path = labelled.group(1)
+
+            if path is None:
+                headers = _HEADER_FILE.findall(raw[: match.start()])
+                if headers:
+                    path = headers[-1]
+
+            if path is None:
+                errors.append(
+                    "unlabelled code block: name the file with ```python:<path>, a "
+                    "`# filename: <path>` first line, or a `=== <path> ===` header. "
+                    "The target is never inferred from the surrounding text."
+                )
+                continue
+
+            if path.startswith("/") or ".." in Path(path).parts:
+                errors.append(f"{path}: path must be repo-relative and must not escape the worktree")
+                continue
+            try:
+                ast.parse(code)
+            except SyntaxError as exc:
+                errors.append(f"{path}: not valid Python ({exc.msg} at line {exc.lineno})")
+                continue
+            recovered.append(FileEdit(repo_rel_path=path, text=code + "\n"))
+        return recovered
 
 
 FORMATS: dict[str, EditFormat] = {

@@ -82,6 +82,15 @@ class TaskCandidate(Frozen):
     environment_image_digest: str
     test_command: str  # hashed into `test_command_hash` at pin time
     gold_patch: str
+    #: The issue text the harness is asked to resolve. Manifest data, because
+    #: it is part of what a run is reproducible *against*: two runs over the
+    #: same manifest hash must have posed the same question.
+    #:
+    #: Defaulted rather than required so the historical `internal-floor-01`
+    #: manifest still loads — it is pinned TCB data and L15 forbids editing it.
+    #: A blank statement cannot reach a measurement: `build_manifest` refuses to
+    #: admit one, and `runner.candidate_to_task` raises on one.
+    problem_statement: str = ""
     split: Split = "dev"
     fail_to_pass: tuple[str, ...] = ()
     pass_to_pass: tuple[str, ...] = ()
@@ -324,6 +333,19 @@ def build_manifest(
     exclusions: list[dict[str, Any]] = []
     for verdict in verdicts:
         candidate = by_id[verdict.instance_id]
+        if verdict.admitted and not candidate.problem_statement.strip():
+            # A task with no issue text is not a task, it is an id. The
+            # pre-registered baseline formats the official SWE-bench template
+            # with this string (measurement.md §4.1); until 2026-08-07 nothing
+            # carried it and `runner.py` substituted the `instance_id`, so both
+            # arms were asked to fix `django__django-11099`. Refused at build
+            # time because that is the last point where the fix is cheap.
+            raise ManifestValidationError(
+                "problem_statement",
+                f"{verdict.instance_id!r} was admitted with an empty problem_statement. "
+                "A manifest entry states the problem it poses, or it is excluded with a "
+                "published reason (measurement.md §4.1, §4.3).",
+            )
         if not verdict.admitted:
             exclusions.append(
                 {
@@ -338,6 +360,7 @@ def build_manifest(
             "repo": candidate.repo,
             "base_commit": candidate.base_commit,
             "environment_image_digest": candidate.environment_image_digest,
+            "problem_statement": candidate.problem_statement,
             "test_command_hash": hash_command(candidate.test_command),
             "split": candidate.split,
         }

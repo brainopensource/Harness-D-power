@@ -168,3 +168,67 @@ def test_budget_gate_does_not_count_rationale_or_historical(docs_tree: Path) -> 
         "---\nstatus: historical\n---\n\n" + ("word " * 500), encoding="utf-8"
     )
     assert _budget(docs_tree, ceiling=100) == 0
+
+
+_EXCLUDED_DOC = """\
+---
+status: historical
+retrieval: excluded
+updated: 2026-08-07
+---
+
+# Superseded
+
+A link that does not resolve: [gone](./deleted-in-a-rename.md).
+"""
+
+
+def test_a_retrieval_excluded_file_is_skipped_but_counted(tmp_path: Path) -> None:
+    """The link gate skips `retrieval: excluded` files — the same predicate the
+    word budget already uses.
+
+    The gate had been permanently red on 109 links, 96 of them inside
+    `docs/_archive/`, which `README.md` describes as deletable "without breaking
+    a link or losing a binding claim". A gate that is red for content the tree
+    has declared non-load-bearing gets reported green from memory rather than
+    re-run — which is what `STATUS.md` did.
+
+    The skip is only defensible if it is *visible*, so this asserts the file is
+    reported as unchecked rather than silently dropped.
+    """
+    (tmp_path / "clean.md").write_text(_CLEAN_DOC, encoding="utf-8")
+    (tmp_path / "sibling.md").write_text(_SIBLING, encoding="utf-8")
+    (tmp_path / "superseded.md").write_text(_EXCLUDED_DOC, encoding="utf-8")
+
+    skipped: list[Path] = []
+    dead = check_links.check(tmp_path, skipped=skipped)
+
+    assert dead == []
+    assert [p.name for p in skipped] == ["superseded.md"]
+    assert check_links.main(["--docs-root", str(tmp_path)]) == 0
+
+
+def test_the_exclusion_does_not_hide_a_dead_link_in_a_live_file(tmp_path: Path) -> None:
+    """The half that makes the skip safe: excluding history must not become a
+    way to exclude anything. A live document is still checked when an excluded
+    one sits beside it."""
+    (tmp_path / "superseded.md").write_text(_EXCLUDED_DOC, encoding="utf-8")
+    (tmp_path / "live.md").write_text(
+        "---\nstatus: normative\nupdated: 2026-08-07\n---\n\n# Live\n\n[gone](./missing.md)\n",
+        encoding="utf-8",
+    )
+
+    assert check_links.main(["--docs-root", str(tmp_path)]) == 1
+
+
+def test_retrieval_excluded_is_read_from_frontmatter_only() -> None:
+    """The phrase in prose — this project writes about `retrieval: excluded`
+    constantly — must not exempt a document that never declared it."""
+    assert check_links.is_retrieval_excluded(_EXCLUDED_DOC) is True
+    assert check_links.is_retrieval_excluded(_CLEAN_DOC) is False
+    assert (
+        check_links.is_retrieval_excluded(
+            "---\nstatus: normative\n---\n\nWe tag the archive `retrieval: excluded`.\n"
+        )
+        is False
+    )

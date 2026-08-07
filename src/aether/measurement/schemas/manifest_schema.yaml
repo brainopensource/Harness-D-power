@@ -71,6 +71,19 @@ properties:
                  test_command_hash, split]
       properties:
         instance_id: { type: string, minLength: 1 }
+        problem_statement:
+          type: string
+          minLength: 1
+          description: >
+            The issue text the harness is asked to resolve. Optional in the
+            schema **only** so the pinned `internal-floor-01` manifest, written
+            before this field existed, still loads — it is TCB data and a change
+            is a new manifest, never an edit (L15). It is not optional in
+            practice: `build_manifest` refuses to admit a task without one, and
+            `runner.candidate_to_task` raises rather than substituting the
+            instance_id, which is what it silently did until 2026-08-07.
+            A manifest whose tasks lack it cannot produce a valid number
+            (measurement.md §4.1).
         repo:
           type: string
           pattern: '^[\w.-]+/[\w.-]+$'

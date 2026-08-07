@@ -134,3 +134,34 @@ async def test_adapter_exception_releases_lease_and_propagates_never_swallowed()
 
     assert governor._reserved == {}  # released, not left dangling
     assert await governor.spent(RunId("r1")) == BudgetDims()  # never committed
+
+
+async def test_an_unknown_effect_class_raises_before_a_lease_exists() -> None:
+    """Audit F4. The adapter lookup used to sit between `reserve()` and the
+    `try` that releases, so an effect class with no adapter raised `KeyError`
+    while holding a lease that was then never released and never committed —
+    permanently subtracted from the run's ceiling.
+
+    Unreachable today (the table is closed and complete) and reachable the
+    moment MCP, an attenuated subagent grant, or a per-node model router adds
+    an effect class. The assertion that matters is the second one: no lease
+    survives the failure.
+    """
+    from aether.kernel.dispatch import UnknownEffectClass
+    from aether.kernel.governor import ResourceGovernor
+
+    governor = ResourceGovernor()
+    governor.seed_run_budget(RunId("r1"), BudgetDims(usd_micros=1_000_000))
+    dispatcher = Dispatcher(
+        policy=DefaultPolicyEngine(), governor=governor, adapters={"read": _RecordingAdapter()}
+    )
+
+    with pytest.raises(UnknownEffectClass) as exc_info:
+        await dispatcher.dispatch(_request(effect_class="network"), BudgetDims(usd_micros=10))
+
+    assert "network" in str(exc_info.value)
+    remaining = await governor.remaining(RunId("r1"))
+    assert remaining is not None
+    assert remaining.usd_micros == 1_000_000, (
+        "a dispatch that failed before running anything must not consume the run's ceiling"
+    )

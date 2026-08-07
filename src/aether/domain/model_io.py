@@ -63,9 +63,15 @@ class UsageEvent(Frozen):
     cached_prompt_tokens: int = 0
 
 
+#: Why a completion stopped. Named because it is read outside the stream:
+#: `provider_error` is an *instrument* failure and must reach the gate as
+#: `GateStatus.NONE`, never as a task's `FAILED` (measurement.md §2 B4).
+StopReason = Literal["end", "tool_use", "max_tokens", "provider_error"]
+
+
 class StopEvent(Frozen):
     kind: Literal["stop"] = "stop"
-    reason: Literal["end", "tool_use", "max_tokens", "provider_error"]
+    reason: StopReason
 
 
 ModelStreamEvent = TextDelta | ToolCallDelta | UsageEvent | StopEvent

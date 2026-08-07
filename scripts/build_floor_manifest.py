@@ -257,6 +257,15 @@ def generate_medium_task(workdir: Path, index: int) -> TaskCandidate:
         environment_image_digest="",
         test_command=TEST_COMMAND,
         gold_patch=gold_patch,
+        # The issue text, stated per task rather than assembled at run time.
+        # `internal-floor-01` was pinned before this field existed, which is why
+        # `run_aa_floor.py` had one hard-coded sentence for every task and the
+        # baseline arm was posed the bare `instance_id` (audit F1).
+        problem_statement=(
+            f"`mod.py` in this repository implements a `{shape}` operation incorrectly. "
+            "`run_tests.py` asserts the behaviour it should have. Change `mod.py` "
+            "(and `store.py` if the fix belongs there) so the tests pass."
+        ),
         split="dev",
     )
 
@@ -345,6 +354,10 @@ def generate_task(workdir: Path, index: int) -> TaskCandidate:
         environment_image_digest="",  # filled in by the caller from the built image
         test_command=TEST_COMMAND,
         gold_patch=gold_patch,
+        problem_statement=(
+            f"`mod.f` in this repository computes a `{family}` result incorrectly. "
+            "`run_tests.py` asserts the behaviour it should have. Fix `mod.py`."
+        ),
         split="dev",
     )
 

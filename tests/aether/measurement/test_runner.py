@@ -36,6 +36,7 @@ def _candidate(instance_id: str) -> TaskCandidate:
         environment_image_digest=DIGEST,
         test_command="python3 -m pytest -q",
         gold_patch="diff --git a/x b/x\n",
+        problem_statement=f"{instance_id}: the parser drops the final token.",
         split="dev",
     )
 
@@ -217,3 +218,59 @@ async def test_every_tri_state_verdict_survives_into_the_arm_run(status: GateSta
     )
 
     assert run.results[0].status is status
+
+
+def test_the_baseline_is_posed_the_problem_not_the_instance_id() -> None:
+    """Audit F1, the assertion that was missing.
+
+    `BareModelHarness` formatted the official SWE-bench template — held as a
+    literal and hashed precisely so "we used the standard prompt" is checkable —
+    with `candidate.instance_id`. The pre-registered baseline was therefore
+    asked to fix a string like `django__django-11099`.
+
+    Both arms were equally uninformed, so lift would not have been *biased* — it
+    would have been `0 - 0`, and the A/A floor would have characterised the
+    variance of a harness that was never told what to do.
+    """
+    provider = _StubProvider()
+    harness = BareModelHarness(provider, "fp")
+
+    import asyncio
+
+    asyncio.run(harness.attempt(_candidate("django__django-11099")))
+
+    prompt = "".join(span.text for span in provider.requests[0].messages[0].spans)
+    assert "the parser drops the final token" in prompt
+    assert "<issue>\ndjango__django-11099\n</issue>" not in prompt
+
+
+def test_an_arm_is_refused_a_candidate_with_no_problem_statement() -> None:
+    """Raised, not defaulted. `PairedRunner.run_arm` maps a raising arm to
+    `GateStatus.NONE`, so this surfaces as a published per-task instrument error
+    rather than a silent zero."""
+    from aether.measurement.runner import MissingProblemStatement
+
+    blank = _candidate("t1").model_copy(update={"problem_statement": "  "})
+
+    with pytest.raises(MissingProblemStatement):
+        candidate_to_task(blank, "sha256:" + "9" * 64)
+
+
+async def test_a_candidate_with_no_problem_statement_is_an_instrument_error_not_a_failure() -> None:
+    """End to end: the rig's existing "an arm that crashes is an instrument
+    error for that task" rule must cover this new refusal, or a manifest built
+    before the field existed would silently score zero across the board."""
+    blank = _candidate("t1").model_copy(update={"problem_statement": ""})
+    harness = BareModelHarness(_StubProvider(), "fp")
+
+    run = await _runner(_StubInstrument()).run_arm("baseline", harness, [blank])
+
+    assert run.results[0].status is GateStatus.NONE
+    assert "problem_statement" in run.results[0].detail
+
+
+def test_a_materialized_task_carries_the_problem_as_its_instructions() -> None:
+    task = candidate_to_task(_candidate("t1"), "sha256:" + "9" * 64)
+
+    assert task.instructions == "t1: the parser drops the final token."
+    assert task.instructions != task.task_id
