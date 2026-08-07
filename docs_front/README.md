@@ -17,6 +17,102 @@ The front-end suite provides two primary interfaces to interact with the headles
 
 ---
 
+## 🚀 Quickstart Guide (WSL2 / Linux / Windows)
+
+### 1. Prerequisites
+- **Node.js**: `>=20.0.0`
+- **Package Manager**: `pnpm` (`>=9.0.0`)
+- **WSL2 / Linux Utilities**: `webkit2gtk` & `libssl-dev` (only if compiling native Tauri desktop binaries in Linux/WSL2)
+
+```bash
+# In WSL2 / Ubuntu, install build essentials for Tauri (optional for web dev mode):
+sudo apt update && sudo apt install -y build-essential curl wget file libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+```
+
+---
+
+### 2. Install Workspace Dependencies
+From the repository root or `src_front/` directory:
+
+```bash
+# Navigate to front-end workspace
+cd src_front
+
+# Install all pnpm monorepo dependencies
+pnpm install
+```
+
+---
+
+### 3. Running in Development Mode (Dev Mode)
+
+You can launch either interface immediately using **Mock Engine Mode** (no running backend required, streams recorded cassettes) or connect to a live backend engine (`ws://localhost:8080/ws`).
+
+#### Option A: Terminal TUI CLI (`@aether/cli`)
+Interactive React + Ink terminal dashboard with keyboard shortcuts (`p` to play/pause, `s` to step, `1`/`2`/`5` for speed, `c` to switch cassette):
+
+```bash
+# In WSL2 / Bash:
+cd src_front
+pnpm --filter @aether/cli dev
+
+# Or using npx from root:
+npx pnpm --filter @aether/cli dev
+```
+
+#### Option B: Desktop GUI Canvas (`@aether/desktop`)
+Launch the React 19 + Vite web GUI locally in dev mode (opens visual node-graph canvas, trace inspector, Monaco diff editor, McNemar dashboard):
+
+```bash
+# Quick Web Dev Mode (Browser on http://localhost:1420):
+cd src_front
+pnpm --filter @aether/desktop dev
+
+# Native Tauri App Shell (WSL2 with X11/WSLg or Windows CMD):
+cd src_front/apps/desktop
+pnpm tauri dev
+```
+
+---
+
+### 4. Production Build Commands
+
+#### Build TUI CLI
+```bash
+cd src_front
+pnpm --filter @aether/cli build
+# Executable output available at: src_front/apps/cli/dist/index.js
+```
+
+#### Build Desktop GUI
+```bash
+cd src_front
+pnpm --filter @aether/desktop build
+# Static bundle available at: src_front/apps/desktop/dist/
+
+# Native Desktop App Bundle (Installer/Executable):
+cd src_front/apps/desktop
+pnpm tauri build
+```
+
+---
+
+### 5. Workspace Quality & Typechecking Commands
+
+```bash
+# Run TypeScript compilation check across all packages & apps (0 errors expected):
+cd src_front
+pnpm --recursive run build   # or run tsc per package:
+pnpm --filter @aether/core exec tsc --noEmit
+pnpm --filter @aether/cli exec tsc --noEmit
+pnpm --filter @aether/desktop exec tsc --noEmit
+
+# Run unit tests:
+pnpm --filter @aether/core test
+```
+
+---
+
 ## 🏗️ Navigation Index
 
 | Document | Tier | Description |
@@ -27,7 +123,7 @@ The front-end suite provides two primary interfaces to interact with the headles
 | [`architecture.md`](./architecture.md) | 2 | Detailed monorepo package layout (`src_front/`), Zustand store topology (6 stores), DAG topology rendering specification, and component hierarchies. |
 | [`decisions/README.md`](./decisions/README.md) | 2 | Front-End Architecture Decision Records (ADR-F series). |
 | [`agile/roadmap.md`](./agile/roadmap.md) | 3 | Phased front-end roadmap (Sprint FE-01 to FE-04). |
-| [`agile/sprints/sprint-fe-01.md`](./agile/sprints/sprint-fe-01.md) | 3 | Sprint FE-01 implementation backlog and acceptance criteria. |
+| [`fixes/`](./fixes) | 3 | Audit reports, fix proposals, and status trackers for Architecture, Performance, Protocols, UI/UX, and Testing. |
 
 ---
 
@@ -39,7 +135,7 @@ All front-end source code resides in `src_front/` configured as a **pnpm / Turbo
 src_front/
 ├── packages/
 │   ├── core/            # Shared React hooks, Zustand state stores, event stream client, domain models
-│   ├── ui-components/   # Desktop-GUI-only Tailwind components (not consumed by CLI)
+│   ├── ui-components/   # Desktop-GUI Tailwind components & ErrorBoundary
 │   └── mock-server/     # Deterministic event cassette player for offline development & mock testing
 ├── apps/
 │   ├── cli/             # TUI CLI application (React + Ink)
@@ -56,14 +152,4 @@ src_front/
 * **Code Wins**: Contracts live in `src_front/packages/core/`. Documents navigate; code defines.
 * **Headless Decoupling**: The front-end has zero direct imports from `src/aether/`. All communication occurs via typed events over WebSocket/SSE ([`BRIDGE_CONTRACT.md`](./BRIDGE_CONTRACT.md)).
 * **Mock/Live Transparency**: Every front-end component functions identically whether consuming live engine events or mock cassette playback.
-* **Event Schema CI Generation**: TypeScript event types in `@aether/core/types/events.ts` are generated from `domain/events.py` with a CI drift check. Manual event type definitions are provisional.
-
-
-## Quickstart
-
-    > Install dependencies
-    pnpm install
-
-    > Start TUI CLI (or GUI)
-    pnpm --filter @aether/cli dev       # for TUI
-    pnpm --filter @aether/desktop dev   # for GUI (opens http://localhost:1420)
+* **Event Schema Validation**: Wire events are validated at the bridge boundary via Zod schemas (`@aether/core/types/events.ts`). Invalid events are dropped with diagnostic warnings.

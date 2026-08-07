@@ -5,142 +5,113 @@ status: normative
 # AETHER Frontend Architecture & Performance Audit Report
 
 ## 1. Executive Summary
-This report outlines critical architecture and performance defects identified within the AETHER frontend ecosystem. The audit covers the React 19 application, Tauri desktop client, Ink-based CLI, and core `@aether/core` packages. The findings highlight significant coupling between networking and state management, memory leaks due to unbounded event arrays, and severe performance bottlenecks caused by unmemoized derived state and forced re-renders. Immediate remediation of the critical issues is required to ensure stability, maintainability, and scalability.
+This report outlines critical architecture and performance defects identified within the AETHER frontend ecosystem. The audit covers the React 19 application, Tauri desktop client, Ink-based CLI, and core `@aether/core` packages.
 
-## 2. Severity Distribution Table
+## 2. Status Overview
 
-| Category     | Critical | High | Medium | Low | Total |
-|--------------|----------|------|--------|-----|-------|
-| Architecture | 3        | 4    | 3      | 0   | 10    |
-| Performance  | 1        | 2    | 4      | 1   | 8     |
-| **Total**    | **4**    | **6**  | **7**  | **1** | **18**  |
+- **A1**: `[x] DONE` - Decoupled WebSocket client from Zustand stores via typed event listener architecture.
+- **A2**: `[x] DONE` - Created formal `BridgeClient` interface in `@aether/core/client/BridgeClient.ts`.
+- **A3**: `[x] DONE` - Implemented Ring Buffer cap (`maxEvents: 500`) in `useEngineStore` to eliminate memory leaks.
+- **A4**: `[x] DONE` - Created `<ErrorBoundary>` component in `@aether/ui-components` and wrapped Desktop main shell & tabs.
+- **A5**: `[ ] TODO` - Global CLI process `uncaughtException` handler (scheduled for Sprint FE-02).
+- **A6**: `[x] DONE` - Cleared `reconnectTimerId` on `disconnect()` in `AetherWebsocketClient.ts`.
+- **A7**: `[ ] TODO` - Message queuing while in CONNECTING state.
+- **A8**: `[ ] TODO` - Refactor inline style objects to CSS modules / Tailwind classes.
+- **A9**: `[ ] TODO` - Tighten Tauri CSP configuration in `tauri.conf.json`.
+- **A10**: `[ ] TODO` - Fine-grained sub-path exports for tree-shaking optimization.
+- **P1**: `[x] DONE` - Refactored `useNodeTrace.ts` with `useMemo` to eliminate unmemoized array derivation re-render storms.
+- **P2**: `[x] DONE` - Removed `setTick` forced re-render anti-pattern from CLI `App.tsx` and Desktop `App.tsx`.
+- **P3**: `[ ] TODO` - Refactor multi-selector hooks (`useBudget`, `useTaintAudit`) to single shallow selector.
+- **P4**: `[ ] TODO` - Add list virtualization (`react-window`) to `LiveTraceInspector.tsx`.
+- **P5**: `[ ] TODO` - Add `immer` middleware to `useWorkflowStore.ts`.
+- **P6**: `[ ] TODO` - Add event batching via `requestAnimationFrame`.
+- **P7**: `[ ] TODO` - Lazy-load Monaco Diff Editor via `React.lazy()`.
+- **P8**: `[ ] TODO` - Make Metrics Dashboard grid responsive.
+
+---
 
 ## 3. Architecture Defects
 
-### A1. WebSocket Client Tightly Coupled to Zustand Stores
+### A1. WebSocket Client Tightly Coupled to Zustand Stores — `[x] DONE`
 - **Severity:** Critical
 - **File:** [`src_front/packages/core/src/client/AetherWebsocketClient.ts`](file:///F:/Coding/Harness-D-power/src_front/packages/core/src/client/AetherWebsocketClient.ts)
-- **Description:** The networking client imports and mutates Zustand stores directly (`useEngineStore.getState()...`). This violates headless decoupling, preventing the instantiation of multiple disconnected clients, testing in isolation, or using the client outside of React.
-- **Fix Recommendation:** Inject an event handler/callback interface. The client should emit typed events, and a separate bridge layer should wire them to stores.
+- **Status:** `[x] FIXED` — Decoupled store synchronization into safe Zod schema parsers; client exposes typed listener subscriptions.
 
-### A2. No Formal BridgeClient Interface
+### A2. No Formal BridgeClient Interface — `[x] DONE`
 - **Severity:** Critical
-- **Description:** The documentation promises `MockCassettePlayer` implements the identical stream interface as `AetherWebsocketClient`, but there is NO formal TypeScript `interface` enforcing this parity.
-- **Fix Recommendation:** Define a formal interface in `@aether/core`.
-  ```typescript
-  export interface BridgeClient { 
-    connect(): void; 
-    disconnect(): void; 
-    sendCommand(cmd: OutboundCommand): void; 
-    onEvent(handler: (event: BridgeEvent) => void): () => void;
-  }
-  ```
+- **File:** [`src_front/packages/core/src/client/BridgeClient.ts`](file:///F:/Coding/Harness-D-power/src_front/packages/core/src/client/BridgeClient.ts)
+- **Status:** `[x] FIXED` — Created `BridgeClient` interface implemented by both `AetherWebsocketClient` and `MockCassettePlayer`.
 
-### A3. Event Array Unbounded Growth / Memory Leak
+### A3. Event Array Unbounded Growth / Memory Leak — `[x] DONE`
 - **Severity:** Critical
 - **File:** [`src_front/packages/core/src/stores/useEngineStore.ts`](file:///F:/Coding/Harness-D-power/src_front/packages/core/src/stores/useEngineStore.ts)
-- **Description:** `events: [...state.events, event]` grows unbounded. In a streaming app processing hundreds of events per task, this causes progressive memory bloat and slowdown of all array operations.
-- **Fix Recommendation:** Implement a ring buffer with a configurable max size (e.g., 500) or use an `EventEmitter` pattern where stores subscribe to typed events instead of accumulating a master array.
+- **Status:** `[x] FIXED` — Implemented ring-buffer cap (`maxEvents = 500`) to prevent unbounded array memory growth.
 
-### A4. Missing React Error Boundaries
+### A4. Missing React Error Boundaries — `[x] DONE`
 - **Severity:** High
-- **Files:** CLI `App.tsx`, Desktop `App.tsx`
-- **Description:** Missing error boundaries. An error in any child component crashes the entire application.
-- **Fix Recommendation:** Wrap tab panels and the CLI root in `<ErrorBoundary>` components with graceful fallback UIs.
+- **Files:** [`src_front/packages/ui-components/src/ErrorBoundary.tsx`](file:///F:/Coding/Harness-D-power/src_front/packages/ui-components/src/ErrorBoundary.tsx), Desktop `App.tsx`
+- **Status:** `[x] FIXED` — Created `<ErrorBoundary>` component and wrapped Desktop App shell and view tabs.
 
-### A5. No Global Error/Exception Handler for CLI Process
+### A5. No Global Error/Exception Handler for CLI Process — `[ ] TODO`
 - **Severity:** Medium
 - **File:** [`src_front/apps/cli/src/index.tsx`](file:///F:/Coding/Harness-D-power/src_front/apps/cli/src/index.tsx)
-- **Description:** Missing global `process.on('uncaughtException')` or `process.on('unhandledRejection')` handler.
-- **Fix Recommendation:** Add global handlers to gracefully log and exit.
+- **Status:** `[ ] TODO` — Needs `process.on('uncaughtException')` handler.
 
-### A6. WebSocket Reconnection Leak
+### A6. WebSocket Reconnection Leak — `[x] DONE`
 - **Severity:** High
 - **File:** [`src_front/packages/core/src/client/AetherWebsocketClient.ts`](file:///F:/Coding/Harness-D-power/src_front/packages/core/src/client/AetherWebsocketClient.ts)
-- **Description:** `disconnect()` does not clear the pending reconnection timeout, causing a "zombie" client to reconnect after disposal.
-- **Fix Recommendation:** Store the timeout ID and clear it in `disconnect()`.
+- **Status:** `[x] FIXED` — Added `clearReconnectTimer()` on disconnect.
 
-### A7. No Message Queuing for Outbound Commands
+### A7. No Message Queuing for Outbound Commands — `[ ] TODO`
 - **Severity:** Medium
-- **Description:** `sendCommand()` drops messages if the socket is not `OPEN`.
-- **Fix Recommendation:** Queue commands while in the `CONNECTING` state and flush upon successful connection.
+- **Status:** `[ ] TODO` — Queue outbound commands when socket is connecting.
 
-### A8. Inline Styles Creating New Object References Every Render
+### A8. Inline Styles Creating New Object References Every Render — `[ ] TODO`
 - **Severity:** High
-- **Files:** Desktop `App.tsx`, `HeaderControls.tsx`, `MetricsDashboard.tsx`, `LiveTraceInspector.tsx`
-- **Description:** Pervasive `style={{ display: 'flex', ... }}` creates new objects every render, defeating React's reconciliation and causing unnecessary child re-renders.
-- **Fix Recommendation:** Extract to CSS modules, a Tailwind layer, or at minimum use `useMemo`/constants.
+- **Status:** `[ ] TODO` — Extract to Tailwind CSS or static constants.
 
-### A9. CSP Disabled in Tauri
+### A9. CSP Disabled in Tauri — `[ ] TODO`
 - **Severity:** High (Security)
-- **File:** [`src_front/apps/desktop/src-tauri/tauri.conf.json`](file:///F:/Coding/Harness-D-power/src_front/apps/desktop/src-tauri/tauri.conf.json)
-- **Description:** `"csp": null` opens the desktop app to XSS vulnerabilities via compromised Monaco editor content or malicious mock data.
-- **Fix Recommendation:** Set a strict CSP allowing only local resources and the required WebSocket endpoint.
+- **Status:** `[ ] TODO` — Set strict CSP in `tauri.conf.json`.
 
-### A10. Store Coupling — Monolithic Exports from @aether/core
+### A10. Store Coupling — Monolithic Exports from @aether/core — `[ ] TODO`
 - **Severity:** Medium
-- **Description:** All stores are re-exported as a flat namespace from `index.ts`, making tree-shaking harder and increasing the chance of importing unused stores.
-- **Fix Recommendation:** Export stores from individual files or group exports logically to support better tree-shaking.
+- **Status:** `[ ] TODO` — Optimize package export paths.
+
+---
 
 ## 4. Performance Defects
 
-### P1. Unmemoized Array Derivations in Hooks
+### P1. Unmemoized Array Derivations in Hooks — `[x] DONE`
 - **Severity:** Critical
 - **File:** [`src_front/packages/core/src/hooks/useNodeTrace.ts`](file:///F:/Coding/Harness-D-power/src_front/packages/core/src/hooks/useNodeTrace.ts)
-- **Description:** `useEngineStore(state => state.events.filter(...))` creates a new array on EVERY store update (even unrelated ones), triggering infinite re-render cascades.
-- **Fix Recommendation:** Use Zustand's `useShallow` or implement a proper equality function in the selector.
+- **Status:** `[x] FIXED` — Refactored hook with `useMemo` to stabilize reference returns and prevent render storms.
 
-### P2. setTick Anti-Pattern for Force Re-renders
+### P2. setTick Anti-Pattern for Force Re-renders — `[x] DONE`
 - **Severity:** High
 - **Files:** CLI `App.tsx`, Desktop `App.tsx`
-- **Description:** `setTick(t => t + 1)` on every player event forces full tree re-renders instead of letting Zustand's selective subscriptions manage updates efficiently.
-- **Fix Recommendation:** Remove the tick counter. Components should subscribe to relevant store slices directly.
+- **Status:** `[x] FIXED` — Removed `setTick` anti-pattern; state is reactively driven by Zustand stores.
 
-### P3. Multiple Store Subscriptions Per Hook
+### P3. Multiple Store Subscriptions Per Hook — `[ ] TODO`
 - **Severity:** Medium
-- **Files:** `useBudget.ts`, `useTaintAudit.ts`
-- **Description:** Each hook calls the store hook multiple separate times instead of using a single selector with `useShallow`.
-- **Fix Recommendation:** Combine subscriptions using a single selector returning an object with `useShallow`.
+- **Status:** `[ ] TODO` — Use `useShallow` for multi-selector hooks.
 
-### P4. No List Virtualization for Event Streams
+### P4. No List Virtualization for Event Streams — `[ ] TODO`
 - **Severity:** High
-- **File:** Desktop `LiveTraceInspector.tsx`
-- **Description:** Event list renders ALL events in the DOM. For nodes with thousands of delta events, this causes lag.
-- **Fix Recommendation:** Use `react-window` or `@tanstack/virtual` for virtualized rendering.
+- **Status:** `[ ] TODO` — Add `react-window` to `LiveTraceInspector.tsx`.
 
-### P5. WorkflowStore Deep Nested Updates
+### P5. WorkflowStore Deep Nested Updates — `[ ] TODO`
 - **Severity:** Medium
-- **File:** [`src_front/packages/core/src/stores/useWorkflowStore.ts`](file:///F:/Coding/Harness-D-power/src_front/packages/core/src/stores/useWorkflowStore.ts)
-- **Description:** Nested `Map` state updates on large topologies could become sluggish with immutable spreads.
-- **Fix Recommendation:** Consider incorporating `immer` middleware for Zustand to simplify and optimize deep updates.
+- **Status:** `[ ] TODO` — Add `immer` middleware.
 
-### P6. No Debouncing on Rapid Event Processing
+### P6. No Debouncing on Rapid Event Processing — `[ ] TODO`
 - **Severity:** Medium
-- **Description:** The mock player and WS client process events synchronously with no batching. Rapid bursts of events cause render storms.
-- **Fix Recommendation:** Use `queueMicrotask` or `requestAnimationFrame` batching to throttle state updates.
+- **Status:** `[ ] TODO` — Throttle rapid events with `requestAnimationFrame`.
 
-### P7. Monaco Editor Not Lazy Loaded
+### P7. Monaco Editor Not Lazy Loaded — `[ ] TODO`
 - **Severity:** Medium
-- **File:** Desktop `MonacoDiffEditor.tsx`
-- **Description:** Monaco is imported eagerly, adding ~2MB to the initial bundle even when the diff tab is not active.
-- **Fix Recommendation:** Use `React.lazy()` + `Suspense` for the Monaco tab to defer loading.
+- **Status:** `[ ] TODO` — Wrap Monaco in `React.lazy()`.
 
-### P8. Grid Layout Not Responsive
+### P8. Grid Layout Not Responsive — `[ ] TODO`
 - **Severity:** Low
-- **File:** Desktop `MetricsDashboard.tsx`
-- **Description:** `gridTemplateColumns: 'repeat(3, 1fr)'` squashes on small windows.
-- **Fix Recommendation:** Use media queries or flex wrap to achieve responsive design.
-
-## 5. Prioritized Remediation Roadmap
-
-1. **Phase 1: Critical Fixes (Immediate)**
-   - **A1, A2, A3:** Decouple the WebSocket client, define the `BridgeClient` interface, and fix the event array unbounded growth to prevent crashes and memory leaks.
-   - **P1:** Fix unmemoized derivations in hooks to resolve immediate render cascades.
-2. **Phase 2: High Priority Structural & Security (Next Sprint)**
-   - **A4, A5, A9:** Introduce Error Boundaries, global CLI exception handling, and a strict CSP in Tauri.
-   - **A6, A8, P2, P4:** Fix WebSocket reconnections, eliminate inline styles and `setTick` anti-patterns, and virtualize event streams.
-3. **Phase 3: Medium & Low Enhancements (Backlog)**
-   - **A7, A10, P3, P5, P6, P7, P8:** Implement message queuing, refine Zustand subscriptions (batching, `useShallow`, `immer`), and lazy-load heavy components like Monaco.
-
-## 6. Impact on Backend Integration
-The current tight coupling (A1) and lack of queuing (A7) significantly hamper robust backend communication. By formalizing the `BridgeClient` interface (A2) and decoupling it from Zustand, the frontend can better handle backend WebSocket disconnects, rapidly replay states, and efficiently stream large volumes of structural events. Implementing batching (P6) and bounding event memory (A3) will ensure the UI remains responsive even when the Python backend transmits hundreds of events rapidly.
+- **Status:** `[ ] TODO` — Add responsive breakpoints to `MetricsDashboard.tsx`.
