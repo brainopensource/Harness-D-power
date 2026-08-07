@@ -11,6 +11,7 @@ nodes:
   - { id: apply,    kind: apply,    budget: { wall_clock_ms: 30000 } }
   - { id: evaluate, kind: evaluate, budget: { wall_clock_ms: 900000, concurrency_slots: 1 } }
   - { id: repair,   kind: repair,
+      params: { entry_files: [mod.py, store.py] },
       budget: { usd_micros: 250000, prompt_tokens: 90000, completion_tokens: 6000 } }
 edges:
   - { from: retrieve, to: generate }

@@ -43,10 +43,23 @@ DEFAULT_MANIFEST = REPO_ROOT / "benchmarks" / "manifests" / "internal-floor-01.y
 DEFAULT_SUITE_DIR = Path.home() / ".cache" / "aether" / "internal_suite"
 TEST_COMMAND = "python3 run_tests.py"
 
-INSTRUCTIONS = (
-    "The function `f` in mod.py returns the wrong value for some inputs. "
-    "`run_tests.py` asserts the correct behaviour. Fix mod.py."
-)
+def build_task_instructions(task_dir: Path, entry_files: list[str]) -> str:
+    test_file = task_dir / "run_tests.py"
+    test_content = test_file.read_text(encoding="utf-8") if test_file.exists() else ""
+    files_str = ", ".join(entry_files)
+    return (
+        f"The tests in `run_tests.py` assert the correct behaviour. "
+        f"Fix the bug in the following files: {files_str} so the tests pass.\n\n"
+        f"## run_tests.py\n```python\n{test_content}\n```"
+    )
+
+def auto_discover_entry_files(task_dir: Path) -> list[str]:
+    files: list[str] = []
+    for p in task_dir.glob("**/*.py"):
+        if p.name == "run_tests.py":
+            continue
+        files.append(str(p.relative_to(task_dir)))
+    return sorted(files)
 
 
 async def main_async(args: argparse.Namespace, manifest: dict[str, Any]) -> int:
@@ -88,11 +101,20 @@ async def main_async(args: argparse.Namespace, manifest: dict[str, Any]) -> int:
     started_all = time.monotonic()
     for index, entry in enumerate(tasks, start=1):
         instance_id = entry["instance_id"]
+        task_dir = Path(args.suite_dir) / instance_id
+        
+        task_entry_files = args.entry_files if args.entry_files else auto_discover_entry_files(task_dir)
+        task_instructions = (
+            args.instructions 
+            if args.instructions is not None 
+            else build_task_instructions(task_dir, task_entry_files)
+        )
+
         task = Task(
             task_id=instance_id,  # type: ignore[arg-type]
             repo=entry["repo"],
             base_commit=entry["base_commit"],
-            instructions=args.instructions,
+            instructions=task_instructions,
             environment_image_digest=entry["environment_image_digest"],
             test_command_hash=entry["test_command_hash"],
             source=TaskSource(manifest_hash=sha, instance_id=instance_id),
@@ -111,7 +133,7 @@ async def main_async(args: argparse.Namespace, manifest: dict[str, Any]) -> int:
                 sandbox_runtime=None if args.uncontained else args.runtime,
                 usd_micros_ceiling=ceiling,
                 model_api_key=os.environ.get("OPENROUTER_API_KEY"),
-                entry_files=tuple(args.entry_files) if args.entry_files else None,
+                entry_files=tuple(task_entry_files) if task_entry_files else None,
             )
             outcome = TaskOutcome(
                 task_id=instance_id,
@@ -176,7 +198,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--entry-files", nargs="*", default=None)
     parser.add_argument("--runtime", default="docker", choices=["podman", "docker"])
     parser.add_argument("--uncontained", action="store_true")
-    parser.add_argument("--instructions", default=INSTRUCTIONS)
+    parser.add_argument("--instructions", default=None)
     args = parser.parse_args(argv)
     Path(args.workdir).mkdir(parents=True, exist_ok=True)
     manifest = load_manifest(Path(args.manifest).read_text(encoding="utf-8"))

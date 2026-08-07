@@ -169,6 +169,51 @@ class WholeFileCodeblockFormat:
                 continue
             files.append(FileEdit(repo_rel_path=path, text=code + "\n"))
 
+        if not files and not errors:
+            _UNLABELLED_FENCE = re.compile(r"```(?:python|py)?\s*\n(?P<code>.*?)```", re.DOTALL)
+            _HEADER_FILE = re.compile(r"===\s*([\w./\-]+\.py)\s*===")
+            _COMMENT_FILE = re.compile(r"^#\s*(?:filename:\s*)?([\w./\-]+\.py)")
+            
+            for match in _UNLABELLED_FENCE.finditer(raw):
+                code = match.group("code").strip()
+                path = None
+                
+                lines = code.splitlines()
+                if lines:
+                    m = _COMMENT_FILE.match(lines[0])
+                    if m:
+                        path = m.group(1)
+                
+                if not path:
+                    before_text = raw[:match.start()]
+                    headers = _HEADER_FILE.findall(before_text)
+                    if headers:
+                        path = headers[-1]
+                        
+                if not path:
+                    py_files = [f for f in set(re.findall(r"\b[\w./\-]+\.py\b", raw)) if f.endswith(".py")]
+                    if len(py_files) == 1:
+                        path = py_files[0]
+
+                if not path:
+                    # Single file mode fallback when target is present in prompt context
+                    match_mod = re.search(r"\b([\w./\-]+\.py)\b", raw)
+                    if match_mod:
+                        path = match_mod.group(1)
+
+                if path:
+                    if path.startswith("/") or ".." in Path(path).parts:
+                        errors.append(f"{path}: path must be repo-relative and must not escape the worktree")
+                        continue
+                    try:
+                        ast.parse(code)
+                    except SyntaxError as exc:
+                        errors.append(f"{path}: not valid Python ({exc.msg} at line {exc.lineno})")
+                        continue
+                    files.append(FileEdit(repo_rel_path=path, text=code + "\n"))
+                else:
+                    errors.append("unlabelled codeblock found but could not infer file path")
+
         if not files and not errors and raw.strip():
             errors.append("no labelled ```python:<path> block found in the model's output")
         return ParsedEdit(kind="whole_files", files=tuple(files), errors=tuple(errors))

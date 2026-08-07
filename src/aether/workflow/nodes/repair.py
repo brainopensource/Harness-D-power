@@ -33,11 +33,13 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+from aether.composition import ReadArgs
 from aether.domain.budget import BudgetDims
 from aether.domain.gate import GateStatus
 from aether.domain.ids import SpanId
 from aether.domain.model_io import ModelMessage, ModelRequest, TextDelta
 from aether.domain.taint import Provenance, TaintSpan
+from aether.domain.workspace import WorktreeRef
 from aether.measurement.evaluator import tail_biased
 from aether.workflow.dispatch_facade import DispatchFacade
 from aether.workflow.edit_format import DEFAULT_EDIT_FORMAT, get_edit_format
@@ -61,7 +63,7 @@ class InstrumentErrorNotRepairable(Exception):
     """
 
 
-def build_repair_prompt(payload: EvaluatedCandidate) -> str:
+def build_repair_prompt(payload: EvaluatedCandidate, current_files: str = "") -> str:
     """The repair instruction: the task, the attempt, and the failure — in
     that order, failure last, because that is where the model's attention and
     the truncation budget should land.
@@ -72,10 +74,27 @@ def build_repair_prompt(payload: EvaluatedCandidate) -> str:
     """
     previous = payload.patch_text.strip() or "(no patch was produced on the previous attempt)"
     failure = tail_biased(payload.report.detail, REPAIR_OUTPUT_CHARS) or "(the gate reported no output)"
+    
+    isolated_assertion = ""
+    for line in payload.report.detail.splitlines():
+        line_stripped = line.strip()
+        if (
+            line_stripped.startswith("assert ")
+            or line_stripped.startswith("AssertionError:")
+            or line_stripped.startswith("FAIL: ")
+        ):
+            isolated_assertion = line_stripped
+            break
+
+    files_section = f"## Current source files\n{current_files}\n\n" if current_files else ""
+    assertion_section = f"## Failing assertion line\n{isolated_assertion}\n\n" if isolated_assertion else ""
+    
     return (
         f"A previous attempt at this task failed its tests.\n\n"
         f"## Task\n{payload.task.instructions}\n\n"
+        f"{files_section}"
         f"## Previous attempt\n{previous}\n\n"
+        f"{assertion_section}"
         f"## Failing test output (tail)\n{failure}\n\n"
         f"Correct the change so these tests pass."
     )
@@ -92,11 +111,25 @@ class RepairStep(WorkflowStep[EvaluatedCandidate, GeneratedPatch]):
         model_name: str,
         max_tokens: int = 4096,
         edit_format: str = DEFAULT_EDIT_FORMAT,
+        entry_files: tuple[str, ...] = (),
     ) -> None:
         self._dispatch = dispatch
         self._model_name = model_name
         self._max_tokens = max_tokens
         self._edit_format = get_edit_format(edit_format)
+        self._entry_files = entry_files
+
+    async def _read_current_files(self, worktree: WorktreeRef) -> str:
+        if not self._entry_files:
+            return ""
+        parts: list[str] = []
+        for path in self._entry_files:
+            try:
+                result = await self._dispatch.read(ReadArgs(worktree=worktree, repo_rel_path=path))
+                parts.append(f"=== {path} ===\n{result.text}\n")
+            except Exception as exc:
+                parts.append(f"=== {path} ===\n(error: {type(exc).__name__})\n")
+        return "\n".join(parts)
 
     async def run(self, ctx: StepContext, payload: EvaluatedCandidate) -> GeneratedPatch:
         if payload.report.status is GateStatus.NONE:
@@ -117,13 +150,15 @@ class RepairStep(WorkflowStep[EvaluatedCandidate, GeneratedPatch]):
                 iteration=payload.iteration,
             )
 
+        current_files = await self._read_current_files(payload.worktree)
+
         span = TaintSpan(
             span_id=SpanId(f"{ctx.node_id}-repair-{payload.iteration}"),
             # The prompt embeds test output produced by executing the
             # candidate's own code. That is not operator-authored text, and
             # labelling it as such would launder its provenance (ADR-0015).
             label=Provenance.AGENT,
-            text=build_repair_prompt(payload),
+            text=build_repair_prompt(payload, current_files=current_files),
             source=f"repair:iteration-{payload.iteration}",
             created_at=datetime.now(UTC),
         )

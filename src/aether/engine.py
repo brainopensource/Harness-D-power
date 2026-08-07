@@ -37,6 +37,7 @@ from aether.workflow.dispatch_facade import DispatchFacade
 from aether.workflow.edit_format import DEFAULT_EDIT_FORMAT
 from aether.workflow.executor import WorkflowExecutor
 from aether.workflow.nodes.apply import ApplyStep
+from aether.workflow.nodes.architect import ArchitectStep, ReflectorStep
 from aether.workflow.nodes.evaluate import EvaluatedCandidate, EvaluateStep
 from aether.workflow.nodes.generate import GenerateStep
 from aether.workflow.nodes.repair import RepairStep
@@ -48,9 +49,11 @@ from aether.workflow.validator import load_topology, validate_topology
 # Matches `workflows/linear_v1.yaml`'s four `kind`s.
 NODE_SOCKETS: dict[str, tuple[str, str]] = {
     "retrieve": ("TaskInput", "RetrievedContext"),
+    "architect": ("RetrievedContext", "RetrievedContext"),
     "generate": ("RetrievedContext", "GeneratedPatch"),
     "apply": ("GeneratedPatch", "AppliedPatch"),
     "evaluate": ("AppliedPatch", "EvaluatedCandidate"),
+    "reflector": ("EvaluatedCandidate", "EvaluatedCandidate"),
     # The repair edge closes the loop: evaluate's output is repair's input, and
     # repair's output re-enters apply (TASK-023, workflows/linear_repair_v1.yaml).
     "repair": ("EvaluatedCandidate", "GeneratedPatch"),
@@ -103,13 +106,30 @@ def build_step_registry(
             model_name=str(params.get("model", model_name)),
             max_tokens=int(params.get("max_tokens", 4096)),
             edit_format=str(params.get("edit_format", DEFAULT_EDIT_FORMAT)),
+            entry_files=tuple(params.get("entry_files") or default_entry_files),
+        )
+
+    def architect(params: Mapping[str, Any]) -> WorkflowStep[Any, Any]:
+        return ArchitectStep(
+            facade,
+            model_name=str(params.get("model", model_name)),
+            max_tokens=int(params.get("max_tokens", 1024)),
+        )
+
+    def reflector(params: Mapping[str, Any]) -> WorkflowStep[Any, Any]:
+        return ReflectorStep(
+            facade,
+            model_name=str(params.get("model", model_name)),
+            max_tokens=int(params.get("max_tokens", 1024)),
         )
 
     return {
         "retrieve": retrieve,
+        "architect": architect,
         "generate": generate,
         "apply": apply_step,
         "evaluate": evaluate,
+        "reflector": reflector,
         "repair": repair,
     }
 

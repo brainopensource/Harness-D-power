@@ -84,6 +84,21 @@ Correctness + decoupling: six dead defects fixed, node registry keyed by kind, e
 * **Normative Specs**: [ADR-0014](../decisions/0014-workflow-topology-is-data.md)
 * **Exit Criteria**: Two generate nodes legal in one topology. Implementations swappable from data.
 
+### TASK-039: Repair Step Source Context Re-reading ✅ DONE
+* **Description**: `RepairStep` re-reads worktree files via `self._dispatch.read()` and embeds current file state into repair prompts.
+* **Target Files**: `src/aether/workflow/nodes/repair.py`
+* **Normative Specs**: [ADR-0010](../decisions/0010-context-prefix-layers.md)
+
+### TASK-040: Engine Registry File Forwarding & Auto-Files Topology ✅ DONE
+* **Description**: `engine.py` forwards `params.get("entry_files")` to `RepairStep`; created `linear_repair_autofiles_v1.yaml`.
+* **Target Files**: `src/aether/engine.py`, `workflows/linear_repair_autofiles_v1.yaml`
+* **Normative Specs**: [ADR-0014](../decisions/0014-workflow-topology-is-data.md)
+
+### TASK-041: Dynamic Task Instruction & Auto-File Discovery ✅ DONE
+* **Description**: `scripts/run_local_check.py` auto-discovers task `.py` files and injects `run_tests.py` assertions into task instructions.
+* **Target Files**: `scripts/run_local_check.py`
+* **Normative Specs**: [`spec.md` §7](../spec.md#7-measurement)
+
 ---
 
 ## Epic 2: Measurement Rig & Instrument Blockers

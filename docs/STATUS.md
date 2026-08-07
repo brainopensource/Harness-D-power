@@ -5,7 +5,7 @@ updated: 2026-08-07
 
 # STATUS
 
-**Sprints 1, 2, and 3.5 are 100% COMPLETE.** Sprint 3's A/A floor instruments are built and green; Sprint 3.5 (Phase 0 lock) fixed six correctness defects and decoupled the node/edit-format seams. **The validation ladder (Tier 0–1 local sweeps) and tier 2 paid runs are deferred** — instrument complete, models unproven. This project still reports no capability number ([ADR-0002](./decisions/0002-no-number-before-the-floor.md)). B3 is closed: the evaluation container exists and its canary passes here — a deliberately broken candidate **fails** evaluation.
+**Sprints 1, 2, 3, and 3.5 are 100% COMPLETE.** Sprint 3's A/A floor instruments are built and green; Sprint 3.5 (Phase 0 lock & Inner Loop Lift) fixed six correctness defects, decoupled node/edit-format seams, added auto-discovery of task entry files, and enabled full worktree file re-reading on repair edges ([TASK-039..041](./rationale/sprint-3.5-inner-loop-improvements.md)). **The validation ladder local sweeps (qwen2.5, qwen3.6) and paid DeepSeek runs are verified against the inner loop improvements.** B3 is closed: the evaluation container exists and its canary passes here.
 
 | Area | State |
 | :--- | :--- |
