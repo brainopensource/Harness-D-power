@@ -5,17 +5,19 @@ updated: 2026-08-07
 
 # STATUS
 
-**Sprints 1 and 2 are 100% COMPLETE.** **Sprint 3's code and instruments are complete (`TASK-016, 014, 023, 012, 015`); the A/A floor run itself is deliberately deferred** — the instrument is built, green and rehearsed end to end, but no arms have run, so **this project still reports no capability number** ([ADR-0002](./decisions/0002-no-number-before-the-floor.md)). B3 is closed: the evaluation container exists and its canary passes here — a deliberately broken candidate **fails** evaluation.
+**Sprints 1, 2, and 3.5 are 100% COMPLETE.** Sprint 3's A/A floor instruments are built and green; Sprint 3.5 (Phase 0 lock) fixed six correctness defects and decoupled the node/edit-format seams. **The validation ladder (Tier 0–1 local sweeps) and tier 2 paid runs are deferred** — instrument complete, models unproven. This project still reports no capability number ([ADR-0002](./decisions/0002-no-number-before-the-floor.md)). B3 is closed: the evaluation container exists and its canary passes here — a deliberately broken candidate **fails** evaluation.
 
 | Area | State |
 | :--- | :--- |
 | `src/aether/domain/` | **Implemented.** Pure Pydantic models (ids, task, taint, budget, gate, model_io, workspace, tools, events, **sandbox**) |
 | `src/aether/ports/` | **Implemented.** 9 wire-serializable protocols. Unchanged in Sprint 3 — the container is *not* a tenth port ([ADR-0005](./decisions/0005-eight-ports-adapter-first.md) rev. 2); it reaches the TCB as a structural `SandboxRunner` over `domain/sandbox.py` payloads |
 | `src/aether/kernel/` | **Implemented.** Dispatch choke point, `DefaultPolicyEngine`, `ResourceGovernor`, `EventBus` |
-| `src/aether/workflow/` | **Implemented.** `WorkflowStep` types, 5-check `TopologyValidator`, `WorkflowExecutor` with the **bounded repair unroll** (TASK-023), `DispatchFacade`, five nodes (`retrieve/generate/apply/evaluate/repair`) |
-| `src/aether/measurement/` | **Implemented.** Repo cache, TCB `Evaluator` (now containerized), F1 timers, **`manifest.py` + `validity.py`** (TASK-014), **`statistics.py` + `outcomes.py` + `families/`** (TASK-012), **`runner.py`** (TASK-015) |
+| `src/aether/workflow/` | **Implemented.** `WorkflowStep` types, 5-check `TopologyValidator`, `WorkflowExecutor` with the **bounded repair unroll** (TASK-023), `DispatchFacade`, five nodes (`retrieve/generate/apply/evaluate/repair`), **`edit_format.py` seam** (TASK-037) |
+| `src/aether/measurement/` | **Implemented.** Repo cache, TCB `Evaluator` (now containerized), F1 timers, **`manifest.py` + `validity.py`** (TASK-014), **`statistics.py` + `outcomes.py` + `families/`** (TASK-012), **`pricing.py`** (A4), **`runner.py`** (TASK-015) |
 | `src/aether/adapters/` | **Implemented.** `ModelProvider`, `Workspace`/`WorktreeManager`, `ToolRegistry`, `TrajectoryStore`, `Indexer`, plus **`sandbox/podman.py`** (TASK-016) |
-| `composition.py`, `engine.py` | **Implemented.** `engine.run()` takes `sandbox_runtime` and returns the governor's real `usage` alongside the `GateReport` |
+| `src/aether/kernel/` update | **Sprint 3.5.** `governor.spent()` split from `remaining()` (A3); `dispatch.py` + `executor.py` emit dead events (A1–A2) |
+| `src/aether/domain/` update | **Sprint 3.5.** `ModelMessage` gains `tool_calls` + `tool_call_id` fields (A5) |
+| `composition.py`, `engine.py` | **Implemented.** `engine.run()` takes `sandbox_runtime` and registry; returns governor's real `usage` and `GateReport`. **Node registry keyed by kind** (TASK-038) |
 | B3 evaluation container | **Closed.** `containers/eval/` + `adapters/sandbox/podman.py`: `--network none`, `--cap-drop all`, `--security-opt no-new-privileges`, `--read-only`, `--pids-limit`, exactly two host mounts, image **by digest, never tag**. Rootless Podman is the ratified runner; this host has only Docker, so the canary ran under the documented `--runtime docker` fallback |
 | B3 canary | **Green in this environment.** 7/7 with `AETHER_REQUIRE_CONTAINER=1` — good candidate passes, **broken candidate fails**, host FS outside the worktree invisible, egress refused, plus two negative tests proving the leak and egress probes can go red |
 | Pinned manifest | **`benchmarks/manifests/internal-floor-01.yaml`**, `sha256:7c2c2467…` — 84 tasks, 0 exclusions, splits pinned 50 dev / 21 holdout / 13 sealed, every task screened bidirectionally (gold passes **and** empty fails) through the container |
@@ -76,6 +78,8 @@ the buggy body). That is a capability observation about those models on this ins
 
 ## Deviations recorded rather than papered over
 
+- **Tool execution is uncontained on the host.** `BuiltinToolRegistry` uses `create_subprocess_shell` while the evaluator is containerized. Asymmetric perimeter; `create_subprocess_shell` is shell-injection surface by construction. **Decision (Sprint 3.5): documented now, containerized at M2 with TASK-018's second half.**
+- **Tool protocol was malformed and untested.** Sprint 2 appended tool *results* without the assistant `tool_calls` message preceding them, and no `tool_call_id` was sent. Every OpenAI-compatible endpoint requires both. Path had only run against respx mocks returning no tool calls. **Fixed in Sprint 3.5 (A5) + live round-trip test against Ollama.**
 - **Container CPU/memory do not come from the governor lease.** `BudgetDims` has no memory or CPU dimension, so they are composition-frozen `ContainerLimits`. Wall-clock *is* lease-derived: `composition.py` clamps the eval timeout to the lease.
 - **No `src/aether/agency/repair.py`.** `aether-layers` makes `aether.agency` and `aether.workflow` independent siblings, so a `WorkflowStep` importing prompt logic from `agency/` breaks a 9-for-9 contract. Splitting it is a lattice change and needs an ADR.
 - **Two schema extensions**, both noted in the schema files: the manifest's exclusion enum gains `instrument_error` (B4 — an instrument failure is not the task's fault), and `repair.budget_per_iteration` is now **required** and must cover the chain it funds (an under-funded repair block is a silent no-op).

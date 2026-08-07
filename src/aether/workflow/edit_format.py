@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import ast
 import re
+from pathlib import Path
 from typing import Literal, Protocol, runtime_checkable
 
 from aether.domain.ids import Frozen
@@ -153,6 +154,12 @@ class WholeFileCodeblockFormat:
         for match in _FENCE.finditer(raw):
             path = match.group("path").strip()
             code = match.group("code").strip()
+            # A model-supplied path is untrusted input. Tier 1 produced
+            # `/storage.py` on the first run; caught here it becomes an error
+            # the repair edge can read, instead of an adapter exception.
+            if path.startswith("/") or ".." in Path(path).parts:
+                errors.append(f"{path}: path must be repo-relative and must not escape the worktree")
+                continue
             try:
                 ast.parse(code)
             except SyntaxError as exc:

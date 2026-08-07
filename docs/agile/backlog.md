@@ -62,6 +62,30 @@ This backlog catalogs all Epics and User Stories for building AETHER v3.0.0. All
 
 ---
 
+## Sprint 3.5 — Phase 0 Lock (code complete)
+
+Correctness + decoupling: six dead defects fixed, node registry keyed by kind, edit-format seam, retrieval multi-file, system layer seed, second topology.
+
+### TASK-036: SWE-bench Per-Instance Image Resolution
+* **Description**: Pull evaluation images, resolve to digests, run validity canary on 15-task sample.
+* **Target Files**: `scripts/build_floor_manifest.py`, `benchmarks/manifests/`
+* **Normative Specs**: [`measurement.md` §2 (B3)](../measurement.md#2-instrument-blockers)
+* **Status**: Deferred to post-floor.
+
+### TASK-037: EditFormat Seam — Unified Diff & Whole-File Codeblock ✅ DONE
+* **Description**: Protocol + two implementations swappable per node via YAML `params.edit_format`.
+* **Target Files**: `src/aether/workflow/edit_format.py`, `src/aether/workflow/nodes/apply.py`, `workflows/linear_repair_wholefile_v1.yaml`
+* **Normative Specs**: [`spec.md` §7](../spec.md#7-measurement)
+* **Exit Criteria**: One conformance suite, both pass. Unified diff (default + --3way fallback); whole-file (regex + AST validation).
+
+### TASK-038: Node Registry Keyed by Kind ✅ DONE
+* **Description**: `engine.run()` takes registry mapping; executor resolves `steps[node["kind"]]` from `params`.
+* **Target Files**: `src/aether/engine.py`, `src/aether/workflow/executor.py`
+* **Normative Specs**: [ADR-0014](../decisions/0014-workflow-topology-is-data.md)
+* **Exit Criteria**: Two generate nodes legal in one topology. Implementations swappable from data.
+
+---
+
 ## Epic 2: Measurement Rig & Instrument Blockers
 
 ### TASK-010: Manifest-Driven Upstream Repository Cache (Blocker B1) — ✅ DONE (Sprint 1)

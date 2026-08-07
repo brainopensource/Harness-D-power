@@ -1,0 +1,86 @@
+created_at: '2026-08-07T07:59:24.062156Z'
+manifest_id: internal-medium-01
+schema_version: 1.0.0
+suite: internal
+tasks:
+- base_commit: e0d72339fc0c380de0b7326929a4303347d939cb
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: medium__cache_clear_add-000
+  repo: internal/cache_clear_add
+  split: holdout
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: d43bd5857f9db982249b9072d671922053b63591
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: medium__cache_clear_remove-001
+  repo: internal/cache_clear_remove
+  split: holdout
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: 5a008bf8385995e809795ce3b03304aaf4f994f7
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: medium__cache_clear_reorder-002
+  repo: internal/cache_clear_reorder
+  split: sealed
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: 88776436f0d1bf52a9309deb0c8faaa35df8f688
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: medium__smart_refresh-003
+  repo: internal/smart_refresh
+  split: dev
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: 0a44db4ce4f87d9574dc233054ea0fd0e08fc0a9
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: medium__missing_validation-004
+  repo: internal/missing_validation
+  split: sealed
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: 4d18ff1de98b698bd743b804b25aded8671a0442
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: medium__remove_by_wrong_key-005
+  repo: internal/remove_by_wrong_key
+  split: holdout
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: 7e5db02049020ae4c23aa12964769918e812b56b
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: medium__rule_filter_inverted-006
+  repo: internal/rule_filter_inverted
+  split: dev
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: 066ad1e430f62c60175cb3e64cd818a55416a8e2
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: medium__reorder_appends-007
+  repo: internal/reorder_appends
+  split: dev
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: 94868a0477f8adcc9911a631e1e22a2f980b80ea
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: medium__clear_scope-008
+  repo: internal/clear_scope
+  split: dev
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: b324e7086c5858f477963cd43f6b4bf324af9314
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: medium__unencapsulated_store-009
+  repo: internal/unencapsulated_store
+  split: dev
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: 362ece649ac384c0b88d53c42dc51019797c3134
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: medium__get_cache_raises_on_missing-010
+  repo: internal/get_cache_raises_on_missing
+  split: dev
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: 9193b967c568817e6365606c9261660d0fd9d79e
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: medium__smart_refresh_wrong_args-011
+  repo: internal/smart_refresh_wrong_args
+  split: dev
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+validity_gate:
+  empty_fail_required: true
+  exclusions: []
+  gold_pass_required: true
+  instrument:
+    contained: true
+    image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+    repeats: 1
+    runtime: docker

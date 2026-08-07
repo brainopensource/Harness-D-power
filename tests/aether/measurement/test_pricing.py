@@ -215,3 +215,32 @@ async def test_a_local_dispatch_debits_no_dollars() -> None:
     spent = await governor.spent(run_id)
     assert spent.prompt_tokens == 1_000_000
     assert spent.usd_micros == 0  # local endpoints bill nothing
+
+
+async def test_a_dollar_only_ceiling_does_not_deny_on_other_dimensions() -> None:
+    """Found by tier 2 of the Sprint 3.5 ladder: seeding a $0.20 cap left every
+    other dimension at zero, so the first node — which asked only for
+    wall-clock — was refused before a cent was spent. A ceiling constrains what
+    it names."""
+    governor = ResourceGovernor()
+    run_id = RunId("paid")
+    governor.seed_run_budget(run_id, BudgetDims(usd_micros=200_000))
+
+    lease = await governor.reserve(run_id, BudgetDims(wall_clock_ms=120_000, prompt_tokens=4_000))
+
+    assert not isinstance(lease, ReservationDenied)
+
+
+async def test_the_named_dimension_is_still_enforced_exactly() -> None:
+    governor = ResourceGovernor()
+    run_id = RunId("paid")
+    governor.seed_run_budget(run_id, BudgetDims(usd_micros=200_000))
+
+    first = await governor.reserve(run_id, BudgetDims(usd_micros=150_000, wall_clock_ms=999_999))
+    assert not isinstance(first, ReservationDenied)
+    await governor.commit(first.lease_id, Actuals(dims=BudgetDims(usd_micros=150_000)))
+
+    second = await governor.reserve(run_id, BudgetDims(usd_micros=100_000))
+
+    assert isinstance(second, ReservationDenied)
+    assert "usd_micros" in second.rationale

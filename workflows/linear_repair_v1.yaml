@@ -5,7 +5,7 @@ nodes:
   # A node names the files it needs. Sprint 3 read one file, defaulting to
   # README.md, so the model was asked to patch code it had never seen.
   - { id: retrieve, kind: retrieve, budget: { wall_clock_ms: 120000 },
-      params: { entry_files: [mod.py], max_bytes: 20000 } }
+      params: { entry_files: [mod.py, store.py], max_bytes: 20000 } }
   - { id: generate, kind: generate,
       budget: { usd_micros: 400000, prompt_tokens: 120000, completion_tokens: 8000 } }
   - { id: apply,    kind: apply,    budget: { wall_clock_ms: 30000 } }

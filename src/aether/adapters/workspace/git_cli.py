@@ -22,6 +22,15 @@ from aether.domain.ids import RunId
 from aether.domain.workspace import FileSlice, PatchResult, WorktreeRef
 
 
+class PathEscapesWorktree(ValueError):
+    """A caller-supplied path resolves outside the worktree it names.
+
+    Refused, never clamped: silently rewriting `/etc/passwd` to
+    `<worktree>/etc/passwd` would let a candidate think it wrote where it asked
+    and leave the harness guessing which file it meant.
+    """
+
+
 class GitCliError(RuntimeError):
     """A `git` invocation failed. Typed so callers never mistake a git failure
     for a plausible empty result."""
@@ -101,10 +110,35 @@ class GitCliWorkspace:
     def _path(self, worktree: WorktreeRef) -> str:
         return _worktree_path(self._worktrees_root, worktree.run_id, worktree.worktree_id)
 
+    def _resolve(self, worktree: WorktreeRef, repo_rel_path: str) -> str:
+        """Join a caller-supplied path to the worktree, refusing any that
+        escapes it.
+
+        Found by tier 1 of the Sprint 3.5 ladder: a model emitted an absolute
+        path in a code block, `os.path.join` discarded the worktree root (that
+        is what join does with an absolute second argument), and the harness
+        tried to write to `/storage.py`. A permission error is what stopped it,
+        not a check — under `$HOME` it would have written outside the candidate
+        worktree entirely.
+
+        Paths crossing this boundary come from a model, which makes them
+        untrusted input by definition (ADR-0015). The adapter is the boundary,
+        so the check lives here rather than in whichever node happened to call
+        it.
+        """
+        root = os.path.realpath(self._path(worktree))
+        candidate = os.path.realpath(os.path.join(root, repo_rel_path))
+        if candidate != root and not candidate.startswith(root + os.sep):
+            raise PathEscapesWorktree(
+                f"{repo_rel_path!r} resolves outside the worktree ({candidate!r} is not under "
+                f"{root!r}); paths are repo-relative (I3) and a worktree is the isolation unit"
+            )
+        return candidate
+
     async def read(
         self, worktree: WorktreeRef, repo_rel_path: str, start_line: int = 1, end_line: int = -1
     ) -> FileSlice:
-        file_path = os.path.join(self._path(worktree), repo_rel_path)
+        file_path = self._resolve(worktree, repo_rel_path)
 
         def _read() -> str:
             with open(file_path, encoding="utf-8") as f:
@@ -117,7 +151,7 @@ class GitCliWorkspace:
         return FileSlice(repo_rel_path=repo_rel_path, start_line=start_line, end_line=actual_end, text=sliced)
 
     async def write(self, worktree: WorktreeRef, repo_rel_path: str, text: str) -> None:
-        file_path = os.path.join(self._path(worktree), repo_rel_path)
+        file_path = self._resolve(worktree, repo_rel_path)
 
         def _write() -> None:
             os.makedirs(os.path.dirname(file_path) or ".", exist_ok=True)

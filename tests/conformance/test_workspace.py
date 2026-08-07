@@ -103,3 +103,44 @@ async def test_git_cli_workspace_read_line_slicing(git_repo, tmp_path) -> None: 
     assert slice_.text == "line2\nline3"
     assert slice_.start_line == 2
     assert slice_.end_line == 3
+
+
+@pytest.mark.parametrize("repo_rel_path", ["/etc/passwd", "../escaped.py", "sub/../../escaped.py"])
+async def test_a_path_escaping_the_worktree_is_refused(tmp_path, repo_rel_path: str) -> None:  # noqa: ANN001
+    """The adapter is the boundary, so the check lives here and not in whoever
+    called it. Paths crossing this boundary originate from a model, which makes
+    them untrusted input by definition (ADR-0015).
+
+    Refused, never clamped: silently rewriting the path would let a candidate
+    believe it wrote where it asked.
+    """
+    from aether.adapters.workspace.git_cli import GitCliWorkspace, PathEscapesWorktree
+
+    worktrees_root = tmp_path / "worktrees"
+    (worktrees_root / "run-1" / "wt-1").mkdir(parents=True)
+    workspace = GitCliWorkspace(str(worktrees_root))
+    worktree = WorktreeRef(
+        worktree_id="wt-1", run_id=RunId("run-1"), base_commit="a" * 40, abs_hint="x"
+    )
+
+    with pytest.raises(PathEscapesWorktree):
+        await workspace.write(worktree, repo_rel_path, "pwned")
+    with pytest.raises(PathEscapesWorktree):
+        await workspace.read(worktree, repo_rel_path)
+
+
+async def test_an_ordinary_nested_path_still_works(tmp_path) -> None:  # noqa: ANN001
+    """The containment check must not break legitimate subdirectories."""
+    from aether.adapters.workspace.git_cli import GitCliWorkspace
+
+    worktrees_root = tmp_path / "worktrees"
+    (worktrees_root / "run-1" / "wt-1").mkdir(parents=True)
+    workspace = GitCliWorkspace(str(worktrees_root))
+    worktree = WorktreeRef(
+        worktree_id="wt-1", run_id=RunId("run-1"), base_commit="a" * 40, abs_hint="x"
+    )
+
+    await workspace.write(worktree, "src/pkg/mod.py", "X = 1\n")
+    slice_ = await workspace.read(worktree, "src/pkg/mod.py")
+
+    assert slice_.text == "X = 1"

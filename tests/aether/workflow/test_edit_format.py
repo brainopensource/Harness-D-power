@@ -159,3 +159,18 @@ def test_an_unknown_format_fails_at_construction() -> None:
 def test_a_node_can_select_either_format() -> None:
     assert get_edit_format("unified_diff").name == "unified_diff"
     assert get_edit_format("whole_file_codeblock").name == "whole_file_codeblock"
+
+
+# ------------------------------------------------- worktree containment
+
+
+@pytest.mark.parametrize("path", ["/storage.py", "/etc/passwd.py", "../outside.py", "a/../../up.py"])
+def test_a_path_escaping_the_worktree_is_refused(path: str) -> None:
+    """Found by tier 1 of the validation ladder, on the first real run: a model
+    emitted `/storage.py`, `os.path.join` dropped the worktree root, and the
+    harness tried to write to the filesystem root. A permission error stopped
+    it — not a check."""
+    parsed = WholeFileCodeblockFormat().parse(f"```python:{path}\nX = 1\n```\n")
+
+    assert not parsed.files
+    assert parsed.errors and "escape the worktree" in parsed.errors[0]

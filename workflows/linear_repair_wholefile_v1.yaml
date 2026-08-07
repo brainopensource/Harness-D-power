@@ -6,7 +6,7 @@ description: "linear_repair_v1 with the whole-file edit format — the second ab
 # two arms differ in exactly one declared value (ADR-0014, ADR-0003 rev. 2).
 nodes:
   - { id: retrieve, kind: retrieve, budget: { wall_clock_ms: 120000 },
-      params: { entry_files: [mod.py], max_bytes: 20000 } }
+      params: { entry_files: [mod.py, store.py], max_bytes: 20000 } }
   - { id: generate, kind: generate,
       params: { edit_format: whole_file_codeblock },
       budget: { usd_micros: 400000, prompt_tokens: 120000, completion_tokens: 8000 } }

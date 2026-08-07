@@ -67,13 +67,30 @@ class ResourceGovernor:
         self._leases: dict[LeaseId, Lease] = {}
         self._parent_remaining: dict[LeaseId, BudgetDims] = {}
         self._run_root_remaining: dict[RunId, BudgetDims] = {}
+        #: Which dimensions a run's ceiling actually names. See seed_run_budget.
+        self._run_constrained: dict[RunId, set[str]] = {}
         self._spent: dict[RunId, BudgetDims] = {}
         self._overruns: list[BudgetOverrun] = []
         self._next_id = 0
 
     def seed_run_budget(self, run_id: RunId, dims: BudgetDims) -> None:
-        """Configure a hard ceiling for a run's top-level (non-child) reservations."""
+        """Configure a hard ceiling for a run's top-level (non-child) reservations.
+
+        **A ceiling constrains only the dimensions it names.** A dimension left
+        at zero is unconstrained, not "zero allowed": seeding a $0.20 cap and
+        nothing else must not deny a node that asked for wall-clock. The tier-2
+        run of the Sprint 3.5 ladder was refused at its first node for exactly
+        that reason, before spending anything, which is the right failure mode
+        to have found in a rehearsal and the wrong one to ship.
+
+        The cost of that reading: a genuine hard zero in one dimension is not
+        expressible here. Nothing needs one today, and `reserve()` with an
+        explicit parent lease still enforces every dimension exactly.
+        """
         self._run_root_remaining[run_id] = dims
+        self._run_constrained[run_id] = {
+            name for name, value in dims.model_dump().items() if value > 0
+        }
 
     async def reserve(
         self, run_id: RunId, dims: BudgetDims, parent: LeaseId | None = None
@@ -91,12 +108,26 @@ class ResourceGovernor:
                 self._parent_remaining[parent] = _sub(available, dims)
             else:
                 available = self._run_root_remaining.get(run_id)
-                if available is not None and _exceeds(dims, available):
-                    return ReservationDenied(
-                        shortfall=_sub(dims, available), rationale="run budget exhausted"
-                    )
                 if available is not None:
-                    self._run_root_remaining[run_id] = _sub(available, dims)
+                    constrained = self._run_constrained.get(run_id, set())
+                    over = [
+                        name
+                        for name in constrained
+                        if getattr(dims, name) > getattr(available, name)
+                    ]
+                    if over:
+                        return ReservationDenied(
+                            shortfall=_sub(dims, available),
+                            rationale=f"run budget exhausted ({', '.join(sorted(over))})",
+                        )
+                    # Only the constrained dimensions are drawn down; the rest
+                    # are not being tracked and must not go negative.
+                    self._run_root_remaining[run_id] = available.model_copy(
+                        update={
+                            name: getattr(available, name) - getattr(dims, name)
+                            for name in constrained
+                        }
+                    )
 
             self._next_id += 1
             lease = Lease(
@@ -149,10 +180,15 @@ class ResourceGovernor:
         if lease.parent is not None:
             prior = self._parent_remaining.get(lease.parent, BudgetDims())
             self._parent_remaining[lease.parent] = _add(prior, amount)
-        else:
-            prior = self._run_root_remaining.get(lease.run_id)
-            if prior is not None:
-                self._run_root_remaining[lease.run_id] = _add(prior, amount)
+            return
+
+        prior = self._run_root_remaining.get(lease.run_id)
+        if prior is None:
+            return
+        constrained = self._run_constrained.get(lease.run_id, set())
+        self._run_root_remaining[lease.run_id] = prior.model_copy(
+            update={name: getattr(prior, name) + getattr(amount, name) for name in constrained}
+        )
 
     async def spent(self, run_id: RunId) -> BudgetDims:
         async with self._lock:

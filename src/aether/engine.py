@@ -138,10 +138,17 @@ async def run(
     trajectory_db_path: str = ":memory:",
     entry_file: str = "README.md",
     sandbox_runtime: str | None = None,
+    usd_micros_ceiling: int | None = None,
+    entry_files: tuple[str, ...] | None = None,
 ) -> RunResult:
     """`sandbox_runtime` ("podman" | "docker") puts the evaluator inside the B3
     container (TASK-016). Left None the judge runs uncontained — fine for the
-    smoke suite, never valid for a published number (measurement.md §2 B3)."""
+    smoke suite, never valid for a published number (measurement.md §2 B3).
+
+    `usd_micros_ceiling` seeds a hard spend ceiling for this run; effects past
+    it are refused at the choke point. `entry_files` overrides what the
+    retrieve node reads when the topology does not name files itself.
+    """
     run_id = RunId(f"run-{uuid4().hex[:12]}")
 
     workspace = GitCliWorkspace(worktrees_root)
@@ -156,6 +163,11 @@ async def run(
     bus = EventBus()
     bus.subscribe("trajectory_store", drop_policy="never")
     governor = ResourceGovernor(bus)
+    if usd_micros_ceiling is not None:
+        # A real ceiling, not a comment: the dispatcher refuses any effect the
+        # governor will not fund, so the run stops itself rather than relying
+        # on a caller to notice (spec.md §5, and A4 made `usd_micros` real).
+        governor.seed_run_budget(run_id, BudgetDims(usd_micros=usd_micros_ceiling))
     dispatcher = build_dispatcher(
         workspace, tool_registry, model_provider, evaluator, governor, model_base_url, bus
     )
@@ -173,7 +185,7 @@ async def run(
         facade,
         model_name=model_name,
         tool_catalog=tool_catalog,
-        default_entry_files=(entry_file,),
+        default_entry_files=entry_files or (entry_file,),
     )
     executor = WorkflowExecutor(topology, registry, bus, governor)
 

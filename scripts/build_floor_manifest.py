@@ -92,6 +92,175 @@ BUG_SHAPES: list[BugShape] = [
 ]
 
 
+#: Tier-1 tasks: two files, and the fix requires reading both. A single-bug
+#: one-liner cannot distinguish "the harness carries a task" from "the model
+#: guessed a one-line change" — these can only be solved by seeing `store.py`'s
+#: contract and `mod.py`'s use of it.
+MEDIUM_SHAPES: list[tuple[str, str, str, str, str]] = [
+    (
+        "cache_invalidation",
+        # store.py (correct, must be read to be used correctly)
+        "class Store:\n"
+        "    def __init__(self):\n"
+        "        self._cache = {}\n"
+        "\n"
+        "    def set(self, key, value):\n"
+        "        self._cache[key] = value\n"
+        "\n"
+        "    def get(self, key):\n"
+        "        return self._cache.get(key)\n"
+        "\n"
+        "    def drop(self, key):\n"
+        "        self._cache.pop(key, None)\n",
+        # mod.py (buggy: never invalidates the cache after a write)
+        "from store import Store\n"
+        "\n"
+        "class Playlist:\n"
+        "    def __init__(self, name, store):\n"
+        "        self.name = name\n"
+        "        self.store = store\n"
+        "        self.tracks = []\n"
+        "\n"
+        "    def add(self, track):\n"
+        "        self.tracks.append(track)\n",
+        # mod.py (fixed)
+        "from store import Store\n"
+        "\n"
+        "class Playlist:\n"
+        "    def __init__(self, name, store):\n"
+        "        self.name = name\n"
+        "        self.store = store\n"
+        "        self.tracks = []\n"
+        "\n"
+        "    def add(self, track):\n"
+        "        self.tracks.append(track)\n"
+        "        self.store.drop(self.name)\n",
+        # run_tests.py
+        "import sys\n"
+        "from store import Store\n"
+        "from mod import Playlist\n"
+        "\n"
+        "s = Store()\n"
+        "s.set('p1', ['cached'])\n"
+        "p = Playlist('p1', s)\n"
+        "p.add({'id': 't2'})\n"
+        "sys.exit(0 if s.get('p1') is None else 1)\n",
+    ),
+    (
+        "delegation",
+        "class Store:\n"
+        "    def __init__(self):\n"
+        "        self._items = {}\n"
+        "\n"
+        "    def put(self, key, value):\n"
+        "        self._items[key] = value\n"
+        "\n"
+        "    def count(self):\n"
+        "        return len(self._items)\n",
+        "from store import Store\n"
+        "\n"
+        "class Library:\n"
+        "    def __init__(self, store):\n"
+        "        self.store = store\n"
+        "\n"
+        "    def add(self, key, value):\n"
+        "        self.store.put(key, value)\n"
+        "\n"
+        "    def size(self):\n"
+        "        return 0\n",
+        "from store import Store\n"
+        "\n"
+        "class Library:\n"
+        "    def __init__(self, store):\n"
+        "        self.store = store\n"
+        "\n"
+        "    def add(self, key, value):\n"
+        "        self.store.put(key, value)\n"
+        "\n"
+        "    def size(self):\n"
+        "        return self.store.count()\n",
+        "import sys\n"
+        "from store import Store\n"
+        "from mod import Library\n"
+        "\n"
+        "lib = Library(Store())\n"
+        "lib.add('a', 1)\n"
+        "lib.add('b', 2)\n"
+        "sys.exit(0 if lib.size() == 2 else 1)\n",
+    ),
+    (
+        "encapsulation",
+        "class Store:\n"
+        "    def __init__(self):\n"
+        "        self._secret = {}\n"
+        "\n"
+        "    def set(self, key, value):\n"
+        "        self._secret[key] = value\n"
+        "\n"
+        "    def get(self, key):\n"
+        "        return self._secret.get(key)\n",
+        "from store import Store\n"
+        "\n"
+        "class Index:\n"
+        "    def __init__(self, store):\n"
+        "        self.store = store\n"
+        "\n"
+        "    def lookup(self, key):\n"
+        "        return self.store._secret[key]\n",
+        "from store import Store\n"
+        "\n"
+        "class Index:\n"
+        "    def __init__(self, store):\n"
+        "        self.store = store\n"
+        "\n"
+        "    def lookup(self, key):\n"
+        "        return self.store.get(key)\n",
+        "import sys\n"
+        "from store import Store\n"
+        "from mod import Index\n"
+        "\n"
+        "s = Store()\n"
+        "s.set('k', 'v')\n"
+        "idx = Index(s)\n"
+        "ok = idx.lookup('k') == 'v' and idx.lookup('missing') is None\n"
+        "sys.exit(0 if ok else 1)\n",
+    ),
+]
+
+
+def generate_medium_task(workdir: Path, index: int) -> TaskCandidate:
+    """A two-file task. The bug lives in `mod.py`; solving it requires reading
+    `store.py` — that is the whole point of the tier."""
+    shape, store_src, buggy, fixed, tests = MEDIUM_SHAPES[index % len(MEDIUM_SHAPES)]
+    instance_id = f"medium__{shape}-{index:03d}"
+    repo = workdir / instance_id
+
+    if not (repo / ".git").is_dir():
+        repo.mkdir(parents=True, exist_ok=True)
+        _git("init", "-q", "-b", "main", cwd=repo)
+        (repo / "store.py").write_text(store_src)
+        (repo / "mod.py").write_text(buggy)
+        (repo / "run_tests.py").write_text(tests)
+        (repo / "README.md").write_text(f"# {instance_id}\n\nTwo modules. One of them is wrong.\n")
+        _git("add", ".", cwd=repo)
+        _git("commit", "-q", "-m", f"{instance_id}: base", cwd=repo)
+
+    base_commit = _git("rev-parse", "HEAD", cwd=repo).strip()
+    (repo / "mod.py").write_text(fixed)
+    gold_patch = _git("diff", cwd=repo)
+    _git("checkout", "--", "mod.py", cwd=repo)
+
+    return TaskCandidate(
+        instance_id=instance_id,
+        repo=f"internal/{shape}",
+        base_commit=base_commit,
+        environment_image_digest="",
+        test_command=TEST_COMMAND,
+        gold_patch=gold_patch,
+        split="dev",
+    )
+
+
 def _git(*args: str, cwd: Path) -> str:
     return subprocess.run(
         ["git", *args], cwd=cwd, check=True, capture_output=True, text=True, env=GIT_ENV
@@ -220,8 +389,9 @@ async def build(args: argparse.Namespace, workdir: Path, out_dir: Path) -> int:
         # environment even when this screening run did not isolate itself.
         digest = "sha256:" + "0" * 64
 
+    generate = generate_medium_task if args.suite_shape == "medium" else generate_task
     candidates = [
-        generate_task(workdir, i).model_copy(update={"environment_image_digest": digest})
+        generate(workdir, i).model_copy(update={"environment_image_digest": digest})
         for i in range(args.n)
     ]
 
@@ -298,6 +468,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repeats", type=int, default=1, help="gold-patch repeats, for flakiness")
     parser.add_argument("--timeout-ms", type=int, default=120_000)
     parser.add_argument("--split-seed", type=int, default=7)
+    parser.add_argument(
+        "--suite-shape",
+        default="single_bug",
+        choices=["single_bug", "medium"],
+        help="single_bug = tier 0 (one file); medium = tier 1 (two files, the fix needs both)",
+    )
     args = parser.parse_args(argv)
     workdir = Path(args.workdir)
     workdir.mkdir(parents=True, exist_ok=True)
