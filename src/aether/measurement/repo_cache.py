@@ -95,10 +95,14 @@ class RepoCache:
     def resolve_task(self, target: TaskTarget, dry_run: bool = False) -> bool:
         """Fetch repo and ensure target base_commit is locally available."""
         repo_dir = self.get_repo_dir(target.repo)
-        
+
         if dry_run:
-            status = "CACHED" if self.is_commit_present(repo_dir, target.base_commit) else "PENDING_DOWNLOAD"
-            print(f"  [{status}] Task `{target.task_id}` -> repo `{target.repo}` @ `{target.base_commit[:10]}`")
+            cached = self.is_commit_present(repo_dir, target.base_commit)
+            status = "CACHED" if cached else "PENDING_DOWNLOAD"
+            print(
+                f"  [{status}] Task `{target.task_id}` -> repo `{target.repo}` "
+                f"@ `{target.base_commit[:10]}`"
+            )
             return True
 
         self.cache_dir.mkdir(parents=True, exist_ok=True)

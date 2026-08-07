@@ -40,8 +40,9 @@ from aether.domain.model_io import ModelMessage, ModelRequest, TextDelta
 from aether.domain.taint import Provenance, TaintSpan
 from aether.measurement.evaluator import tail_biased
 from aether.workflow.dispatch_facade import DispatchFacade
+from aether.workflow.edit_format import DEFAULT_EDIT_FORMAT, get_edit_format
 from aether.workflow.nodes.evaluate import EvaluatedCandidate
-from aether.workflow.nodes.generate import GeneratedPatch
+from aether.workflow.nodes.generate import GeneratedPatch, build_system_text
 from aether.workflow.step import StepContext, WorkflowStep
 
 #: Test output entering the repair prompt. Smaller than the evaluator's own
@@ -63,15 +64,20 @@ class InstrumentErrorNotRepairable(Exception):
 def build_repair_prompt(payload: EvaluatedCandidate) -> str:
     """The repair instruction: the task, the attempt, and the failure — in
     that order, failure last, because that is where the model's attention and
-    the truncation budget should land."""
+    the truncation budget should land.
+
+    Says nothing about *output format*: that lives in the system layer, which
+    the node builds from its own `EditFormat`. A prompt naming one format while
+    the parser expects another is a bug that looks like a bad model.
+    """
     previous = payload.patch_text.strip() or "(no patch was produced on the previous attempt)"
     failure = tail_biased(payload.report.detail, REPAIR_OUTPUT_CHARS) or "(the gate reported no output)"
     return (
         f"A previous attempt at this task failed its tests.\n\n"
         f"## Task\n{payload.task.instructions}\n\n"
-        f"## Previous attempt (unified diff)\n{previous}\n\n"
+        f"## Previous attempt\n{previous}\n\n"
         f"## Failing test output (tail)\n{failure}\n\n"
-        f"Produce a corrected unified diff. Output the diff only."
+        f"Correct the change so these tests pass."
     )
 
 
@@ -80,10 +86,17 @@ class RepairStep(WorkflowStep[EvaluatedCandidate, GeneratedPatch]):
     input_type = EvaluatedCandidate
     output_type = GeneratedPatch
 
-    def __init__(self, dispatch: DispatchFacade, model_name: str, max_tokens: int = 4096) -> None:
+    def __init__(
+        self,
+        dispatch: DispatchFacade,
+        model_name: str,
+        max_tokens: int = 4096,
+        edit_format: str = DEFAULT_EDIT_FORMAT,
+    ) -> None:
         self._dispatch = dispatch
         self._model_name = model_name
         self._max_tokens = max_tokens
+        self._edit_format = get_edit_format(edit_format)
 
     async def run(self, ctx: StepContext, payload: EvaluatedCandidate) -> GeneratedPatch:
         if payload.report.status is GateStatus.NONE:
@@ -99,7 +112,8 @@ class RepairStep(WorkflowStep[EvaluatedCandidate, GeneratedPatch]):
             return GeneratedPatch(
                 task=payload.task,
                 worktree=payload.worktree,
-                patch_text=payload.patch_text,
+                raw_output=payload.patch_text,
+                edit_format=self._edit_format.name,
                 iteration=payload.iteration,
             )
 
@@ -113,9 +127,19 @@ class RepairStep(WorkflowStep[EvaluatedCandidate, GeneratedPatch]):
             source=f"repair:iteration-{payload.iteration}",
             created_at=datetime.now(UTC),
         )
+        system = TaintSpan(
+            span_id=SpanId(f"{ctx.node_id}-system"),
+            label=Provenance.TRUSTED_SYSTEM,
+            text=build_system_text(self._edit_format.instructions()),
+            source="harness.system_layer",
+            created_at=datetime.now(UTC),
+        )
         request = ModelRequest(
             model=self._model_name,
-            messages=(ModelMessage(role="user", spans=(span,)),),
+            messages=(
+                ModelMessage(role="system", spans=(system,)),
+                ModelMessage(role="user", spans=(span,)),
+            ),
             max_tokens=self._max_tokens,
         )
         events = await self._dispatch.model(request, BudgetDims(prompt_tokens=self._max_tokens))
@@ -124,7 +148,8 @@ class RepairStep(WorkflowStep[EvaluatedCandidate, GeneratedPatch]):
         return GeneratedPatch(
             task=payload.task,
             worktree=payload.worktree,
-            patch_text="".join(patch_parts),
+            raw_output="".join(patch_parts),
+            edit_format=self._edit_format.name,
             iteration=payload.iteration + 1,
         )
 

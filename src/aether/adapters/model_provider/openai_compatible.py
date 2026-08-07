@@ -35,8 +35,25 @@ def _message_text(message: ModelMessage) -> str:
     return "".join(span.text for span in message.spans)
 
 
-def _to_openai_message(message: ModelMessage) -> dict[str, str]:
-    return {"role": message.role, "content": _message_text(message)}
+def _to_openai_message(message: ModelMessage) -> dict[str, object]:
+    """Serialize one message, including the tool-call fields the protocol
+    requires. `cache_breakpoint` is deliberately not emitted: OpenAI-compatible
+    endpoints have no `cache_control` marker and cache implicitly on a stable
+    prefix, so the breakpoint is a harness-side layout fact here, not a wire
+    field (ADR-0010; the Anthropic adapter is where it becomes one)."""
+    payload: dict[str, object] = {"role": message.role, "content": _message_text(message)}
+    if message.tool_calls:
+        payload["tool_calls"] = [
+            {
+                "id": call.call_id,
+                "type": "function",
+                "function": {"name": call.name, "arguments": call.args_json},
+            }
+            for call in message.tool_calls
+        ]
+    if message.tool_call_id is not None:
+        payload["tool_call_id"] = message.tool_call_id
+    return payload
 
 
 def _to_openai_tool(tool: ToolSpec) -> dict[str, object]:

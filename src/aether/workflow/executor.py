@@ -33,13 +33,18 @@ from datetime import UTC, datetime
 from typing import Any
 
 from aether.domain.budget import BudgetDims
-from aether.domain.events import NodeCompleted, NodeStarted, RepairIterationStarted
+from aether.domain.events import (
+    GateReportEmitted,
+    NodeCompleted,
+    NodeStarted,
+    RepairIterationStarted,
+)
 from aether.domain.gate import GateReport, GateStatus
 from aether.domain.ids import LeaseId, NodeId, RunId
 from aether.kernel.bus import EventBus
 from aether.kernel.governor import ResourceGovernor
 from aether.ports.resource_governor import ReservationDenied
-from aether.workflow.step import StepContext, WorkflowStep
+from aether.workflow.step import StepContext, StepRegistry, WorkflowStep
 
 
 class WorkflowExecutionError(Exception):
@@ -64,6 +69,17 @@ def _budget_from_node(node: dict[str, Any]) -> BudgetDims:
     return _budget_from(node.get("budget"))
 
 
+def gate_report_of(payload: Any) -> GateReport | None:
+    """The `GateReport` a node's output carries, if it carries one.
+
+    Read structurally rather than by importing `workflow/nodes/*`: the executor
+    binds node ids to registered steps and must not know their concrete payload
+    classes (same reason `validator.py` takes an injected socket map).
+    """
+    report = getattr(payload, "report", None)
+    return report if isinstance(report, GateReport) else None
+
+
 def gate_status_of(payload: Any) -> GateStatus | None:
     """The tri-state carried by a node's output, if it carries one.
 
@@ -73,8 +89,8 @@ def gate_status_of(payload: Any) -> GateStatus | None:
     socket map). `None` means "this payload carries no verdict", which is not
     the same as `GateStatus.NONE`.
     """
-    report = getattr(payload, "report", None)
-    return report.status if isinstance(report, GateReport) else None
+    report = gate_report_of(payload)
+    return report.status if report is not None else None
 
 
 def _topological_order(topology: dict[str, Any]) -> list[str]:
@@ -105,20 +121,42 @@ def _topological_order(topology: dict[str, Any]) -> list[str]:
     return order
 
 
+class UnregisteredNodeKind(Exception):
+    """A topology names a kind the registry does not provide.
+
+    Raised at construction, not at the node's turn to run: a benchmark that
+    fails on iteration three of task forty because a kind was never registered
+    has already burned the run.
+    """
+
+
 class WorkflowExecutor:
     def __init__(
         self,
         topology: dict[str, Any],
-        steps: dict[str, WorkflowStep[Any, Any]],
+        registry: StepRegistry,
         bus: EventBus,
         governor: ResourceGovernor,
     ) -> None:
         self._topology = topology
-        self._steps = steps
         self._bus = bus
         self._governor = governor
         self._nodes_by_id = {n["id"]: n for n in topology["nodes"]}
         self._repair: dict[str, Any] | None = topology.get("repair")
+
+        # One step instance per *node*, built from a factory registered per
+        # *kind* with that node's own params. Two `generate` nodes therefore
+        # get two independently configured instances instead of colliding.
+        unknown = sorted({n["kind"] for n in topology["nodes"]} - set(registry))
+        if unknown:
+            raise UnregisteredNodeKind(
+                f"topology '{topology.get('topology_id')}' uses unregistered kinds {unknown}; "
+                f"registered: {sorted(registry)}"
+            )
+        self._steps: dict[str, WorkflowStep[Any, Any]] = {
+            node["id"]: registry[node["kind"]](node.get("params") or {})
+            for node in topology["nodes"]
+        }
 
     async def execute(self, run_id: RunId, initial_payload: Any) -> Any:
         payload: Any = initial_payload
@@ -155,6 +193,18 @@ class WorkflowExecutor:
 
         # M1a: node-level gate only; effect actuals commit inside dispatch().
         await self._governor.release(lease.lease_id)
+
+        # A verdict is the one node output every downstream consumer cares
+        # about — the harvester, the TUI, the trajectory. Before Sprint 3.5
+        # `GateReportEmitted` was declared in the catalog and emitted nowhere.
+        report = gate_report_of(result)
+        if report is not None:
+            await self._bus.emit(
+                GateReportEmitted(
+                    run_id=run_id, at=datetime.now(UTC), node_id=NodeId(node_id), report=report
+                )
+            )
+
         await self._bus.emit(
             NodeCompleted(run_id=run_id, at=datetime.now(UTC), node_id=NodeId(node_id), status="ok")
         )

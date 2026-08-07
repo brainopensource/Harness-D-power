@@ -16,12 +16,12 @@ from typing import Any
 import httpx
 import pytest
 import respx
+from tests.live_support import LOCAL_BASE_URL, require_live_model
 
 from aether.adapters.model_provider.openai_compatible import OpenAICompatibleProvider
 from aether.domain.ids import SpanId
 from aether.domain.model_io import ModelMessage, ModelRequest, TextDelta, ToolCallRef
 from aether.domain.taint import Provenance, TaintSpan
-from tests.live_support import LOCAL_BASE_URL, require_live_model
 
 BASE_URL = "http://model.invalid/v1"
 
@@ -113,12 +113,12 @@ async def test_cache_breakpoint_is_not_a_wire_field_here() -> None:
 async def test_the_generate_node_emits_the_full_tool_sequence() -> None:
     """The sequence the provider requires: user → assistant(tool_calls) →
     tool(tool_call_id) → …, in that order."""
+    from tests.aether.workflow.test_repair import TASK, WORKTREE  # reuse the fixtures
+
     from aether.domain.tools import ToolResult
     from aether.workflow.nodes.generate import GenerateStep
     from aether.workflow.nodes.retrieve import RetrievedContext
     from aether.workflow.step import StepContext
-
-    from tests.aether.workflow.test_repair import TASK, WORKTREE  # reuse the fixtures
 
     class _Facade:
         def __init__(self) -> None:
@@ -153,9 +153,10 @@ async def test_the_generate_node_emits_the_full_tool_sequence() -> None:
 
     second = facade.requests[1].messages
     roles = [m.role for m in second]
-    assert roles == ["user", "assistant", "tool"]
-    assert second[1].tool_calls[0].call_id == "call_1"
-    assert second[2].tool_call_id == "call_1"
+    # The system layer leads (Sprint 3.5 B4), then the required tool sequence.
+    assert roles == ["system", "user", "assistant", "tool"]
+    assert second[2].tool_calls[0].call_id == "call_1"
+    assert second[3].tool_call_id == "call_1"
 
 
 @pytest.mark.live

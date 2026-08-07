@@ -34,4 +34,24 @@ class ResourceGovernor(Protocol):
         not the global pool — Best-of-N loser cancellation refunds correctly."""
         ...
 
-    async def remaining(self, run_id: RunId) -> BudgetDims: ...
+    async def spent(self, run_id: RunId) -> BudgetDims:
+        """Total committed actuals for the run.
+
+        Added in Sprint 3.5 because `remaining()` had been *returning* this
+        since TASK-034 while being named the opposite. Two names for two facts
+        is the fix; one name for the wrong fact is how a caller writing
+        `if remaining < cost: stop` gets the inverted answer and stops when it
+        has budget, or spends when it does not.
+        """
+        ...
+
+    async def remaining(self, run_id: RunId) -> BudgetDims | None:
+        """What is left of the run's seeded ceiling, or `None` when no ceiling
+        was seeded — an unbounded run has no remainder, and reporting zeros for
+        it would read as "exhausted".
+
+        Informational. The *decision* to spend belongs to `reserve()`, which
+        answers with a typed `ReservationDenied`; that is the reserve-before-
+        effect design and this method is not a second, weaker gate.
+        """
+        ...

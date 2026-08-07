@@ -10,7 +10,7 @@ root; `src/aether/composition.py` is the wiring root it calls into.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -27,19 +27,21 @@ from aether.domain.events import RunCompleted, RunStarted
 from aether.domain.gate import GateReport
 from aether.domain.ids import Frozen, RunId
 from aether.domain.task import Task
+from aether.domain.tools import ToolSpec
 from aether.kernel.bus import EventBus
 from aether.kernel.governor import ResourceGovernor
 from aether.measurement.evaluator import RealEvaluator
 from aether.ports.evaluator import EvalSpec
 from aether.ports.trajectory_store import StoredEvent
 from aether.workflow.dispatch_facade import DispatchFacade
+from aether.workflow.edit_format import DEFAULT_EDIT_FORMAT
 from aether.workflow.executor import WorkflowExecutor
 from aether.workflow.nodes.apply import ApplyStep
 from aether.workflow.nodes.evaluate import EvaluatedCandidate, EvaluateStep
 from aether.workflow.nodes.generate import GenerateStep
 from aether.workflow.nodes.repair import RepairStep
 from aether.workflow.nodes.retrieve import RetrieveStep, TaskInput
-from aether.workflow.step import WorkflowStep
+from aether.workflow.step import StepFactory, WorkflowStep
 from aether.workflow.validator import load_topology, validate_topology
 
 # The M1a walking skeleton's node registry (I6 — registered at composition).
@@ -53,6 +55,63 @@ NODE_SOCKETS: dict[str, tuple[str, str]] = {
     # repair's output re-enters apply (TASK-023, workflows/linear_repair_v1.yaml).
     "repair": ("EvaluatedCandidate", "GeneratedPatch"),
 }
+
+
+def build_step_registry(
+    facade: DispatchFacade,
+    *,
+    model_name: str,
+    tool_catalog: tuple[ToolSpec, ...] = (),
+    default_entry_files: tuple[str, ...] = ("README.md",),
+) -> dict[str, StepFactory]:
+    """kind -> factory. **The swap point of the whole system.**
+
+    A topology names kinds; this maps each kind to the implementation that
+    serves it and hands that implementation the node's own `params`. Pointing
+    `generate` at a different model, `apply` at a different edit format, or any
+    kind at an entirely different library is an entry here plus a line of YAML
+    — no caller changes, which is what ADR-0014's "topologies are data" buys.
+
+    Frozen at composition (I6): the registry is built once and never mutated at
+    runtime.
+    """
+
+    def retrieve(params: Mapping[str, Any]) -> WorkflowStep[Any, Any]:
+        entry_files = tuple(params.get("entry_files") or default_entry_files)
+        return RetrieveStep(
+            facade, entry_files=entry_files, max_bytes=int(params.get("max_bytes", 20_000))
+        )
+
+    def generate(params: Mapping[str, Any]) -> WorkflowStep[Any, Any]:
+        return GenerateStep(
+            facade,
+            model_name=str(params.get("model", model_name)),
+            tool_catalog=tool_catalog if params.get("tools", False) else (),
+            max_tokens=int(params.get("max_tokens", 4096)),
+            edit_format=str(params.get("edit_format", DEFAULT_EDIT_FORMAT)),
+        )
+
+    def apply_step(params: Mapping[str, Any]) -> WorkflowStep[Any, Any]:
+        return ApplyStep(facade, edit_format=str(params.get("edit_format", DEFAULT_EDIT_FORMAT)))
+
+    def evaluate(params: Mapping[str, Any]) -> WorkflowStep[Any, Any]:
+        return EvaluateStep(facade, timeout_ms=int(params.get("timeout_ms", 60_000)))
+
+    def repair(params: Mapping[str, Any]) -> WorkflowStep[Any, Any]:
+        return RepairStep(
+            facade,
+            model_name=str(params.get("model", model_name)),
+            max_tokens=int(params.get("max_tokens", 4096)),
+            edit_format=str(params.get("edit_format", DEFAULT_EDIT_FORMAT)),
+        )
+
+    return {
+        "retrieve": retrieve,
+        "generate": generate,
+        "apply": apply_step,
+        "evaluate": evaluate,
+        "repair": repair,
+    }
 
 
 class RunResult(Frozen):
@@ -92,11 +151,15 @@ async def run(
     model_provider = OpenAICompatibleProvider(model_base_url, model_name, api_key=resolved_api_key)
     sandbox = ContainerSandbox(sandbox_runtime) if sandbox_runtime is not None else None
     evaluator = RealEvaluator(worktrees_root, resolve_command, sandbox=sandbox)
-    governor = ResourceGovernor()
-    dispatcher = build_dispatcher(workspace, tool_registry, model_provider, evaluator, governor)
-    trajectory_store = SqliteTrajectoryStore(trajectory_db_path)
+    # The bus is constructed first: the governor and the dispatcher both emit
+    # to it, and a component that takes it later cannot emit at all.
     bus = EventBus()
     bus.subscribe("trajectory_store", drop_policy="never")
+    governor = ResourceGovernor(bus)
+    dispatcher = build_dispatcher(
+        workspace, tool_registry, model_provider, evaluator, governor, model_base_url, bus
+    )
+    trajectory_store = SqliteTrajectoryStore(trajectory_db_path)
 
     topology_text = await asyncio.to_thread(Path(topology_path).read_text, encoding="utf-8")
     topology = load_topology(topology_text)
@@ -106,14 +169,13 @@ async def run(
     facade = DispatchFacade(dispatcher, run_id)
     tool_catalog = await tool_registry.catalog()
 
-    steps: dict[str, WorkflowStep[Any, Any]] = {
-        "retrieve": RetrieveStep(facade, entry_file=entry_file),
-        "generate": GenerateStep(facade, model_name=model_name, tool_catalog=tool_catalog),
-        "apply": ApplyStep(facade),
-        "evaluate": EvaluateStep(facade),
-        "repair": RepairStep(facade, model_name=model_name),
-    }
-    executor = WorkflowExecutor(topology, steps, bus, governor)
+    registry = build_step_registry(
+        facade,
+        model_name=model_name,
+        tool_catalog=tool_catalog,
+        default_entry_files=(entry_file,),
+    )
+    executor = WorkflowExecutor(topology, registry, bus, governor)
 
     await bus.emit(RunStarted(run_id=run_id, at=datetime.now(UTC), task_id=task.task_id))
     initial = TaskInput(task=task, worktree=worktree)
@@ -124,7 +186,7 @@ async def run(
     finally:
         await _drain_to_trajectory_store(bus, trajectory_store, "trajectory_store")
 
-    usage = await governor.remaining(run_id)
+    usage = await governor.spent(run_id)
     await bus.emit(RunCompleted(run_id=run_id, at=datetime.now(UTC), final_status=gate_report.status.value))
     await _drain_to_trajectory_store(bus, trajectory_store, "trajectory_store")
     bus.unsubscribe("trajectory_store")

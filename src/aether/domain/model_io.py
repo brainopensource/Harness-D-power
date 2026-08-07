@@ -9,10 +9,30 @@ from aether.domain.taint import TaintSpan
 from aether.domain.tools import ToolSpec
 
 
+class ToolCallRef(Frozen):
+    """A tool call the *assistant* made, as it must be replayed to the provider.
+
+    Every OpenAI-compatible endpoint requires the assistant's `tool_calls`
+    message to precede the `tool` results answering it, and each result to name
+    the `tool_call_id` it answers. Sprint 2 sent neither: it appended the tool
+    output as a bare `{"role": "tool", "content": ...}` with nothing tying it to
+    a call, which is malformed and had never run against a real endpoint — only
+    against respx mocks that returned no tool calls at all.
+    """
+
+    call_id: str
+    name: str
+    args_json: str
+
+
 class ModelMessage(Frozen):
     role: Literal["system", "user", "assistant", "tool"]
     spans: tuple[TaintSpan, ...]  # content carries provenance, always
     cache_breakpoint: bool = False  # <=4 true across a request (I10)
+    #: Set on an `assistant` message that requested tools.
+    tool_calls: tuple[ToolCallRef, ...] = ()
+    #: Set on a `tool` message; names the call this result answers.
+    tool_call_id: str | None = None
 
 
 class ModelRequest(Frozen):

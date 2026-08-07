@@ -116,10 +116,20 @@ def _topology(max_iterations: int = 3) -> dict[str, Any]:
     }
 
 
+def _registry(apply_step: Any, evaluate: Any, repair: Any) -> dict[str, Any]:
+    """kind -> factory. The executor builds one instance per node from these,
+    so a topology with two nodes of one kind gets two instances (B1)."""
+    return {
+        "apply": lambda params: apply_step,
+        "evaluate": lambda params: evaluate,
+        "repair": lambda params: repair,
+    }
+
+
 def _executor(verdicts: list[GateStatus], max_iterations: int = 3):  # noqa: ANN202
     evaluate = _ScriptedEvaluate(verdicts)
     repair = _CountingStep(
-        "repair", GeneratedPatch(task=TASK, worktree=WORKTREE, patch_text="fix", iteration=1)
+        "repair", GeneratedPatch(task=TASK, worktree=WORKTREE, raw_output="fix", iteration=1)
     )
     apply_step = _CountingStep(
         "apply", AppliedPatch(task=TASK, worktree=WORKTREE, applied=True, patch_text="fix")
@@ -127,7 +137,7 @@ def _executor(verdicts: list[GateStatus], max_iterations: int = 3):  # noqa: ANN
     governor = ResourceGovernor()
     executor = WorkflowExecutor(
         _topology(max_iterations),
-        {"apply": apply_step, "evaluate": evaluate, "repair": repair},
+        _registry(apply_step, evaluate, repair),
         EventBus(),
         governor,
     )
@@ -223,13 +233,13 @@ async def test_a_repair_iteration_event_is_emitted_per_iteration() -> None:
     ablation cannot price it."""
     evaluate = _ScriptedEvaluate([GateStatus.FAILED])
     repair = _CountingStep(
-        "repair", GeneratedPatch(task=TASK, worktree=WORKTREE, patch_text="fix", iteration=1)
+        "repair", GeneratedPatch(task=TASK, worktree=WORKTREE, raw_output="fix", iteration=1)
     )
     apply_step = _CountingStep("apply", AppliedPatch(task=TASK, worktree=WORKTREE, applied=True))
     bus = EventBus()
     bus.subscribe("test", drop_policy="never")
     executor = WorkflowExecutor(
-        _topology(2), {"apply": apply_step, "evaluate": evaluate, "repair": repair}, bus, ResourceGovernor()
+        _topology(2), _registry(apply_step, evaluate, repair), bus, ResourceGovernor()
     )
 
     await executor.execute(RunId("run-1"), AppliedPatch(task=TASK, worktree=WORKTREE, applied=True))

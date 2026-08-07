@@ -2,21 +2,23 @@
 
 authorize -> verify grant -> acquire lease -> dispatch -> release.
 
-M0-reduced scope: the skeleton in core_skeletons_and_protocols.md §5 bundles
-concerns from out-of-scope tasks into this same class — a `bus: EventBus`
-constructor argument (TASK-022, event-bus emission) and a deny-ledger with a
-"3/20 bound" (ADR-0008, TASK-030a). Both are deliberately omitted here, the
-same kind of reversible M0 scope cut ADR-0013 applies to WorkflowStep ("no
-executor"). This class implements exactly the 5-stage choke point I5 names.
+Sprint 3.5 added the `bus` this class was always specified to take. Without
+it `EffectDispatched` was a catalog entry with no producer: the event existed
+in `domain/events.py`, appeared in the generated catalog, and no client could
+ever receive one. A deny-ledger with a "3/20 bound" (ADR-0008, TASK-030a) is
+still deliberately out of scope.
 """
 
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Mapping
+from datetime import UTC, datetime
 from typing import Literal
 
 from aether.domain.budget import Actuals, BudgetDims, Lease
+from aether.domain.events import EffectDispatched
 from aether.domain.ids import Frozen
+from aether.kernel.bus import EventBus
 from aether.ports.policy_engine import Decision, EffectRequest, PolicyDecision, PolicyEngine
 from aether.ports.resource_governor import ReservationDenied, ResourceGovernor
 
@@ -41,10 +43,30 @@ AdapterTable = Mapping[str, AdapterFn]
 
 
 class Dispatcher:
-    def __init__(self, policy: PolicyEngine, governor: ResourceGovernor, adapters: AdapterTable) -> None:
+    def __init__(
+        self,
+        policy: PolicyEngine,
+        governor: ResourceGovernor,
+        adapters: AdapterTable,
+        bus: EventBus | None = None,
+    ) -> None:
         self._policy = policy
         self._governor = governor
         self._adapters = adapters
+        self._bus = bus
+
+    async def _emit(self, request: EffectRequest, status: str) -> None:
+        """Observation only — an event never schedules anything (spec.md §8)."""
+        if self._bus is None:
+            return
+        await self._bus.emit(
+            EffectDispatched(
+                run_id=request.run_id,
+                at=datetime.now(UTC),
+                effect_class=request.effect_class,
+                status=status,  # type: ignore[arg-type]
+            )
+        )
 
     def _verify(self, decision: PolicyDecision, request: EffectRequest) -> None:
         """Re-check the request passed to dispatch() still matches the grant issued
@@ -61,18 +83,21 @@ class Dispatcher:
     async def dispatch(self, request: EffectRequest, cost_estimate: BudgetDims) -> EffectOutcome:
         decision = await self._policy.authorize(request)  # 1 authorize
         if decision.decision is not Decision.GRANT:
+            await self._emit(request, "denied")
             return EffectOutcome(status="denied", decision=decision)
 
         self._verify(decision, request)  # 2 verify @ effect-time
 
         lease = await self._governor.reserve(request.run_id, cost_estimate)  # 3 lease
         if isinstance(lease, ReservationDenied):
+            await self._emit(request, "budget_denied")
             return EffectOutcome(status="budget_denied", reservation_denied=lease)
 
         adapter = self._adapters[request.effect_class]  # 4 dispatch
         try:
             outcome = await adapter(request, lease)
             await self._governor.commit(lease.lease_id, outcome.actuals)
+            await self._emit(request, outcome.status)
             return outcome
         except Exception:
             await self._governor.release(lease.lease_id)  # 5 release

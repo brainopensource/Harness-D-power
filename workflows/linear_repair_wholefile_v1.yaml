@@ -1,32 +1,29 @@
 schema_version: "1.0.0"
-topology_id: linear_repair_v1
-description: "M1a+: retrieve -> generate -> apply -> evaluate, repair bounded at 3"
+topology_id: linear_repair_wholefile_v1
+description: "linear_repair_v1 with the whole-file edit format — the second ablation arm"
+# Identical to linear_repair_v1 except for `edit_format`. That is the point:
+# the M2 edit-format ablation is a topology swap, not a code change, and the
+# two arms differ in exactly one declared value (ADR-0014, ADR-0003 rev. 2).
 nodes:
-  # A node names the files it needs. Sprint 3 read one file, defaulting to
-  # README.md, so the model was asked to patch code it had never seen.
   - { id: retrieve, kind: retrieve, budget: { wall_clock_ms: 120000 },
       params: { entry_files: [mod.py], max_bytes: 20000 } }
   - { id: generate, kind: generate,
+      params: { edit_format: whole_file_codeblock },
       budget: { usd_micros: 400000, prompt_tokens: 120000, completion_tokens: 8000 } }
-  - { id: apply,    kind: apply,    budget: { wall_clock_ms: 30000 } }
+  - { id: apply,    kind: apply,    params: { edit_format: whole_file_codeblock },
+      budget: { wall_clock_ms: 30000 } }
   - { id: evaluate, kind: evaluate, budget: { wall_clock_ms: 900000, concurrency_slots: 1 } }
-  - { id: repair,   kind: repair,
+  - { id: repair,   kind: repair,   params: { edit_format: whole_file_codeblock },
       budget: { usd_micros: 250000, prompt_tokens: 90000, completion_tokens: 6000 } }
 edges:
   - { from: retrieve, to: generate }
   - { from: generate, to: apply }
   - { from: apply,    to: evaluate }
-# The loop is a bounded static unroll, not an edge: writing it as edges would
-# make the graph cyclic. `from_node` is the judge, so only a FAILED verdict
-# enters — a NONE (instrument error) never does (measurement.md §2 B4).
 repair:
   from_node: evaluate
   via_nodes: [repair, apply]
   back_to: evaluate
   max_iterations: 3
-  # Must cover the whole chain it funds — repair + apply + evaluate — on every
-  # dimension, or each iteration's child leases are denied and the block is a
-  # silent no-op. The validator refuses a topology where it does not.
   budget_per_iteration: { usd_micros: 300000, prompt_tokens: 120000,
                           completion_tokens: 8000, wall_clock_ms: 960000,
                           concurrency_slots: 1 }

@@ -5,7 +5,9 @@ Production counterpart to `InMemoryResourceGovernor` (tests/aether/mocks.py),
 same shape plus real atomicity via one `asyncio.Lock` (spec.md §5,
 tech_stack_and_infra.md §4.5) and overrun bookkeeping. `commit()` never
 silently clamps: actuals exceeding the reservation debit reality *and* record
-a typed `BudgetOverrun` — the ledger never lies. A child lease's release or
+a typed `BudgetOverrun`, which is emitted to the bus as `BudgetOverrunEmitted`
+so the ledger's honesty signal reaches a client instead of dying in a private
+list — the ledger never lies, and now it does not whisper either. A child lease's release or
 commit-remainder refunds into its *parent's* remaining balance, never the
 global pool — what makes Best-of-N loser cancellation correct.
 """
@@ -16,7 +18,9 @@ import asyncio
 from datetime import UTC, datetime
 
 from aether.domain.budget import Actuals, BudgetDims, BudgetOverrun, Lease
+from aether.domain.events import BudgetOverrunEmitted
 from aether.domain.ids import LeaseId, RunId
+from aether.kernel.bus import EventBus
 from aether.ports.resource_governor import ReservationDenied
 
 
@@ -57,7 +61,8 @@ class ResourceGovernor:
     for callers who *do* seed one; a fan-out's child leases (`parent=`) are
     always bounded by the parent's own reservation."""
 
-    def __init__(self) -> None:
+    def __init__(self, bus: EventBus | None = None) -> None:
+        self._bus = bus
         self._lock = asyncio.Lock()
         self._leases: dict[LeaseId, Lease] = {}
         self._parent_remaining: dict[LeaseId, BudgetDims] = {}
@@ -105,6 +110,7 @@ class ResourceGovernor:
             return lease
 
     async def commit(self, lease_id: LeaseId, actuals: Actuals) -> None:
+        overrun: BudgetOverrun | None = None
         async with self._lock:
             lease = self._leases.pop(lease_id, None)
             if lease is None:
@@ -112,17 +118,25 @@ class ResourceGovernor:
 
             overran = _exceeds(actuals.dims, lease.reserved)
             if overran:
-                self._overruns.append(
-                    BudgetOverrun(
-                        lease_id=lease_id, run_id=lease.run_id, reserved=lease.reserved, actual=actuals.dims
-                    )
+                overrun = BudgetOverrun(
+                    lease_id=lease_id, run_id=lease.run_id, reserved=lease.reserved, actual=actuals.dims
                 )
+                self._overruns.append(overrun)
 
             prior = self._spent.get(lease.run_id, BudgetDims())
             self._spent[lease.run_id] = _add(prior, actuals.dims)
 
             refund = BudgetDims() if overran else _sub(lease.reserved, actuals.dims)
             self._refund(lease, refund)
+
+        # Emitted outside the lock: the bus is another component, and awaiting
+        # one while holding the ledger's lock is how a deadlock gets designed in.
+        if overrun is not None and self._bus is not None:
+            await self._bus.emit(
+                BudgetOverrunEmitted(
+                    run_id=overrun.run_id, at=datetime.now(UTC), overrun=overrun
+                )
+            )
 
     async def release(self, lease_id: LeaseId) -> None:
         async with self._lock:
@@ -140,9 +154,16 @@ class ResourceGovernor:
             if prior is not None:
                 self._run_root_remaining[lease.run_id] = _add(prior, amount)
 
-    async def remaining(self, run_id: RunId) -> BudgetDims:
+    async def spent(self, run_id: RunId) -> BudgetDims:
         async with self._lock:
             return self._spent.get(run_id, BudgetDims())
+
+    async def remaining(self, run_id: RunId) -> BudgetDims | None:
+        """Unallocated remainder of the seeded ceiling, or `None` when this run
+        has no ceiling. `None` is not zero: an unbounded run has no remainder,
+        and returning zeros would read as "exhausted" to every caller."""
+        async with self._lock:
+            return self._run_root_remaining.get(run_id)
 
     def overruns(self) -> tuple[BudgetOverrun, ...]:
         """Not part of the `ResourceGovernor` protocol — read by the composition
