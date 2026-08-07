@@ -160,6 +160,20 @@ Correctness + decoupling: six dead defects fixed, node registry keyed by kind, e
 * **Normative Specs**: [`measurement.md` §4.1](../measurement.md#41-the-baseline-is-part-of-the-instrument)
 * **Exit Criteria**: Injection is reachable **only** via `AblationFlags.inject_test_source`, default `False`, and the flag is part of the run's config hash so any run using it says so in its own instrument tuple. The default path shows the model no test source.
 
+### TASK-062: Non-Interactive Subprocess Hardening (Milestone M1a++R)
+* **Description**: Three host-side spawn sites inherit stdin and the whole host environment, and one has no timeout at all. `adapters/tools/builtin.py:110-120` runs `create_subprocess_shell` with no `stdin`, no `env` and no deadline — the `BudgetDims(wall_clock_ms=30000)` passed by `generate.py:189` is a cost *estimate* the governor reserves against and nothing enforces. `measurement/evaluator.py:56` builds `_EVAL_ENV = {**os.environ, ...}` and hands the operator's full shell environment — API keys included — to model-written code on the uncontained path.
+* **Target Files**: `src/aether/adapters/subprocess_env.py` (new), `adapters/tools/builtin.py`, `measurement/evaluator.py`, `adapters/workspace/git_cli.py`
+* **Normative Specs**: [`measurement.md` §2 (B4)](../measurement.md#2-instrument-blockers), [`measurement.md` §6](../measurement.md#6-what-a-claim-needs-before-it-is-published), [`spec.md` §5](../spec.md#5-execution)
+* **Exit Criteria**: `stdin=DEVNULL` and an **environment allowlist** (not `{**os.environ}`) at every host spawn site; every subprocess carries an `asyncio.wait_for` deadline **derived from the lease**, not a decorative estimate. `CI=1` enters through the container's `--env` allowlist as a declared part of the evaluation environment — changing it is a new manifest hash. **Negative test**: a command that would block on stdin must fail fast rather than hang to the timeout.
+* **Why it matters**: a hung tool call runs to timeout, returns `GateStatus.NONE`, and `NONE` is **excluded from the resolve-rate denominator**. An interactive prompt nobody answers therefore shrinks N *non-randomly* — repositories that prompt are systematically dropped — and it is invisible in the aggregate. Deterministic non-interactivity is a precondition for the floor meaning what it says. See [`proposal_competitors_execution_mechanics_evaluation.md`](../fixes/proposal_competitors_execution_mechanics_evaluation.md) §2.
+
+### TASK-063: Live Log Telemetry on the Lossy Channel Only
+* **Description**: A `LogLineEmitted` event carrying stdout/stderr lines as they arrive, so a TUI or GUI can show `12/45 tests passed…` without waiting for the command to finish.
+* **Target Files**: `src/aether/domain/events.py`, `adapters/sandbox/podman.py`, `adapters/tools/builtin.py`
+* **Normative Specs**: [`spec.md` §8](../spec.md#8-clients), [ADR-0013](../decisions/0013-workflow-dag-phased.md)
+* **Exit Criteria**: Delivered **only to `drop_oldest` subscribers**. The durable trajectory store keeps the `tail_biased()` summary it already keeps — per-line rows on the `"never"` channel would make replay ordering depend on OS pipe scheduling rather than on the topology, weakening `TASK-026`'s byte-determinism. Event-catalog drift check regenerated.
+* **Status**: Post-M1b — lands with the first client that renders it. No correctness payoff, so it does not compete with the floor.
+
 ### TASK-015: Comparative-Lift Rig (`HarnessUnderTest`) — ✅ DONE (Sprint 3, seam + bare-model arm; OpenHands arm still out of scope)
 * **Description**: A runner seam producing paired outcomes for (harness, model, manifest) through **our** evaluator. Arms: bare-model baseline, AETHER, OpenHands.
 * **Target Files**: `src/aether/measurement/runner.py`
@@ -269,6 +283,8 @@ Correctness + decoupling: six dead defects fixed, node registry keyed by kind, e
 * **Target Files**: `src/aether/workflow/executor.py`, `src/aether/workflow/validator.py`
 * **Normative Specs**: [ADR-0013 (M3)](../decisions/0013-workflow-dag-phased.md), [ADR-0014](../decisions/0014-workflow-topology-is-data.md)
 * **Exit Criteria**: `when: on_pass | on_fail | on_instrument_error` routing honoured; **`on_instrument_error` may only reach a terminal flag node**. Every fan-out site has a declared join — unjoined fan-out leaks worktrees and leases. N parallel candidates ⇒ N child leases from one parent reservation (`TASK-034`).
+* **`TASK-067` — execution-based candidate ranker, lands with this task.** `workflow_schema.yaml:105-108` already declares `rank_by` with the constraint written in: *"Rankers ORDER candidates and may never ADMIT one (I9) — admission is the evaluate node, always."* There is no ranker, so Best-of-N would be an N× cost multiplier taking the first-pass candidate. Proposed selector: run the repository's **visible** test suite against each candidate and rank by pass count — zero inference tokens, it is execution not generation. **The trap:** if the visible suite includes the gate's tests, the ranker becomes a shadow evaluator and the harness selects on the answer. The manifest must record the visible/hidden partition per task, and a task where they cannot be separated is **excluded with a published reason** (`TASK-014`'s rule). The gate stays the sole admitter.
+* **Also in scope, deferred here deliberately — background/async effect execution.** Kimi CLI's `run_in_background` pattern was evaluated and refused at M1 ([`proposal_competitors_execution_mechanics_evaluation.md`](../fixes/proposal_competitors_execution_mechanics_evaluation.md) §1): a process outliving its lease makes `actuals` arrive after `release()`, which is the after-the-fact accounting `TASK-034` exists to make unrepresentable; a completion event waking the executor inverts `spec.md` §8 (*events never schedule nodes*); and a wall-clock-dependent completion point breaks `TASK-026`'s byte-deterministic replay. If it lands at all it lands **here**, as a bounded construct that carries a child lease and a declared join — the same model as fan-out — or it is not expressible in a valid topology.
 
 ### TASK-034: `ResourceGovernor` Reserve / Commit / Release — ✅ DONE (Sprint 2)
 * **Description**: The budget triple as an atomic ledger.
@@ -353,6 +369,39 @@ Source: [`proposal_abstraction_and_harness_composition.md`](../fixes/proposal_ab
 * **Target Files**: `src/aether/measurement/arms/`, `runner.py`
 * **Normative Specs**: [ADR-0003 rev. 2](../decisions/0003-statistical-admission-protocol.md), [`measurement.md` §6](../measurement.md#6-what-a-claim-needs-before-it-is-published)
 * **Exit Criteria**: A gate family names arm hashes. A run's full instrument tuple is one hash. Depends on `TASK-058`.
+
+### TASK-064: Localization `ContextSource` Set — **SWE-bench precondition**
+* **Description**: There is no localization step. `RetrieveStep` reads the files a node's YAML *names* (`retrieve.py:57-65`); `Task` carries no file list; the only discovery mechanism is `run_local_check.py:56-62`, which globs **every** `.py` under a task directory. That works for the synthetic internal manifest (one `mod.py` per task) and returns **the entire repository** on a real SWE-bench instance, where `max_bytes` then truncates in alphabetical order.
+* **Target Files**: `src/aether/agency/capabilities/sources.py`
+* **Normative Specs**: [ADR-0011](../decisions/0011-no-lsp-adapter.md) (syntax tier only), [`measurement.md` §6](../measurement.md#6-what-a-claim-needs-before-it-is-published)
+* **Exit Criteria**: `LexicalSource` (identifiers and tracebacks from the issue text → grep), `SymbolSource` (`TreeSitterIndexer.search`), `TestPathSource` (failing test's imports → modules under test), `HistorySource` (`git log -S<identifier>`). **Deterministic and seeded** — a retrieval set that varies run to run makes reproducibility unsatisfiable. Files not retrieved are published in `RetrievedContext.missing`. **Each source is separately ablatable.**
+* **Why it matters**: `STATUS.md` records the SWE-bench floor as blocked on per-instance images (`TASK-036`). That is true and incomplete — **with every image built, the harness still has no mechanism for choosing which files to open.** See [`proposal_sota_gap_analysis.md`](../fixes/proposal_sota_gap_analysis.md) §2.
+
+### TASK-065: Retrieval-Recall Diagnostic
+* **Description**: For each unresolved task, did the gold patch's files appear in the retrieved set?
+* **Target Files**: `src/aether/measurement/` (offline analysis over the trajectory store)
+* **Exit Criteria**: One published number per run, separating *"never shown the file"* from *"shown the file and failed"*. It decides whether effort goes into retrieval or generation, and nothing else in the plan produces it. **The premise that localization dominates SWE-bench failures is a widely-reported hypothesis this project has not measured** ([`spec.md` §9](../spec.md#9-standing-rules)); this task is the experiment that settles it on our own instrument.
+
+### TASK-066: `SearchReplaceFormat` — the Third Edit Format
+* **Description**: Unified diff is fragile for small models (well-formed diffs with wrong context lines); whole-file *"burns output tokens proportional to file size"* by `edit_format.py`'s own admission. SEARCH/REPLACE blocks are the middle — no context lines to reproduce, output proportional to the change.
+* **Target Files**: `src/aether/workflow/edit_format.py`, `workflows/`
+* **Exit Criteria**: One class, one registry entry, the existing conformance suite unmodified — the module docstring already states this is the intended extension shape. Ablatable on arrival against both incumbents.
+
+### TASK-068: Capability Attenuation per `RoleSpec`
+* **Description**: `ArchitectStep` is read-only because it happens not to call `dispatch.write` — a property of the code, not of the architecture. Nothing prevents a role declaration from naming a write-capable tool and editing the worktree before the judge runs.
+* **Target Files**: `src/aether/agency/roles.py`, `src/aether/workflow/dispatch_facade.py`
+* **Normative Specs**: [ADR-0017](../decisions/0017-subagent-capability-attenuation.md) (*a sub-agent is a subgraph; capabilities only narrow*), [`spec.md` §5](../spec.md#5-execution)
+* **Exit Criteria**: A `RoleSpec` declares its permitted `effect_class` set; the `DispatchFacade` handed to that node is **attenuated at construction**. `ARCHITECT` is `{read, model}` **by type**, and a plan node attempting a write is denied at the choke point rather than trusted not to try. Negative test required.
+
+### TASK-069: Turn Budget and Loop Detection
+* **Description**: `generate.py:77` hard-codes `MAX_ROUNDS = 4` with no repeated-call detection, so a model reissuing the same failing tool call burns four round trips every time.
+* **Target Files**: `src/aether/agency/capabilities/inference.py` (after `TASK-055`)
+* **Exit Criteria**: Turn ceiling comes from node params, not a class constant; an identical consecutive tool call short-circuits the loop and is recorded.
+
+### TASK-070: `RunConfig.mode` — Benchmark vs Interactive
+* **Description**: The two modes have opposite correctness requirements. In benchmark mode an `ASK_*` policy decision must **fail closed** — a human in the loop is a human in the measurement, and a run that blocks for approval has an unbounded wall-clock *and* a human contributing to the resolve rate.
+* **Target Files**: `src/aether/domain/config.py`, `src/aether/kernel/dispatch.py`
+* **Exit Criteria**: `mode` enters the config hash, so `measurement.md` §6's instrument tuple records which mode produced a result. Benchmark mode also forces cross-task memory off and retrieval deterministic.
 
 ---
 

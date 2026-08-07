@@ -245,6 +245,8 @@ In the future trought frontend GUI, CLI or TUI we will be able to use the config
 
 We should think about how to have this parent class, that receives standardized classes for workflow nodes in a structured way, that we can optimize individually now using the same protocols and contracts, and if needed in the future we can use rust or go to improve the performance and delivery the same outputs using the same logic but a better outsourced process. 
 
+# REQUIREMENTS TO DELIVER
+
 How could we do that? Lets dive deeper into the code now before we proceed, I want you to create a detailed report inside folder docs/fixes create a detailed report with the folowing topics plus what is important to mention below adding more chapters: 
 
 1) Abstraction, how it is now and how could be so we can achieve this high level of abstraction and flexibility;
@@ -263,6 +265,46 @@ How could we do that? Lets dive deeper into the code now before we proceed, I wa
 
 8) In this context of inner loop and outer loop, we may have emerging blocks of DAGs or compounded DAGs in a workflow that is made of smaller pieces. We should not repeat the code and logic for it. Example, the architect and planner is basically a process that is using tools like listing project files to discover, reading individual files to learn, inject prompt to improve the goal and modularize the response as a planner and produce a structured output breaking down the problem (So lots of the Architect are reusable).  If it is just an executor it needs to list, read and write to files etc.
 
+# NOTES
+
 Describe everything in details, so we will do the iterations and the meta process, harness engineering and loop engineering with elegant code and SOTA, explaining at the code level, and in technical senior tech lead level detailed.
 
 Include any other chapters after the 8 major proposed in the list, so we can have a complete detailed report about this, to make the future developments easy and to help us planning the next sprints and the roadmap. 
+
+
+## References
+
+See what we have
+
+ ### Created Overview Documents Catalog ()
+
+  1. full_documentation_01_core_architecture_and_invariants.md
+      • Original Sources: AGENTS.md, docs/spec.md, docs/vision.md, docs/STATUS.md, docs/README.md.
+      • Summary: System vision, Dual-Metric Doctrine (Harness Lift Δ ≥ +10% vs Absolute Resolve Rates), Core Invariants (I1–I11), Import Lattice
+      Hierarchy (engine > (agency, workflow) > kernel > adapters > ports > domain), CAR Capability Security Model, 9 Wire Ports, and as-built
+      status for Sprints 1–3.5.
+  2. full_documentation_02_adr_decisions_and_governance.md
+      • Original Sources: docs/decisions/README.md and docs/decisions/0001 through 0018.
+      • Summary: Complete reference catalog of all 18 Architectural Decision Records (ADRs). Includes binding decisions, operational rationale, and
+      explicit reversal conditions for every record.
+  3. full_documentation_03_abstraction_and_composition_proposal.md
+      • Original Sources: docs/fixes/proposal_abstraction_and_harness_composition.md,
+      docs/fixes/proposal_architectural_abstraction_and_harness_engineering_gem.md, docs/fixes/implemented_sprint_3.5_complete_report.md.
+      • Summary: Target architecture for capability composition. Details the 6 Core Capability Protocols (ContextSource, PromptAssembler, Inference,
+      OutputParser, WorkspaceMutation, Verdict), generic ModelNode, declarative RoleSpec catalog (ARCHITECT, EDITOR, REPAIRER, REFLECTOR),
+      RunConfig domain model, Topology Fragments (fragment_id), and out-of-process compiled Rust/Go sidecar contracts.
+  4. full_documentation_04_agile_roadmap_backlog_and_milestones.md
+      • Original Sources: docs/agile/roadmap.md, docs/agile/backlog.md, docs/agile/milestones.md, and docs/agile/sprints/.
+      • Summary: Phased two-track roadmap (Track 1 Execution Architecture: M0 through M3; Track 2 Measurement & Instrument Blockers: B1–B4 and A/A
+      Noise Floor), technical backlog (TASK-000 through TASK-061), complexity scores (0–5), and tripwire governance policies
+      (0009-gates-are-the-schedule.md).
+  5. full_documentation_05_measurement_benchmarks_and_statistics.md
+      • Original Sources: docs/measurement.md, docs/rationale/benchmarks/, docs/benchmarks/.
+      • Summary: Core measurement doctrine ("Instruments built and verified before capabilities"), 4 Instrument Blockers (B1–B4), A/A Noise Floor
+      protocol (Paired Exact McNemar, Holm–Bonferroni α = 0.05, dynamically derived sample size N), benchmark targets (SWE-bench Verified & Pro),
+      TCB split isolation (DEV, HOLDOUT, SEALED), and the 7-step pre-publication checklist.
+  6. spec.md
+      • Original Sources: docs_front/spec.md, docs_front/BRIDGE_CONTRACT.md, docs_front/fixes/upcoming_backend_alignment.md, docs_front/decisions/.
+      • Summary: Front-end invariants (FI1–FI5), @aether/core shared packages and Zustand stores, React Ink TUI CLI (apps/cli), Tauri v2 React Flow
+      Desktop GUI (apps/desktop), bi-directional WebSocket/SSE bridge protocols, tri-state GateStatus, Provenance labels, and the deterministic
+      MockCassettePlayer engine.

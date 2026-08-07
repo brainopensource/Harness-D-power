@@ -7,7 +7,7 @@ updated: 2026-08-07
 
 * **Goal**: Restore the validity guards Sprint 3.5 outpaced, get CI green at step one, and **take the A/A variance floor** — the number that unblocks every other number this project will publish.
 * **Target Milestone**: [M1a++R](../roadmap.md#phase-matrix--dependencies) · **A/A floor**
-* **Tripwire Window**: 5 Business Days
+* **Tripwire Window**: 6 Business Days
 * **Entry condition**: Sprint 3.5 code complete (commit `23cd1b4`). B1, B2b, B4 green; B3 canary green in this environment.
 * **Position in the plan**: this sprint is [`sprint-03.md`](./sprint-03.md)'s Task 5 finally executed, plus the repairs that make executing it meaningful.
 
@@ -57,6 +57,16 @@ updated: 2026-08-07
   3. Four payload types share one envelope, and socket types stay distinguishable — collapsing them would defeat `check_socket_compatibility`.
 * **Why it is in this sprint**: it is pure deletion of duplication, it carries no behaviour change, and it is the precondition for Sprint 5 and for any out-of-process extraction under [ADR-0001](../../decisions/0001-python-first-compiled-on-trigger.md).
 
+### Task 4b: Non-Interactive Subprocess Hardening (`TASK-062`) — **blocks Task 5**
+* **Target Seam**: `src/aether/adapters/subprocess_env.py` (new), `adapters/tools/builtin.py`, `measurement/evaluator.py`, `adapters/workspace/git_cli.py`
+* **Specification Pointer**: [`measurement.md` §2 (B4)](../../measurement.md#2-instrument-blockers), [`measurement.md` §6](../../measurement.md#6-what-a-claim-needs-before-it-is-published)
+* **Acceptance Criteria**:
+  1. `stdin=DEVNULL` at every host-side spawn site. `builtin.py:110-120` inherits stdin today, so `git push`, `apt`, or a paged `git log` blocks on a terminal the harness does not drive.
+  2. An **environment allowlist**, replacing `_EVAL_ENV = {**os.environ, ...}` (`evaluator.py:56`) and `builtin.py`'s inherited environment. Model-written code currently executes uncontained on the host with the operator's `OPENROUTER_API_KEY` in scope.
+  3. Every subprocess carries an `asyncio.wait_for` deadline **derived from the lease**. `builtin.py::_bash` has none; the `BudgetDims(wall_clock_ms=30000)` at `generate.py:189` is a cost estimate the governor reserves against and nothing enforces.
+  4. **Negative test**: a command that would block on stdin fails fast instead of running to the timeout.
+* **Why it blocks the floor**: a hung tool call runs to the evaluation timeout, returns `GateStatus.NONE`, and `NONE` is excluded from the resolve-rate denominator. An interactive prompt nobody answers therefore shrinks N **non-randomly** — repositories that prompt get systematically dropped — and it is invisible in the aggregate. That is a selection effect entering the sample through a subprocess default.
+
 ### Task 5: Run the A/A Variance Floor — **the sprint's reason to exist**
 * **Target Seam**: `docs/rationale/benchmarks/noise-floor.md`
 * **Specification Pointer**: [`measurement.md` §3](../../measurement.md#3-the-aa-variance-floor), [ADR-0002](../../decisions/0002-no-number-before-the-floor.md)
@@ -78,6 +88,7 @@ updated: 2026-08-07
 | Baseline matches `measurement.md` §4.1 | Task 2 | Default run shows no test source; the ablation flag appears in the config hash |
 | CI reaches `pyright` and `lint-imports` | Task 3 | `ruff format --check . && ruff check . && pyright --strict src/aether/ && lint-imports` all exit 0 |
 | `TCB_PATHS` selects the TCB | Task 3 | `tests/unit/test_path_constant_drift.py`, both directions |
+| Non-interactive subprocesses | Task 4b | `stdin=DEVNULL` everywhere; env is an allowlist; the blocked-command negative test goes red without the fix |
 | Nodes are adapter-free | Task 4 | `test_node_imports_are_pure` |
 | **A/A floor taken** | Task 5 | `noise-floor.md` contains p₀₁/p₁₀ and per-task wall-clock |
 
