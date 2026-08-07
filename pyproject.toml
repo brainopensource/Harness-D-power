@@ -18,6 +18,8 @@ dependencies = [
   "tree-sitter>=0.23",          # AST parsing
   "tree-sitter-language-pack>=0.7",   # bundled grammars, avoids per-language pins
   "email-validator>=2.3.0",
+  "pyyaml>=6.0",                 # workflow/manifest topologies are YAML (schemas_and_contracts.md)
+  "jsonschema>=4.20",            # structural half of the topology validator (TASK-020)
 ]
 
 [project.optional-dependencies]

@@ -1,0 +1,13 @@
+schema_version: "1.0.0"
+topology_id: linear_v1
+description: "M1a walking skeleton: retrieve -> generate -> apply -> evaluate, no repair"
+nodes:
+  - { id: retrieve, kind: retrieve, budget: { wall_clock_ms: 120000 } }
+  - { id: generate, kind: generate,
+      budget: { usd_micros: 400000, prompt_tokens: 120000, completion_tokens: 8000 } }
+  - { id: apply,    kind: apply,    budget: { wall_clock_ms: 30000 } }
+  - { id: evaluate, kind: evaluate, budget: { wall_clock_ms: 900000, concurrency_slots: 1 } }
+edges:
+  - { from: retrieve, to: generate }
+  - { from: generate, to: apply }
+  - { from: apply,    to: evaluate }

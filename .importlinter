@@ -106,18 +106,22 @@ forbidden_modules =
 name = AETHER: full architectural lattice (spec.md §3)
 type = layers
 layers =
-    (aether.engine)
+    aether.engine
     (aether.agency) | aether.workflow
     aether.measurement
     aether.kernel
     aether.adapters
     aether.ports
     aether.domain
-# Parenthesized layers are packages not yet built (agency: TASK-030b;
-# engine.py: TASK-022) — aether.adapters came off in Sprint 2 Step 1
-# (TASK-026, adapters/trajectory_store/sqlite.py), aether.measurement came off
-# in Step 5 (TASK-019, measurement/evaluator.py) —
-# import-linter makes a parenthesized layer optional rather than erroring on a
-# missing module (verified empirically against import-linter 2.13). Each parens
-# pair comes off in the change that lands that package's first real code,
-# mirroring car-layering's own documented precedent for incremental extension.
+# Parenthesized layers are packages not yet built (agency: TASK-030b) —
+# aether.adapters came off in Sprint 2 Step 1 (TASK-026,
+# adapters/trajectory_store/sqlite.py), aether.measurement came off in Step 5
+# (TASK-019, measurement/evaluator.py), aether.engine came off in Step 11
+# (TASK-022, engine.py) — import-linter makes a parenthesized layer optional
+# rather than erroring on a missing module (verified empirically against
+# import-linter 2.13). Each parens pair comes off in the change that lands
+# that package's first real code, mirroring car-layering's own documented
+# precedent for incremental extension. `aether.composition` is a top-level
+# wiring root, not a listed layer — engine.py and workflow/* both depend on
+# it (composition depends on neither), so it sits outside this lattice by
+# design rather than by gap.

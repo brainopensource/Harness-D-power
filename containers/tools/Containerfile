@@ -1,0 +1,12 @@
+# Sprint-3 / B3 scaffold (TASK-016). Not wired to any execution path this
+# sprint — src/aether/adapters/tools/builtin.py runs uncontained via
+# asyncio.subprocess, the same precedent the Evaluator ships under (TASK-019).
+# This exists so Sprint 3 wires ToolRegistry into its own image and lease
+# class, separate from the evaluator's, so a runaway tool loop cannot starve
+# the judge (ADR-0005 rev. 2, ADR-0008).
+FROM python:3.13-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
+
+CMD ["sleep", "infinity"]

@@ -1,6 +1,6 @@
 ---
 status: rationale
-updated: 2026-08-06
+updated: 2026-08-07
 ---
 
 # Sprint 02 Plan — Real Adapters & the Walking Skeleton
@@ -81,14 +81,19 @@ updated: 2026-08-06
 
 ## Milestone Gates Closed
 
-| Gate | Closed by |
-| :--- | :--- |
-| B2 · 2 (B2b) | Task 1 |
-| M1a · 1 skeleton from validated topology | Task 5 |
-| M1a · 2 dispatch choke point | Task 5 (architecture test over Sprint-01's `TASK-003`) |
-| M1a · 3 conformance, four boundaries | Tasks 1–4 |
-| M1a · 4 F1 timers | Task 6 |
-| M1a · 5 reserve/commit/release | Task 5 |
+**All six gates below are closed.** `engine.run()` executes `workflows/linear_v1.yaml`'s
+four-node topology end to end (`tests/integration/test_engine_smoke.py`); see
+[`STATUS.md`](../../STATUS.md) for the pasted gate results (135 passed, 1 skipped; `pyright
+--strict` 0 errors; `lint-imports` 9/9 kept).
+
+| Gate | Closed by | Evidence |
+| :--- | :--- | :--- |
+| B2 · 2 (B2b) | Task 1 (`TASK-011`) | `tests/conformance/test_model_provider.py`, respx-mocked SSE, all cases green |
+| M1a · 1 skeleton from validated topology | Task 5 (`TASK-020`) | `workflows/linear_v1.yaml` loaded and validated by `workflow/validator.py`'s 5 checks before every run |
+| M1a · 2 dispatch choke point | Task 5 (architecture test over Sprint-01's `TASK-003`) | `DispatchFacade` routes every node effect through `Dispatcher.dispatch()`; no adapter is reachable from a `WorkflowStep` any other way |
+| M1a · 3 conformance, four boundaries | Tasks 1–4 | `tests/conformance/{test_model_provider,test_workspace,test_tool_registry,test_evaluator}.py` — mock + real adapter parametrized for all four |
+| M1a · 4 F1 timers | Task 6 (`TASK-021`) | [`performance_timers.md`](../../rationale/benchmarks/performance_timers.md) — RT-3 not crossed (measured, not claimed unmeasured) |
+| M1a · 5 reserve/commit/release | Task 5 (`TASK-034`) | `kernel/governor.py`'s real `ResourceGovernor`, exercised both per-effect (inside `Dispatcher.dispatch()`) and per-node (`workflow/executor.py`) |
 
 ---
 
