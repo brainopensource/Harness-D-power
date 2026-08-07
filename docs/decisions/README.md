@@ -37,6 +37,7 @@ overturn it. It is not a weaker decision — it is an honest one.
 | [0015](./0015-taintgate-provenance-model.md) | Provenance labels; untrusted spans never grant capability | lock audit | Accepted |
 | [0016](./0016-mcp-integration-trust-model.md) | MCP is one `ToolRegistry` adapter; its output is untrusted | lock audit | Accepted |
 | [0017](./0017-subagent-capability-attenuation.md) | A sub-agent is a subgraph; capabilities only narrow | lock audit | Accepted |
+| [0018](./0018-agency-below-workflow.md) | `agency/` sits below `workflow/`, not beside it | abstraction audit | **Proposed** |
 
 **0016 and 0017 are decided now and built later** — at growth tier and M3+ respectively. Deciding
 costs a page; building prematurely costs velocity, and [ADR-0005](./0005-eight-ports-adapter-first.md)

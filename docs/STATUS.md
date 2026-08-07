@@ -5,7 +5,7 @@ updated: 2026-08-07
 
 # STATUS
 
-**Sprints 1, 2, 3, and 3.5 are 100% COMPLETE.** Sprint 3's A/A floor instruments are built and green; Sprint 3.5 (Phase 0 lock & Inner Loop Lift) fixed six correctness defects, decoupled node/edit-format seams, added auto-discovery of task entry files, and enabled full worktree file re-reading on repair edges ([TASK-039..041](./rationale/sprint-3.5-inner-loop-improvements.md)). **The validation ladder local sweeps (qwen2.5, qwen3.6) and paid DeepSeek runs are verified against the inner loop improvements.** B3 is closed: the evaluation container exists and its canary passes here.
+**Sprints 1, 2, 3, and 3.5 are 100% COMPLETE.** Sprint 3's A/A floor instruments are built and green; Sprint 3.5 (Phase 0 lock & Inner Loop Lift) fixed six correctness defects, decoupled node/edit-format seams, added auto-discovery of task entry files, and enabled full worktree file re-reading on repair edges ([TASK-039..041](./fixes/sprint-3.5-inner-loop-improvements.md)). **The validation ladder local sweeps (qwen2.5, qwen3.6) and paid DeepSeek runs are verified against the inner loop improvements.** B3 is closed: the evaluation container exists and its canary passes here.
 
 | Area | State |
 | :--- | :--- |

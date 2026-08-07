@@ -245,7 +245,7 @@ In the future trought frontend GUI, CLI or TUI we will be able to use the config
 
 We should think about how to have this parent class, that receives standardized classes for workflow nodes in a structured way, that we can optimize individually now using the same protocols and contracts, and if needed in the future we can use rust or go to improve the performance and delivery the same outputs using the same logic but a better outsourced process. 
 
-How could we do that? Lets dive deeper into the code now before we proceed, I want you to create a detailed report inside folder docs/future_improvements create a detailed report with the folowing topics plus what is important to mention below adding more chapters: 
+How could we do that? Lets dive deeper into the code now before we proceed, I want you to create a detailed report inside folder docs/fixes create a detailed report with the folowing topics plus what is important to mention below adding more chapters: 
 
 1) Abstraction, how it is now and how could be so we can achieve this high level of abstraction and flexibility;
 

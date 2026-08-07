@@ -147,6 +147,19 @@ Correctness + decoupling: six dead defects fixed, node registry keyed by kind, e
 * **Exit Criteria**: **Lives in `measurement/`, never `adapters/`** — the residency rule is what makes `tcb-isolation` select it. Verifies the test command against the manifest's `test_command_hash` before running; a mismatch is `NONE`, not a result. `import-linter` proves it cannot import `agency/` or `workflow/`.
 * **Named as**: the first real adapter for the `Evaluator` port under [ADR-0005](../decisions/0005-eight-ports-adapter-first.md) rev. 2.
 
+### TASK-049: I7 Enforcement — `tests_unmodified` Gate (Milestone M1a++R) — **blocks the floor**
+* **Description**: The invariant [`spec.md` §2](../spec.md#2-invariants) names as I7's mechanism does not exist in this tree: `grep -rn "tests_unmodified" src/aether/` returns nothing. The evaluator must refuse to score a candidate whose test files differ from the manifest's pinned hashes.
+* **Target Files**: `src/aether/measurement/evaluator.py`, `src/aether/domain/gate.py`, `src/aether/workflow/edit_format.py`
+* **Normative Specs**: [`spec.md` §2 (I7)](../spec.md#2-invariants), [`measurement.md` §2 (B4)](../measurement.md#2-instrument-blockers), [`measurement.md` §5](../measurement.md#5-gate-design)
+* **Exit Criteria**: A candidate that modified a pinned test file yields **`GateStatus.NONE` with `instrument_error` populated** — never `PASSED`, never `FAILED`. **Negative test required**: removing the gate must make the suite go red. The last-resort `.py`-token inferrer at `edit_format.py:198-202` is deleted — an unlabelled fence with no resolvable target returns *no edit*, not a guessed one (it reproducibly targeted `run_tests.py`).
+* **Why it matters**: without it, the generator can edit its own evaluator, and every resolve rate measured on this instrument is unfalsifiable.
+
+### TASK-049b: Demote Test-Source Injection to a Named Ablation Arm (Milestone M1a++R) — **blocks the floor**
+* **Description**: `scripts/run_local_check.py` injects the full text of `run_tests.py` into the task instructions. That measures assertion-fitting, not bug-fixing, and breaks the pre-registered baseline.
+* **Target Files**: `scripts/run_local_check.py`, `src/aether/domain/config.py`
+* **Normative Specs**: [`measurement.md` §4.1](../measurement.md#41-the-baseline-is-part-of-the-instrument)
+* **Exit Criteria**: Injection is reachable **only** via `AblationFlags.inject_test_source`, default `False`, and the flag is part of the run's config hash so any run using it says so in its own instrument tuple. The default path shows the model no test source.
+
 ### TASK-015: Comparative-Lift Rig (`HarnessUnderTest`) — ✅ DONE (Sprint 3, seam + bare-model arm; OpenHands arm still out of scope)
 * **Description**: A runner seam producing paired outcomes for (harness, model, manifest) through **our** evaluator. Arms: bare-model baseline, AETHER, OpenHands.
 * **Target Files**: `src/aether/measurement/runner.py`
@@ -266,6 +279,123 @@ Correctness + decoupling: six dead defects fixed, node registry keyed by kind, e
 
 ---
 
+## Epic 5: Capability & Composition Layer (Milestone M1b)
+
+Source: [`proposal_abstraction_and_harness_composition.md`](../fixes/proposal_abstraction_and_harness_composition.md).
+**None of these produces a number**, so [ADR-0002](../decisions/0002-no-number-before-the-floor.md) does not gate them — they may run in parallel with the floor. They are sequenced **before M2** because `TASK-031`, `TASK-024` and `TASK-033` all target `src/aether/agency/context/`, a package that does not exist.
+
+### TASK-050: Move Effect Payloads to `domain/effects.py`
+* **Description**: `ReadArgs`, `WriteArgs`, `ApplyPatchArgs`, `ShellArgs` are pure frozen models defined in `composition.py` (lines 36-62), the same module that imports `OpenAICompatibleProvider`, `BuiltinToolRegistry` and `GitCliWorkspace` at module scope. Every node imports them from there.
+* **Target Files**: `src/aether/domain/effects.py` (new), `src/aether/composition.py`, `src/aether/workflow/nodes/*.py`
+* **Normative Specs**: [`spec.md` §2 (I1)](../spec.md#2-invariants), [`spec.md` §3](../spec.md#3-structure)
+* **Exit Criteria**: `import aether.workflow.nodes.retrieve` **does not import `httpx` or any `aether.adapters` module** — verified today as importing three of them. Negative test proves the check can fail. This is the precondition for any out-of-process extraction ([ADR-0001](../decisions/0001-python-first-compiled-on-trigger.md)).
+
+### TASK-051: One `worktree_path`, Not Four
+* **Description**: Worktree layout is an invariant expressed four times: `measurement/evaluator.py:71`, `adapters/tools/builtin.py:53`, `adapters/indexer/tree_sitter.py:24`, and `adapters/workspace/git_cli.py:39`.
+* **Target Files**: `src/aether/domain/workspace.py` + the four call sites
+* **Exit Criteria**: One definition on `WorktreeRef`. One copy is inside the TCB — the judge and the tool registry must be provably unable to disagree about where a worktree is.
+
+### TASK-052: `Envelope` Base for Node Payloads
+* **Description**: `RetrievedContext`, `GeneratedPatch`, `AppliedPatch` and `EvaluatedCandidate` each re-declare `task` + `worktree`; three re-declare `iteration`.
+* **Target Files**: `src/aether/domain/envelope.py` (new), `src/aether/workflow/nodes/*.py`
+* **Exit Criteria**: Socket types are unchanged — `validator.check_socket_compatibility` still distinguishes all four. A field added to the envelope is a one-file change.
+
+### TASK-053: ADR-0018 + Lattice Change — `workflow` above `agency`
+* **Description**: `spec.md` §3 declares `agency/` with a `context/` subpackage. It does not exist, because `.importlinter`'s `aether-layers` makes `aether.agency` and `aether.workflow` **independent siblings**, so a `WorkflowStep` importing prompt logic from `agency/` breaks a 9-for-9 contract. The arrangement was chosen when `agency/` was empty.
+* **Target Files**: `.importlinter`, `docs/decisions/0018-agency-below-workflow.md` (new), `docs/spec.md` §3
+* **Normative Specs**: [`spec.md` §3](../spec.md#3-structure), [ADR-0006](../decisions/0006-tcb-boundary-and-meta-loop-authority.md)
+* **Exit Criteria**: `lint-imports` stays **9/9 with `agency` populated**. `agency/` still cannot import `workflow/`, `measurement/` or the evaluator — the TCB direction is unchanged. The ADR carries a reversal condition. **No contract may select zero modules** ([`measurement.md` §5](../measurement.md#5-gate-design)).
+
+### TASK-054: `ContextSource` Protocol + First Implementations
+* **Description**: "Read these files into a prompt block" is implemented twice with different semantics — `retrieve.py:67-93` (byte budget, publishes `missing`) and `repair.py:122-132` (no budget, swallows errors). Unify as a protocol with a registry, following `edit_format.py`'s template exactly.
+* **Target Files**: `src/aether/agency/capabilities/sources.py`, `src/aether/agency/registry.py`
+* **Normative Specs**: [ADR-0010](../decisions/0010-context-prefix-layers.md), [ADR-0015](../decisions/0015-taintgate-provenance-model.md)
+* **Exit Criteria**: One file-reading path with one byte-budget policy. **A block's `Provenance` label is a property of its source, declared once** — not hand-constructed at the 10 current `TaintSpan(...)` call sites. `SymbolSource` wraps `TreeSitterIndexer`, which today passes conformance and is **reachable from no node and no topology**.
+
+### TASK-055: `Inference` + `OutputParser` Protocols
+* **Description**: The model-call-and-collect idiom is written four times (`architect.py:88`, `architect.py:142`, `repair.py:180`, `generate.py:146`), and all four reserve `BudgetDims(prompt_tokens=self._max_tokens)` — `max_tokens` is a *completion* ceiling. One bug, four sites.
+* **Target Files**: `src/aether/agency/capabilities/inference.py`, `parsers.py`
+* **Exit Criteria**: One implementation. `ToolLoop` (today's `MAX_ROUNDS` loop, reachable only from `generate`) becomes usable by **any** role. Reservation uses `completion_tokens` and is priced, not zero.
+
+### TASK-056: `PromptAssembler` — the Five-Layer Prefix *(this is `TASK-031`, relocated)*
+* **Description**: `TASK-031` with a real home. It cannot be built today: prompt layering is `f"{instructions}\n\n## Header\n{text}"` inside `architect.py:92-96` and `architect.py:145-152`, so there is no object that holds the layers.
+* **Target Files**: `src/aether/agency/context/assembler.py`
+* **Normative Specs**: [ADR-0010](../decisions/0010-context-prefix-layers.md), [`spec.md` §2 (I10)](../spec.md#2-invariants)
+* **Exit Criteria**: Unchanged from `TASK-031`. Layer order L1–L5; ≤4 breakpoints; CI floor on **harness-side byte-identical-prefix stability over a fixed replay** — *not* a provider-reported hit rate, which the local endpoint may not expose at all.
+* **Note**: this replaces `TASK-031`'s target file. It is not an additional task and must not be double-counted.
+
+### TASK-057: `ModelNode` + `RoleSpec` Catalog
+* **Description**: `ArchitectStep`, `GenerateStep`, `RepairStep` and `ReflectorStep` differ by their context sources and their parser, and by little else. One `ModelNode` plus four data declarations replaces three files.
+* **Target Files**: `src/aether/agency/nodes/model_node.py`, `src/aether/agency/roles.py`; deletes `workflow/nodes/{architect,generate,repair}.py`
+* **Normative Specs**: [ADR-0007](../decisions/0007-architect-editor-seam.md), [ADR-0014](../decisions/0014-workflow-topology-is-data.md)
+* **Exit Criteria**: **A golden-prompt equivalence test**: every shipped topology produces byte-identical prompts before and after. Old classes stay one release, deleted once the test passes. Defining a new role is a data change, not a class. Closes `TASK-047`'s missing coverage — including *a test that the architect's plan reaches the generate node's prompt*, currently unasserted.
+
+### TASK-058: `RunConfig` Domain Model
+* **Description**: `engine.run()` takes 15 loose keyword arguments; several behaviours are reachable only from `scripts/run_local_check.py`. A frontend cannot render a form for a signature, and a config file cannot round-trip one.
+* **Target Files**: `src/aether/domain/config.py`, `src/aether/engine.py`
+* **Normative Specs**: [`spec.md` §8](../spec.md#8-clients), [`measurement.md` §6](../measurement.md#6-what-a-claim-needs-before-it-is-published)
+* **Exit Criteria**: `engine.run(config: RunConfig)` — one parameter. `sha256(RunConfig)` **is** `measurement.md` §6's instrument tuple, replacing hand-assembly. CLI/TUI/GUI forms generate from `model_json_schema()`. **The engine refuses `split: holdout | sealed` while `noise-floor.md` holds no number** — enforcement in the engine, not a warning in a UI.
+
+### TASK-059: `ExecutionStrategy` Seam — **TCB**
+* **Description**: `executor.py` hard-codes two traversals: `_topological_order` (line 96, a 1:1 `edge_map` that silently drops a second outgoing edge) and `_run_repair_unroll` (line 213). Promote them to registered strategies so `TASK-035` adds a strategy rather than rewriting `execute()`.
+* **Target Files**: `src/aether/workflow/strategies.py`, `executor.py`, `validator.py`
+* **Normative Specs**: [ADR-0013](../decisions/0013-workflow-dag-phased.md), [`spec.md` §6](../spec.md#6-trusted-computing-base)
+* **Exit Criteria**: The graph stays acyclic and every bound stays **static** — a strategy may not introduce a runtime-unbounded loop. Each strategy's bound has a malformed fixture proving the check can fail (`TASK-020`'s rule, inherited). **Human review mandatory; not a meta-loop auto-commit** ([ADR-0006](../decisions/0006-tcb-boundary-and-meta-loop-authority.md)).
+
+### TASK-060: Topology Fragments (`schema_version: 1.1.0`) — **TCB-adjacent**
+* **Description**: Seven topologies in `workflows/` share `apply → evaluate` and the same repair-block shape by re-typing them. Adding a node kind is a seven-file edit. Give the data layer a composition operator.
+* **Target Files**: `src/aether/workflow/schemas/workflow_schema.yaml`, `validator.py`, `workflows/fragments/`
+* **Normative Specs**: [ADR-0014](../decisions/0014-workflow-topology-is-data.md), [`spec.md` §4](../spec.md#4-ports) (additive-only versioning)
+* **Exit Criteria**: **Expansion happens before validation** — the five static checks run on the fully expanded graph and are not modified, so a fragment cannot smuggle a node past the judge. Fragments are hash-pinned like topologies (ADR-0014: *every cross-reference is by hash, never by filename*). Three malformed fixtures: self-referential cycle, judge-bypass, node-id collision. 1.0.0 topologies keep validating.
+
+### TASK-061: Declarative Arm Files
+* **Description**: An ablation arm is a function today. It should be the hash-pinned data a topology already is: topology hash + routes + manifest + split + seed.
+* **Target Files**: `src/aether/measurement/arms/`, `runner.py`
+* **Normative Specs**: [ADR-0003 rev. 2](../decisions/0003-statistical-admission-protocol.md), [`measurement.md` §6](../measurement.md#6-what-a-claim-needs-before-it-is-published)
+* **Exit Criteria**: A gate family names arm hashes. A run's full instrument tuple is one hash. Depends on `TASK-058`.
+
+---
+
+## Epic 6: Per-Node Model Routing & Hybrid Economics (post-floor)
+
+Source: [`proposal_workflows_hybrids_improvements.md`](../fixes/proposal_workflows_hybrids_improvements.md).
+`workflows/hybrid_architect_editor_v1.yaml` is committed and **cannot run**: `params.base_url` is dropped by the architect factory (`engine.py:112-117`) and one provider is built for the whole run (`engine.py:178`). **These tasks build routing; they do not authorise an arm.** Any hybrid arm is admitted through [ADR-0003](../decisions/0003-statistical-admission-protocol.md) after the floor, or not at all.
+
+### TASK-042: `RoutingModelProvider` — Per-Node Endpoint & Credential Routing
+* **Description**: A `ModelProvider` composite selecting a concrete provider per `ModelRequest.model`. The name is already an unbuilt promise in `openai_compatible.py:79-80`.
+* **Target Files**: `src/aether/adapters/model_provider/routing.py`, `engine.py`, `composition.py`
+* **Normative Specs**: [ADR-0005](../decisions/0005-eight-ports-adapter-first.md) (**second adapter of an existing port, not a new port**), [ADR-0007](../decisions/0007-architect-editor-seam.md), [`spec.md` §2 (I6)](../spec.md#2-invariants)
+* **Exit Criteria**: Passes the existing `ModelProvider` conformance suite **unmodified**. Routes frozen at composition — a topology naming an unrouted endpoint raises **at load**, matching `UnregisteredNodeKind`'s precedent. API keys resolve from the environment and **never appear in a topology file**. Negative test for an unknown route.
+
+### TASK-043: Node-Scoped Pricing
+* **Description**: `pricing.py:71-73` short-circuits on the *run's* `base_url`, so once TASK-042 lands, a paid call still prices at `PRICES["local"]` = $0.00.
+* **Target Files**: `src/aether/measurement/pricing.py`, `composition.py`
+* **Normative Specs**: [ADR-0003 rev. 2](../decisions/0003-statistical-admission-protocol.md) §4
+* **Exit Criteria**: A run mixing a local node and a paid node reports **non-zero** `usd_micros`. **Negative test required** — a paid call mispriced as local must make the suite fail. Without this, cost per resolved task is `$0.0000` for every arm and the non-inferiority check passes **vacuously**.
+
+### TASK-044: Reserve the Dollar Estimate, Not Zero
+* **Description**: Nodes reserve `BudgetDims(prompt_tokens=max_tokens)`; `usd_micros` is filled only at commit, so the run ceiling is checked against zero and an overrun is detected on the *next* reserve.
+* **Target Files**: `src/aether/workflow/nodes/*` (or `agency/capabilities/inference.py` after TASK-055)
+* **Normative Specs**: [`spec.md` §5](../spec.md#5-execution)
+* **Exit Criteria**: A run seeded below the cost of its first call is denied **at that call**. Also fixes the completion/prompt dimension error.
+
+### TASK-045: Enforce the Per-Node Budget — **TCB**
+* **Description**: `executor.py:174` reserves the node budget; `executor.py:194` releases it with **no commit**. The declared figure constrains nothing.
+* **Target Files**: `src/aether/workflow/executor.py`, `dispatch_facade.py`
+* **Exit Criteria**: A node whose effects exceed its declared budget is **denied at the choke point**, and the denial names the node. **This is what makes "the architect node costs at most $0.05" a fact rather than a comment.** Touches TCB — human review required.
+
+### TASK-046: Wire `reflector`, or Delete It
+* **Description**: `ReflectorStep` is registered at `engine.py:119-124` and referenced by no topology and no test.
+* **Normative Specs**: `TASK-025`'s own rule — *a disabled code path nobody measures is debt, not optionality*
+* **Exit Criteria**: One of: a topology exercising it end-to-end with a test, or the node and its `NODE_SOCKETS` entry deleted. **Not both, and not neither.** Superseded by `TASK-057` if the role catalog lands first.
+
+### TASK-048: Provenance for Planner Output
+* **Description**: `ArchitectStep` concatenates model output into `payload.instructions`; the next node labels `instructions` as `Provenance.OPERATOR` (`generate.py:97`). Planner output derived from repo files acquires operator provenance in two hops.
+* **Normative Specs**: [ADR-0015](../decisions/0015-taintgate-provenance-model.md), [`spec.md` §2 (I11)](../spec.md#2-invariants)
+* **Exit Criteria**: A planner span carries its own label rather than being merged into an `OPERATOR` string. **Largely absorbed by `TASK-054`**, which makes labels a property of the source. **Recorded caveat**: labelling repo content `untrusted-external` as `spec.md` §5 requires would make `DefaultPolicyEngine` fail closed on *every* shell tool call — a defensible sequencing choice pending `TASK-030a`, but it must appear in `STATUS.md`'s deviations section, because I11 currently reads as enforced.
+
+---
+
 ## Gate coverage map
 
 **Read this direction: gate → task.** A gate with no task is a tripwire guaranteed to fire, and a tripwire that always fires gets ignored ([ADR-0009](../decisions/0009-gates-are-the-schedule.md)'s own reversal condition). The reverse direction — task with no gate — is a smaller problem, and this table does not check it.
@@ -312,7 +442,7 @@ Every exit gate in [`milestones.md`](./milestones.md) and the task that funds it
 
 Complexity is scored **0–5** (six levels), weighing knowledge domain required, number of interacting sub-tasks/constraints, and blast radius if the task is done wrong — not raw line count. Derived from a full read of `spec.md`, `measurement.md`, `milestones.md`, all 17 ADRs, and the `development/` engineering docs (protocols, schemas, tech stack).
 
-**Sprint tags below are grounded in [`sprints/sprint-01.md`](./sprints/sprint-01.md), [`sprint-02.md`](./sprints/sprint-02.md) and [`sprint-03.md`](./sprints/sprint-03.md) — the only three sprints planned in full.** Sprint 3 is explicitly "the last sprint planned in full"; Sprint 4 onward is sized only after the A/A floor (Sprint 3, Task 5) reports per-task wall-clock ([`roadmap.md`](./roadmap.md), sprint-03.md). Tasks below that milestone are tagged with their milestone only, not a fabricated sprint number.
+**Sprint tags below are grounded in the sprint files in [`sprints/`](./sprints/README.md).** Sprint 3 was written as "the last sprint planned in full" because sizing past the floor needs the floor's per-task wall-clock. That still holds for **M2-abl and everything after it**. Sprints 4 and 5 are now planned in full anyway, and the reason is a narrow one: neither is sized by inference wall-clock. Sprint 4 is instrument repair plus the floor run itself; Sprint 5 is a refactor that produces no number and calls no model in anger. Tasks past Sprint 5 remain tagged with their milestone only, never a fabricated sprint number.
 
 | Score | Level | What it takes |
 | :---: | :--- | :--- |
@@ -363,14 +493,36 @@ Every row is worked by **The Developer** — there is one team, not a role hiera
 | `TASK-012` | Statistical Engine & A/A Variance Floor | A/A Floor (Sprint 3) | **5** · Very Hard | The instrument that decides whether every future number in this project is allowed to exist | Ports the predecessor's 259-LOC `e0/statistics.py` verbatim (exact McNemar, Holm–Bonferroni, seeded bootstrap — the one asset from the prior codebase that verified line-by-line), then adds real new complexity: a seeded Monte-Carlo power simulation deriving N per gate family from a pre-registered discordance assumption, target power ≥0.80, and the Holm-adjusted α at that hypothesis's rank — plus a gatekeeper that **refuses to compute corrected p-values for an undeclared family**. Demands genuine applied-statistics fluency (why a fixed N=50 silently discards 9 of 10 true improvements is not obvious without running the simulation), and its correctness gates every admission decision the project will ever make. |
 | `TASK-015` | Comparative-Lift Rig (`HarnessUnderTest`) | Sprint 3 (bare-model arm only) / Post-Floor (full) | **5** · Very Hard | Apples-to-apples comparison across harnesses that were never built to be compared | A `HarnessUnderTest` seam producing paired outcomes for bare-model, AETHER, and OpenHands, all routed through **our own** evaluator, same model, same manifest. Sprint 3 lands only the seam plus the bare-model arm; the OpenHands arm is explicitly deferred to after the floor. The hard part is integration, not volume: wrapping a third-party OSS harness uniformly enough to be comparable, without breaking the paired design McNemar assumes. Without this task the mission statement is literally unsubstantiable — `spec.md` §9 forbids citing a competitor's own published numbers as evidence. |
 
+### Sprint 4 — Instrument Restoration and the Floor (planned: [`sprint-04.md`](./sprints/sprint-04.md))
+
+| Task ID | Feature / Component | Milestone | Complexity | The Developer — why | Technical Complexity & Rationale |
+| :--- | :--- | :--- | :---: | :--- | :--- |
+| `TASK-049` | I7 Enforcement (`tests_unmodified`) | M1a++R | **3** · Medium | The invariant the whole measurement rests on, currently enforced by nothing | Hashes the manifest's pinned test files and refuses to score a candidate that changed them, mapping a mismatch to `NONE` rather than `FAILED` — the B4 discipline applied to a second failure mode. Not algorithmically hard; the difficulty is that it lands in `measurement/evaluator.py`, which is TCB, and that it must ship with a negative test proving the gate can fail. Also deletes the `.py`-token inferrer, which reproducibly wrote model output into `run_tests.py`. |
+| `TASK-049b` | Demote Test-Source Injection | M1a++R | **1** · Very Easy | A default flipped, and an honesty property restored | Mechanically small — a flag with a `False` default plumbed into the config hash. Its weight is entirely in what it means: with injection on, the harness measures whether a model can satisfy an assertion it was shown, which is not the benchmark. Every Sprint 3.5 resolve rate was produced this way. |
+| `TASK-050` | Effect Payloads to `domain/` | M1b | **1** · Very Easy | A file move that removes an import edge nobody intended | Four frozen models leave `composition.py`. No behaviour changes. The exit criterion is a new negative test — importing a node must not import `httpx` — which fails today and is the reason the task exists. |
+| `TASK-051` | One `worktree_path` | M1b | **1** · Very Easy | Delete three copies of an invariant | Four independent definitions of where a worktree lives, one of them inside the TCB evaluator. Mechanical, and the payoff is that the judge and the tool registry become structurally unable to disagree. |
+| `TASK-052` | `Envelope` Base for Payloads | M1b | **2** · Easy | Data modelling with one subtle constraint | Four payload types share a base. The care needed is that socket types must stay distinguishable — collapsing them into one type would defeat `check_socket_compatibility`, which is the validator's whole job. |
+| **Sprint 4 Task 5** | **Take the A/A Variance Floor** | A/A Floor | **5** · Very Hard | Unchanged from `sprint-03.md` Task 5 — deferred by decision, not by difficulty | The instrument is complete and rehearsed (`run_aa_floor.py --dry-run`, zero API calls). What makes it Very Hard is that its outputs — p₀₁/p₁₀ discordance and per-task wall-clock — size every later admission run and every remaining sprint. Blocking precondition: the B3 canary executes **in the floor environment** first. |
+
+### Sprint 5 — The Capability Layer (planned: [`sprint-05.md`](./sprints/sprint-05.md))
+
+| Task ID | Feature / Component | Milestone | Complexity | The Developer — why | Technical Complexity & Rationale |
+| :--- | :--- | :--- | :---: | :--- | :--- |
+| `TASK-053` | ADR-0018 + Lattice Change | M1b | **3** · Medium | One line of config, and an architectural decision behind it | Moving `aether.agency` from an independent sibling of `workflow` to a layer beneath it is a two-line `.importlinter` edit. The work is the ADR: justifying that the TCB direction is unchanged (`agency` still cannot reach `workflow`, `measurement` or the evaluator), and writing a reversal condition. Blast radius is high if wrong — a lattice that permits the judge to be imported by the judged is the one failure this project is built to prevent. |
+| `TASK-054` | `ContextSource` + Implementations | M1b | **3** · Medium | The seam that makes retrieval ablatable, and provenance declarable once | Five implementations behind one protocol, following `edit_format.py`'s registry template. The real design work is that a block's `Provenance` label becomes a property of its source rather than a decision made at 10 scattered `TaintSpan(...)` call sites — which is how repository content and test tracebacks both ended up labelled `AGENT`. Also the first thing that makes `TreeSitterIndexer` reachable. |
+| `TASK-055` | `Inference` + `OutputParser` | M1b | **3** · Medium | Collapse four copies of the model-call idiom into one | Straightforward extraction, with one correctness fix folded in: all four current sites reserve a *completion* ceiling in the `prompt_tokens` dimension. `ToolLoop` moving behind the protocol is what lets a planner role use tools at all, which it cannot today. |
+| `TASK-056` | `PromptAssembler` (**was `TASK-031`**) | M1b / M2 Gates 3 & 6 | **4** · Hard | Five layers that must be byte-stable, provider quirks and all | Unchanged in difficulty from `TASK-031`; what changes is that it now has a home. The gated metric stays **harness-side** prefix stability over a fixed replay, deliberately not a provider hit rate — OpenAI-compatible endpoints cache implicitly and the local endpoint may report nothing. Getting layer-immutability and the replay measurement both right across providers is where the difficulty sits. |
+| `TASK-057` | `ModelNode` + `RoleSpec` | M1b | **3** · Medium | Three node classes become one node and four data rows | Mechanically a consolidation; the risk is behavioural drift in prompts, which is why the exit criterion is a **golden-prompt equivalence test** over every shipped topology rather than unit coverage. Old classes stay one release. Absorbs `TASK-047`'s missing tests. |
+| `TASK-058` | `RunConfig` Domain Model | M1b | **2** · Easy | Signature work with outsized downstream leverage | Fifteen keyword arguments become one frozen model. Low code risk. What it buys is disproportionate: `sha256(RunConfig)` becomes `measurement.md` §6's instrument tuple, GUI/CLI/TUI forms generate from one JSON schema, and the engine gains a place to **refuse a HOLDOUT run while the floor is empty**. |
+
 ### M2 / M3 — not yet sprint-planned
 
-Sprint 3 is the last sprint written in full; these land once M2-abl is sized off the floor's per-task wall-clock (`roadmap.md`). `TASK-032` is explicitly named as "the first task of the next sprint" in `sprint-03.md`, so it's first in line below.
+These land once M2-abl is sized off the floor's per-task wall-clock (`roadmap.md`). `TASK-032` was named "the first task of the next sprint" in `sprint-03.md`; it now follows Sprint 5, because `TASK-031`/`TASK-056` and `TASK-024` both target `agency/context/` and cannot start before that package exists.
 
 | Task ID | Feature / Component | Milestone | Complexity | The Developer — why | Technical Complexity & Rationale |
 | :--- | :--- | :--- | :---: | :--- | :--- |
 | `TASK-032` | Per-Node Digest Memoization | M2, Gate 1 (next sprint) | **3** · Medium | Cache invalidation, the classic hard problem, scoped to a DAG | Keys node execution on `sha256(node_kind, impl_version, canonical_payload)` and must invalidate **exactly** the descendants of a changed node — no more, no less. A correctness-sensitive DAG-traversal problem: over-eager invalidation defeats the ablation-speed purpose of the whole task, under-eager invalidation silently reuses stale results inside a benchmark run. |
-| `TASK-031` | 5-Layer Prompt Prefix & Cache Architecture | M2, Gates 3 & 6 | **4** · Hard | Five layers that must be byte-stable, provider quirks and all | Context assembler enforcing L1–L4 append-only-within-a-run and ≤4 `cache_control` breakpoints, with the CI-gated metric being **harness-side** byte-identical-prefix stability over a fixed replay — deliberately not a provider-reported hit rate, since provider cache semantics diverge (explicit Anthropic `cache_control` blocks vs. implicit OpenAI-compatible prefix caching) and the B2 local endpoint may expose none at all. The five-layer concept is simple; getting layer-immutability and the replay-based measurement both right across provider-specific emission logic is where the difficulty sits. |
+| `TASK-031` | *(→ `TASK-056`, Sprint 5)* 5-Layer Prompt Prefix & Cache Architecture | M2, Gates 3 & 6 | **4** · Hard | Five layers that must be byte-stable, provider quirks and all | **Relocated to `TASK-056` — same task, real target directory. Do not double-count.** Context assembler enforcing L1–L4 append-only-within-a-run and ≤4 `cache_control` breakpoints, with the CI-gated metric being **harness-side** byte-identical-prefix stability over a fixed replay — deliberately not a provider-reported hit rate, since provider cache semantics diverge (explicit Anthropic `cache_control` blocks vs. implicit OpenAI-compatible prefix caching) and the B2 local endpoint may expose none at all. The five-layer concept is simple; getting layer-immutability and the replay-based measurement both right across provider-specific emission logic is where the difficulty sits. |
 | `TASK-025` | Architect/Editor Dual-Model Seam | M2, Gate 4 | **3** · Medium | A config-gated seam that ships off by policy, not because it's unfinished | Decouples `architect.py` (planning, no write tools) from `editor.py` (surgical edits) behind a config switch defaulting to single-model, riding the `RoutingModelProvider` composite already established by TASK-011. ADR-0007 is explicit that "the seam costs little to build" — the discipline is architectural cleanliness of the plan/edit boundary and honoring the ships-disabled default; if its ablation doesn't clear the floor, the code is deleted outright rather than left dormant. |
 | `TASK-024` | L5 Dialogue Context Compactor | M2, Gate 5 | **3** · Medium | Compaction structurally forbidden from touching four of the five layers | Deterministic structural compaction (drop superseded file snapshots, collapse resolved tool exchanges) scoped to L5 only — the assembler exposes no API to touch L1–L4, so that guarantee is a type-level property this task doesn't have to enforce itself. The remaining work is real but bounded: get a long-task fixture to complete inside the context window via compaction alone, with no model-generated summarization (a separate, later-ablated mechanism). |
 | `TASK-030a` | Shell AST Classifier | M2/M3 (CI-gated, not milestone-gated) | **4** · Hard | A classifier that must never be mistaken for a security boundary | Parses shell commands to a `tree-sitter-bash` AST and drives the `Reject \| AskRuleMatch \| AskFailClosed` taxonomy plus a `widens_capability` flag, with auto-denial bounded at 3 consecutive / 20 total before the run halts. The classification surface is genuinely large (command substitution, variable indirection, interpreters invoked on attacker-controlled input all defeat static analysis) — but the harder discipline is documentary: no security claim may ever attach to this parser, because the sandbox — not this classifier — is the actual perimeter (ADR-0008). |
@@ -382,8 +534,10 @@ Sprint 3 is the last sprint written in full; these land once M2-abl is sized off
 
 ### Complexity Distribution
 
-* **Very Easy — 1 (3 tasks)**: `TASK-000`, `TASK-013`, `TASK-021` — mechanical or single-concept work with no concurrency, security, or algorithmic surface.
-* **Easy — 2 (4 tasks)**: `TASK-001`, `TASK-004`, `TASK-010`, `TASK-026` — contained, well-specified I/O or data modeling with low risk.
-* **Medium — 3 (10 tasks)**: `TASK-002`, `TASK-005`, `TASK-006`, `TASK-011`, `TASK-014`, `TASK-017`, `TASK-024`, `TASK-025`, `TASK-032`, `TASK-033` — real integration surface or a non-trivial algorithm, several constraints to reconcile.
-* **Hard — 4 (10 tasks)**: `TASK-003`, `TASK-018`, `TASK-019`, `TASK-020`, `TASK-022`, `TASK-023`, `TASK-030a`, `TASK-031`, `TASK-034`, `TASK-035` — TCB-critical or concurrency/security-sensitive, many interacting invariants.
+* **Very Easy — 1 (6 tasks)**: `TASK-000`, `TASK-013`, `TASK-021`, `TASK-046`, `TASK-049b`, `TASK-050`, `TASK-051` — mechanical or single-concept work with no concurrency, security, or algorithmic surface.
+* **Easy — 2 (8 tasks)**: `TASK-001`, `TASK-004`, `TASK-010`, `TASK-026`, `TASK-043`, `TASK-044`, `TASK-052`, `TASK-058`, `TASK-061` — contained, well-specified I/O or data modeling with low risk.
+* **Medium — 3 (16 tasks)**: `TASK-002`, `TASK-005`, `TASK-006`, `TASK-011`, `TASK-014`, `TASK-017`, `TASK-024`, `TASK-025`, `TASK-032`, `TASK-033`, `TASK-042`, `TASK-045`, `TASK-048`, `TASK-049`, `TASK-053`, `TASK-054`, `TASK-055`, `TASK-057` — real integration surface or a non-trivial algorithm, several constraints to reconcile.
+* **Hard — 4 (12 tasks)**: `TASK-003`, `TASK-018`, `TASK-019`, `TASK-020`, `TASK-022`, `TASK-023`, `TASK-030a`, `TASK-031`/`TASK-056`, `TASK-034`, `TASK-035`, `TASK-059`, `TASK-060` — TCB-critical or concurrency/security-sensitive, many interacting invariants.
 * **Very Hard — 5 (4 tasks)**: `TASK-012`, `TASK-015`, `TASK-016`, `TASK-030b` — specialist domain knowledge (applied statistics, container security, cross-harness evaluation, adversarial red-teaming), largest blast radius if wrong, little or no reference implementation to draw on.
+
+**Counts are of distinct task ids in this file.** `TASK-031` and `TASK-056` are one task listed under two ids during the relocation and are counted once.

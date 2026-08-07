@@ -13,7 +13,14 @@ Sprints allocate people to tasks. They do not decide when a phase ends — [`../
 
 ## The planning horizon ends at the A/A floor
 
-**Sprints 01–03 are planned in full. Sprint 04 onward is shape only, deliberately.**
+**Sprints 01–05 are planned in full. M2-abl onward is shape only, deliberately.**
+
+The original rule was "01–03 planned, 04 onward shape only," and its reasoning still binds — it
+is reproduced below and unchanged. Sprints 04 and 05 were written anyway, on a narrow exception:
+**neither is sized by inference wall-clock.** Sprint 04 is instrument repair plus the floor run
+itself; Sprint 05 is a refactor that produces no number and calls no model in anger. The three
+reasons below are all about *ablation* wall-clock and derived N, and neither sprint has either.
+M2-abl remains unsized, and writing it today would still be a forecast wearing a task list.
 
 Three reasons, each traceable to a ratified decision:
 
@@ -32,6 +39,13 @@ Writing `sprint-06.md` today is not planning. It is a forecast wearing a task li
 | [**01**](./sprint-01.md) | Enforcement migration, pure domain, kernel choke point, ports behind mocks, repo cache | M0 · B1 · B2a · B4 | `000` `001` `002` `003` `004` `005` `006` `010` `013` |
 | [**02**](./sprint-02.md) | Real adapters, walking skeleton, the two F1 timers | M1a · B2b | `011` `017` `018` `019` `020` `021` `022` `026` `034` |
 | [**03**](./sprint-03.md) | Repair edge, evaluation container, manifests, **the floor run** | M1a+ · B3 · **A/A floor** | `012` `014` `015` `016` `023` |
+| **03.5** *(unplanned; retro-recorded in [`backlog.md`](../backlog.md) and [`STATUS.md`](../../STATUS.md))* | Inner-loop context lift: edit-format seam, node registry by kind, repair re-reading, architect/reflector | M1a++ | `037`–`041` |
+| [**04**](./sprint-04.md) | **Instrument restoration** and the floor run Sprint 3 deferred | M1a++R · **A/A floor** | `049` `049b` `050` `051` `052` |
+| [**05**](./sprint-05.md) | The capability layer: `agency/`, `ModelNode`, `RunConfig` | M1b | `053`–`058` |
+
+**Sprint 3.5 happened without a sprint file.** It is listed here because it is the one sprint
+that changed measurement semantics, and it is the one with no plan document — which is how its
+instrument debt went unrecorded until an audit found it. The debt is Sprint 4's Tasks 1–3.
 
 **Sprint-03 is the one that matters.** Until its floor run lands a real number in [`docs/rationale/benchmarks/noise-floor.md`](../../rationale/benchmarks/README.md), [ADR-0002](../../decisions/0002-no-number-before-the-floor.md) means the project publishes **no capability number at all**. Everything before it is instrument construction; everything after it is measurable.
 
