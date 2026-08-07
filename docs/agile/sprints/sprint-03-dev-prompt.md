@@ -185,7 +185,7 @@ seeds. **N ≥ 50** at the smoke tier. Before you run it:
   unsized item in `roadmap.md`. Sprint 4 cannot be planned honestly without it.
 - Name the full instrument tuple: manifest hash, split, model fingerprint, topology hash,
   container digests, lockfile hash, seed.
-- Write it up at `docs/rationale/benchmarks/noise-floor.md`, same honesty discipline as
+- Write it up at `docs/benchmarks/results/noise-floor.md`, same honesty discipline as
   Sprint 2's `performance_timers.md` — **a wide floor is a measurement, not a failure.**
   If nothing clears, that's the correct and expected thing to write down.
 

@@ -1,9 +1,27 @@
 ---
-status: rationale
+status: historical
+retrieval: excluded
 updated: 2026-08-07
+superseded: 2026-08-07
 ---
 
 # AETHER Full Documentation — Part 3: Harness Abstraction, Capability Composition & Reusable Core
+
+> [!WARNING]
+> **Stale snapshot. Not authoritative, and not maintained.**
+>
+> This folder is a hand-written re-rendering of documents that already have an
+> authoritative home, which `README.md` names as the one thing this tree forbids:
+> *"if you find the same thing stated in two places, the second one is the bug."*
+> It has already drifted — it cites `docs/development/`, `docs/fixes/` and
+> `docs/future_improvements/`, none of which exist, and Part 2 covers only ADRs
+> 0001–0018 of 21.
+>
+> For anything binding read [`spec.md`](../spec.md), [`measurement.md`](../measurement.md),
+> [`PHASE-0-LOCK.md`](../PHASE-0-LOCK.md), [`decisions/`](../decisions/README.md) and
+> [`STATUS.md`](../STATUS.md). Tagged `retrieval: excluded` so no retrieval surfaces it
+> and the link gate does not check it; see `TASK-084`.
+
 
 > **Original Source Documents:** [`docs/fixes/proposal_abstraction_and_harness_composition.md`](../fixes/proposal_abstraction_and_harness_composition.md), [`docs/fixes/proposal_architectural_abstraction_and_harness_engineering_gem.md`](../fixes/proposal_architectural_abstraction_and_harness_engineering_gem.md), [`docs/fixes/implemented_sprint_3.5_complete_report.md`](../fixes/implemented_sprint_3.5_complete_report.md), [`docs/fixes/sprint-3.5-inner-loop-improvements.md`](../fixes/sprint-3.5-inner-loop-improvements.md), [`docs/fixes/proposal_improvements_and_fixes.md`](../fixes/proposal_improvements_and_fixes.md), [`docs/fixes/proposal_capability_extension_roadmap.md`](../fixes/proposal_capability_extension_roadmap.md), [`docs/fixes/proposal_harness_evolution.md`](../fixes/proposal_harness_evolution.md), and [`docs/future_improvements/`](../future_improvements/).
 

@@ -195,7 +195,8 @@ Correctness + decoupling: six dead defects fixed, node registry keyed by kind, e
 * **Description**: The invariant [`spec.md` §2](../spec.md#2-invariants) names as I7's mechanism does not exist in this tree: `grep -rn "tests_unmodified" src/aether/` returns nothing. The evaluator must refuse to score a candidate whose test files differ from the manifest's pinned hashes.
 * **Target Files**: `src/aether/measurement/evaluator.py`, `src/aether/domain/gate.py`, `src/aether/workflow/edit_format.py`
 * **Normative Specs**: [`spec.md` §2 (I7)](../spec.md#2-invariants), [`measurement.md` §2 (B4)](../measurement.md#2-instrument-blockers), [`measurement.md` §5](../measurement.md#5-gate-design)
-* **Exit Criteria**: A candidate that modified a pinned test file yields **`GateStatus.NONE` with `instrument_error` populated** — never `PASSED`, never `FAILED`. **Negative test required**: removing the gate must make the suite go red. The last-resort `.py`-token inferrer at `edit_format.py:198-202` is deleted — an unlabelled fence with no resolvable target returns *no edit*, not a guessed one (it reproducibly targeted `run_tests.py`).
+* **Exit Criteria**: A candidate that modified a pinned test file yields **`GateStatus.NONE` with `instrument_error` populated** — never `PASSED`, never `FAILED`. **Negative test required**: removing the gate must make the suite go red.
+* **Scope correction, and the parser half is already done (2026-08-07 audit, F7/P3)**: this task named only the inferrer at `edit_format.py:198-202`. There were **two** guessing branches — the one above it picked the sole `.py` token appearing anywhere in the reply, and guessed the same way. Both are deleted; the three ways a model can *state* a path still work, and an unresolvable block is now no edit. See `tests/aether/workflow/test_edit_format.py::test_an_unlabelled_block_is_never_written_to_a_guessed_path`. **The I7 gate itself is still open and still blocks the floor** — deleting the guesser removes the reproducible route to overwriting `run_tests.py`, it does not stop a model that names the test file explicitly.
 * **Why it matters**: without it, the generator can edit its own evaluator, and every resolve rate measured on this instrument is unfalsifiable.
 
 ### TASK-049b: Demote Test-Source Injection to a Named Ablation Arm (Milestone M1a++R) — **blocks the floor**
@@ -238,7 +239,7 @@ Correctness + decoupling: six dead defects fixed, node registry keyed by kind, e
 * **Description**: Instrument worktree creation and AST parse-and-validate.
 * **Target Files**: `src/aether/measurement/timers.py`
 * **Normative Specs**: [ADR-0001](../decisions/0001-python-first-compiled-on-trigger.md)
-* **Exit Criteria**: Latencies published to [`docs/rationale/benchmarks/performance_timers.md`](../benchmarks/results/performance_timers.md) **with hardware and method recorded**. These two numbers decide the F1 fork. A run showing nothing is recorded as showing nothing.
+* **Exit Criteria**: Latencies published to [`docs/benchmarks/results/performance_timers.md`](../benchmarks/results/performance_timers.md) **with hardware and method recorded**. These two numbers decide the F1 fork. A run showing nothing is recorded as showing nothing.
 
 ### TASK-022: Headless Engine API & Event Bus — ✅ DONE (Sprint 2)
 * **Description**: `engine.py` headless API emitting an append-only typed event stream generated from `domain/events.py`.
@@ -449,42 +450,11 @@ Source: [`capability_layer.md`](../architecture/capability_layer.md).
 * **Target Files**: `src/aether/domain/config.py`, `src/aether/kernel/dispatch.py`
 * **Exit Criteria**: `mode` enters the config hash, so `measurement.md` §6's instrument tuple records which mode produced a result. Benchmark mode also forces cross-task memory off and retrieval deterministic.
 
-### TASK-071: SWE-bench Manifest Build & Validity Canary at Scale (Milestone M4)
-* **Description**: Build and pin a real-world task manifest for SWE-bench (Verified and Pro) reusing `TASK-014`'s tooling. Run a bidirectional validity canary asserting that gold patches pass and empty patches fail on our isolated evaluation container environment. Publish exclusions with reasons (~30% of public Pro tasks were estimated broken in prior audits).
-* **Target Files**: `scripts/build_swe_manifest.py`, `benchmarks/manifests/swe_bench_verified_pinned.yaml`, `benchmarks/manifests/swe_bench_pro_pinned.yaml`
-* **Normative Specs**: [`measurement.md` §2 (B3)](../measurement.md#2-instrument-blockers), [`measurement.md` §6](../measurement.md#6-pre-publication-verification-gate)
-* **Exit Criteria**: 100% of non-excluded tasks pass the bidirectional canary in the containerized floor environment. Exclusion manifest published with hash.
-
-### TASK-072: SWE-bench A/A Noise Floor (Milestone M4)
-* **Description**: Execute the A/A noise floor protocol over the pinned SWE-bench manifest. Characterize instrument variance, derive benchmark-specific $p_{01}$ and $p_{10}$ discordance rates, and compute the required minimum sample size $N$ for SWE-bench capability admission runs.
-* **Target Files**: `scripts/run_swe_aa_floor.py`, `docs/rationale/benchmarks/swe_noise_floor.md`
-* **Normative Specs**: [ADR-0002](../decisions/0002-no-number-before-the-floor.md), [ADR-0003 rev. 2](../decisions/0003-statistical-admission-protocol.md), [`measurement.md` §3](../measurement.md#3-the-aa-variance-floor)
-* **Exit Criteria**: Report published with exact McNemar discordance, derived $N$ for power $\ge 0.80$, per-task wall-clock distributions, and zero instrument errors ($NONE$).
-
-### TASK-073: Paired Lift Run (Bare-Model vs AETHER) (Milestone M4)
-* **Description**: Execute paired lift runs comparing bare unassisted model calls vs. full AETHER harness execution using the exact same base model on the pinned SWE-bench manifest under [`measurement.md` §4.1](../measurement.md#41-the-baseline-is-part-of-the-instrument)'s pre-registered baseline.
-* **Target Files**: `src/aether/measurement/runner.py`, `scripts/run_paired_lift.py`
-* **Normative Specs**: [ADR-0004](../decisions/0004-benchmark-targets.md), [`measurement.md` §4](../measurement.md#4-the-lift-target-delta-is-the-committed-number)
-* **Exit Criteria**: Paired McNemar $p$-value and Holm–Bonferroni corrected confidence intervals computed. Lift target ($\Delta \ge +10$ points) verified or falsified.
-
-### TASK-074: Publication Run on SEALED Dataset (Milestone M4)
-* **Description**: Execute the final publication run on the SEALED split satisfying all 7 pre-publication verification conditions of [`measurement.md` §6](../measurement.md#6-pre-publication-verification-gate).
-* **Target Files**: `scripts/run_sealed_publication.py`, `docs/rationale/benchmarks/publication_sealed.md`
-* **Normative Specs**: [`measurement.md` §6](../measurement.md#6-pre-publication-verification-gate)
-* **Exit Criteria**: All 7 conditions satisfied: single hash instrument tuple, zero unhandled errors, exact McNemar $p$-value, Holm-Bonferroni correction, budget audit passed, raw trajectory log archived, and container digest verified.
-
-### TASK-015b: OpenHands Arm Through Our Evaluator (Milestone M4)
-* **Description**: Integrate the OpenHands arm into `HarnessUnderTest` (`TASK-015`), routing OpenHands execution through our containerized TCB `Evaluator` for true apples-to-apples comparative benchmarking against AETHER on the same manifest.
-* **Target Files**: `src/aether/measurement/runner.py`, `src/aether/adapters/openhands_runner.py`
-* **Normative Specs**: [`spec.md` §9](../spec.md#9-standing-rules) (no self-reported competitor metrics), [`measurement.md` §4](../measurement.md#4-the-lift-target-delta-is-the-committed-number)
-* **Exit Criteria**: OpenHands arm executes on pinned manifest through our evaluator; paired McNemar comparison generated against AETHER arm.
-
-### TASK-075: Read-Only TUI Client over Event Bus (Post-`TASK-058`)
-* **Description**: Build a standalone read-only TUI client (`tui/`) that subscribes to `engine.py`'s lossy event stream channel. Provides live terminal progress, node status, and telemetry without holding privileged grants.
-* **Target Files**: `src/aether/tui/`, `scripts/run_tui.py`
-* **Normative Specs**: [`spec.md` §8](../spec.md#8-clients-and-event-streams), [`spec.md` §3](../spec.md#3-structure)
-* **Exit Criteria**: Read-only TUI displays execution graph progression and live telemetry from `engine.run()` with zero direct access to kernel dispatch or evaluator.
-
+**`TASK-071`–`TASK-075` and `TASK-015b` live in [Epic 7](#epic-7-benchmark-delivery--public-claims-milestone-m4--competitor--leaderboard-validation).**
+They were defined twice — once here and once there, with different target files for the same
+id. An id that resolves to two tasks cannot be tracked, and `TASK-072` disagreed with itself
+about where its output goes. The Epic 7 definitions are authoritative; these duplicates are
+deleted rather than kept in sync (2026-08-07 audit, P1).
 
 ---
 
@@ -505,11 +475,13 @@ Source: [`proposal_workflows_hybrids_improvements.md`](../proposals/proposal_wor
 * **Normative Specs**: [ADR-0003 rev. 2](../decisions/0003-statistical-admission-protocol.md) §4
 * **Exit Criteria**: A run mixing a local node and a paid node reports **non-zero** `usd_micros`. **Negative test required** — a paid call mispriced as local must make the suite fail. Without this, cost per resolved task is `$0.0000` for every arm and the non-inferiority check passes **vacuously**.
 
-### TASK-044: Reserve the Dollar Estimate, Not Zero
-* **Description**: Nodes reserve `BudgetDims(prompt_tokens=max_tokens)`; `usd_micros` is filled only at commit, so the run ceiling is checked against zero and an overrun is detected on the *next* reserve.
+### TASK-044: Reserve the Dollar Estimate, Not Zero — scope reduced 2026-08-07
+* **Description**: Nodes reserve `BudgetDims(prompt_tokens=max_tokens)`; `usd_micros` is filled only at commit, so the run ceiling is checked against zero.
+* **Correction (2026-08-07 audit, F3/P2)**: this task previously said an overrun was "detected on the *next* reserve." **It was detected on no reserve, ever.** `commit()` wrote actuals to `_spent` while `reserve()` decided against `_run_root_remaining`, and the refund was clamped to zero on overrun — so the remaining balance stayed at exactly the seeded value for the whole run regardless of spend. Implementing this task as it was written would have fixed the first call and left the ledger still unable to accumulate. **The ledger half is fixed** (`governor.commit` now refunds `reserved − actual` including when negative, `tests/aether/kernel/test_governor_ledger.py`), which makes the old description true: the denial now lands on the effect *after* the one that broke the cap.
+* **Remaining scope**: move that denial onto the offending call by reserving the priced estimate up front.
 * **Target Files**: `src/aether/workflow/nodes/*` (or `agency/capabilities/inference.py` after TASK-055)
 * **Normative Specs**: [`spec.md` §5](../spec.md#5-execution)
-* **Exit Criteria**: A run seeded below the cost of its first call is denied **at that call**. Also fixes the completion/prompt dimension error.
+* **Exit Criteria**: A run seeded below the cost of its first call is denied **at that call**, not the next one. Negative test required. Also fixes the completion/prompt dimension error (`ArchitectStep` reserves `prompt_tokens` against a completion ceiling).
 
 ### TASK-045: Enforce the Per-Node Budget — **TCB**
 * **Description**: `executor.py:174` reserves the node budget; `executor.py:194` releases it with **no commit**. The declared figure constrains nothing.
@@ -540,19 +512,19 @@ Source: [`PHASE-0-LOCK.md` §4](../PHASE-0-LOCK.md) §1 (Gap G1 resolution). Fun
 
 ### TASK-072: SWE-bench A/A Floor Run (Milestone M4)
 * **Description**: Execute the A/A variance floor on the real SWE-bench manifest to derive suite-specific discordance rates ($p_{01}, p_{10}$) and per-task wall-clock metrics.
-* **Target Files**: `docs/rationale/benchmarks/swebench_noise_floor.md`
+* **Target Files**: `docs/benchmarks/results/swebench_noise_floor.md`
 * **Normative Specs**: [`measurement.md` §3](../measurement.md#3-the-aa-variance-floor), [ADR-0002](../decisions/0002-no-number-before-the-floor.md)
 * **Exit Criteria**: Discordance rates and N per gate family derived specifically for SWE-bench repositories and test runners; instrument tuple recorded.
 
 ### TASK-073: Paired Lift Run (Bare-Model vs AETHER) (Milestone M4)
 * **Description**: Paired evaluation run comparing the bare-model baseline against AETHER on the pinned SWE-bench manifest under identical model endpoints and seeds.
-* **Target Files**: `src/aether/measurement/runner.py`, `docs/rationale/benchmarks/swebench_lift_report.md`
+* **Target Files**: `src/aether/measurement/runner.py`, `docs/benchmarks/results/swebench_lift_report.md`
 * **Normative Specs**: [`measurement.md` §4](../measurement.md#4-target-benchmarks-and-required-lift), [ADR-0003 rev. 2](../decisions/0003-statistical-admission-protocol.md)
 * **Exit Criteria**: McNemar $p$-value and Holm–Bonferroni adjusted significance calculated by `TASK-012`; pre-registered lift target ($\ge +10$ points) evaluated.
 
 ### TASK-074: Publication Run on SEALED (Milestone M4)
 * **Description**: Execute the final publication evaluation run on the SEALED split, strictly adhering to all seven conditions of `measurement.md` §6.
-* **Target Files**: `docs/rationale/benchmarks/publication_sealed_report.md`
+* **Target Files**: `docs/benchmarks/results/publication_sealed_report.md`
 * **Normative Specs**: [`measurement.md` §6](../measurement.md#6-what-a-claim-needs-before-it-is-published)
 * **Exit Criteria**: All 7 publication criteria satisfied: manifest hash, model fingerprint, topology hash, container digests, lockfile hash, seed, and derived N power requirements met.
 
@@ -571,6 +543,74 @@ Source: [`PHASE-0-LOCK.md` §4](../PHASE-0-LOCK.md) §1 (Gap G1 resolution). Fun
 ---
 
 
+
+## Epic 8: Instrument Integrity (2026-08-07 forensic audit)
+
+Source: the forensic audit of `src/aether/` recorded in `aether_tech_lead_review_v320.md`.
+**F1–F7 and F11 are already fixed** — see [`STATUS.md`](../STATUS.md) "Instrument-integrity
+fixes", where each carries the negative test that fails against the pre-fix code. What remains
+here is the work those fixes exposed rather than closed.
+
+The sequencing argument is the one the roadmap already makes for B4: *a floor taken over an
+instrument that mislabels its own failures characterises the variance of the wrong measurement,
+and every derived N inherits it.*
+
+### TASK-076: Rebuild the pinned floor manifest with problem statements — **blocks the floor**
+* **Description**: `TaskCandidate.problem_statement` now exists and `build_manifest` refuses to admit a task without one, but `benchmarks/manifests/internal-floor-01.yaml` was pinned before the field existed. It is TCB data and [L15](../PHASE-0-LOCK.md) forbids editing it, so it must be **rebuilt** — a new hash, re-screened bidirectionally through the container.
+* **Target Files**: `benchmarks/manifests/`, `scripts/build_floor_manifest.py` (already emits per-task issue text)
+* **Normative Specs**: [`measurement.md` §4.1](../measurement.md#41-the-baseline-is-part-of-the-instrument), [`measurement.md` §4.3](../measurement.md#43-contamination-and-task-validity)
+* **Exit Criteria**: A new manifest id and hash, every task carrying non-empty issue text, every task re-screened (gold passes, empty fails) through the container. `STATUS.md` and `PHASE-0-LOCK.md` §3 quote the new hash. **Until this lands `run_aa_floor.py` records every task as `NONE`**, which is correct and is why it blocks.
+* **Why it matters**: without it the floor measures a harness that was never told what to do.
+
+### TASK-077: Extend the instrument-error mapping past `provider_error`
+* **Description**: F2 mapped a failed completion to `GateStatus.NONE`. Two neighbouring cases are deliberately **not** mapped and need a decision, not a default. (a) `max_tokens`: a truncated completion is arguably a harness-configuration failure, but calling it `NONE` shrinks the denominator and *inflates* the resolve rate — the opposite error and the worse one. (b) An adapter that returns `provider_error` after partial text: today the partial text is discarded.
+* **Target Files**: `src/aether/workflow/nodes/apply.py`, `src/aether/adapters/model_provider/openai_compatible.py`
+* **Normative Specs**: [`measurement.md` §2 (B4)](../measurement.md#2-instrument-blockers), [`measurement.md` §5](../measurement.md#5-gate-design)
+* **Exit Criteria**: A written rule for each case with the direction of its bias stated, plus the instrument-error rate reported per arm as §4.1 requires. **A default chosen silently here moves a published number**, so this is a decision with an owner, not a code change.
+
+### TASK-078: Reserve against `seeded − spent − outstanding` — **TCB**
+* **Description**: The ledger now debits reality (F3), so the cap fires — one call late. The remaining structural gap is that `reserve()` reads only `_run_root_remaining` and never `_spent`.
+* **Target Files**: `src/aether/kernel/governor.py`
+* **Exit Criteria**: Deny at the offending call. Merges with `TASK-044`'s remaining scope; land them together. Touches TCB — human review required.
+
+### TASK-079: Emit `EffectDispatched` when an effect raises
+* **Description**: `dispatch.py`'s `except` branch releases the lease and re-raises without emitting. A crashed effect is the one outcome the event stream cannot show, so a trajectory replay shows the run stopping for no recorded reason.
+* **Target Files**: `src/aether/domain/events.py` (add `"error"` to the status literal), `src/aether/kernel/dispatch.py`
+* **Exit Criteria**: Event catalog regenerated and the drift check green. Test asserts the event is emitted and the lease is released.
+
+### TASK-080: Derive `NODE_SOCKETS` from the registry
+* **Description**: F6 added a test tying the hand-written map to the steps' declared types. The duplication is still the defect: `engine.py` states socket names that `workflow/nodes/*` already declare.
+* **Target Files**: `src/aether/engine.py`, `src/aether/workflow/validator.py`
+* **Exit Criteria**: The literal map is deleted and the validator's socket table is derived. Lands with `TASK-057`'s `RoleSpec` catalog, which changes how nodes are built anyway.
+
+### TASK-081: `UNTRUSTED_DERIVED` propagation — **the other half of I11**
+* **Description**: F5 made the policy predicate *reachable* on the tool loop. Two mechanisms are still missing: `spec.md` §5's monotone propagation (*"a completion that consumed any untrusted span produces `untrusted-derived` output"*) exists nowhere, and repo content and gate output are labelled `AGENT` rather than `untrusted-external`.
+* **Target Files**: `src/aether/agency/context/` (after `TASK-054`), `src/aether/domain/taint.py`
+* **Normative Specs**: [ADR-0015](../decisions/0015-taintgate-provenance-model.md), [`spec.md` §5](../spec.md#5-execution)
+* **Exit Criteria**: A label is a property of its `ContextSource`, declared once (`knowledge_and_memory.md` §3.2). Propagation is monotone and tested. **Absorbs `TASK-048`.** Note the consequence `TASK-048` already records: labelling repo content correctly makes `DefaultPolicyEngine` fail closed on *every* shell call, so this lands with `TASK-030a`'s classifier or not at all.
+
+### TASK-082: One measured path
+* **Description**: `run_aa_floor.py` calls `engine.run()` directly; `PairedRunner`/`HarnessUnderTest` is conformance-tested, inside the import lattice, and used by neither floor script. There is no `AetherHarness`, so the rig has one arm and cannot compute lift.
+* **Target Files**: `src/aether/measurement/runner.py`, `scripts/run_aa_floor.py`
+* **Normative Specs**: [`measurement.md` §6](../measurement.md#6-what-a-claim-needs-before-it-is-published)
+* **Exit Criteria**: An `AetherHarness(HarnessUnderTest)` wrapping `engine.run`; both arms go through `PairedRunner`; the second `except Exception → NONE` implementation in the script is deleted. Completes `TASK-015`, which is marked ✅ with this and the OpenHands arm both open.
+
+### TASK-083: Exit-gate tables for M1b–M5
+* **Description**: [`milestones.md`](milestones.md) stops at M1a++R. Five of eight milestones exist only as tripwire rows in [`roadmap.md`](roadmap.md). Under [ADR-0009](../decisions/0009-gates-are-the-schedule.md) *exit gates decide when a phase completes* — so as written, five milestones cannot complete.
+* **Target Files**: `docs/agile/milestones.md`
+* **Exit Criteria**: Every milestone through M5 has falsifiable exit gates, each naming the test or mechanical check that proves it, and each with a way to fail. M6 is either given gates or removed from `architecture/README.md` and `PHASE-0-LOCK.md` §4, which reference it while no plan defines it.
+
+### TASK-084: Resolve `docs/overview/`
+* **Description**: Six files re-stating `spec.md`, `measurement.md`, the ADRs and the backlog — an undeclared seventh folder and the duplication [`README.md`](../README.md) forbids. Already drifted: it cites `docs/development/`, `docs/fixes/` and `docs/future_improvements/` (none exist) and covers ADRs 0001–0018 of 21. Quarantined 2026-08-07 as `status: historical` + `retrieval: excluded` with a banner, which is a holding position, not a decision.
+* **Exit Criteria**: One of — deleted, or **generated** with a drift check the way `architecture/generated/aether_event_catalog.md` is. **Not maintained by hand.** A hand-written second copy is what this rule exists to prevent.
+
+### TASK-085: The link gate should see backticked repo paths
+* **Description**: `check_links.py` resolves markdown links only, so a path in backticks is invisible to it. The `development/ → architecture/` and `rationale/ → benchmarks/results/` renames left **14 dangling backticked paths** the gate could not see — including [ADR-0002](../decisions/0002-no-number-before-the-floor.md)'s reversal condition, `PHASE-0-LOCK.md` §7's Phase 1 exit condition, and the Sprint 4 dev prompt's instruction for where to write the floor result. A fifteenth broke the event-catalog gate outright. All are fixed; the gate that would have caught them does not exist.
+* **Target Files**: `scripts/check_links.py`, `tests/unit/test_docs_gates.py`
+* **Normative Specs**: [`measurement.md` §5](../measurement.md#5-gate-design) — *a gate keyed to a path must select something*
+* **Exit Criteria**: Backticked strings matching `^(docs|src|scripts|tests|benchmarks|workflows)/` are resolved and fail the gate when missing. **Negative test required.** Same argument as `tests/unit/test_path_constant_drift.py` makes for import contracts: a rule enforced by discipline is a wish.
+
+---
 
 ## Gate coverage map
 

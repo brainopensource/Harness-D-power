@@ -68,7 +68,7 @@ updated: 2026-08-07
 * **Why it blocks the floor**: a hung tool call runs to the evaluation timeout, returns `GateStatus.NONE`, and `NONE` is excluded from the resolve-rate denominator. An interactive prompt nobody answers therefore shrinks N **non-randomly** — repositories that prompt get systematically dropped — and it is invisible in the aggregate. That is a selection effect entering the sample through a subprocess default.
 
 ### Task 5: Run the A/A Variance Floor — **the sprint's reason to exist**
-* **Target Seam**: `docs/rationale/benchmarks/noise-floor.md`
+* **Target Seam**: `docs/benchmarks/results/noise-floor.md`
 * **Specification Pointer**: [`measurement.md` §3](../../measurement.md#3-the-aa-variance-floor), [ADR-0002](../../decisions/0002-no-number-before-the-floor.md)
 * **Acceptance Criteria**:
   1. **Blocking preconditions**: Tasks 1 and 2 closed, and the B3 canary executes **in the floor environment** with a deliberately broken candidate failing there. If it passes, the floor is blocked on B3 regardless of anything else in this plan.

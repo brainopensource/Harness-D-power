@@ -1,9 +1,27 @@
 ---
-status: rationale
+status: historical
+retrieval: excluded
 updated: 2026-08-07
+superseded: 2026-08-07
 ---
 
 # AETHER Full Documentation — Part 1: Core Architecture, Invariants & System Status
+
+> [!WARNING]
+> **Stale snapshot. Not authoritative, and not maintained.**
+>
+> This folder is a hand-written re-rendering of documents that already have an
+> authoritative home, which `README.md` names as the one thing this tree forbids:
+> *"if you find the same thing stated in two places, the second one is the bug."*
+> It has already drifted — it cites `docs/development/`, `docs/fixes/` and
+> `docs/future_improvements/`, none of which exist, and Part 2 covers only ADRs
+> 0001–0018 of 21.
+>
+> For anything binding read [`spec.md`](../spec.md), [`measurement.md`](../measurement.md),
+> [`PHASE-0-LOCK.md`](../PHASE-0-LOCK.md), [`decisions/`](../decisions/README.md) and
+> [`STATUS.md`](../STATUS.md). Tagged `retrieval: excluded` so no retrieval surfaces it
+> and the link gate does not check it; see `TASK-084`.
+
 
 > **Original Source Documents:** [`AGENTS.md`](../../AGENTS.md), [`docs/spec.md`](../spec.md), [`docs/vision.md`](../vision.md), [`docs/STATUS.md`](../STATUS.md), [`docs/README.md`](../README.md), [`docs/development/core_skeletons_and_protocols.md`](../development/core_skeletons_and_protocols.md), [`docs/development/schemas_and_contracts.md`](../development/schemas_and_contracts.md), [`docs/development/system_workflows_and_diagrams.md`](../development/system_workflows_and_diagrams.md), [`docs/development/tech_stack_and_infra.md`](../development/tech_stack_and_infra.md), [`docs/development/generated/aether_event_catalog.md`](../development/generated/aether_event_catalog.md), [`docs/concepts/rewrite_v300_project_vision.md`](../concepts/rewrite_v300_project_vision.md), [`docs/concepts/rewrite_v300_context.md`](../concepts/rewrite_v300_context.md), and [`docs/workflows/`](../workflows/).
 

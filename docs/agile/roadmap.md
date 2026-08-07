@@ -65,7 +65,7 @@ graph TD
 | **Milestone M1a** | Walking Skeleton (4-Node Linear DAG) | [ADR-0013](../decisions/0013-workflow-dag-phased.md), [ADR-0014](../decisions/0014-workflow-topology-is-data.md), [ADR-0001](../decisions/0001-python-first-compiled-on-trigger.md) | M0, B1, B2b | 5 Days |
 | **Milestone M1a+** | Bounded Repair Edge | [ADR-0013](../decisions/0013-workflow-dag-phased.md) (rev. 2) | M1a | 3 Days |
 | **Milestone M1a++** | Inner Loop Context Lift (Auto-discovery, Repair Context Re-reading, Test assertion prompt injection) | [Sprint 3.5 Rationale](sprints/sprint-03.5.md), [ADR-0010](../decisions/0010-context-prefix-layers.md), [ADR-0014](../decisions/0014-workflow-topology-is-data.md) | M1a+ | **Code complete; gate open** — see M1a++R |
-| **Milestone M1a++R** | **Instrument Restoration.** I7 enforcement (`tests_unmodified`), the `.py`-token inferrer removed, test-source injection demoted to a named ablation arm, CI green at step one | [`measurement.md` §2](../measurement.md#2-instrument-blockers), [`measurement.md` §4.1](../measurement.md#41-the-baseline-is-part-of-the-instrument), [`spec.md` §2 (I7)](../spec.md#2-invariants) | M1a++ | 3 Days |
+| **Milestone M1a++R** | **Instrument Restoration.** I7 enforcement (`tests_unmodified`), the `.py`-token inferrer removed, test-source injection demoted to a named ablation arm, **the floor manifest rebuilt with problem statements (`TASK-076`)**, CI green at step one | [`measurement.md` §2](../measurement.md#2-instrument-blockers), [`measurement.md` §4.1](../measurement.md#41-the-baseline-is-part-of-the-instrument), [`spec.md` §2 (I7)](../spec.md#2-invariants) | M1a++ | 3 Days → **4 Days** |
 | **A/A Noise Floor** | Statistical Variance Baseline; **derives N for every later family** | [`measurement.md` §3](../measurement.md#3-the-aa-variance-floor), [ADR-0002](../decisions/0002-no-number-before-the-floor.md), [ADR-0003](../decisions/0003-statistical-admission-protocol.md) | B1, B2b, **B4**, B3 canary, **M1a++R** | 3 Days |
 | **Milestone M1b** | **Capability & Composition Layer.** `agency/` created, capability protocols, `ModelNode` + `RoleSpec`, `RunConfig`. Runs in parallel with the floor — it is refactoring, not measurement | [ADR-0005](../decisions/0005-eight-ports-adapter-first.md), [ADR-0014](../decisions/0014-workflow-topology-is-data.md), ADR-0018 (lattice), [`spec.md` §3](../spec.md#3-structure) | M1a++R | 8 Days |
 | **Milestone M2-eng** | Per-Node Memoization | [ADR-0013](../decisions/0013-workflow-dag-phased.md) | M1a+, A/A Floor | 5 Days |
@@ -87,6 +87,17 @@ pre-registered baseline (*"no retrieval beyond benchmark-provided context"*). A 
 that instrument characterises the variance of the wrong measurement, and every derived N inherits
 it. This is the same class of defect as B3 and B4 and it is sequenced the same way: **before the
 floor, not after.**
+
+**Amended 2026-08-07 by the forensic audit** ([Epic 8](backlog.md#epic-8-instrument-integrity-2026-08-07-forensic-audit)).
+Two more defects of the same class were found, and one of them is in this gate now. **The harness
+had never been shown a problem statement**: `TaskCandidate` had no field for the issue text, so
+`runner.py` posed the bare `instance_id` to the pre-registered baseline and this script handed one
+hard-coded sentence to every task in the manifest. The field exists now and a manifest cannot be
+built without it, but `internal-floor-01` predates it and is TCB data, so it must be **rebuilt**
+before it can carry a run (`TASK-076`). Separately, a model-provider failure was scored as a task
+`FAILED` rather than `NONE` — B4 built for the evaluator and never for the provider — which is
+fixed. Both would have polluted the floor in the direction that is hardest to detect afterwards:
+they make a working harness look uniformly bad.
 
 **Why M1b sits between the floor and M2, and may start in parallel.** M1b is a refactor: it
 creates `agency/`, extracts the capability protocols, and collapses the duplicated node classes

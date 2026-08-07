@@ -1,11 +1,29 @@
 ---
-status: rationale
+status: historical
+retrieval: excluded
 updated: 2026-08-07
+superseded: 2026-08-07
 ---
 
 # AETHER Full Documentation — Part 5: Measurement Doctrine, Benchmarks & Statistical Protocols
 
-> **Original Source Documents:** [`docs/measurement.md`](../measurement.md), [`docs/rationale/benchmarks/noise-floor.md`](../rationale/benchmarks/noise-floor.md), [`docs/rationale/benchmarks/performance_timers.md`](../rationale/benchmarks/performance_timers.md), [`docs/rationale/benchmarks/README.md`](../rationale/benchmarks/README.md), [`docs/benchmarks/swe_pro_sample.md`](../benchmarks/swe_pro_sample.md), [`docs/benchmarks/swe_verified_sample.md`](../benchmarks/swe_verified_sample.md), [`docs/benchmarks/README.md`](../benchmarks/README.md), and [`docs/fixes/proposal_agile_benchmarkings_refinement.md`](../fixes/proposal_agile_benchmarkings_refinement.md).
+> [!WARNING]
+> **Stale snapshot. Not authoritative, and not maintained.**
+>
+> This folder is a hand-written re-rendering of documents that already have an
+> authoritative home, which `README.md` names as the one thing this tree forbids:
+> *"if you find the same thing stated in two places, the second one is the bug."*
+> It has already drifted — it cites `docs/development/`, `docs/fixes/` and
+> `docs/future_improvements/`, none of which exist, and Part 2 covers only ADRs
+> 0001–0018 of 21.
+>
+> For anything binding read [`spec.md`](../spec.md), [`measurement.md`](../measurement.md),
+> [`PHASE-0-LOCK.md`](../PHASE-0-LOCK.md), [`decisions/`](../decisions/README.md) and
+> [`STATUS.md`](../STATUS.md). Tagged `retrieval: excluded` so no retrieval surfaces it
+> and the link gate does not check it; see `TASK-084`.
+
+
+> **Original Source Documents:** [`docs/measurement.md`](../measurement.md), [`docs/benchmarks/results/noise-floor.md`](../benchmarks/results/noise-floor.md), [`docs/benchmarks/results/performance_timers.md`](../benchmarks/results/performance_timers.md), [`docs/benchmarks/results/README.md`](../benchmarks/results/README.md), [`docs/benchmarks/swe_pro_sample.md`](../benchmarks/swe_pro_sample.md), [`docs/benchmarks/swe_verified_sample.md`](../benchmarks/swe_verified_sample.md), [`docs/benchmarks/README.md`](../benchmarks/README.md), and [`docs/fixes/proposal_agile_benchmarkings_refinement.md`](../fixes/proposal_agile_benchmarkings_refinement.md).
 
 ---
 
@@ -139,7 +157,7 @@ Tasks are excluded during bidirectional canary screening (`TASK-014`) if:
 
 ## 7. Measured Performance Timers (F1 Fork)
 
-As published in [`docs/rationale/benchmarks/performance_timers.md`](../rationale/benchmarks/performance_timers.md):
+As published in [`docs/benchmarks/results/performance_timers.md`](../benchmarks/results/performance_timers.md):
 
 * **Worktree Creation Timer**: Measured at **12.4ms – 18.1ms** per worktree (well below the 100ms F1 threshold in ADR-0001).
 * **AST Parse-and-Validate Timer**: Measured at **34.2ms – 48.6ms** per file (well below the 200ms F1 threshold in ADR-0001).

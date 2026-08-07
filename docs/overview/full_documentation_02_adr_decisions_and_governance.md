@@ -1,9 +1,27 @@
 ---
-status: rationale
+status: historical
+retrieval: excluded
 updated: 2026-08-07
+superseded: 2026-08-07
 ---
 
 # AETHER Full Documentation — Part 2: Architectural Decisions & System Governance (ADRs 0001–0018)
+
+> [!WARNING]
+> **Stale snapshot. Not authoritative, and not maintained.**
+>
+> This folder is a hand-written re-rendering of documents that already have an
+> authoritative home, which `README.md` names as the one thing this tree forbids:
+> *"if you find the same thing stated in two places, the second one is the bug."*
+> It has already drifted — it cites `docs/development/`, `docs/fixes/` and
+> `docs/future_improvements/`, none of which exist, and Part 2 covers only ADRs
+> 0001–0018 of 21.
+>
+> For anything binding read [`spec.md`](../spec.md), [`measurement.md`](../measurement.md),
+> [`PHASE-0-LOCK.md`](../PHASE-0-LOCK.md), [`decisions/`](../decisions/README.md) and
+> [`STATUS.md`](../STATUS.md). Tagged `retrieval: excluded` so no retrieval surfaces it
+> and the link gate does not check it; see `TASK-084`.
+
 
 > **Original Source Documents:** [`docs/decisions/README.md`](../decisions/README.md) and [`docs/decisions/0001-python-first-compiled-on-trigger.md`](../decisions/0001-python-first-compiled-on-trigger.md) through [`0018-agency-below-workflow.md`](../decisions/0018-agency-below-workflow.md), [`docs/concepts/rewrite_v300_decision_record.md`](../concepts/rewrite_v300_decision_record.md), and [`docs/concepts/rewrite_v300_decision_brief.md`](../concepts/rewrite_v300_decision_brief.md).
 

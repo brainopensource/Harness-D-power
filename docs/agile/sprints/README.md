@@ -49,7 +49,7 @@ Writing `sprint-06.md` today is not planning. It is a forecast wearing a task li
 that changed measurement semantics, and it is the one with no plan document — which is how its
 instrument debt went unrecorded until an audit found it. The debt is Sprint 4's Tasks 1–3.
 
-**Sprint-03 is the one that matters.** Until its floor run lands a real number in [`docs/rationale/benchmarks/noise-floor.md`](../../benchmarks/results/noise-floor.md), [ADR-0002](../../decisions/0002-no-number-before-the-floor.md) means the project publishes **no capability number at all**. Everything before it is instrument construction; everything after it is measurable.
+**Sprint-03 is the one that matters.** Until its floor run lands a real number in [`docs/benchmarks/results/noise-floor.md`](../../benchmarks/results/noise-floor.md), [ADR-0002](../../decisions/0002-no-number-before-the-floor.md) means the project publishes **no capability number at all**. Everything before it is instrument construction; everything after it is measurable.
 
 ---
 

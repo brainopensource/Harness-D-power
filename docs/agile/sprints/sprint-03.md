@@ -56,7 +56,7 @@ updated: 2026-08-06
   4. `HarnessUnderTest` seam exists with the bare-model arm implemented. OpenHands as a second arm is *not* in this sprint.
 
 ### Task 5: Run the A/A Variance Floor — **the sprint's reason to exist**
-* **Target Seam**: `docs/rationale/benchmarks/noise-floor.md`
+* **Target Seam**: `docs/benchmarks/results/noise-floor.md`
 * **Specification Pointer**: [`measurement.md` §3](../../measurement.md#3-the-aa-variance-floor), [ADR-0002](../../decisions/0002-no-number-before-the-floor.md)
 * **Acceptance Criteria**:
   1. **Precondition, blocking**: Task 1's B3 canary executes **in the floor environment** and a deliberately broken candidate fails there. If it passes, the floor is blocked regardless of anything else in this plan.

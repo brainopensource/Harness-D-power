@@ -19,13 +19,14 @@ requires breaking something here, that is a signal to write an ADR, not to proce
 
 | # | Locked | Enforced by |
 | :--- | :--- | :--- |
-| **L1** | The import lattice `engine > workflow > agency > measurement > kernel > adapters > ports > domain` | `.importlinter`, 9 contracts, 0 broken |
-| **L2** | Invariants **I1–I11** as stated in [`spec.md`](./spec.md) §2 | Per-invariant mechanisms; three have known gaps — §4 |
+| **L1** | The import lattice `engine > (agency \| workflow) > measurement > kernel > adapters > ports > domain` | `.importlinter`, 10 contracts, 0 broken (4 AETHER + 5 retiring `sagiha` + 1 new) |
+| **L1 note** | `agency` and `workflow` are **siblings**. Revisions before 2026-08-07 stated `workflow > agency` — that is [ADR-0018](./decisions/0018-agency-below-workflow.md)'s *proposed* lattice, not the enforced one, and a lock stating an unenforced constraint is the failure mode the lock exists to prevent. Becomes true when ADR-0018 ratifies with `TASK-053` | ADR-0018 (**Proposed**) |
+| **L2** | Invariants **I1–I11** as stated in [`spec.md`](./spec.md) §2 | Per-invariant mechanisms; **four** have known gaps (I7, I9, I10, I11) — §4 |
 | **L3** | **Eight port areas, nine protocols.** A port arrives with its first adapter | ADR-0005 rev. 2; conformance meta-suite |
 | **L4** | Ports are **wire-serializable**: every method `async`, no `Path`/handle/callable/generator/live object | Reflection contract over all ports (I3) |
 | **L5** | **One dispatch choke point.** `authorize → verify grant → acquire lease → dispatch → release`, verified at effect time | `kernel/dispatch.py`; architecture test proves no bypass |
 | **L6** | **TCB residency**: `PolicyEngine` in `kernel/`, `Evaluator` in `measurement/`, never `adapters/` | `tcb-isolation`; residency is what makes the contract select them |
-| **L7** | **Topologies are data**, node implementations are code | ADR-0014; validator + 5 static checks, no `--force` |
+| **L7** | **Topologies are data**, node implementations are code | ADR-0014; validator + 5 static checks, no `--force`; `aether-workflow-tcb-isolation` selects the validator and executor |
 | **L8** | The DAG stays **acyclic**; every loop is **statically bounded** | ADR-0013; `check_bounded_iteration`, bound ∈ [1,16] |
 | **L9** | **Python 3.13, monoglot.** Compiled sidecars per component on a measured trigger, never speculatively | ADR-0001; F1 timers published |
 | **L10** | **Explicit wiring, no DI container, no runtime registration** | `spec.md` §3; I6 composition test |
@@ -54,10 +55,10 @@ Verified by command, not memory. See [`STATUS.md`](./STATUS.md) for the full tab
 | Walking skeleton `retrieve → generate → apply → evaluate` | Runs end to end from a validated topology |
 | Bounded repair edge, statically unrolled | `NONE` never routes into repair; per-iteration budget |
 | Evaluation container + B3 canary | 7/7 green, including two negative tests |
-| Pinned manifest `internal-floor-01` | `sha256:7c2c2467…`, 84 tasks, bidirectionally screened |
+| Pinned manifest `internal-floor-01` | `sha256:7c2c2467…`, 84 tasks, bidirectionally screened. **Predates `problem_statement` (§4) — must be rebuilt before it carries a measured run** |
 | Statistics engine | Verbatim port green; derived-N reproduces ADR-0003's table in 12/12 cells |
 | Edit-format seam, node registry by kind | 7 topologies validate |
-| `pyright` · `lint-imports` · tests | 0 errors · 9/9 contracts · 384 tests |
+| `pyright` · `lint-imports` · tests | 0 errors · 10/10 contracts · 402 tests |
 
 ## 4. Locked as **known gaps** — recorded, not hidden
 
@@ -67,6 +68,9 @@ may be quietly rediscovered as a surprise.
 | Gap | Reality | Closed by |
 | :--- | :--- | :--- |
 | **I7 unenforced** | `grep -rn "tests_unmodified" src/aether/` → nothing | `TASK-049`, Sprint 4 — **blocks the floor** |
+| **I10 unenforced** | `spec.md` §2 names a CI floor on byte-identical-prefix rate. No assembler, no declared breakpoints, no such job — one frozen `system` message is the whole of L1. **Added 2026-08-07: three of eleven invariants are enforced by nothing and only two were on this list** | `TASK-056` |
+| **No problem statement** | `TaskCandidate` had no issue-text field; `runner.py` substituted the `instance_id`, so the baseline was posed `django__django-11099`. **Fixed 2026-08-07**; the consequence is that `internal-floor-01` predates the field and must be rebuilt | `TASK-076`, rebuild — **blocks the floor** |
+| **The rig has one arm** | `PairedRunner` is used by neither floor script and has no AETHER arm, so it cannot compute lift. `run_aa_floor.py` calls `engine.run()` directly | `TASK-083` |
 | **Baseline contaminated** | `run_local_check.py` injects `run_tests.py` into the prompt | `TASK-049b`, Sprint 4 — **blocks the floor** |
 | **I9 unenforced** | `spec.md` claims type-level `rank()`/`admit()` separation; neither exists | `TASK-067`, M3 — built with the first ranker |
 | **I11 not enforced on the model path** | The predicate is correct; nothing there produces untrusted spans, and repo content is labelled `AGENT` so the tool loop works | `TASK-030a`/`030b` |
@@ -93,7 +97,7 @@ misled.
 - **Code wins.** When a document and `src/aether/ports/` disagree, the document is the bug.
 - **A proposal is transient.** Ratified ⇒ it becomes an ADR plus backlog tasks, and the proposal
   is deleted. `proposals/` holds only what is still undecided.
-- **19 ADRs ratified**, each with a reversal condition. ADR-0018 is Proposed and ratifies at
+- **21 ADRs, 20 ratified**, each with a reversal condition. ADR-0018 is Proposed and ratifies at
   Sprint 5 Task 1.
 
 ## 6. What Phase 1 may change without an ADR
@@ -115,7 +119,7 @@ break an adapter, the TCB boundary, the admission protocol, or anything in §1�
 
 Phase 1 is **Sprint 4 → Sprint 5** ([`roadmap.md`](./agile/roadmap.md) M1a++R → A/A floor → M1b).
 Its entry condition is this file. Its exit condition is a real number in
-`rationale/benchmarks/noise-floor.md` and `agency/` existing with the lattice still 9/9.
+`benchmarks/results/noise-floor.md` and `agency/` existing with the lattice still 9/9.
 
 Read next: [`vision.md`](./vision.md) → [`spec.md`](./spec.md) →
 [`agile/sprints/sprint-04-dev-prompt.md`](./agile/sprints/sprint-04-dev-prompt.md).

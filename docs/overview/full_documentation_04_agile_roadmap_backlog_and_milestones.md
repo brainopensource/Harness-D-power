@@ -1,9 +1,27 @@
 ---
-status: rationale
+status: historical
+retrieval: excluded
 updated: 2026-08-07
+superseded: 2026-08-07
 ---
 
 # AETHER Full Documentation — Part 4: Agile Execution Roadmap, Backlog & Milestones
+
+> [!WARNING]
+> **Stale snapshot. Not authoritative, and not maintained.**
+>
+> This folder is a hand-written re-rendering of documents that already have an
+> authoritative home, which `README.md` names as the one thing this tree forbids:
+> *"if you find the same thing stated in two places, the second one is the bug."*
+> It has already drifted — it cites `docs/development/`, `docs/fixes/` and
+> `docs/future_improvements/`, none of which exist, and Part 2 covers only ADRs
+> 0001–0018 of 21.
+>
+> For anything binding read [`spec.md`](../spec.md), [`measurement.md`](../measurement.md),
+> [`PHASE-0-LOCK.md`](../PHASE-0-LOCK.md), [`decisions/`](../decisions/README.md) and
+> [`STATUS.md`](../STATUS.md). Tagged `retrieval: excluded` so no retrieval surfaces it
+> and the link gate does not check it; see `TASK-084`.
+
 
 > **Original Source Documents:** [`docs/agile/roadmap.md`](../agile/roadmap.md), [`docs/agile/backlog.md`](../agile/backlog.md), [`docs/agile/milestones.md`](../agile/milestones.md), [`docs/agile/coverage_audit.md`](../agile/coverage_audit.md), [`docs/agile/sprints/README.md`](../agile/sprints/README.md), [`docs/agile/sprints/sprint-01.md`](../agile/sprints/sprint-01.md) through [`sprint-05.md`](../agile/sprints/sprint-05.md), [`docs/agile/sprints/sprint-03-dev-prompt.md`](../agile/sprints/sprint-03-dev-prompt.md), and [`docs/agile/sprints/sprint-04-dev-prompt.md`](../agile/sprints/sprint-04-dev-prompt.md).
 

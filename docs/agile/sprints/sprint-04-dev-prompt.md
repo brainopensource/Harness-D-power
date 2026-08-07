@@ -35,7 +35,7 @@ could object.
 
 **This sprint pays that debt and then takes the A/A variance floor** — the run
 [`sprint-03.md`](./sprint-03.md) scoped as its Task 5 and deferred by decision. Until the
-floor lands a real number in `docs/rationale/benchmarks/noise-floor.md`,
+floor lands a real number in `docs/benchmarks/results/noise-floor.md`,
 [ADR-0002](../../decisions/0002-no-number-before-the-floor.md) means this project publishes
 **no capability number at all**, no admission run can be sized, and M2-abl stays unsized.
 
@@ -541,7 +541,7 @@ money.** Confirm the budget ceiling before starting.
 | **Full instrument tuple** | manifest hash · split · model fingerprint · topology hash · container digests · lockfile hash · seed (`measurement.md` §6) |
 | **Instrument-error rate** | `NONE` outcomes reported separately, never folded into the denominator |
 
-Write up at `docs/rationale/benchmarks/noise-floor.md`, replacing its "not yet taken"
+Write up at `docs/benchmarks/results/noise-floor.md`, replacing its "not yet taken"
 content, with the same honesty discipline as `performance_timers.md`.
 
 **A wide floor is a measurement, not a failure.** It changes N; it does not invalidate the
@@ -608,7 +608,7 @@ Beyond the standing Sprint 1–3 DoD:
 - [ ] `noise-floor.md` contains p₀₁/p₁₀, per-task wall-clock, and the full instrument tuple.
 - [ ] `STATUS.md` and `sprint-04.md`'s gate table updated with **pasted real output** — no
       claim without a command behind it.
-- [ ] `docs/rationale/benchmarks/` write-ups carry hardware and method.
+- [ ] `docs/benchmarks/results/` write-ups carry hardware and method.
 
 ```bash
 # Full verification block. No `python` on PATH in this environment — always `uv run`.

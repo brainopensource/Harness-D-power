@@ -64,7 +64,7 @@ updated: 2026-08-07
 * **Specification Pointer**: [ADR-0001](../../decisions/0001-python-first-compiled-on-trigger.md), [ADR-0011](../../decisions/0011-no-lsp-adapter.md)
 * **Acceptance Criteria**:
   1. Worktree creation (over Task 2) and AST parse-and-validate (over tree-sitter) timed, **with hardware and method recorded alongside the numbers**.
-  2. Published to [`docs/rationale/benchmarks/performance_timers.md`](../../benchmarks/results/performance_timers.md).
+  2. Published to [`docs/benchmarks/results/performance_timers.md`](../../benchmarks/results/performance_timers.md).
   3. Compared against RT-1 / RT-2 / RT-3. **A trigger nobody has instrumented cannot fire** — this task is what makes those three thresholds real.
 * **Why it is here and not in Sprint-01**: it wraps Task 2's adapter and a tree-sitter indexer, neither of which exists at M0. [ADR-0001](../../decisions/0001-python-first-compiled-on-trigger.md)'s *"first working slice"* is M1a.
 * **Note**: these two numbers can reverse [ADR-0001](../../decisions/0001-python-first-compiled-on-trigger.md) directly. **A result of "no bottleneck" is a real result** and is recorded as such — it settles F1 just as firmly as a threshold crossing would.

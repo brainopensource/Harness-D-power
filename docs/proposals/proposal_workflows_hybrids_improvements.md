@@ -273,7 +273,7 @@ Sprint 3.5 report published a resolve-rate table before the floor, and
 [`STATUS.md`](../STATUS.md) says in the same tree on the same date that the floor is not taken
 and benchmark results are none. This proposal is bound by the same rule, so the sequence is:
 
-1. **DEV-split smoke only** until `docs/rationale/benchmarks/noise-floor.md` holds a real
+1. **DEV-split smoke only** until `docs/benchmarks/results/noise-floor.md` holds a real
    number. `run_local_check.py:180` already prints the correct disclaimer —
    *"Not a benchmark: N is tiny, no family declared, nothing published"* — and it should be
    honoured by whatever reports the results, not just by the script that emits them.

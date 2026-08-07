@@ -21,7 +21,9 @@ The system relies on a **thin, minimalist, highly decoupled core** built on:
 
 ---
 
-## 2. Core Directives — Eliminate Superficiality, Drive AGI Systems Excellence
+## 2. Core Directives — Read BOTH Docs and Code (Partially Implemented State)
+
+> **CRITICAL CONTEXT**: The codebase is **partially implemented** (Phase 0 / Sprints 1, 2, 3, and 3.5 are 100% complete in `src/aether/`). Future milestones (M2 through M5) are specified and planned in `docs/` and `docs/overview/`. Therefore, you MUST read **BOTH `docs/` AND `src/aether/` AND reference models in `src/`**.
 
 ### Directive 1: Zero Code and Zero Documentation Mutations
 * **DO NOT EDIT OR MUTATE ANY EXISTING CODE OR EXISTING DOC FILES.**
@@ -42,14 +44,14 @@ The system relies on a **thin, minimalist, highly decoupled core** built on:
 
 ---
 
-## 3. Mandatory Deep Audit Vectors
+## 3. Mandatory Deep Audit Vectors (Docs + Code + Reference Frameworks)
 
 You are directed to conduct a rigorous forensic audit across the codebase, documentation, and reference frameworks:
 
-### Vector A: Forensic Bug & Spec Drift Detection
-- **Code Defects**: Inspect `src/aether/` for hidden TOCTOU race conditions in `kernel/dispatch.py`, uncontained subprocess invocations in `adapters/`, or improper token ceiling calculations.
-- **Spec & Code Drift**: Compare as-built code in `src/aether/` against normative specs (`spec.md`, `measurement.md`) and ratified ADRs (0001–0018). Point out any unrecorded deviations or broken contracts.
-- **Documentation Conflicts**: Identify contradictory concepts, dead links, or duplicate historical drafts across `docs/`.
+### Vector A: Forensic Bug & Spec Drift Detection (Code vs. Docs)
+- **As-Built Code Inspection (`src/aether/`)**: Audit the implemented Phase 0 codebase (Sprints 1–3.5) for hidden TOCTOU race conditions in `kernel/dispatch.py`, uncontained subprocess invocations in `adapters/`, or token calculation flaws.
+- **Spec & Code Drift**: Compare implemented code against normative specs (`spec.md`, `measurement.md`) and ratified ADRs (0001–0018). Point out any unrecorded deviations or broken contracts.
+- **Documentation Alignment**: Audit `docs/` (including `docs/overview/`, `docs/agile/`, and `docs/decisions/`) for roadmap coverage, unmapped tasks, or conflicting concepts.
 
 ### Vector B: Memory, Indexing & Context Engine Audit
 - **5-Layer Prefix Caching**: Verify L1–L5 layer stability and byte-identical prefix caching rates (I10).
@@ -65,7 +67,7 @@ You are directed to conduct a rigorous forensic audit across the codebase, docum
 - **Evolution Engine (`src/aether/evolution/`)**: Review the offline topology self-redesign architecture (ADR-0006, ADR-0014) to ensure machine self-modification cannot rewrite TCB evaluation gates or policy choke points.
 
 ### Vector E: Reference Framework Competitive Benchmarking
-Investigate reference implementations in `src/` to extract SOTA mechanics for AETHER:
+Investigate reference implementations in `src/` to extract SOTA mechanics for AETHER's future milestones:
 - `src/claude_refs/` (Prompt assembly, subagent workflows)
 - `src/kimi_cli/` (Wire-format efficiency, compact context buffers)
 - `src/openhands/` (Cross-harness evaluation mechanics)
@@ -82,7 +84,7 @@ You MUST write your complete, highly technical Tech Lead Audit & Action Plan dir
 
 The report MUST contain:
 1. **Forensic Audit & Bug Findings Table**:
-   - Exact file paths, line numbers, defect severity, and spec drift descriptions.
+   - Exact file paths, line numbers, defect severity, and spec drift descriptions for `src/aether/`.
 2. **Refactored Architecture & Composition Blueprint**:
    - Mermaid DAG diagrams showing reusable atomic nodes, composite subgraphs, and multi-model routing flows.
 3. **Master Roadmap & Backlog Update**:

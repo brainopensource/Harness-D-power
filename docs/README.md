@@ -23,7 +23,7 @@ updated: 2026-08-05
 | [`PHASE-0-LOCK.md`](./PHASE-0-LOCK.md) | **1** | **Normative.** What is settled, what is a known gap, what Phase 1 may and may not change |
 | [`spec.md`](./spec.md) | 2 | **Normative.** Invariants I1–I11, the lattice, the ports, the TCB |
 | [`measurement.md`](./measurement.md) | 2 | **Normative.** Instrument protocol, the A/A floor, gate design |
-| [`decisions/`](decisions/README.md) | 2 | 19 ADRs, each with a reversal condition |
+| [`decisions/`](decisions/README.md) | 2 | **21 ADRs** (20 Accepted, ADR-0018 Proposed), each with a reversal condition |
 | [`STATUS.md`](./STATUS.md) | — | What is *actually* implemented. No claim without pasted command output |
 | [`architecture/`](./architecture/capability_layer.md) | 3 | **What the system is.** Capability layer · task types & verdicts · knowledge & memory · extension contract · self-improvement · skeletons · schemas · diagrams. Deep on purpose |
 | [`architecture/`](architecture/coding_guidelines.md) | 3 | **How you work on it.** Coding guidelines, patterns to adopt and refuse, tech stack |
@@ -36,17 +36,24 @@ updated: 2026-08-05
 ## The shape
 
 Six folders, one purpose each. If a document does not obviously belong to one of them, that is
-a signal it duplicates something.
+a signal it duplicates something — which is exactly what happened to the seventh, `overview/`.
 
 ```
 docs/
 ├── *.md              WHAT IS TRUE — vision · PHASE-0-LOCK · spec · measurement · STATUS
-├── decisions/        WHAT WAS DECIDED, and what reverses it  (22 ADRs)
+├── decisions/        WHAT WAS DECIDED, and what reverses it  (21 ADRs)
 ├── architecture/     HOW THE SYSTEM WORKS  (10 docs, indexed by question)
 ├── agile/            WHAT WE ARE DOING  — roadmap · milestones · backlog · sprints/
 ├── benchmarks/       EVIDENCE — samples in, results/ out
 ├── concepts/         HISTORY — the Phase 0 trail, `retrieval: excluded`
 └── proposals/        UNDECIDED — deleted on ratification (see the lifecycle rule below)
+
+    overview/         QUARANTINED — a hand-written second copy of five of the folders
+                      above, added outside this shape and already drifted. Tagged
+                      `historical` + `retrieval: excluded`; not authoritative, not
+                      maintained, not checked by the link gate. `TASK-084` decides
+                      whether it is deleted or generated. It is listed here because
+                      an undeclared folder is how the duplication rule got broken.
 ```
 
 ## Who owns which fact
@@ -114,7 +121,7 @@ the tree before it was renamed `proposals/`.
 
 > A proposal is a **pre-decision** artifact. When it is ratified its content moves to the two
 > places that bind — an **ADR** with a reversal condition, and **backlog tasks** with exit
-> criteria — plus a reference under `development/` if it carries durable design detail. **Then
+> criteria — plus a reference under `architecture/` if it carries durable design detail. **Then
 > the proposal is deleted.** Git keeps the trail.
 >
 > A proposal older than two sprints is either ratified (delete it) or rejected (delete it).
@@ -122,7 +129,7 @@ the tree before it was renamed `proposals/`.
 
 **Detail is welcome; duplication is not.** This project is complex enough that a junior
 developer should be able to execute a senior-level task from the documents alone, so
-`development/` is deliberately deep — contracts, pseudocode, protocols, guidelines. What is
+`architecture/` is deliberately deep — contracts, pseudocode, protocols, guidelines. What is
 forbidden is stating the same fact twice, because the second copy drifts and nobody knows which
 one is current. See *Who owns which fact* above.
 

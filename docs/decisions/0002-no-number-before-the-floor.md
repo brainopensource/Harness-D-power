@@ -23,7 +23,7 @@ exists.
 ## Decision
 
 - **No capability number is published before the A/A variance floor is.** Until
-  `docs/rationale/benchmarks/noise-floor.md` holds a real number, the project reports no
+  `docs/benchmarks/results/noise-floor.md` holds a real number, the project reports no
   results.
 - **B1 starts now** — the upstream repository cache. Standalone, no AETHER dependency, and
   it unblocks every number.
