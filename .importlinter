@@ -1,5 +1,7 @@
 [importlinter]
-root_package = sagiha
+root_packages =
+    sagiha
+    aether
 # Required whenever any contract forbids an external module (domain-is-pure forbids httpx and
 # sqlite3) — otherwise import-linter refuses to build a graph that could check them.
 include_external_packages = True
@@ -60,3 +62,59 @@ layers =
     sagiha.adapters
     sagiha.ports
     sagiha.domain
+
+# --- AETHER v3.0 (docs/spec.md) — added alongside, not in place of, the sagiha
+# contracts above: sagiha (12,949 LOC) is retiring reference material but is
+# still present and still linted/tested elsewhere in CI (TASK-000). ---
+
+[importlinter:contract:aether-domain-is-pure]
+name = AETHER: domain models have no I/O dependencies (I1)
+type = forbidden
+source_modules = aether.domain
+forbidden_modules =
+    aether.adapters
+    aether.kernel
+    aether.measurement
+    httpx
+    sqlite3
+
+[importlinter:contract:aether-ports-are-pure]
+name = AETHER: ports import nothing internal (I2, I3)
+type = forbidden
+source_modules = aether.ports
+forbidden_modules =
+    aether.adapters
+    aether.kernel
+    aether.agency
+    aether.workflow
+    aether.measurement
+
+[importlinter:contract:aether-tcb-isolation]
+name = AETHER: trusted computing base depends on nothing mutable (I5, I8)
+type = forbidden
+source_modules =
+    aether.kernel.policy
+    aether.kernel.dispatch
+forbidden_modules =
+    aether.agency
+    aether.workflow
+    aether.evolution
+    aether.adapters
+
+[importlinter:contract:aether-layers]
+name = AETHER: full architectural lattice (spec.md §3)
+type = layers
+layers =
+    (aether.engine)
+    (aether.agency) | aether.workflow
+    (aether.measurement)
+    aether.kernel
+    (aether.adapters)
+    aether.ports
+    aether.domain
+# Parenthesized layers are packages not yet built (agency: TASK-030b: adapters:
+# TASK-011/017/018/019/026; measurement: TASK-019; engine.py: TASK-022) —
+# import-linter makes a parenthesized layer optional rather than erroring on a
+# missing module (verified empirically against import-linter 2.13). Each parens
+# pair comes off in the change that lands that package's first real code,
+# mirroring car-layering's own documented precedent for incremental extension.

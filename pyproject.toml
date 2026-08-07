@@ -49,7 +49,7 @@ dev       = [
 sagiha = "sagiha.cli:app"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/sagiha"]
+packages = ["src/sagiha", "src/aether"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -64,10 +64,10 @@ markers = [
 # strict passes on src/sagiha/domain/ and src/sagiha/ports/ with zero suppressions." tests/ is
 # exercised by pytest, not gated on strict typing — dynamic introspection code (walking
 # Protocols via inspect/typing) is inherently hard to type strictly and that is not a defect.
-# Scoped to src/sagiha, not src/: the vendored reference harnesses
+# Scoped to src/sagiha and src/aether, not src/: the vendored reference harnesses
 # (src/claude_code, src/grok_build, src/hermes_agent, src/open_code) are
 # third-party trees and produce ~400k strict errors that drown the signal.
-include = ["src/sagiha"]
+include = ["src/sagiha", "src/aether"]
 typeCheckingMode = "strict"
 pythonVersion = "3.13"
 venvPath = "."
@@ -105,15 +105,20 @@ select = ["E", "F", "I", "UP", "B", "ASYNC"]
 
 [tool.ruff.lint.per-file-ignores]
 "src/sagiha/cli.py" = ["B008"]
+# core_skeletons_and_protocols.md §8 specifies WorkflowStep via classic TypeVar +
+# Generic[In, Out], not PEP 695 type params — kept literal to the skeleton, and
+# because In/Out need to stay importable module-level names for the reflection
+# test (PEP 695 type params are not module attributes).
+"src/aether/workflow/step.py" = ["UP046"]
 
 [tool.mypy]
 python_version = "3.13"
 strict = true
-packages = ["sagiha"]
+packages = ["sagiha", "aether"]
 mypy_path = "src"
 
 [tool.coverage.run]
-source = ["src/sagiha"]
+source = ["src/sagiha", "src/aether"]
 
 [tool.coverage.report]
 # 80% is the project-wide floor. sagiha/kernel/policy and sagiha/domain carry a
