@@ -15,10 +15,19 @@ from __future__ import annotations
 
 import json
 from collections.abc import AsyncIterator
+from typing import Any, Literal
 
 import httpx
 
-from aether.domain.model_io import ModelMessage, ModelRequest, ModelStreamEvent, StopEvent, TextDelta, ToolCallDelta, UsageEvent
+from aether.domain.model_io import (
+    ModelMessage,
+    ModelRequest,
+    ModelStreamEvent,
+    StopEvent,
+    TextDelta,
+    ToolCallDelta,
+    UsageEvent,
+)
 from aether.domain.tools import ToolSpec
 
 
@@ -41,7 +50,9 @@ def _to_openai_tool(tool: ToolSpec) -> dict[str, object]:
     }
 
 
-_FINISH_REASON_MAP: dict[str, str] = {
+_StopReason = Literal["end", "tool_use", "max_tokens", "provider_error"]
+
+_FINISH_REASON_MAP: dict[str, _StopReason] = {
     "stop": "end",
     "tool_calls": "tool_use",
     "function_call": "tool_use",
@@ -104,34 +115,33 @@ class OpenAICompatibleProvider:
                     data = line[len("data:") :].strip()
                     if data == "[DONE]":
                         return
-                    chunk = json.loads(data)
+                    chunk: dict[str, Any] = json.loads(data)
 
-                    usage = chunk.get("usage")
+                    usage: dict[str, Any] | None = chunk.get("usage")
                     if usage:
+                        cached_details: dict[str, Any] = usage.get("prompt_tokens_details") or {}
                         yield UsageEvent(
                             prompt_tokens=usage.get("prompt_tokens", 0) or 0,
                             completion_tokens=usage.get("completion_tokens", 0) or 0,
-                            cached_prompt_tokens=usage.get("prompt_tokens_details", {}).get(
-                                "cached_tokens", 0
-                            )
-                            or 0,
+                            cached_prompt_tokens=cached_details.get("cached_tokens", 0) or 0,
                         )
 
-                    choices = chunk.get("choices") or []
+                    choices: list[dict[str, Any]] = chunk.get("choices") or []
                     if not choices:
                         continue
                     choice = choices[0]
-                    delta = choice.get("delta") or {}
+                    delta: dict[str, Any] = choice.get("delta") or {}
 
                     if delta.get("content"):
                         yield TextDelta(text=delta["content"])
 
-                    for tool_call in delta.get("tool_calls") or []:
-                        idx = tool_call.get("index", 0)
+                    tool_calls: list[dict[str, Any]] = delta.get("tool_calls") or []
+                    for tool_call in tool_calls:
+                        idx: int = tool_call.get("index", 0)
                         buf = tool_call_buffers.setdefault(idx, {"id": None, "name": None})
                         if tool_call.get("id"):
                             buf["id"] = tool_call["id"]
-                        function = tool_call.get("function") or {}
+                        function: dict[str, Any] = tool_call.get("function") or {}
                         if function.get("name"):
                             buf["name"] = function["name"]
                         yield ToolCallDelta(
@@ -140,7 +150,7 @@ class OpenAICompatibleProvider:
                             args_json_fragment=function.get("arguments", "") or "",
                         )
 
-                    finish_reason = choice.get("finish_reason")
+                    finish_reason: str | None = choice.get("finish_reason")
                     if finish_reason:
                         yield StopEvent(reason=_FINISH_REASON_MAP.get(finish_reason, "end"))
                         return

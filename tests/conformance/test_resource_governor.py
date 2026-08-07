@@ -7,12 +7,13 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-from tests.aether.mocks import InMemoryResourceGovernor
 
 from aether.domain.budget import Actuals, BudgetDims
 from aether.domain.ids import RunId
 from aether.kernel.governor import ResourceGovernor
-from aether.ports.resource_governor import ReservationDenied, ResourceGovernor as ResourceGovernorProtocol
+from aether.ports.resource_governor import ReservationDenied
+from aether.ports.resource_governor import ResourceGovernor as ResourceGovernorProtocol
+from tests.aether.mocks import InMemoryResourceGovernor
 
 
 @pytest.mark.parametrize("governor", [InMemoryResourceGovernor(), ResourceGovernor()])

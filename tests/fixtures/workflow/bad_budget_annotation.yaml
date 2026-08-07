@@ -1,0 +1,8 @@
+schema_version: "1.0.0"
+topology_id: bad_budget_annotation
+description: "evaluate node has an empty budget object"
+nodes:
+  - { id: retrieve, kind: retrieve, budget: { wall_clock_ms: 1000 } }
+  - { id: evaluate, kind: evaluate, budget: {} }
+edges:
+  - { from: retrieve, to: evaluate }

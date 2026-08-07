@@ -5,16 +5,16 @@ provider errors are a typed StopEvent reason, never an empty generator."""
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 
 import httpx
 import pytest
 import respx
-from tests.aether.mocks import FakeModelProvider
 
 from aether.adapters.model_provider.openai_compatible import OpenAICompatibleProvider
 from aether.domain.model_io import ModelMessage, ModelRequest, StopEvent, TextDelta
 from aether.domain.taint import Provenance, TaintSpan
-from datetime import UTC, datetime
+from tests.aether.mocks import FakeModelProvider
 
 BASE_URL = "http://localhost:11434/v1"
 

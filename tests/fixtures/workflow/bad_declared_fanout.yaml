@@ -1,0 +1,14 @@
+schema_version: "1.0.0"
+topology_id: bad_declared_fanout
+description: "fan_out references a node id that does not exist"
+nodes:
+  - { id: retrieve, kind: retrieve, budget: { wall_clock_ms: 1000 } }
+  - { id: generate, kind: generate, budget: { wall_clock_ms: 1000 } }
+  - { id: apply,    kind: apply,    budget: { wall_clock_ms: 1000 } }
+  - { id: evaluate, kind: evaluate, budget: { wall_clock_ms: 1000 } }
+edges:
+  - { from: retrieve, to: generate }
+  - { from: generate, to: apply }
+  - { from: apply,    to: evaluate }
+fan_out:
+  - { node: does_not_exist, n: 3, cache_sequencing: warm_first_then_parallel }

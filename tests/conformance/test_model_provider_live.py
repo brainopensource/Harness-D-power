@@ -8,11 +8,11 @@ conformance suite — see tests/live_support.py.
 from __future__ import annotations
 
 import pytest
-from tests.live_support import LOCAL_BASE_URL, LOCAL_MODEL, require_live_model
 
 from aether.adapters.model_provider.openai_compatible import OpenAICompatibleProvider
 from aether.domain.model_io import ModelMessage, ModelRequest, StopEvent
 from aether.domain.taint import Provenance, TaintSpan
+from tests.live_support import LOCAL_BASE_URL, LOCAL_MODEL, require_live_model
 
 
 @pytest.mark.live

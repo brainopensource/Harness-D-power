@@ -87,7 +87,9 @@ class ResourceGovernor:
             else:
                 available = self._run_root_remaining.get(run_id)
                 if available is not None and _exceeds(dims, available):
-                    return ReservationDenied(shortfall=_sub(dims, available), rationale="run budget exhausted")
+                    return ReservationDenied(
+                        shortfall=_sub(dims, available), rationale="run budget exhausted"
+                    )
                 if available is not None:
                     self._run_root_remaining[run_id] = _sub(available, dims)
 

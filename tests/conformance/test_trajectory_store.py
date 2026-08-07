@@ -6,11 +6,11 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 import pytest
-from tests.aether.mocks import InMemoryTrajectoryStore
 
 from aether.adapters.trajectory_store.sqlite import SqliteTrajectoryStore
 from aether.domain.ids import RunId
 from aether.ports.trajectory_store import StoredEvent, TrajectoryStore
+from tests.aether.mocks import InMemoryTrajectoryStore
 
 
 def _stores(tmp_path):  # noqa: ANN001

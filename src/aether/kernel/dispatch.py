@@ -26,6 +26,11 @@ class EffectOutcome(Frozen):
     decision: PolicyDecision | None = None
     reservation_denied: ReservationDenied | None = None
     actuals: Actuals = Actuals(dims=BudgetDims())
+    # The adapter's real result, JSON-encoded (Frozen models are JSON round-trippable
+    # by construction, I2/I3 — no live object crosses this boundary). Populated by
+    # composition.py's adapter closures (Sprint 2); callers deserialize the type
+    # they know their effect_class returns (e.g. FileSlice for "read").
+    result_json: str | None = None
 
 
 AdapterFn = Callable[[EffectRequest, Lease], Awaitable[EffectOutcome]]

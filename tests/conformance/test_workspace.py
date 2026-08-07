@@ -6,12 +6,12 @@ from __future__ import annotations
 import subprocess
 
 import pytest
-from tests.aether.mocks import InMemoryWorkspace, InMemoryWorktreeManager
 
 from aether.adapters.workspace.git_cli import GitCliWorkspace, GitCliWorktreeManager
 from aether.domain.ids import RunId
 from aether.domain.workspace import WorktreeRef
 from aether.ports.workspace import Workspace, WorktreeManager
+from tests.aether.mocks import InMemoryWorkspace, InMemoryWorktreeManager
 
 
 def _git(*args: str, cwd: str) -> None:
@@ -35,7 +35,8 @@ def git_repo(tmp_path):  # noqa: ANN001
 
 
 @pytest.mark.parametrize(
-    "manager_factory", [InMemoryWorktreeManager, lambda: GitCliWorktreeManager("__set_by_test__", "__set_by_test__")]
+    "manager_factory",
+    [InMemoryWorktreeManager, lambda: GitCliWorktreeManager("__set_by_test__", "__set_by_test__")],
 )
 async def test_manager_satisfies_protocol(manager_factory) -> None:  # noqa: ANN001
     assert isinstance(manager_factory(), WorktreeManager)

@@ -31,7 +31,9 @@ def _worktree_path(root: str, run_id: RunId, worktree_id: str) -> str:
     return os.path.join(root, run_id, worktree_id)
 
 
-async def _run_git(args: list[str], *, cwd: str, input_bytes: bytes | None = None) -> tuple[int, bytes, bytes]:
+async def _run_git(
+    args: list[str], *, cwd: str, input_bytes: bytes | None = None
+) -> tuple[int, bytes, bytes]:
     proc = await asyncio.create_subprocess_exec(
         "git",
         *args,
@@ -134,7 +136,7 @@ class GitCliWorkspace:
 
         def _count_reject_files() -> int:
             count = 0
-            for root, _dirs, files in os.walk(path):
+            for _root, _dirs, files in os.walk(path):
                 count += sum(1 for f in files if f.endswith(".rej"))
             return count
 

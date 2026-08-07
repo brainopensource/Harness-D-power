@@ -1,0 +1,8 @@
+schema_version: "1.0.0"
+topology_id: bad_evaluator_termination
+description: "apply is a dead end that never reaches an evaluate node"
+nodes:
+  - { id: retrieve, kind: retrieve, budget: { wall_clock_ms: 1000 } }
+  - { id: apply,    kind: apply,    budget: { wall_clock_ms: 1000 } }
+edges:
+  - { from: retrieve, to: apply }

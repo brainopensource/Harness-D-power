@@ -4,17 +4,16 @@ tri-state B4 contract — exit 0 = PASSED, exit 1 = FAILED, everything else
 
 from __future__ import annotations
 
-import os
 import sys
 
 import pytest
-from tests.aether.mocks import FakeEvaluator
 
 from aether.domain.gate import GateStatus
 from aether.domain.ids import RunId, TaskId
 from aether.domain.workspace import WorktreeRef
 from aether.measurement.evaluator import RealEvaluator, hash_command
 from aether.ports.evaluator import EvalSpec, Evaluator
+from tests.aether.mocks import FakeEvaluator
 
 
 @pytest.fixture
