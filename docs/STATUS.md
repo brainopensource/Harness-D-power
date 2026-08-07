@@ -5,7 +5,7 @@ updated: 2026-08-06
 
 # STATUS
 
-**Sprint 1 in progress (6 of 7 tasks complete).** `src/aether/` contains core M0 foundational domain models, wire port protocols, kernel dispatch & policy engine, workflow step types, mock adapters, and conformance suites.
+**Sprint 1 is 100% COMPLETE (7 of 7 tasks finished).** `src/aether/` contains core M0 foundational domain models, wire port protocols, kernel dispatch & policy engine, workflow step types, mock adapters, manifest repo cache (`TASK-010`), and conformance test suites.
 
 | Area | State |
 | :--- | :--- |
@@ -13,11 +13,11 @@ updated: 2026-08-06
 | `src/aether/ports/` | **Implemented.** 9 wire-serializable protocols for core boundaries |
 | `src/aether/kernel/` | **Implemented.** Dispatch choke point (`dispatch.py`) and PolicyEngine (`policy.py`) |
 | `src/aether/workflow/` | **Implemented.** `WorkflowStep[In, Out]` node & socket types (`step.py`) |
-| `src/aether/measurement/` | **In Progress / Pending.** `TASK-010` (`repo_cache.py`) & `scripts/resolve_swebench_bases.py` pending to close Sprint 1 |
+| `src/aether/measurement/` | **Implemented.** Manifest-driven repository cache (`repo_cache.py` & `scripts/resolve_swebench_bases.py`, closing `TASK-010` & Blocker B1) |
 | `src/aether/adapters/` | **Pending.** Mocks exist in `tests/aether/mocks.py`. Real adapters land in Sprint 2 |
 | Benchmark results | **None.** No valid number has ever been produced — see [`measurement.md`](./measurement.md) §1 |
-| A/A variance floor | Not established. Blocked on B1 (`TASK-010`), B2b (`TASK-011`) and B4 (`TASK-013` domain complete) |
-| Benchmark suite (`benchmarks/definitions/`) | Does not exist yet |
+| A/A variance floor | Not established. Blocked on B2b (`TASK-011`) and B4 (`TASK-013` domain complete); B1 resolved |
+| Benchmark suite (`benchmarks/definitions/`) | Stratified 15-task samples mapped in [`swe_verified_sample.md`](./benchmarks/swe_verified_sample.md) & [`swe_pro_sample.md`](./benchmarks/swe_pro_sample.md) |
 | Phase 0 decisions | **Ratified and locked.** |
 | Documentation | **Phase 0 locked** (2026-08-06). Both docs gates green |
 | Predecessor (`src/sagiha/`) | Reference material being retired |
