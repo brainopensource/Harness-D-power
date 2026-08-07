@@ -139,3 +139,41 @@ async def test_engine_run_evaluate_gate_report_is_passed_when_command_exits_zero
         )
 
     assert result.gate_report.status == GateStatus.PASSED
+
+
+async def test_engine_run_passes_api_key_header(fixture_repo, tmp_path) -> None:  # noqa: ANN001
+    repo_path, base_commit = fixture_repo
+    worktrees_root = str(tmp_path / "worktrees")
+    test_command = f"{sys.executable} -c \"import sys; sys.exit(0)\""
+    task = Task(
+        task_id="smoke-task-3",  # type: ignore[arg-type]
+        repo=repo_path,
+        base_commit=base_commit,
+        instructions="Test api key header.",
+        environment_image_digest="sha256:" + "a" * 64,
+        test_command_hash=hash_command(test_command),
+        source=TaskSource(manifest_hash="sha256:" + "b" * 64, instance_id="smoke-3"),
+    )
+
+    with respx.mock:
+        route = respx.post(f"{MODEL_BASE_URL}/chat/completions").mock(
+            return_value=httpx.Response(
+                200, content=_sse({"choices": [{"delta": {}, "finish_reason": "stop"}]})
+            )
+        )
+
+        await engine.run(
+            task,
+            repo_path=repo_path,
+            worktrees_root=worktrees_root,
+            topology_path=f"{WORKFLOWS_ROOT}/linear_v1.yaml",
+            resolve_command=lambda spec: test_command,
+            model_base_url=MODEL_BASE_URL,
+            model_api_key="sk-or-v1-testkey123",
+            trajectory_db_path=str(tmp_path / "trajectory3.db"),
+            entry_file="README.md",
+        )
+
+        assert route.called
+        assert route.calls.last.request.headers.get("Authorization") == "Bearer sk-or-v1-testkey123"
+

@@ -63,6 +63,8 @@ async def run(
     resolve_command: Callable[[EvalSpec], str],
     model_base_url: str = "http://localhost:11434/v1",
     model_name: str = "qwen2.5-coder-32b",
+    model_api_key: str | None = None,
+    api_key: str | None = None,
     trajectory_db_path: str = ":memory:",
     entry_file: str = "README.md",
 ) -> RunResult:
@@ -71,7 +73,8 @@ async def run(
     workspace = GitCliWorkspace(worktrees_root)
     worktree_manager = GitCliWorktreeManager(repo_path, worktrees_root)
     tool_registry = BuiltinToolRegistry(workspace, worktrees_root)
-    model_provider = OpenAICompatibleProvider(model_base_url, model_name)
+    resolved_api_key = model_api_key or api_key
+    model_provider = OpenAICompatibleProvider(model_base_url, model_name, api_key=resolved_api_key)
     evaluator = RealEvaluator(worktrees_root, resolve_command)
     governor = ResourceGovernor()
     dispatcher = build_dispatcher(workspace, tool_registry, model_provider, evaluator, governor)

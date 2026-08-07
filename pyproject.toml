@@ -131,3 +131,8 @@ source = ["src/sagiha", "src/aether"]
 fail_under = 80
 exclude_also = ["if TYPE_CHECKING:"]
 
+[dependency-groups]
+dev = [
+    "python-dotenv>=1.2.2",
+]
+
