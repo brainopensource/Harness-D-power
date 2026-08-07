@@ -18,6 +18,8 @@ graph TD
         M1app --> M1b["M1b: Capability & Composition Layer<br/>(agency/, ModelNode, RunConfig)"]
         M1b --> M2["M2: Memoization & Ablation Engine"]
         M2 --> M3["M3: Dynamic Branching & Fan-Out"]
+        M3 --> M4["M4: Benchmark Delivery<br/>(SWE-bench manifest, A/A floor, Paired Lift, SEALED)"]
+        M4 --> M5["M5: Harness Evolution & Meta-Loop<br/>(src/aether/evolution/)"]
     end
 
     subgraph "Track 2: Measurement & Instrumentation (ADR-0002)"
@@ -70,6 +72,9 @@ graph TD
 | **Milestone M2-abl** | Ablation Execution (repair · context · Architect/Editor) | [ADR-0003](../decisions/0003-statistical-admission-protocol.md), [ADR-0007](../decisions/0007-architect-editor-seam.md), [ADR-0010](../decisions/0010-context-prefix-layers.md) | M2-eng | **Unsized** — see below |
 | **Blocker B3** | Isolated Evaluation Container & Canary | [`measurement.md` §2 (B3)](../measurement.md#2-instrument-blockers) | M2-eng | 4 Days |
 | **Milestone M3** | Branching, Fan-Out & Statistical Admission | [ADR-0003](../decisions/0003-statistical-admission-protocol.md), [ADR-0013](../decisions/0013-workflow-dag-phased.md) | M2, B3 | 10 Days |
+| **Milestone M4** | **Benchmark Delivery.** SWE-bench manifest, A/A floor, paired lift runs (bare-model & OpenHands arms), publication on SEALED | [`measurement.md` §4, §6](../measurement.md#6-pre-publication-verification-gate) | M3 | 7 Days |
+| **Milestone M5** | **Harness Evolution & Meta-Loop.** `src/aether/evolution/`, topology self-redesign, subagent capability attenuation | [ADR-0006](../decisions/0006-tcb-boundary-and-meta-loop-authority.md), [ADR-0014](../decisions/0014-workflow-topology-is-data.md), [ADR-0017](../decisions/0017-subagent-capability-attenuation.md) | M4 | 10 Days |
+
 
 **Why M1a++R exists, and why it blocks the floor.** Sprint 3.5 raised the inner loop's win rate
 and did not extend the instrument's validity guards in the same change. Two consequences are

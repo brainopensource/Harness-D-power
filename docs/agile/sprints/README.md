@@ -30,6 +30,8 @@ Three reasons, each traceable to a ratified decision:
 
 Writing `sprint-06.md` today is not planning. It is a forecast wearing a task list.
 
+**The forecast still has a home, clearly labelled as one.** [`release_plan.md`](../release_plan.md) sketches the full ten-sprint arc with per-sprint detail — ordering and content, never dates. It is `rationale` and binds nothing; the dependency edges that *do* bind live in [`roadmap.md`](../roadmap.md). Sprints 06+ appear there as projections precisely so they do not appear here as plans.
+
 ---
 
 ## Planned in full
@@ -41,7 +43,7 @@ Writing `sprint-06.md` today is not planning. It is a forecast wearing a task li
 | [**03**](./sprint-03.md) | Repair edge, evaluation container, manifests, **the floor run** | M1a+ · B3 · **A/A floor** | `012` `014` `015` `016` `023` |
 | **03.5** *(unplanned; retro-recorded in [`backlog.md`](../backlog.md) and [`STATUS.md`](../../STATUS.md))* | Inner-loop context lift: edit-format seam, node registry by kind, repair re-reading, architect/reflector | M1a++ | `037`–`041` |
 | [**04**](./sprint-04.md) | **Instrument restoration** and the floor run Sprint 3 deferred | M1a++R · **A/A floor** | `049` `049b` `050` `051` `052` |
-| [**05**](./sprint-05.md) | The capability layer: `agency/`, `ModelNode`, `RunConfig` | M1b | `053`–`058` |
+| [**05**](./sprint-05.md) | The capability layer: `agency/`, `ModelNode`, `RunConfig`, plus Record/Replay Cassettes | M1b | `053`–`058`, `006` |
 
 **Sprint 3.5 happened without a sprint file.** It is listed here because it is the one sprint
 that changed measurement semantics, and it is the one with no plan document — which is how its
@@ -59,10 +61,12 @@ These are not sprint files and should not become sprint files until the sprint b
 | :--- | :--- | :--- | :--- |
 | **M2-eng** | Per-node memoization | `032` | — (this one is sized: 5d) |
 | **M2-abl** | Three ablations, repair first | `023` `025` `031` `024` | **The floor.** Per-task wall-clock × derived N sets the sprint count |
-| **M3** | Branching, fan-out, statistical admission | `035` `033` `012` `034` | Whether M2's ablations admit or delete their mechanisms |
-| **M4+** | Meta-loop, workflow self-redesign, self-modification | — | The autonomy ladder in [ADR-0014](../../decisions/0014-workflow-topology-is-data.md) and [ADR-0017](../../decisions/0017-subagent-capability-attenuation.md); gates drafted in [`../../fixes/proposal_agile_benchmarkings_refinement.md`](../../fixes/proposal_agile_benchmarkings_refinement.md) §3 but **not ratified as milestones** |
+| **M3** | Branching, fan-out, statistical admission | `035` `033` `067` `034` | Whether M2's ablations admit or delete their mechanisms |
+| **M4** | Benchmark Delivery (SWE-bench & OpenHands) | `071` `072` `073` `074` `015b` `036` `064` `075` | Completion of M3 gates |
+| **M5** | Meta-loop, workflow self-redesign | `evolution/` tasks | Completion of M4 publication |
 
 **M2-abl's sprint count is a genuine unknown, not a gap in this document.** Naming a number would be the defect, not the fix.
+
 
 ---
 

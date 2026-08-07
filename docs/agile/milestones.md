@@ -68,6 +68,25 @@ Per [ADR-0009](../decisions/0009-gates-are-the-schedule.md), a milestone is comp
 * **Exit Gate 3**: A `GateReport` of `NONE` routes to the terminal flag node and **never into repair** — an instrument failure is not a repair candidate.
 * **Exit Gate 4**: Each repair iteration reserves its own budget; exhausting it terminates the loop rather than the run.
 
+### Milestone M1a++ — Inner Loop Context Lift
+* **Specification**: [Sprint 3.5 Rationale](../fixes/sprint-3.5-inner-loop-improvements.md), [ADR-0010](../decisions/0010-context-prefix-layers.md), [ADR-0014](../decisions/0014-workflow-topology-is-data.md)
+* **Exit Gate 1**: `EditFormat` seam (`TASK-037`) passes generic conformance suite for diff & whole-file formats.
+* **Exit Gate 2**: Node registry resolves step implementations dynamically from kind (`TASK-038`).
+* **Exit Gate 3**: `RepairStep` re-reads worktree files dynamically and injects actual state into repair prompts (`TASK-039`).
+
+### Milestone M1a++R — Instrument Restoration
+* **Specification**: [`measurement.md` §2](../measurement.md#2-instrument-blockers), [`spec.md` §2 (I7)](../spec.md#2-invariants)
+* **Exit Gate 1**: Invariant I7 (`tests_unmodified`) enforced in TCB evaluator with negative test (`TASK-049`).
+* **Exit Gate 2**: Test-source injection demoted to named ablation arm with `False` default (`TASK-049b`).
+* **Exit Gate 3**: Internal A/A floor executed with derived N and exact McNemar variance metrics.
+
+### Milestone M1b — Capability & Composition Layer
+* **Specification**: [ADR-0005](../decisions/0005-eight-ports-adapter-first.md), [ADR-0014](../decisions/0014-workflow-topology-is-data.md), [ADR-0018](../decisions/0018-agency-below-workflow.md)
+* **Exit Gate 1**: `agency/` created under `workflow/` in import lattice (`TASK-053`).
+* **Exit Gate 2**: `ContextSource` and `Inference` protocols extracted and swappable (`TASK-054`, `TASK-055`).
+* **Exit Gate 3**: `ModelNode` + `RoleSpec` replace old monolithic node classes with golden-prompt test (`TASK-057`).
+* **Exit Gate 4**: Deterministic record/replay cassette engine achieves 100 turns in <50ms with byte-for-byte determinism (`TASK-006`).
+
 ### Milestone M2 — Memoization & Ablation Engine
 * **Specification**: [ADR-0013](../decisions/0013-workflow-dag-phased.md), [ADR-0003](../decisions/0003-statistical-admission-protocol.md), [ADR-0007](../decisions/0007-architect-editor-seam.md), [ADR-0010](../decisions/0010-context-prefix-layers.md)
 * **Exit Gate 1 (M2-eng)**: Subtree re-execution skips unchanged nodes on input-digest match; a changed node invalidates exactly its descendants.
@@ -83,3 +102,16 @@ Per [ADR-0009](../decisions/0009-gates-are-the-schedule.md), a milestone is comp
 * **Exit Gate 2**: Admission pipeline enforces exact McNemar, Holm–Bonferroni family-wise correction ($\alpha = 0.05$), and **derived N at ≥ 0.80 power** for the declared minimal effect. The statistics module **refuses to compute corrected p-values for an undeclared family**.
 * **Exit Gate 3**: Best-of-N fan-out is **cache-sequenced** — candidate 1 warms the shared prefix before 2..N are released. Naive parallel fan-out over a cold prefix is not expressible in a valid topology.
 * **Exit Gate 4**: Child leases carve from the parent reservation; cancelling N−1 losers refunds the parent, not the global pool.
+
+### Milestone M4 — Benchmark Delivery (SWE-bench & SEALED Publication)
+* **Specification**: [`measurement.md` §4 & §6](../measurement.md#6-pre-publication-verification-gate)
+* **Exit Gate 1 (`TASK-071`)**: Pinned SWE-bench manifest with bidirectional validity canary passed on 100% of candidate tasks.
+* **Exit Gate 2 (`TASK-072`)**: SWE-bench A/A floor executed, deriving benchmark-specific discordance rate ($p_{01}, p_{10}$) and required $N$.
+* **Exit Gate 3 (`TASK-073` & `TASK-015b`)**: Paired lift runs executed for AETHER vs. bare-model and AETHER vs. OpenHands arm on same manifest.
+* **Exit Gate 4 (`TASK-074`)**: Publication run on SEALED dataset satisfying all 7 conditions of [`measurement.md` §6](../measurement.md#6-pre-publication-verification-gate).
+
+### Milestone M5 — Harness Evolution & Meta-Loop
+* **Specification**: [ADR-0006](../decisions/0006-tcb-boundary-and-meta-loop-authority.md), [ADR-0014](../decisions/0014-workflow-topology-is-data.md), [ADR-0017](../decisions/0017-subagent-capability-attenuation.md)
+* **Exit Gate 1**: `src/aether/evolution/` package established and covered under TCB isolation.
+* **Exit Gate 2**: Declarative topology mutation engine operates under attenuated subagent capabilities.
+

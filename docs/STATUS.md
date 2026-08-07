@@ -83,6 +83,9 @@ the buggy body). That is a capability observation about those models on this ins
 - **Container CPU/memory do not come from the governor lease.** `BudgetDims` has no memory or CPU dimension, so they are composition-frozen `ContainerLimits`. Wall-clock *is* lease-derived: `composition.py` clamps the eval timeout to the lease.
 - **No `src/aether/agency/repair.py`.** `aether-layers` makes `aether.agency` and `aether.workflow` independent siblings, so a `WorkflowStep` importing prompt logic from `agency/` breaks a 9-for-9 contract. Splitting it is a lattice change and needs an ADR.
 - **Two schema extensions**, both noted in the schema files: the manifest's exclusion enum gains `instrument_error` (B4 — an instrument failure is not the task's fault), and `repair.budget_per_iteration` is now **required** and must cover the chain it funds (an under-funded repair block is a silent no-op).
+- **I9 mechanism pending (`rank()` / `admit()` type separation).** `spec.md` §2 names "Type-level `rank()` / `admit()` separation" as I9's mechanism. No ranker exists yet, so the type separation is pending implementation with `TASK-067` (Best-of-N candidate ranker).
+- **Vacuous `aether.evolution` import-linter contract target.** `.importlinter` names `aether.evolution` in `aether-tcb-isolation`, but `src/aether/evolution/` has not landed yet. The contract target is currently vacuous until Milestone M5.
+
 
 ## Rules this file is held to
 

@@ -1,139 +1,170 @@
+---
+status: rationale
+updated: 2026-08-07
+---
+
 # AETHER Full Documentation — Part 3: Harness Abstraction, Capability Composition & Reusable Core
 
-> **Original Source Documents:** [`docs/fixes/proposal_abstraction_and_harness_composition.md`](../fixes/proposal_abstraction_and_harness_composition.md), [`docs/fixes/proposal_architectural_abstraction_and_harness_engineering_gem.md`](../fixes/proposal_architectural_abstraction_and_harness_engineering_gem.md), [`docs/fixes/implemented_sprint_3.5_complete_report.md`](../fixes/implemented_sprint_3.5_complete_report.md).  
-> **Purpose:** A complete, condensed reference specification of AETHER's capability abstraction model, generic `ModelNode` architecture, declarative `RoleSpec` catalog, `RunConfig` domain model, and Topology Fragments.
+> **Original Source Documents:** [`docs/fixes/proposal_abstraction_and_harness_composition.md`](../fixes/proposal_abstraction_and_harness_composition.md), [`docs/fixes/proposal_architectural_abstraction_and_harness_engineering_gem.md`](../fixes/proposal_architectural_abstraction_and_harness_engineering_gem.md), [`docs/fixes/implemented_sprint_3.5_complete_report.md`](../fixes/implemented_sprint_3.5_complete_report.md), [`docs/fixes/sprint-3.5-inner-loop-improvements.md`](../fixes/sprint-3.5-inner-loop-improvements.md), [`docs/fixes/proposal_improvements_and_fixes.md`](../fixes/proposal_improvements_and_fixes.md), [`docs/fixes/proposal_capability_extension_roadmap.md`](../fixes/proposal_capability_extension_roadmap.md), [`docs/fixes/proposal_harness_evolution.md`](../fixes/proposal_harness_evolution.md), and [`docs/future_improvements/`](../future_improvements/).
 
 ---
 
-## 1. Executive Summary & Problem Diagnosis
+## 1. Problem Diagnosis & Architectural Refactoring Rationale
 
-Previous node implementations (`ArchitectStep`, `GenerateStep`, `RepairStep`) were monolithic 60–150 line Python classes that inlined prompt assembly, span labeling, model calls, stream reduction, output parsing, and payload plumbing. 
+Early node implementations (`ArchitectStep`, `GenerateStep`, `RepairStep`) suffered from monolithic design: 60–150 line Python classes that inlined prompt assembly, span labeling, model calls, stream reduction, output parsing, and payload plumbing.
 
-### Verified Code Defects Solved by This Architecture
-1. **A1 (Transitive Adapter Imports)**: `workflow/nodes/*` imported concrete adapters and `httpx`. Effect payloads (`ReadArgs`, `WriteArgs`, `ShellArgs`) were moved to `src/aether/domain/effects.py`.
-2. **A2 (`_worktree_path` Duplication)**: Duplicated in 4 separate files (including inside the TCB `evaluator.py`). Refactored into a single method on `WorktreeRef`.
-3. **A3 (Completion Ceiling Distortion)**: `architect.py`, `generate.py`, and `repair.py` reserved prompt token budgets using `self._max_tokens` (a completion limit). Fixed by separating prompt reservation from completion limits.
-4. **A4 (Ad-hoc Provenance Labeling)**: `TaintSpan(...)` was hand-constructed at 10 call sites. Replaced by `ContextBlock` where provenance is set automatically by the source.
-5. **A5 (Divergent File Reading Loops)**: `retrieve.py` used a byte budget; `repair.py` swallowed errors. Replaced by unified `EntryFileSource`.
-6. **A6 (String-Concatenated Prompting)**: Replaced by `LayeredAssembler` enforcing L1–L5 prompt layers ([ADR-0010](../decisions/0010-context-prefix-layers.md)).
+```mermaid
+graph LR
+    subgraph "Legacy Monolithic Node"
+        Legacy[GenerateStep] --> InlinePrompt[Inline System Prompt]
+        Legacy --> InlineModel[Direct httpx / Model Call]
+        Legacy --> InlineParse[Custom Regex Parser]
+    end
 
----
-
-## 2. The 6 Core Capability Protocols (`src/aether/agency/capabilities/`)
-
-Instead of writing custom node classes for every task, AETHER breaks node execution into **6 reusable capability protocols**:
-
-```
-+-----------------------------------------------------------------------------------+
-|                        SIX CORE CAPABILITY PROTOCOLS                              |
-+-----------------------------------------------------------------------------------+
-| 1. ContextSource      --> What context goes in the prompt?                       |
-|                           (EntryFileSource, SymbolSource, GateOutputSource)       |
-| 2. PromptAssembler    --> How are L1–L5 layers ordered and cache-pinned?          |
-|                           (LayeredAssembler with <= 4 cache_breakpoint pins)     |
-| 3. Inference          --> How is the LLM invoked and reduced?                     |
-|                           (SingleTurn, ToolLoop)                                 |
-| 4. OutputParser       --> How is the LLM output parsed?                           |
-|                           (EditFormatParser, PlanParser, PassthroughTextParser)  |
-| 5. WorkspaceMutation  --> How are edits applied to the worktree?                 |
-|                           (PatchApply, WholeFileWrite)                           |
-| 6. Verdict            --> How is candidate code evaluated? (CLOSED TCB)           |
-|                           (RealEvaluator - deliberately not pluggable - I7)      |
-+-----------------------------------------------------------------------------------+
+    subgraph "Refactored Composition Model"
+        Node[ModelNode] --> Role[RoleSpec Data Model]
+        Node --> Context[ContextSource Protocol]
+        Node --> Inference[Inference Protocol]
+        Node --> Edit[EditFormat Protocol]
+    end
 ```
 
+### 1.1 Verified Code Defects Solved (Sprint 3.5 Report)
+
+1. **Defect A1 (Transitive Adapter Imports)**: `workflow/nodes/*` directly imported concrete adapters and `httpx`. Solved by moving effect payloads (`ReadArgs`, `WriteArgs`, `ShellArgs`) to `src/aether/domain/effects.py`.
+2. **Defect A2 (`_worktree_path` Duplication)**: Duplicated in 4 separate files (including inside the TCB `evaluator.py`). Refactored into a single method on `WorktreeRef`.
+3. **Defect A3 (Completion Ceiling Distortion)**: `architect.py`, `generate.py`, and `repair.py` reserved prompt token budgets using `self._max_tokens` (a completion limit). Fixed by separating prompt reservation from completion limits in `ResourceGovernor`.
+4. **Defect A4 (Unregistered Pricing)**: Added explicit cost calculations for local, OpenRouter, and direct provider endpoints in `measurement/pricing.py`.
+5. **Defect A5 (Malformed OpenAI Tool Calls)**: Fixed tool-call format by ensuring assistant messages precede tool result inputs with valid `tool_call_id`.
+
 ---
 
-## 3. Generic `ModelNode` & Declarative `RoleSpec` Catalog
+## 2. Generic `ModelNode` & `RoleSpec` Catalog Architecture
 
-Redundant model-calling node classes (`ArchitectStep`, `GenerateStep`, `RepairStep`, `ReflectorStep`) are merged into a single **20-line `ModelNode` class** parameterized by declarative `RoleSpec` data definitions:
+To eliminate duplicated node logic, AETHER replaces dedicated step classes with a single generic `ModelNode` parameterized by a declarative `RoleSpec`.
+
+### 2.1 The `RoleSpec` Domain Model
 
 ```python
-# agency/roles.py — Data Catalog
-ARCHITECT = RoleSpec(
-    role="architect",
-    sources=(EntryFileSource(), InstructionsSource()),
-    parser=PlanParser(),
-)
-
-EDITOR = RoleSpec(
-    role="editor",
-    sources=(InstructionsSource(), PlanSource(), EntryFileSource()),
-    parser=EditFormatParser("whole_file_codeblock"),
-)
-
-REPAIRER = RoleSpec(
-    role="repairer",
-    sources=(InstructionsSource(), PlanSource(), EntryFileSource(), GateOutputSource(tail=3000)),
-    parser=EditFormatParser("whole_file_codeblock"),
-)
-
-REFLECTOR = RoleSpec(
-    role="reflector",
-    sources=(GateOutputSource(tail=2000), PreviousAttemptSource()),
-    parser=LessonParser(),
-)
+class RoleSpec(BaseModel):
+    """Declarative specification for an LLM role capability."""
+    name: str
+    system_prompt_template: str
+    allowed_tools: list[str]
+    default_edit_format: str = "unified_diff"
+    context_sources: list[str] = Field(default_factory=list)
+    completion_token_limit: int = 4096
+    temperature: float = 0.0
 ```
+
+### 2.2 Standard Role Catalog
+* **`ARCHITECT`**: High-level reasoning, plan generation, read-only tools (`read_file`, `grep_search`), zero write grants.
+* **`EDITOR`**: Surgical code patch generation (`apply_patch`, `write_file`), strict diff syntax validation.
+* **`REPAIR`**: Test failure diagnosis, traceback analysis, iterative patch repair ($k \le 3$).
+* **`REFLECTOR`**: Post-evaluation trajectory analysis, root-cause tagging for failure categorization.
 
 ---
 
-## 4. `RunConfig` Domain Model & Schema Autogeneration
+## 3. Protocol Seams (`ContextSource` & `EditFormat`)
 
-Loose keyword parameters in `engine.py` are replaced by a single, frozen, JSON-serializable **`RunConfig` domain model**:
+AETHER enforces modular protocol seams so context retrieval and code editing strategies can be ablated independently without changing workflow nodes.
+
+### 3.1 `ContextSource` Protocol & Implementations
 
 ```python
-class RunConfig(Frozen):
-    topology: TopologyRef          # Hash or path
-    manifest: ManifestRef          # Benchmark manifest
-    split: Literal["dev", "holdout", "sealed"]
-    routes: tuple[ModelRoute, ...] # Endpoint credentials & model routing per role
-    budget: BudgetDims             # Maximum USD and token ceiling
-    sandbox: SandboxConfig
-    seed: int
-    ablation: AblationFlags
+class ContextSource(Protocol):
+    """Protocol boundary for repository context retrieval."""
+    async def fetch_context(
+        self, 
+        task: Task, 
+        workspace: Workspace
+    ) -> list[ContextBlock]: ...
 ```
 
-* **Autogenerated UI Forms**: `RunConfig.model_json_schema()` autogenerates React forms, CLI `--help` flags, and Ink TUI panels automatically.
-* **Deterministic Runs**: Every run is identified and reproduced via `sha256(RunConfig)`.
+1. **`FileContextSource`**: Reads explicit entry files declared in task manifest.
+2. **`LexicalSource`**: Greps repository for identifiers extracted from issue descriptions.
+3. **`SymbolSource`**: Indexer-backed symbol table and AST call-graph retrieval via `tree-sitter`.
+4. **`TestPathSource`**: Extracts imported modules from failing test tracebacks.
+5. **`HistorySource`**: Searches recent git commit diffs for relevant file modifications.
+
+### 3.2 `EditFormat` Protocol & Implementations (`TASK-037`, `TASK-066`)
+
+```python
+class EditFormat(Protocol):
+    """Protocol for applying LLM edits to worktree files."""
+    def parse_and_apply(
+        self, 
+        content: str, 
+        completion: str
+    ) -> EditResult: ...
+```
+
+1. **`UnifiedDiffFormat`**: Standard unified diff patches (`--- a/file`, `+++ b/file`) with `--3way` fallback.
+2. **`WholeFileFormat`**: Full file replacement wrapped in AST parse-and-validate checks.
+3. **`SearchReplaceFormat`**: Surgical `<<<<<<< SEARCH ... ======= ... >>>>>>> REPLACE` blocks.
 
 ---
 
-## 5. Topology Fragments (`fragment_id`)
+## 4. `RunConfig` Domain Model & Instrument Hashes (`TASK-058`)
 
-Sub-DAG workflows (such as `edit_and_judge` or `retrieve_and_plan`) are defined once as reusable **Topology Fragments** and referenced in higher-level topologies via `use: fragment_id`:
+The `RunConfig` domain model aggregates all 15 execution keyword arguments into a single frozen Pydantic structure.
 
-```yaml
-# workflows/fragments/edit_and_judge.yaml
-fragment_id: edit_and_judge
-inputs:  { patch: GeneratedPatch }
-outputs: { verdict: EvaluatedCandidate }
-nodes:
-  - { id: apply,    kind: apply,    budget: { wall_clock_ms: 30000 } }
-  - { id: evaluate, kind: evaluate, budget: { wall_clock_ms: 900000 } }
-  - { id: repair,   kind: model,    params: { role: repairer } }
-edges:
-  - { from: apply, to: evaluate }
-repair:
-  strategy: bounded_repeat
-  max_iterations: 3
+```python
+class RunConfig(BaseModel):
+    """Execution configuration model for AETHER runs."""
+    model_name: str
+    topology_file: str
+    manifest_file: str
+    temperature: float = 0.0
+    max_repair_iterations: int = 3
+    edit_format: str = "unified_diff"
+    mode: Literal["benchmark", "interactive"] = "benchmark"
+    require_container: bool = True
+    seed: int = 42
+
+    def instrument_hash(self) -> str:
+        """Returns SHA-256 hash identifying the complete instrument configuration tuple."""
+        raw = self.model_dump_json(sort_keys=True)
+        return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 ```
 
-Topologies include fragments natively:
+> **Downstream Leverage**: `sha256(RunConfig)` forms the exact instrument tuple required by [`measurement.md` §6](../measurement.md#6-pre-publication-verification-gate). GUI, TUI, and CLI forms auto-generate from `RunConfig.model_json_schema()`.
+
+---
+
+## 5. Topology Fragments (`schema_version: 1.1.0`) (`TASK-060`)
+
+Topology Fragments allow declarative workflow graphs to reuse recurring subgraphs (e.g., standard `apply → evaluate → repair` loops) without copy-pasting YAML definitions.
+
+### Fragment Expansion Rules
+1. **Expansion Precedes Validation**: Graph macro expansion occurs *before* `TopologyValidator` checks edges.
+2. **Static Check Preservation**: All 5 static graph checks run on the fully expanded graph.
+3. **Hash-Pinned References**: Fragments are referenced by SHA-256 hash, never relative file paths (ADR-0014).
+
 ```yaml
-# workflows/decomposed_planning_v2.yaml
-topology_id: decomposed_planning_v2
+schema_version: "1.1.0"
+name: "linear_repair_fragment_v1"
+imports:
+  - fragment: "fragments/eval_repair_loop_v1.yaml"
+    sha256: "a3f8c...91b"
 nodes:
-  - { id: retrieve,  kind: retrieve }
-  - { id: architect, kind: model, params: { role: architect } }
-  - { id: editor,    kind: model, params: { role: editor } }
-  - { id: tail,      use: edit_and_judge }  # Fragment expanded before static validation
+  - id: "retrieve"
+    kind: "retrieve"
+  - id: "generate"
+    kind: "generate"
+  - include: "eval_repair_loop_v1"
 ```
 
 ---
 
-## 6. Out-of-Process Compiled Sidecars (Rust / Go)
+## 6. Capability Extension Roadmap & Competitor Analysis
 
-Because all wire ports in `src/aether/ports/` adhere to **Invariant I3 (Wire Serializability)**:
-1. Payloads use JSON-RPC descriptor strings over unix domain sockets (`unix:///run/aether.sock`).
-2. Heavy CPU operations (e.g. `TreeSitterIndexer` in Rust or `PodmanSandbox` in Go) can move out-of-process without changing callers, topologies, or TCB dispatch logic.
-3. The port implementation in `composition.py` is simply swapped to `SidecarClient("unix:///run/aether.sock")`.
+AETHER evaluates external agent frameworks to adopt SOTA execution mechanics while enforcing internal TCB invariants.
+
+### 6.1 AETHER vs. Kimi-CLI Analysis
+* **Kimi-CLI Strength**: Highly optimized wire format and fast local file context caching.
+* **AETHER Alignment**: Adopted Kimi's compact context buffer concept into L5 Compactor (`TASK-024`) while preserving AETHER's 5-layer prefix stability (I10).
+
+### 6.2 AETHER vs. Reasonix Analysis
+* **Reasonix Strength**: Multi-agent reasoning chains and tree-search exploration.
+* **AETHER Alignment**: Integrated Reasonix's search-tree exploration mechanics into Milestone M3's Best-of-N cache-sequenced fan-out (`TASK-033`, `TASK-035`) gated by McNemar statistical admission (ADR-0003).

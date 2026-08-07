@@ -11,6 +11,50 @@ This backlog catalogs all Epics and User Stories for building AETHER v3.0.0. All
 
 ---
 
+## Scheduling ledger
+
+**A task is either *scheduled* or it is in the pool. There is no third state, and this table is the only place that decides which.**
+
+The epics below group tasks by *subject*; they do not schedule anything. A task is **scheduled** only when a sprint file in [`sprints/`](./sprints/README.md) names it. Everything else carries a **milestone tag only** — which fixes its *position* in [`roadmap.md`](./roadmap.md)'s dependency DAG without committing a date. That distinction is [ADR-0009](../decisions/0009-gates-are-the-schedule.md)'s: an unmeasured duration used as a schedule commitment is the thing it forbids, and M2-abl's wall-clock is an output of Sprint 4's floor.
+
+### Scheduled — has a sprint file
+
+| Sprint | State | Tasks |
+| :--- | :--- | :--- |
+| [**01**](./sprints/sprint-01.md) | ✅ done | `000` `001` `002` `003` `004` `005` `010` `013` |
+| [**02**](./sprints/sprint-02.md) | ✅ done | `011` `017` `018`\* `019` `020` `021` `022` `026` `034` |
+| [**03**](./sprints/sprint-03.md) | ✅ done *(floor deferred to 04)* | `012` `014` `015`\* `016` `023` |
+| **03.5** *(no plan file — retro-recorded)* | ✅ done | `037` `038` `039` `040` `041` |
+| [**04**](./sprints/sprint-04.md) | 📋 planned | `049` `049b` `050` `051` `052` `062` + **the A/A floor run** |
+| [**05**](./sprints/sprint-05.md) | 📋 planned | `006` `053` `054` `055` `056` `057` `058` |
+
+\* **Marked done with unmet exit criteria.** `TASK-018`'s tool container and `TASK-015`'s OpenHands arm are both open, both stated in the task's own prose, and both scan as ✅. See [`coverage_audit.md`](./coverage_audit.md).
+
+### Pool — milestone-tagged, not scheduled
+
+| Milestone | Tasks | Blocked until |
+| :--- | :--- | :--- |
+| **M2-eng** | `032` `064` `065` `066` `068` `069` | Sprint 4's per-task wall-clock sizes it |
+| **M2-abl** | `024` `025` `031`→`056` `070` | The floor. Ablation wall-clock is `derived_N × tasks × arms` |
+| **M3** | `033` `035` `059` `060` `061` `067` | M2 |
+| **M4** | `036` `042` `043` `044` `045` `046` `048` `071` `072` `073` `074` `015b` | M3 + the floor |
+| **CI-gated, no milestone** | `030a` `030b` | Gated by the I11 red-team corpus, not by a milestone |
+| **Post-M1b** | `063` `075` | Land with the first client that renders them |
+| **Post-M4** | `evolution/` · meta-loop | Deliberately deferred ([`coverage_audit.md`](./coverage_audit.md) G6) |
+
+### The promotion rule
+
+A pool task becomes scheduled when **all four** hold. Anything less is a wish with a task id.
+
+1. Its milestone's predecessors have closed their exit gates in `milestones.md`.
+2. Its own exit criteria are falsifiable — and where it adds a gate, that gate ships with a test proving it **can fail** ([`measurement.md` §5](../measurement.md#5-gate-design)).
+3. A sprint file names it, with target files and a definition of done.
+4. If it produces a number, the family is declared *before* any arm runs ([ADR-0003](../decisions/0003-statistical-admission-protocol.md)).
+
+The complexity tables in [§Backend Roadmap](#backend-roadmap-complexity--developer-assignment) follow the same split: one table per **scheduled** sprint, and one table for the **pool**, tagged by milestone only. A projected ten-sprint arc — explicitly non-binding — is in [`release_plan.md`](./release_plan.md).
+
+---
+
 ## Epic 0: Enforcement Migration (Milestone M0 — **blocking**)
 
 ### TASK-000: Migrate TCB Path Constants to `src/aether/` — ✅ DONE (Sprint 1)
@@ -295,10 +339,12 @@ Correctness + decoupling: six dead defects fixed, node registry keyed by kind, e
 
 ---
 
-## Epic 5: Capability & Composition Layer (Milestone M1b)
+## Epic 5: Capability, Composition & Abstraction (M1b → M3)
 
 Source: [`proposal_abstraction_and_harness_composition.md`](../fixes/proposal_abstraction_and_harness_composition.md).
-**None of these produces a number**, so [ADR-0002](../decisions/0002-no-number-before-the-floor.md) does not gate them — they may run in parallel with the floor. They are sequenced **before M2** because `TASK-031`, `TASK-024` and `TASK-033` all target `src/aether/agency/context/`, a package that does not exist.
+**None of these produces a number**, so [ADR-0002](../decisions/0002-no-number-before-the-floor.md) does not gate them — they may run in parallel with the floor. The M1b subset is sequenced **before M2** because `TASK-031`, `TASK-024` and `TASK-033` all target `src/aether/agency/context/`, a package that does not exist.
+
+> **This epic spans three milestones — it is a subject grouping, not a sprint.** Only the **M1b** tasks are scheduled (Sprint 5): `050` `051` `052` `053` `054` `055` `056` `057` `058`. The rest sit in the pool: `059` `060` `061` are **M3** and TCB or TCB-adjacent; `064` `065` `066` `068` `069` are **M2-eng**; `070` is **M2-abl**. The [scheduling ledger](#scheduling-ledger) is authoritative.
 
 ### TASK-050: Move Effect Payloads to `domain/effects.py`
 * **Description**: `ReadArgs`, `WriteArgs`, `ApplyPatchArgs`, `ShellArgs` are pure frozen models defined in `composition.py` (lines 36-62), the same module that imports `OpenAICompatibleProvider`, `BuiltinToolRegistry` and `GitCliWorkspace` at module scope. Every node imports them from there.
@@ -403,6 +449,43 @@ Source: [`proposal_abstraction_and_harness_composition.md`](../fixes/proposal_ab
 * **Target Files**: `src/aether/domain/config.py`, `src/aether/kernel/dispatch.py`
 * **Exit Criteria**: `mode` enters the config hash, so `measurement.md` §6's instrument tuple records which mode produced a result. Benchmark mode also forces cross-task memory off and retrieval deterministic.
 
+### TASK-071: SWE-bench Manifest Build & Validity Canary at Scale (Milestone M4)
+* **Description**: Build and pin a real-world task manifest for SWE-bench (Verified and Pro) reusing `TASK-014`'s tooling. Run a bidirectional validity canary asserting that gold patches pass and empty patches fail on our isolated evaluation container environment. Publish exclusions with reasons (~30% of public Pro tasks were estimated broken in prior audits).
+* **Target Files**: `scripts/build_swe_manifest.py`, `benchmarks/manifests/swe_bench_verified_pinned.yaml`, `benchmarks/manifests/swe_bench_pro_pinned.yaml`
+* **Normative Specs**: [`measurement.md` §2 (B3)](../measurement.md#2-instrument-blockers), [`measurement.md` §6](../measurement.md#6-pre-publication-verification-gate)
+* **Exit Criteria**: 100% of non-excluded tasks pass the bidirectional canary in the containerized floor environment. Exclusion manifest published with hash.
+
+### TASK-072: SWE-bench A/A Noise Floor (Milestone M4)
+* **Description**: Execute the A/A noise floor protocol over the pinned SWE-bench manifest. Characterize instrument variance, derive benchmark-specific $p_{01}$ and $p_{10}$ discordance rates, and compute the required minimum sample size $N$ for SWE-bench capability admission runs.
+* **Target Files**: `scripts/run_swe_aa_floor.py`, `docs/rationale/benchmarks/swe_noise_floor.md`
+* **Normative Specs**: [ADR-0002](../decisions/0002-no-number-before-the-floor.md), [ADR-0003 rev. 2](../decisions/0003-statistical-admission-protocol.md), [`measurement.md` §3](../measurement.md#3-the-aa-variance-floor)
+* **Exit Criteria**: Report published with exact McNemar discordance, derived $N$ for power $\ge 0.80$, per-task wall-clock distributions, and zero instrument errors ($NONE$).
+
+### TASK-073: Paired Lift Run (Bare-Model vs AETHER) (Milestone M4)
+* **Description**: Execute paired lift runs comparing bare unassisted model calls vs. full AETHER harness execution using the exact same base model on the pinned SWE-bench manifest under [`measurement.md` §4.1](../measurement.md#41-the-baseline-is-part-of-the-instrument)'s pre-registered baseline.
+* **Target Files**: `src/aether/measurement/runner.py`, `scripts/run_paired_lift.py`
+* **Normative Specs**: [ADR-0004](../decisions/0004-benchmark-targets.md), [`measurement.md` §4](../measurement.md#4-the-lift-target-delta-is-the-committed-number)
+* **Exit Criteria**: Paired McNemar $p$-value and Holm–Bonferroni corrected confidence intervals computed. Lift target ($\Delta \ge +10$ points) verified or falsified.
+
+### TASK-074: Publication Run on SEALED Dataset (Milestone M4)
+* **Description**: Execute the final publication run on the SEALED split satisfying all 7 pre-publication verification conditions of [`measurement.md` §6](../measurement.md#6-pre-publication-verification-gate).
+* **Target Files**: `scripts/run_sealed_publication.py`, `docs/rationale/benchmarks/publication_sealed.md`
+* **Normative Specs**: [`measurement.md` §6](../measurement.md#6-pre-publication-verification-gate)
+* **Exit Criteria**: All 7 conditions satisfied: single hash instrument tuple, zero unhandled errors, exact McNemar $p$-value, Holm-Bonferroni correction, budget audit passed, raw trajectory log archived, and container digest verified.
+
+### TASK-015b: OpenHands Arm Through Our Evaluator (Milestone M4)
+* **Description**: Integrate the OpenHands arm into `HarnessUnderTest` (`TASK-015`), routing OpenHands execution through our containerized TCB `Evaluator` for true apples-to-apples comparative benchmarking against AETHER on the same manifest.
+* **Target Files**: `src/aether/measurement/runner.py`, `src/aether/adapters/openhands_runner.py`
+* **Normative Specs**: [`spec.md` §9](../spec.md#9-standing-rules) (no self-reported competitor metrics), [`measurement.md` §4](../measurement.md#4-the-lift-target-delta-is-the-committed-number)
+* **Exit Criteria**: OpenHands arm executes on pinned manifest through our evaluator; paired McNemar comparison generated against AETHER arm.
+
+### TASK-075: Read-Only TUI Client over Event Bus (Post-`TASK-058`)
+* **Description**: Build a standalone read-only TUI client (`tui/`) that subscribes to `engine.py`'s lossy event stream channel. Provides live terminal progress, node status, and telemetry without holding privileged grants.
+* **Target Files**: `src/aether/tui/`, `scripts/run_tui.py`
+* **Normative Specs**: [`spec.md` §8](../spec.md#8-clients-and-event-streams), [`spec.md` §3](../spec.md#3-structure)
+* **Exit Criteria**: Read-only TUI displays execution graph progression and live telemetry from `engine.run()` with zero direct access to kernel dispatch or evaluator.
+
+
 ---
 
 ## Epic 6: Per-Node Model Routing & Hybrid Economics (post-floor)
@@ -445,6 +528,50 @@ Source: [`proposal_workflows_hybrids_improvements.md`](../fixes/proposal_workflo
 
 ---
 
+## Epic 7: Benchmark Delivery & Public Claims (Milestone M4 — Competitor & Leaderboard Validation)
+
+Source: [`coverage_audit.md`](coverage_audit.md) §1 (Gap G1 resolution). Funds the mission statement in [`vision.md`](../vision.md) §1 and [`measurement.md`](../measurement.md) §4 to compete on SWE-bench Verified and SWE-bench Pro.
+
+### TASK-071: SWE-bench Manifest Build & Canary at Scale (Milestone M4)
+* **Description**: Build, pin, and bidirectionally validate SWE-bench Verified & Pro task manifests at scale, reusing `TASK-014`'s tooling. Screen every task with the bidirectional canary (gold patch passes, empty patch fails).
+* **Target Files**: `src/aether/measurement/manifest.py`, `benchmarks/manifests/swebench_verified_v1.yaml`, `benchmarks/manifests/swebench_pro_v1.yaml`
+* **Normative Specs**: [`measurement.md` §4.2–4.3](../measurement.md#42-splits-and-why-they-are-pinned), [`measurement.md` §6](../measurement.md#6-what-a-claim-needs-before-it-is-published)
+* **Exit Criteria**: Published exclusion list with explicit typed reasons for broken tasks (~30% of public Pro tasks estimated broken). Manifest hashes pinned in TCB.
+
+### TASK-072: SWE-bench A/A Floor Run (Milestone M4)
+* **Description**: Execute the A/A variance floor on the real SWE-bench manifest to derive suite-specific discordance rates ($p_{01}, p_{10}$) and per-task wall-clock metrics.
+* **Target Files**: `docs/rationale/benchmarks/swebench_noise_floor.md`
+* **Normative Specs**: [`measurement.md` §3](../measurement.md#3-the-aa-variance-floor), [ADR-0002](../decisions/0002-no-number-before-the-floor.md)
+* **Exit Criteria**: Discordance rates and N per gate family derived specifically for SWE-bench repositories and test runners; instrument tuple recorded.
+
+### TASK-073: Paired Lift Run (Bare-Model vs AETHER) (Milestone M4)
+* **Description**: Paired evaluation run comparing the bare-model baseline against AETHER on the pinned SWE-bench manifest under identical model endpoints and seeds.
+* **Target Files**: `src/aether/measurement/runner.py`, `docs/rationale/benchmarks/swebench_lift_report.md`
+* **Normative Specs**: [`measurement.md` §4](../measurement.md#4-target-benchmarks-and-required-lift), [ADR-0003 rev. 2](../decisions/0003-statistical-admission-protocol.md)
+* **Exit Criteria**: McNemar $p$-value and Holm–Bonferroni adjusted significance calculated by `TASK-012`; pre-registered lift target ($\ge +10$ points) evaluated.
+
+### TASK-074: Publication Run on SEALED (Milestone M4)
+* **Description**: Execute the final publication evaluation run on the SEALED split, strictly adhering to all seven conditions of `measurement.md` §6.
+* **Target Files**: `docs/rationale/benchmarks/publication_sealed_report.md`
+* **Normative Specs**: [`measurement.md` §6](../measurement.md#6-what-a-claim-needs-before-it-is-published)
+* **Exit Criteria**: All 7 publication criteria satisfied: manifest hash, model fingerprint, topology hash, container digests, lockfile hash, seed, and derived N power requirements met.
+
+### TASK-015b: OpenHands Arm via Evaluator (Milestone M4)
+* **Description**: Complete the comparative-lift rig (`HarnessUnderTest`) by integrating the OpenHands arm through our own evaluator container for apples-to-apples competitive evaluation.
+* **Target Files**: `src/aether/measurement/runner.py`, `src/aether/adapters/comparative/openhands.py`
+* **Normative Specs**: [`measurement.md` §6](../measurement.md#6-what-a-claim-needs-before-it-is-published), [`spec.md` §9](../spec.md#9-standing-rules)
+* **Exit Criteria**: OpenHands trajectory executed against our pinned manifest and scored by our TCB evaluator. Direct McNemar comparison enabled.
+
+### TASK-075: Read-Only TUI over Event Bus (Post-M1b Client)
+* **Description**: Implement a terminal user interface (TUI) as a read-only consumer of the headless engine event bus, addressing gap G5.
+* **Target Files**: `src/aether/client/tui.py` (new)
+* **Normative Specs**: [`spec.md` §8](../spec.md#8-clients), [ADR-0013](../decisions/0013-workflow-dag-phased.md)
+* **Exit Criteria**: Renders real-time execution events without holding any execution authority or adapter handles. Form generated from `RunConfig.model_json_schema()`.
+
+---
+
+
+
 ## Gate coverage map
 
 **Read this direction: gate → task.** A gate with no task is a tripwire guaranteed to fire, and a tripwire that always fires gets ignored ([ADR-0009](../decisions/0009-gates-are-the-schedule.md)'s own reversal condition). The reverse direction — task with no gate — is a smaller problem, and this table does not check it.
@@ -470,6 +597,15 @@ Every exit gate in [`milestones.md`](./milestones.md) and the task that funds it
 | M1a · 4 F1 timers | `TASK-021` |
 | M1a · 5 reserve/commit/release | `TASK-034` |
 | M1a+ · 1–4 repair edge | `TASK-023` |
+| M1a++R · 1 `tests_unmodified` I7 gate | `TASK-049` |
+| M1a++R · 2 test-source injection demotion | `TASK-049b` |
+| M1a++R · 3 non-interactive subprocesses | `TASK-062` |
+| M1b · 1 `agency` below `workflow` lattice | `TASK-053` |
+| M1b · 2 `ContextSource` & provenance | `TASK-054` |
+| M1b · 3 single `Inference` & `OutputParser` | `TASK-055` |
+| M1b · 4 5-layer prompt prefix stability | `TASK-056` |
+| M1b · 5 `ModelNode` + `RoleSpec` data roles | `TASK-057` |
+| M1b · 6 `RunConfig` domain model & floor guard | `TASK-058` |
 | M2 · 1 memoization | `TASK-032` |
 | M2 · 2 **repair ablation** (first) | `TASK-023`, `TASK-012` |
 | M2 · 3 generated-context ablation | `TASK-031` |
@@ -480,10 +616,16 @@ Every exit gate in [`milestones.md`](./milestones.md) and the task that funds it
 | M3 · 2 statistical admission | `TASK-012` |
 | M3 · 3 cache sequencing | `TASK-033` |
 | M3 · 4 child leases | `TASK-034` |
+| M4 · 1 SWE-bench manifest & canary at scale | `TASK-071` |
+| M4 · 2 SWE-bench A/A floor | `TASK-072` |
+| M4 · 3 paired lift run | `TASK-073` |
+| M4 · 4 publication run on SEALED | `TASK-074` |
+| M4 · 5 OpenHands comparative arm | `TASK-015b` |
 
-**Not gate-funding, and deliberately so** — these support the gates above rather than closing one: `TASK-006` (mocks and cassettes), `TASK-014` (manifests and validity canary), `TASK-015` (comparative-lift rig), `TASK-022` (engine and bus), `TASK-026` (trajectory store), `TASK-030a`/`TASK-030b` (shell classifier and TaintGate — gated by the I11 red-team corpus in CI rather than by a milestone).
+**Not gate-funding, and deliberately so** — these support the gates above rather than closing one: `TASK-006` (mocks and cassettes), `TASK-014` (manifests and validity canary), `TASK-015` (comparative-lift rig), `TASK-022` (engine and bus), `TASK-026` (trajectory store), `TASK-030a`/`TASK-030b` (shell classifier and TaintGate — gated by the I11 red-team corpus in CI rather than by a milestone), `TASK-075` (read-only TUI).
 
-**Four gates had no task before the Phase 0 lock**: all three of B3's, and M2's Architect/Editor ablation. M1a Gate 3 had one adapter funded against eight required. That is the D15 defect class, and this table is the mechanism that keeps it closed.
+**Gate gaps closed**: M1a++R, M1b, and M4 exit gates are now explicitly mapped to funding tasks, eliminating the G1 and G4 coverage holes.
+
 
 ---
 
@@ -524,7 +666,7 @@ Every row is worked by **The Developer** — there is one team, not a role hiera
 | :--- | :--- | :--- | :---: | :--- | :--- |
 | `TASK-011` | Local Model Provider Adapter | B2b (Sprint 2) | **3** · Medium | First real adapter — it sets the precedent every later provider follows | An async `httpx` `ModelProvider` streaming SSE deltas (`TextDelta`/`ToolCallDelta`/`UsageEvent`/`StopEvent`) with enforced token ceilings. Moderate streaming/protocol work, but it's also the adapter proving out the port shape and satisfying TASK-002's "named first real adapter" entry rule — everything that later calls a model goes through what this task establishes. |
 | `TASK-017` | Git Workspace & Worktree Adapter | M1a (Sprint 2) | **3** · Medium | Git-over-subprocess with a strict no-`Path`-crosses-the-port rule | `Workspace` + `WorktreeManager` over the `git` CLI via `asyncio.subprocess`, every path a repo-relative string (I3), one worktree per candidate under a run-scoped root. The concrete surface (`read`/`write`/`apply_patch`/`diff`, `create`/`destroy`/`list_active`) is already specified; the real work is subprocess correctness and patch-application edge cases (rejected hunks), plus hosting the worktree-creation timer TASK-021 depends on. |
-| `TASK-018` | Built-in Tool Registry & Execution Container | M1a (Sprint 2) | **4** · Hard | A catalog that must be frozen, and outputs labeled untrusted before anyone reads them | `ToolRegistry` adapter executing in a container **separate** from the evaluator (own image, own lease class, so a runaway tool loop can't starve the judge). Every tool output must be labeled `untrusted-external` **at construction**, not at point of use — a timing requirement that interacts directly with the TaintGate model (ADR-0015). Also the first adapter that has to honor I6 (catalog frozen at composition, no runtime registration). |
+| `TASK-018` | Built-in Tool Registry & Execution Container | M1a (Sprint 2) | **3** · Medium *(rev.)* | A frozen catalog with construction-time taint labeling; the container half didn't ship | `ToolRegistry` adapter (`adapters/tools/builtin.py`, 120 LOC): two tools (`read_file`, `bash`), catalog frozen as a tuple in `__init__` (I6), every `ToolResult` labeled `untrusted-external` at construction (ADR-0015). **The "separate container, own lease class" isolation named in the original rationale never landed** — the module's own docstring says it "runs uncontained this sprint via `asyncio.subprocess`", and [`coverage_audit.md`](./coverage_audit.md) independently flags the tool container as still open. What's actually in the tree is a small, uncontained adapter — real but not the concurrency/security-isolation work a Hard rating implies. Re-promotes to Hard once the container lands. |
 | `TASK-019` | TCB Evaluator Implementation | M1a (Sprint 2) | **4** · Hard | The judge itself — must be provably unreachable from the code it grades | Runs the manifest's pinned test command inside the evaluation container and returns a typed tri-state `GateReport`, verifying the test-command hash before running (a drift is `NONE`, never a result). The harder constraint is architectural: it must physically live in `measurement/`, never `adapters/`, so `import-linter`'s `tcb-isolation` contract can prove `agency/`/`workflow/` cannot import it (I7 — the agent that writes code cannot modify the tests grading it). |
 | `TASK-020` | Declarative Topology Executor | M1a (Sprint 2) | **4** · Hard | Five static graph checks with no escape hatch | A JSON-Schema (Draft 2020-12) structural pass plus five hand-written checks — socket-type compatibility across every edge, evaluator-termination (no path may route around the judge), bounded iteration, declared fan-out, and per-node budget annotation — with **no `--force` flag** and a typed error naming the failed check. `evaluator_termination` is a real graph-reachability property, not a schema field; ADR-0014 calls this component "TCB-adjacent" precisely because a bug here lets a topology bypass I7. |
 | `TASK-022` | Headless Engine API & Event Bus | M1a (Sprint 2) | **4** · Hard | The one stream every client in the system reads from | The headless `engine.py` API and append-only typed event bus every surface (TUI, CLI, CI, a future GUI) consumes with no privileged access. Requires correct backpressure under concurrency — drop-oldest for display consumers, **never** dropped for the trajectory store or measurement harvester — plus an event catalog generated from `domain/events.py` with a drift check. Nearly everything else in the system is either a producer or consumer of what this task builds. |
@@ -537,10 +679,20 @@ Every row is worked by **The Developer** — there is one team, not a role hiera
 | Task ID | Feature / Component | Milestone | Complexity | The Developer — why | Technical Complexity & Rationale |
 | :--- | :--- | :--- | :---: | :--- | :--- |
 | `TASK-016` | Evaluation Container & B3 Canary | B3 (Sprint 3) | **5** · Very Hard | Container isolation where the one bug that shipped before was invisible | Rootless Podman with `--network none`, `--cap-drop all`, `--security-opt no-new-privileges`, read-only root, exactly two mounts (RW worktree, RO pinned image layers by digest — never tag), plus a canary proving a deliberately broken candidate fails, run **inside the A/A floor environment before the floor itself**. This is the exact defect class (B3, the `.pth` leak) that silently produced fabricated numbers last time. It demands real namespace/mount/capability fluency, and a subtle mistake here invalidates a whole benchmark's results, not a bug report. |
-| `TASK-014` | Task-Manifest Tooling & Validity Canary | A/A Floor (Sprint 3) | **3** · Medium | Bidirectional validation against a real, sometimes-broken task set | Builds and pins manifests, then runs a per-task canary requiring the gold patch to pass *and* the empty patch to fail on our own instrument, publishing every exclusion with a reason. Not algorithmically hard, but operationally heavy — roughly 30% of public Pro tasks were estimated broken in a mid-2026 audit, so this is triage at scale, not clean-room logic. |
+| `TASK-014` | Task-Manifest Tooling & Validity Canary | A/A Floor (Sprint 3) | **4** · Hard *(rev.)* | TCB-resident, hash-pinned, and larger than the triage framing suggests | `measurement/manifest.py` (414 LOC) + `measurement/validity.py` (94 LOC) — 508 LOC, more than every other Sprint-1–3 module except `statistics.py`. It is **TCB**, under the same `aether-tcb-isolation` contract as `TASK-019`'s Evaluator (also rated Hard): the module's own docstring states it "cannot import `aether.adapters`, `aether.workflow` or `aether.agency`". On top of the bidirectional canary (gold passes *and* empty fails), it enforces schema-validated pins, sha256-identified immutability (a change is a new manifest, never an edit), and deterministic dev/holdout/sealed split assignment — several TCB-residency constraints stacked on the triage work, not triage alone. |
 | `TASK-023` | Bounded Repair Loop Node | M1a+ (Sprint 3) | **4** · Hard | `vision.md`'s single largest lever on score, and it must stay a bounded loop, never an infinite one | Statically unrolls `evaluate →(fail, k)→ repair → apply → evaluate` to `max_iterations` (1–16) so the DAG stays acyclic by construction. Three constraints carry the real difficulty: the validator must reject an unbounded or over-bound block, each iteration reserves its **own** budget through the governor triple, and a `GateReport` of `NONE` must never route into repair — repairing against a broken instrument would teach the loop to fix the harness's own bugs. Named in `vision.md` as the single largest lever on score, so correctness here has outsized leverage on every later benchmark number. |
 | `TASK-012` | Statistical Engine & A/A Variance Floor | A/A Floor (Sprint 3) | **5** · Very Hard | The instrument that decides whether every future number in this project is allowed to exist | Ports the predecessor's 259-LOC `e0/statistics.py` verbatim (exact McNemar, Holm–Bonferroni, seeded bootstrap — the one asset from the prior codebase that verified line-by-line), then adds real new complexity: a seeded Monte-Carlo power simulation deriving N per gate family from a pre-registered discordance assumption, target power ≥0.80, and the Holm-adjusted α at that hypothesis's rank — plus a gatekeeper that **refuses to compute corrected p-values for an undeclared family**. Demands genuine applied-statistics fluency (why a fixed N=50 silently discards 9 of 10 true improvements is not obvious without running the simulation), and its correctness gates every admission decision the project will ever make. |
-| `TASK-015` | Comparative-Lift Rig (`HarnessUnderTest`) | Sprint 3 (bare-model arm only) / Post-Floor (full) | **5** · Very Hard | Apples-to-apples comparison across harnesses that were never built to be compared | A `HarnessUnderTest` seam producing paired outcomes for bare-model, AETHER, and OpenHands, all routed through **our own** evaluator, same model, same manifest. Sprint 3 lands only the seam plus the bare-model arm; the OpenHands arm is explicitly deferred to after the floor. The hard part is integration, not volume: wrapping a third-party OSS harness uniformly enough to be comparable, without breaking the paired design McNemar assumes. Without this task the mission statement is literally unsubstantiable — `spec.md` §9 forbids citing a competitor's own published numbers as evidence. |
+| `TASK-015` | Comparative-Lift Rig (`HarnessUnderTest`) | Sprint 3 (bare-model arm only) / Post-Floor (full) | **4** · Hard *(rev.)* | The seam and the pre-registered baseline, not the cross-harness integration | `measurement/runner.py` (304 LOC): a `HarnessUnderTest` protocol plus `BareModelHarness` — one completion, the official SWE-bench template with its hash recorded, no execution feedback, temperature/seed pinned. The module's own docstring is explicit that "**Sprint 3 ships the seam plus the bare-model arm only**… The OpenHands arm is explicitly out of scope." The genuinely Very-Hard part — wrapping a third-party OSS harness uniformly enough to be paired-comparable — is exactly what shipped in *neither* Sprint 3 nor this row; it is tracked and independently rated Very Hard as `TASK-015b`. Rating this row at the same level double-counts that difficulty against work not yet done here. |
+
+### Sprint 3.5 — Phase 0 Lock (code complete)
+
+| Task ID | Feature / Component | Milestone | Complexity | The Developer — why | Technical Complexity & Rationale |
+| :--- | :--- | :--- | :---: | :--- | :--- |
+| `TASK-037` | EditFormat Seam — Unified Diff & Whole-File | Phase 0 (Sprint 3.5) | **2** · Easy | Swappable edit format via YAML params | Unified diff (with --3way fallback) and whole-file (regex + AST validation) swappable per node without code changes. |
+| `TASK-038` | Node Registry Keyed by Kind | Phase 0 (Sprint 3.5) | **2** · Easy | Dynamic node resolution from YAML topology | Maps node kinds dynamically from `params`, allowing multiple generate nodes in one topology. |
+| `TASK-039` | Repair Step Source Context Re-reading | Phase 0 (Sprint 3.5) | **2** · Easy | Worktree context re-read via dispatch | Re-reads worktree files using `_dispatch.read()` to embed updated file state into repair prompts. |
+| `TASK-040` | Engine Registry & Auto-Files Topology | Phase 0 (Sprint 3.5) | **2** · Easy | Engine parameter forwarding | Forwards entry files to `RepairStep` and adds auto-file discovery repair topology. |
+| `TASK-041` | Dynamic Task Instruction & Discovery | Phase 0 (Sprint 3.5) | **2** · Easy | Auto-discovers task files and assertions | Discovers task `.py` files and injects `run_tests.py` assertions into task instructions. |
 
 ### Sprint 4 — Instrument Restoration and the Floor (planned: [`sprint-04.md`](./sprints/sprint-04.md))
 
@@ -551,6 +703,7 @@ Every row is worked by **The Developer** — there is one team, not a role hiera
 | `TASK-050` | Effect Payloads to `domain/` | M1b | **1** · Very Easy | A file move that removes an import edge nobody intended | Four frozen models leave `composition.py`. No behaviour changes. The exit criterion is a new negative test — importing a node must not import `httpx` — which fails today and is the reason the task exists. |
 | `TASK-051` | One `worktree_path` | M1b | **1** · Very Easy | Delete three copies of an invariant | Four independent definitions of where a worktree lives, one of them inside the TCB evaluator. Mechanical, and the payoff is that the judge and the tool registry become structurally unable to disagree. |
 | `TASK-052` | `Envelope` Base for Payloads | M1b | **2** · Easy | Data modelling with one subtle constraint | Four payload types share a base. The care needed is that socket types must stay distinguishable — collapsing them into one type would defeat `check_socket_compatibility`, which is the validator's whole job. |
+| `TASK-062` | Non-Interactive Subprocess Hardening | M1a++R | **3** · Medium | `stdin=DEVNULL`, env allowlist, lease timeouts | Host spawn hardening to prevent interactive prompts from non-randomly shrinking the sample denominator `N`. |
 | **Sprint 4 Task 5** | **Take the A/A Variance Floor** | A/A Floor | **5** · Very Hard | Unchanged from `sprint-03.md` Task 5 — deferred by decision, not by difficulty | The instrument is complete and rehearsed (`run_aa_floor.py --dry-run`, zero API calls). What makes it Very Hard is that its outputs — p₀₁/p₁₀ discordance and per-task wall-clock — size every later admission run and every remaining sprint. Blocking precondition: the B3 canary executes **in the floor environment** first. |
 
 ### Sprint 5 — The Capability Layer (planned: [`sprint-05.md`](./sprints/sprint-05.md))
@@ -563,30 +716,90 @@ Every row is worked by **The Developer** — there is one team, not a role hiera
 | `TASK-056` | `PromptAssembler` (**was `TASK-031`**) | M1b / M2 Gates 3 & 6 | **4** · Hard | Five layers that must be byte-stable, provider quirks and all | Unchanged in difficulty from `TASK-031`; what changes is that it now has a home. The gated metric stays **harness-side** prefix stability over a fixed replay, deliberately not a provider hit rate — OpenAI-compatible endpoints cache implicitly and the local endpoint may report nothing. Getting layer-immutability and the replay measurement both right across providers is where the difficulty sits. |
 | `TASK-057` | `ModelNode` + `RoleSpec` | M1b | **3** · Medium | Three node classes become one node and four data rows | Mechanically a consolidation; the risk is behavioural drift in prompts, which is why the exit criterion is a **golden-prompt equivalence test** over every shipped topology rather than unit coverage. Old classes stay one release. Absorbs `TASK-047`'s missing tests. |
 | `TASK-058` | `RunConfig` Domain Model | M1b | **2** · Easy | Signature work with outsized downstream leverage | Fifteen keyword arguments become one frozen model. Low code risk. What it buys is disproportionate: `sha256(RunConfig)` becomes `measurement.md` §6's instrument tuple, GUI/CLI/TUI forms generate from one JSON schema, and the engine gains a place to **refuse a HOLDOUT run while the floor is empty**. |
+| `TASK-006` | Mock Adapter Set & Record/Replay Cassettes | M0 / Sprint 5 | **3** · Medium | Mocks for 9 ports + byte-exact replay engine | Re-scheduled to Sprint 5 per G2 gap resolution. Builds the cassette replay engine ("100 turns under 50 ms, byte-for-byte deterministic") required for affordable M2 ablations and golden-prompt tests. |
 
-### M2 / M3 — not yet sprint-planned
+### The pool — M2 / M3 / M4 / M5, milestone-tagged and unscheduled
+
+**Every row below carries a milestone, never a sprint number.** A milestone fixes a task's
+position in [`roadmap.md`](./roadmap.md)'s dependency DAG; a sprint number would be a date, and
+the two quantities that would set one — derived N and per-task wall-clock — are outputs of
+Sprint 4's floor. Rows move up into a sprint table via the [promotion rule](#the-promotion-rule),
+one at a time, as the gates ahead of them close.
 
 These land once M2-abl is sized off the floor's per-task wall-clock (`roadmap.md`). `TASK-032` was named "the first task of the next sprint" in `sprint-03.md`; it now follows Sprint 5, because `TASK-031`/`TASK-056` and `TASK-024` both target `agency/context/` and cannot start before that package exists.
 
 | Task ID | Feature / Component | Milestone | Complexity | The Developer — why | Technical Complexity & Rationale |
 | :--- | :--- | :--- | :---: | :--- | :--- |
-| `TASK-032` | Per-Node Digest Memoization | M2, Gate 1 (next sprint) | **3** · Medium | Cache invalidation, the classic hard problem, scoped to a DAG | Keys node execution on `sha256(node_kind, impl_version, canonical_payload)` and must invalidate **exactly** the descendants of a changed node — no more, no less. A correctness-sensitive DAG-traversal problem: over-eager invalidation defeats the ablation-speed purpose of the whole task, under-eager invalidation silently reuses stale results inside a benchmark run. |
-| `TASK-031` | *(→ `TASK-056`, Sprint 5)* 5-Layer Prompt Prefix & Cache Architecture | M2, Gates 3 & 6 | **4** · Hard | Five layers that must be byte-stable, provider quirks and all | **Relocated to `TASK-056` — same task, real target directory. Do not double-count.** Context assembler enforcing L1–L4 append-only-within-a-run and ≤4 `cache_control` breakpoints, with the CI-gated metric being **harness-side** byte-identical-prefix stability over a fixed replay — deliberately not a provider-reported hit rate, since provider cache semantics diverge (explicit Anthropic `cache_control` blocks vs. implicit OpenAI-compatible prefix caching) and the B2 local endpoint may expose none at all. The five-layer concept is simple; getting layer-immutability and the replay-based measurement both right across provider-specific emission logic is where the difficulty sits. |
-| `TASK-025` | Architect/Editor Dual-Model Seam | M2, Gate 4 | **3** · Medium | A config-gated seam that ships off by policy, not because it's unfinished | Decouples `architect.py` (planning, no write tools) from `editor.py` (surgical edits) behind a config switch defaulting to single-model, riding the `RoutingModelProvider` composite already established by TASK-011. ADR-0007 is explicit that "the seam costs little to build" — the discipline is architectural cleanliness of the plan/edit boundary and honoring the ships-disabled default; if its ablation doesn't clear the floor, the code is deleted outright rather than left dormant. |
-| `TASK-024` | L5 Dialogue Context Compactor | M2, Gate 5 | **3** · Medium | Compaction structurally forbidden from touching four of the five layers | Deterministic structural compaction (drop superseded file snapshots, collapse resolved tool exchanges) scoped to L5 only — the assembler exposes no API to touch L1–L4, so that guarantee is a type-level property this task doesn't have to enforce itself. The remaining work is real but bounded: get a long-task fixture to complete inside the context window via compaction alone, with no model-generated summarization (a separate, later-ablated mechanism). |
-| `TASK-030a` | Shell AST Classifier | M2/M3 (CI-gated, not milestone-gated) | **4** · Hard | A classifier that must never be mistaken for a security boundary | Parses shell commands to a `tree-sitter-bash` AST and drives the `Reject \| AskRuleMatch \| AskFailClosed` taxonomy plus a `widens_capability` flag, with auto-denial bounded at 3 consecutive / 20 total before the run halts. The classification surface is genuinely large (command substitution, variable indirection, interpreters invoked on attacker-controlled input all defeat static analysis) — but the harder discipline is documentary: no security claim may ever attach to this parser, because the sandbox — not this classifier — is the actual perimeter (ADR-0008). |
-| `TASK-030b` | TaintGate Provenance & Red-Team Gate | M2/M3 (CI-gated, not milestone-gated) | **5** · Very Hard | The mechanism itself is five lines; the corpus proving it holds is the whole job | Deterministic propagation (`any untrusted span consumed ⇒ untrusted-derived output`) is genuinely simple code. What makes this Very Hard is the enforcing predicate in the TCB `PolicyEngine` — a capability-widening request fails closed when any justifying span is untrusted or untrusted-derived — validated against a **pinned adversarial injection corpus** whose CI gate is *zero capability grants*, with a required negative test proving a deliberately permissive predicate makes the corpus produce a grant. Applied-security work against an open-ended adversarial input space; deliberately split from TASK-030a because ADR-0015 explicitly calls out that conflating the two means "neither gets designed." |
-| `TASK-035` | Conditional Branching & Best-of-N Fan-Out | M3, Gate 1 | **4** · Hard | Parallel candidates as real graph structure, with a lease tree to match | Adds conditional edges (`on_pass`/`on_fail`/`on_instrument_error`, the last routing only to a terminal flag node) and declared Best-of-N fan-out, where every fan-out site needs a declared join (unjoined fan-out leaks worktrees and leases) and N candidates carve N child leases from one parent reservation. Concurrency-correctness under `asyncio` fan-out plus a hierarchical lease/join model is real distributed-systems-shaped thinking, even single-process. |
-| `TASK-033` | Best-of-N Cache Sequencing | M3, Gate 3 | **3** · Medium | A one-request barrier, built on infrastructure two other tasks already provide | Warms the shared prefix on candidate 1 and confirms it before releasing candidates 2..N, expressed in the schema as a `cache_sequencing` value the validator requires on every fan-out site. A coordination barrier over async fan-out (TASK-035) and the cache architecture (TASK-031) — real, but narrower than it sounds once those two exist; the fiddly part is reliably detecting "prefix confirmed warm" across providers with inconsistent cache-reporting semantics. |
+| `TASK-032` | Per-Node Digest Memoization | M2, Gate 1 (Sprint 6) | **3** · Medium | Cache invalidation, the classic hard problem, scoped to a DAG | Keys node execution on `sha256(node_kind, impl_version, canonical_payload)` and must invalidate **exactly** the descendants of a changed node — no more, no less. A correctness-sensitive DAG-traversal problem: over-eager invalidation defeats the ablation-speed purpose of the whole task, under-eager invalidation silently reuses stale results inside a benchmark run. |
+| `TASK-031` | *(→ `TASK-056`, Sprint 5)* 5-Layer Prompt Prefix & Cache Architecture | M2, Gates 3 & 6 | **4** · Hard | Five layers that must be byte-stable, provider quirks and all | **Relocated to `TASK-056` — same task, real target directory. Do not double-count.** Context assembler enforcing L1–L4 append-only-within-a-run and ≤4 `cache_control` breakpoints, with the CI-gated metric being **harness-side** byte-identical-prefix stability over a fixed replay. |
+| `TASK-025` | Architect/Editor Dual-Model Seam | M2, Gate 4 | **3** · Medium | A config-gated seam that ships off by policy, not because it's unfinished | Decouples `architect.py` (planning, no write tools) from `editor.py` (surgical edits) behind a config switch defaulting to single-model, riding the `RoutingModelProvider` composite already established by TASK-011. |
+| `TASK-024` | L5 Dialogue Context Compactor | M2, Gate 5 | **3** · Medium | Compaction structurally forbidden from touching four of the five layers | Deterministic structural compaction (drop superseded file snapshots, collapse resolved tool exchanges) scoped to L5 only. |
+| `TASK-030a` | Shell AST Classifier | M2/M3 (CI-gated) | **4** · Hard | A classifier that must never be mistaken for a security boundary | Parses shell commands to a `tree-sitter-bash` AST and drives the `Reject \| AskRuleMatch \| AskFailClosed` taxonomy plus a `widens_capability` flag. |
+| `TASK-030b` | TaintGate Provenance & Red-Team Gate | M2/M3 (CI-gated) | **5** · Very Hard | The mechanism itself is five lines; the corpus proving it holds is the whole job | Deterministic propagation (`any untrusted span consumed ⇒ untrusted-derived output`) with enforcing predicate in TCB `PolicyEngine` validated against pinned adversarial injection corpus. |
+| `TASK-035` | Conditional Branching & Best-of-N Fan-Out | M3, Gate 1 | **4** · Hard | Parallel candidates as real graph structure, with a lease tree to match | Adds conditional edges (`on_pass`/`on_fail`/`on_instrument_error`) and declared Best-of-N fan-out with child leases. |
+| `TASK-067` | Candidate Ranker (I9 Type Separation) | M3, Gate 1 | **4** · Hard | Ranks candidates by visible test passes without admitting them | Implements type-level `rank()` vs `admit()` separation (G3 gap resolution). Visible test execution ranker; evaluate node remains sole admitter. |
+| `TASK-033` | Best-of-N Cache Sequencing | M3, Gate 3 | **3** · Medium | A one-request barrier, built on infrastructure two other tasks already provide | Warms shared prefix on candidate 1 before releasing candidates 2..N. |
+| `TASK-059` | `ExecutionStrategy` Seam (TCB) | M3 / Post-M1b | **4** · Hard | Modular graph execution strategy registry | Promotes static graph traversal routines to registered strategies. |
+| `TASK-060` | Topology Fragments (TCB-adjacent) | M3 / Post-M1b | **4** · Hard | Composability operator for workflow YAMLs | Hash-pinned fragment macro expansion prior to validation. |
+| `TASK-061` | Declarative Arm Files | M3 / Post-M1b | **2** · Easy | Hash-pinned ablation arm configuration | Converts arm definition functions to hash-pinned data files. |
+| `TASK-064` | Localization `ContextSource` Set | M4 / Post-M1b | **3** · Medium | Syntax-tier localization source set | `LexicalSource`, `SymbolSource`, `TestPathSource`, `HistorySource` for repository file localization on real SWE-bench instances. |
+| `TASK-065` | Retrieval-Recall Diagnostic | M4 / Post-M1b | **3** · Medium | Offline analysis over trajectory store | Determines if gold patch files were retrieved in unresolved tasks. |
+| `TASK-066` | `SearchReplaceFormat` | M4 / Post-M1b | **3** · Medium | Middle ground between unified diff and whole file | SEARCH/REPLACE block edit format adapter. |
+| `TASK-068` | Capability Attenuation per `RoleSpec` | M3 / Post-M1b | **3** · Medium | Role-based capability narrowing | Attenuates `DispatchFacade` based on `RoleSpec.permitted_effect_classes` (ADR-0017). |
+| `TASK-069` | Turn Budget and Loop Detection | M3 / Post-M1b | **2** · Easy | Consecutive identical tool call short-circuit | Configurable turn limits and loop detection in inference loop. |
+| `TASK-070` | `RunConfig.mode` Benchmark vs Interactive | M3 / Post-M1b | **2** · Easy | Strict fail-closed policy in benchmark mode | Forces fail-closed `ASK_*` decisions and deterministic retrieval under benchmark mode. |
+| `TASK-042` | `RoutingModelProvider` | M3 / Post-M1b | **3** · Medium | Multi-provider composite adapter | Routes model requests by model name to local or external providers. |
+| `TASK-043` | Node-Scoped Pricing | M3 / Post-M1b | **2** · Easy | Per-node cost tracking | Accurate pricing across hybrid local/cloud topologies. |
+| `TASK-044` | Reserve Dollar Estimate | M3 / Post-M1b | **2** · Easy | Pre-execution monetary budget reservation | Checks node dollar budget ceiling at reserve time. |
+| `TASK-045` | Enforce Per-Node Budget (TCB) | M3 / Post-M1b | **3** · Medium | Hard choke point node budget enforcement | Denies node execution at dispatch if node budget is exceeded. |
+| `TASK-046` | Wire `reflector` or Delete It | M3 / Post-M1b | **1** · Very Easy | Resolves dead code | Either adds test topology for reflector or removes unreferenced step. |
+| `TASK-048` | Provenance for Planner Output | M3 / Post-M1b | **3** · Medium | Preserves planner output taint span | Avoids mislabeling repo-derived planner output as operator input. |
+| `TASK-063` | Live Log Telemetry | Post-M1b (Client) | **2** · Easy | Lossy channel streaming for UI progress | Emits streaming log lines for TUI/GUI display without corrupting trajectory determinism. |
+| `TASK-075` | Read-Only TUI over Event Bus | Post-M1b (Client) | **2** · Easy | Event bus terminal user interface | Read-only TUI surface for headless engine monitoring (G5 gap resolution). |
+| `TASK-071` | SWE-bench Manifest & Canary at Scale | M4 | **3** · Medium | Pins SWE-bench Verified & Pro task manifests | Screens tasks bidirectionally with validity canary, closing gap G1. |
+| `TASK-072` | SWE-bench A/A Floor Run | M4 | **4** · Hard | Derives SWE-bench-specific discordance & N | Characterizes real benchmark noise floor, closing gap G1. |
+| `TASK-073` | Paired Lift Run (Bare-Model vs AETHER) | M4 | **4** · Hard | Statistical lift comparison on SWE-bench | Paired McNemar evaluation against baseline, closing gap G1. |
+| `TASK-074` | Publication Run on SEALED | M4 | **3** · Medium | Evaluates SEALED split per `measurement.md` §6 | Satisfies all 7 publication criteria for leaderboard claims (G1). |
+| `TASK-015b` | OpenHands Arm via Evaluator | M4 | **5** · Very Hard | Runs third-party harness through our TCB evaluator | Enables direct apples-to-apples competitor claim (G1). |
 
 ---
 
 ### Complexity Distribution
 
-* **Very Easy — 1 (6 tasks)**: `TASK-000`, `TASK-013`, `TASK-021`, `TASK-046`, `TASK-049b`, `TASK-050`, `TASK-051` — mechanical or single-concept work with no concurrency, security, or algorithmic surface.
-* **Easy — 2 (8 tasks)**: `TASK-001`, `TASK-004`, `TASK-010`, `TASK-026`, `TASK-043`, `TASK-044`, `TASK-052`, `TASK-058`, `TASK-061` — contained, well-specified I/O or data modeling with low risk.
-* **Medium — 3 (16 tasks)**: `TASK-002`, `TASK-005`, `TASK-006`, `TASK-011`, `TASK-014`, `TASK-017`, `TASK-024`, `TASK-025`, `TASK-032`, `TASK-033`, `TASK-042`, `TASK-045`, `TASK-048`, `TASK-049`, `TASK-053`, `TASK-054`, `TASK-055`, `TASK-057` — real integration surface or a non-trivial algorithm, several constraints to reconcile.
-* **Hard — 4 (12 tasks)**: `TASK-003`, `TASK-018`, `TASK-019`, `TASK-020`, `TASK-022`, `TASK-023`, `TASK-030a`, `TASK-031`/`TASK-056`, `TASK-034`, `TASK-035`, `TASK-059`, `TASK-060` — TCB-critical or concurrency/security-sensitive, many interacting invariants.
-* **Very Hard — 5 (4 tasks)**: `TASK-012`, `TASK-015`, `TASK-016`, `TASK-030b` — specialist domain knowledge (applied statistics, container security, cross-harness evaluation, adversarial red-teaming), largest blast radius if wrong, little or no reference implementation to draw on.
+* **Very Easy — 1 (7 tasks)**: `TASK-000`, `TASK-013`, `TASK-021`, `TASK-046`, `TASK-049b`, `TASK-050`, `TASK-051` — mechanical or single-concept work with no concurrency, security, or algorithmic surface.
+* **Easy — 2 (18 tasks)**: `TASK-001`, `TASK-004`, `TASK-010`, `TASK-026`, `TASK-037`, `TASK-038`, `TASK-039`, `TASK-040`, `TASK-041`, `TASK-043`, `TASK-044`, `TASK-052`, `TASK-058`, `TASK-061`, `TASK-063`, `TASK-069`, `TASK-070`, `TASK-075` — contained, well-specified I/O or data modeling with low risk.
+* **Medium — 3 (26 tasks)**: `TASK-002`, `TASK-005`, `TASK-006`, `TASK-011`, `TASK-017`, `TASK-018`, `TASK-024`, `TASK-025`, `TASK-032`, `TASK-033`, `TASK-036`, `TASK-042`, `TASK-045`, `TASK-048`, `TASK-049`, `TASK-053`, `TASK-054`, `TASK-055`, `TASK-057`, `TASK-062`, `TASK-064`, `TASK-065`, `TASK-066`, `TASK-068`, `TASK-071`, `TASK-074` — real integration surface or a non-trivial algorithm, several constraints to reconcile.
+* **Hard — 4 (16 tasks)**: `TASK-003`, `TASK-014`, `TASK-015`, `TASK-019`, `TASK-020`, `TASK-022`, `TASK-023`, `TASK-030a`, `TASK-031`/`TASK-056`, `TASK-034`, `TASK-035`, `TASK-059`, `TASK-060`, `TASK-067`, `TASK-072`, `TASK-073` — TCB-critical or concurrency/security-sensitive, many interacting invariants.
+* **Very Hard — 5 (5 tasks)**: `TASK-012`, `TASK-015b`, `TASK-016`, `TASK-030b`, `A/A Floor Run` — specialist domain knowledge (applied statistics, container security, cross-harness evaluation, adversarial red-teaming), largest blast radius if wrong, little or no reference implementation to draw on.
 
 **Counts are of distinct task ids in this file.** `TASK-031` and `TASK-056` are one task listed under two ids during the relocation and are counted once.
+
+**Revised against code, 2026-08-07**: `TASK-018` (4→3), `TASK-014` (3→4), `TASK-015`/Sprint-3 row (5→4) — see each row's *(rev.)* rationale for the code evidence (file paths, LOC, and what shipped vs. what the original rationale assumed).
+
+---
+
+## Next Steps & Future Roadmap (Post-Sprint 5)
+
+Sprints 1 through 5 take the AETHER codebase from foundation to **Milestone M1b**, establishing the pure domain, wire-serializable ports, walking skeleton, instrument restoration, and the modular capability layer. 
+
+As mandated by [ADR-0009](../decisions/0009-gates-are-the-schedule.md) and [`sprints/README.md`](./sprints/README.md), tasks beyond Sprint 5 are deliberately unsized and unscheduled until the **Sprint 4 A/A Floor** produces exact per-task wall-clock metrics. 
+
+Once Sprint 5 completes and the floor wall-clock metrics are established, the team will plan the next development phases as follows:
+
+### Phase 1: Sprint 6 & Milestone M2 (Engine Efficiency & Ablation Cadence — M2-eng & M2-abl)
+- **Sprint 6 Planning**: Size and execute Sprint 6 starting with `TASK-032` (Per-Node Digest Memoization) and deploying `TASK-006`'s cassette replay engine to make ablation runs deterministic and fast (<50 ms per turn).
+- **M2 Ablation Suite**: Execute formal statistical ablations for prompt prefix stability (`TASK-056`), dialogue context compaction (`TASK-024`), and the Architect/Editor dual-model seam (`TASK-025`).
+
+### Phase 2: Milestone M3 (Advanced DAG Branching, Fan-Out & Statistical Admission)
+- **Graph & Lease Concurrency**: Implement Best-of-N fan-out (`TASK-035`), cache sequencing (`TASK-033`), and child leases (`TASK-034`).
+- **Candidate Selection & Invariants**: Land `TASK-067` (Candidate Ranker) enforcing type-level `rank()` vs `admit()` separation to satisfy invariant **I9**.
+- **Family Gatekeeper**: Enforce statistical admission through the pre-registered family gatekeeper (`TASK-012`).
+
+### Phase 3: Milestone M4 (Benchmark Delivery & Leaderboard Validation — Resolving Gap G1)
+- **Manifest Scale & Canary**: Build, pin, and screen real SWE-bench Verified and Pro manifests with the bidirectional validity canary (`TASK-071`, `TASK-036`).
+- **SWE-bench Noise Floor**: Take the SWE-bench-specific A/A variance floor (`TASK-072`) to derive suite-specific discordance rates ($p_{01}, p_{10}$) and derived sample sizes $N$.
+- **Comparative Lift & Competitor Claim**: Run paired lift evaluations comparing bare-model baseline vs AETHER (`TASK-073`) and execute the OpenHands arm through our TCB evaluator (`TASK-015b`).
+- **Publication & Telemetry**: Execute the publication run on the SEALED split (`TASK-074`) satisfying all 7 requirements of `measurement.md` §6, backed by localization sources (`TASK-064`, `TASK-065`) and the read-only TUI (`TASK-075`).
+
+### Phase 4: Milestone M5 (Meta-Loop & Self-Redesign — Resolving Gap G6)
+- **Evolution Package**: Activate `src/aether/evolution/` under strict TCB isolation, implementing subagent capability attenuation (ADR-0017) and topology self-redesign mechanisms (ADR-0006, ADR-0014).
