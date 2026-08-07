@@ -57,3 +57,13 @@ src_front/
 * **Headless Decoupling**: The front-end has zero direct imports from `src/aether/`. All communication occurs via typed events over WebSocket/SSE ([`BRIDGE_CONTRACT.md`](./BRIDGE_CONTRACT.md)).
 * **Mock/Live Transparency**: Every front-end component functions identically whether consuming live engine events or mock cassette playback.
 * **Event Schema CI Generation**: TypeScript event types in `@aether/core/types/events.ts` are generated from `domain/events.py` with a CI drift check. Manual event type definitions are provisional.
+
+
+## Quickstart
+
+    > Install dependencies
+    pnpm install
+
+    > Start TUI CLI (or GUI)
+    pnpm --filter @aether/cli dev       # for TUI
+    pnpm --filter @aether/desktop dev   # for GUI (opens http://localhost:1420)

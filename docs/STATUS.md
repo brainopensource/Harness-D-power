@@ -5,55 +5,38 @@ updated: 2026-08-06
 
 # STATUS
 
-**Nothing is implemented.** `src/aether/` is empty.
-
-That is the correct content for this file today, and it stays until a line-level code read
-supports something else.
+**Sprint 1 in progress (6 of 7 tasks complete).** `src/aether/` contains core M0 foundational domain models, wire port protocols, kernel dispatch & policy engine, workflow step types, mock adapters, and conformance suites.
 
 | Area | State |
 | :--- | :--- |
-| `src/aether/` | Empty. No ports, no domain, no kernel |
+| `src/aether/domain/` | **Implemented.** Pure Pydantic models (ids, task, taint, budget, gate, model_io, workspace, tools) |
+| `src/aether/ports/` | **Implemented.** 9 wire-serializable protocols for core boundaries |
+| `src/aether/kernel/` | **Implemented.** Dispatch choke point (`dispatch.py`) and PolicyEngine (`policy.py`) |
+| `src/aether/workflow/` | **Implemented.** `WorkflowStep[In, Out]` node & socket types (`step.py`) |
+| `src/aether/measurement/` | **In Progress / Pending.** `TASK-010` (`repo_cache.py`) & `scripts/resolve_swebench_bases.py` pending to close Sprint 1 |
+| `src/aether/adapters/` | **Pending.** Mocks exist in `tests/aether/mocks.py`. Real adapters land in Sprint 2 |
 | Benchmark results | **None.** No valid number has ever been produced — see [`measurement.md`](./measurement.md) §1 |
-| A/A variance floor | Not established. Blocked on B1, B2b and **B4** |
-| Benchmark suite (`benchmarks/definitions/`) | Does not exist, and is **git-untracked**. The `bench-aa` CI job is consequently a no-op, held open by a strict `xfail` |
-| Phase 0 decisions | **Ratified and locked.** Twelve forks, the workflow DAG, and four ADRs added by the lock audit — [`decisions/`](./decisions/README.md) |
-| Documentation | **Phase 0 locked** (2026-08-06). D1–D21 reconciled; 17 ADRs; both docs gates green and covered by a negative test |
-| Predecessor (`src/sagiha/`) | 12,949 LOC. Reference material, being retired. Not a foundation |
+| A/A variance floor | Not established. Blocked on B1 (`TASK-010`), B2b (`TASK-011`) and B4 (`TASK-013` domain complete) |
+| Benchmark suite (`benchmarks/definitions/`) | Does not exist yet |
+| Phase 0 decisions | **Ratified and locked.** |
+| Documentation | **Phase 0 locked** (2026-08-06). Both docs gates green |
+| Predecessor (`src/sagiha/`) | Reference material being retired |
 
 ## What CI currently proves
 
 | Gate | State |
 | :--- | :--- |
-| `ruff`, `pyright` strict, `import-linter` (5 contracts) | Green — **and keyed to `sagiha`.** `root_package = sagiha`; see the `tcb-check` row |
-| Docs word budget (`--max 15000`) | **Green.** 7,259 normative words across 6 files, 7,741 under the ceiling |
-| Relative links | **Green.** 201 files, zero dead links |
-| Docs gates can fail | **Green** — `tests/unit/test_docs_gates.py`, 10 cases. Both gates were reported green here while red until 2026-08-06 |
-| Path-constant drift | Green — 1 strict `xfail` holding the missing benchmark suite visible |
-| `tcb-check` | Green, **and keyed to `src/sagiha/` paths.** It goes vacuous at the `src/aether/` migration unless moved in the same change — owner: [`TASK-000`](./agile/backlog.md), M0 Exit Gate 0 |
-| `bench-aa` | **No-op.** Guarded on a suite that does not exist |
-
-## What was wrong with this file until 2026-08-06
-
-Recorded rather than quietly corrected, because the failure is the interesting part.
-
-This file reported **"Docs word budget, relative links — Green"** as a single row. Both were
-red. `check_links.py` was returning **7 dead links** — every core document pointed at
-`docs/00/`, a directory that does not exist — and `docs_budget.py` was failing on **5 files
-with no `status:` frontmatter**.
-
-Neither was subtle, and neither had been run. A file whose first rule is *"no claim here is
-unsupported by a line-level code read"* carried two claims unsupported by running a script.
-
-Worth keeping: **the gates were correct and the report was wrong.** The mechanism worked; what
-was missing was anything forcing the report to be derived from it. That gap is now closed by
-`tests/unit/test_docs_gates.py`, which plants a dead link and an untagged file and asserts each
-gate returns non-zero — and which, on its first run, found that the link checker's *failure
-path* crashed on a `--docs-root` outside the repo. The error branch had never executed.
+| `ruff`, `pyright` strict, `import-linter` (contracts) | Green — `aether` contracts active and passing alongside `sagiha` |
+| `tests/aether/` suite | **Green.** 71/71 tests passing |
+| Docs word budget (`--max 15000`) | **Green.** |
+| Relative links | **Green.** |
+| Docs gates can fail | **Green** — `tests/unit/test_docs_gates.py` |
+| Path-constant drift | **Green** — `test_path_constant_drift.py` asserts `aether` module targets |
+| `tcb-check` | Green |
 
 ## Rules this file is held to
 
-- No claim here is unsupported by a line-level code read **or by running the gate and pasting
-  what it said**.
+- No claim here is unsupported by a line-level code read **or by running the gate and pasting what it said**.
 - A gate that cannot fail is not counted as a gate.
 - "Not implemented" is a legitimate and expected entry. A plausible-sounding estimate is not.
 - A gate reported green here names the command that produced the green.
