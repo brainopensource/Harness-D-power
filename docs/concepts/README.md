@@ -15,9 +15,9 @@ DAG went three implementation plans without a vote.
 
 | Document | What it is |
 | :--- | :--- |
-| [`rewrite_v300_project_vision.md`](./rewrite_v300_project_vision.md) | The original onboarding brief. Superseded by [`../vision.md`](../vision.md) |
+| [`rewrite_v300_project_vision.md`](../vision.md) | The original onboarding brief. Superseded by [`../vision.md`](../vision.md) |
 | [`rewrite_v300_context.md`](./rewrite_v300_context.md) | The Project Lead's charge: read first, then audit, then spec |
-| [`rewrite_v300_documentation_guide_references.md`](./rewrite_v300_documentation_guide_references.md) | What the prototype taught us, mapped onto the contested forks |
+| [`rewrite_v300_documentation_guide_references.md`](README.md) | What the prototype taught us, mapped onto the contested forks |
 | [`rewrite_v300_decision_brief.md`](./rewrite_v300_decision_brief.md) | The meeting agenda. **Revised** — three fork rows were corrected against Track B's text |
 | [`rewrite_v300_phase0_audit_register.md`](./rewrite_v300_phase0_audit_register.md) | **The load-bearing document.** Every contradiction between the two proposals and every untraceable number, with citations |
 | [`rewrite_v300_decision_record.md`](./rewrite_v300_decision_record.md) | The ratification: twelve forks plus the DAG, and how each was reached |

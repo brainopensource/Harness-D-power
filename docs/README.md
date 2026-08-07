@@ -5,23 +5,53 @@ updated: 2026-08-05
 
 # AETHER Documentation
 
-**Start at [`vision.md`](./vision.md)** if you are new. **Go to [`spec.md`](./spec.md)** if
-you need to know what is true.
+## Start here
 
-| Document | Tier | What it is |
+| You are | Read, in order |
+| :--- | :--- |
+| **New to the project** | [`vision.md`](./vision.md) → [`PHASE-0-LOCK.md`](./PHASE-0-LOCK.md) → [`spec.md`](./spec.md) → [`STATUS.md`](./STATUS.md) · **~40 minutes** |
+| **About to write code** | [`development/coding_guidelines.md`](./development/coding_guidelines.md) → the dev prompt for the current sprint → the `TASK-0xx` entries it names |
+| **Planning** | [`agile/roadmap.md`](./agile/roadmap.md) → [`agile/milestones.md`](./agile/milestones.md) → [`agile/backlog.md`](./agile/backlog.md#scheduling-ledger) |
+| **An AI agent working here** | [`PHASE-0-LOCK.md`](./PHASE-0-LOCK.md) is the constraint set. Never contradict it without an ADR |
+
+## The map
+
+| Where | Tier | What it owns |
 | :--- | :--- | :--- |
-| [`vision.md`](./vision.md) | 1 | The mission and the architecture at altitude. Orientation, ~10 minutes |
-| [`spec.md`](./spec.md) | 2 | **Normative.** The minimal statement of what is true. Everything binding is here or in code |
-| [`measurement.md`](./measurement.md) | 2 | **Normative.** The instrument protocol, the A/A floor, gate design |
-| [`decisions/`](./decisions/README.md) | 2 | ADRs. Every decision with its reversal condition |
-| [`STATUS.md`](./STATUS.md) | — | What is actually implemented. No claim without a line-level code read |
-| [`agile/`](./agile/README.md) | 3 | Roadmap, milestone exit gates, backlog, sprints, coverage audit, release plan. Gate tables are `normative`; the rest is `rationale` |
-| [`architecture_diagrams.md`](./architecture_diagrams.md) | 3 | Four Mermaid diagrams: orchestration, inner loop, outer loop, dispatch lifecycle. **Shows the target architecture — parts are unbuilt** |
-| [`development/`](./development/core_skeletons_and_protocols.md) | 3 | Pre-Phase 1 engineering specs — skeletons, schemas, stack. Superseded by code as it lands |
-| [`fixes/`](./fixes/proposal_abstraction_and_harness_composition.md) | 3 | Design proposals and audits. The largest directory: read the one your task names, not the folder |
-| [`rationale/benchmarks/`](./rationale/benchmarks/README.md) | 3 | Where measured results land — the noise floor, the F1 timers. Empty of numbers until the floor runs |
-| [`benchmarks/`](./benchmarks/README.md) | 3 | SWE-bench task samples with pinned base commits |
-| [`concepts/`](./concepts/README.md) | — | Phase 0 trail — the audit, the fork adjudication, the decision record. History, `retrieval: excluded` |
+| [`vision.md`](./vision.md) | 1 | Mission and architecture at altitude. Orientation, ~10 min |
+| [`PHASE-0-LOCK.md`](./PHASE-0-LOCK.md) | **1** | **Normative.** What is settled, what is a known gap, what Phase 1 may and may not change |
+| [`spec.md`](./spec.md) | 2 | **Normative.** Invariants I1–I11, the lattice, the ports, the TCB |
+| [`measurement.md`](./measurement.md) | 2 | **Normative.** Instrument protocol, the A/A floor, gate design |
+| [`decisions/`](decisions/README.md) | 2 | 19 ADRs, each with a reversal condition |
+| [`STATUS.md`](./STATUS.md) | — | What is *actually* implemented. No claim without pasted command output |
+| [`development/`](./development/coding_guidelines.md) | 3 | **The deep reference.** Guidelines, skeletons, schemas, the capability layer, the stack. Detailed on purpose |
+| [`agile/`](agile/README.md) | 3 | Roadmap, gates, backlog, sprints, release arc. Gate tables `normative`, the rest `rationale` |
+| [`architecture_diagrams.md`](development/architecture_diagrams.md) | 3 | Four diagrams. **Shows the target — parts are unbuilt** |
+| [`proposals/`](./proposals/) | 3 | **Undecided proposals only.** Ratified ones are deleted — see the lifecycle rule below |
+| [`benchmarks/`](benchmarks/README.md) · [`rationale/benchmarks/`](benchmarks/results/README.md) | 3 | Task samples; where measured results land |
+| [`concepts/`](concepts/README.md) | — | Phase 0 decision trail. History, `retrieval: excluded` |
+
+## Who owns which fact
+
+**Every fact has exactly one authoritative home.** If you find the same thing stated in two
+places, the second one is the bug — fix it by deleting and linking, never by keeping both in
+sync.
+
+| Fact | Lives in |
+| :--- | :--- |
+| Invariants, the lattice, port rules, TCB residency | `spec.md` |
+| Instrument protocol, splits, what a claim needs | `measurement.md` |
+| Why a decision went that way, and what reverses it | `decisions/` |
+| What is settled and may not drift | `PHASE-0-LOCK.md` |
+| What is built, verified by command | `STATUS.md` |
+| Port shapes and pseudocode | `development/core_skeletons_and_protocols.md` |
+| Schema fields and validator wiring | `development/schemas_and_contracts.md` |
+| The capability layer, `ModelNode`, strategies, fragments, sidecars | `development/capability_layer.md` |
+| House rules, patterns to adopt and refuse, DoD | `development/coding_guidelines.md` |
+| Runtime, dependencies, sandbox, cost model | `development/tech_stack_and_infra.md` |
+| Tasks, exit criteria, scheduled vs pool | `agile/backlog.md` |
+| Phase sequencing and dependency edges | `agile/roadmap.md` · `agile/milestones.md` |
+| How a sprint is executed | `agile/sprints/` |
 
 ---
 
@@ -54,9 +84,27 @@ judgement.
 plants a dead link and an untagged file and asserts each gate returns non-zero. Before it
 existed, `STATUS.md` reported both gates green while both were red.
 
-**Five diagrams, total.** Layer graph · run-loop sequence · dispatch choke point · context
-prefix layout · phase dependency graph. Each encodes something a previous attempt got wrong.
-Beyond five they rot faster than they inform.
+**Diagrams live in one file.** [`architecture_diagrams.md`](development/architecture_diagrams.md) holds
+four: orchestration · inner loop · outer loop · dispatch lifecycle. A diagram whose only content
+is a second rendering of a normative table is a drift risk, not an aid — those were deleted
+rather than merged. Beyond a handful they rot faster than they inform.
+
+**A proposal is transient.** This is the rule whose absence let `proposals/` grow to a quarter of
+the tree.
+
+> A proposal is a **pre-decision** artifact. When it is ratified its content moves to the two
+> places that bind — an **ADR** with a reversal condition, and **backlog tasks** with exit
+> criteria — plus a reference under `development/` if it carries durable design detail. **Then
+> the proposal is deleted.** Git keeps the trail.
+>
+> A proposal older than two sprints is either ratified (delete it) or rejected (delete it).
+> `proposals/` holds only what is still undecided.
+
+**Detail is welcome; duplication is not.** This project is complex enough that a junior
+developer should be able to execute a senior-level task from the documents alone, so
+`development/` is deliberately deep — contracts, pseudocode, protocols, guidelines. What is
+forbidden is stating the same fact twice, because the second copy drifts and nobody knows which
+one is current. See *Who owns which fact* above.
 
 ---
 
@@ -66,9 +114,9 @@ Superseded. Everything under `docs/_archive/` is tagged `historical` and
 `retrieval: excluded`: it costs nothing against the budget, and no retrieval surfaces it.
 
 **This tree does not depend on it.** Anything load-bearing was carried forward into the
-documents above — the decisions into [`decisions/`](./decisions/README.md), the measurement
+documents above — the decisions into [`decisions/`](decisions/README.md), the measurement
 history into [`measurement.md`](./measurement.md), the Phase 0 adjudication into
-[`concepts/`](./concepts/README.md). The archive can be deleted without breaking a link or
+[`concepts/`](concepts/README.md). The archive can be deleted without breaking a link or
 losing a binding claim.
 
 Read it as history, never as instructions. It audits `src/sagiha/`, which is retired.

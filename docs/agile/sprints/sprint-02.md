@@ -9,7 +9,7 @@ updated: 2026-08-07
 * **Target Milestone**: [M1a](../milestones.md#milestone-m1a--walking-skeleton-4-node-linear-dag) · [B2b](../milestones.md#blocker-b2--local-openai-compatible-endpoint)
 * **Tripwire Window**: 5 Business Days
 * **Entry condition**: Sprint-01 complete. **M0 Exit Gate 0 must be green** — every task below writes into `src/aether/`, and until the TCB constants have moved, none of that code is covered by a contract that selects it.
-* **Position in the plan**: [`sprints/README.md`](./README.md)
+* **Position in the plan**: [`sprints/README.md`](README.md)
 
 ---
 
@@ -64,7 +64,7 @@ updated: 2026-08-07
 * **Specification Pointer**: [ADR-0001](../../decisions/0001-python-first-compiled-on-trigger.md), [ADR-0011](../../decisions/0011-no-lsp-adapter.md)
 * **Acceptance Criteria**:
   1. Worktree creation (over Task 2) and AST parse-and-validate (over tree-sitter) timed, **with hardware and method recorded alongside the numbers**.
-  2. Published to [`docs/rationale/benchmarks/performance_timers.md`](../../rationale/benchmarks/README.md).
+  2. Published to [`docs/rationale/benchmarks/performance_timers.md`](../../benchmarks/results/performance_timers.md).
   3. Compared against RT-1 / RT-2 / RT-3. **A trigger nobody has instrumented cannot fire** — this task is what makes those three thresholds real.
 * **Why it is here and not in Sprint-01**: it wraps Task 2's adapter and a tree-sitter indexer, neither of which exists at M0. [ADR-0001](../../decisions/0001-python-first-compiled-on-trigger.md)'s *"first working slice"* is M1a.
 * **Note**: these two numbers can reverse [ADR-0001](../../decisions/0001-python-first-compiled-on-trigger.md) directly. **A result of "no bottleneck" is a real result** and is recorded as such — it settles F1 just as firmly as a threshold crossing would.
@@ -92,7 +92,7 @@ four-node topology end to end (`tests/integration/test_engine_smoke.py`); see
 | M1a · 1 skeleton from validated topology | Task 5 (`TASK-020`) | `workflows/linear_v1.yaml` loaded and validated by `workflow/validator.py`'s 5 checks before every run |
 | M1a · 2 dispatch choke point | Task 5 (architecture test over Sprint-01's `TASK-003`) | `DispatchFacade` routes every node effect through `Dispatcher.dispatch()`; no adapter is reachable from a `WorkflowStep` any other way |
 | M1a · 3 conformance, four boundaries | Tasks 1–4 | `tests/conformance/{test_model_provider,test_workspace,test_tool_registry,test_evaluator}.py` — mock + real adapter parametrized for all four |
-| M1a · 4 F1 timers | Task 6 (`TASK-021`) | [`performance_timers.md`](../../rationale/benchmarks/performance_timers.md) — RT-3 not crossed (measured, not claimed unmeasured) |
+| M1a · 4 F1 timers | Task 6 (`TASK-021`) | [`performance_timers.md`](../../benchmarks/results/performance_timers.md) — RT-3 not crossed (measured, not claimed unmeasured) |
 | M1a · 5 reserve/commit/release | Task 5 (`TASK-034`) | `kernel/governor.py`'s real `ResourceGovernor`, exercised both per-effect (inside `Dispatcher.dispatch()`) and per-node (`workflow/executor.py`) |
 
 ---

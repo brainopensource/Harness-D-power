@@ -12,7 +12,7 @@ updated: 2026-08-05
 
 The prototype phase sequenced measurement last. Capability shipped without proof of value,
 and **every number taken had to be discarded**. This document is the mechanism that prevents
-a repeat; [`concepts/`](./concepts/README.md) is the evidence that it happened.
+a repeat; [`concepts/`](concepts/README.md) is the evidence that it happened.
 
 ---
 

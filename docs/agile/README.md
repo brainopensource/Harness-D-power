@@ -23,7 +23,7 @@ This directory contains the operational management documentation for **AETHER v3
 | [`roadmap.md`](./roadmap.md) | Phased execution DAG (M0–M3) and instrument unblocking timeline |
 | [`milestones.md`](./milestones.md) | Quantitative, falsifiable exit gates and tripwires for all phases |
 | [`backlog.md`](./backlog.md) | Complete prioritized epic & task inventory with normative pointers |
-| [`sprints/README.md`](./sprints/README.md) | **Sprint map** — what is planned in full, what is shape only, and why the horizon ends at the A/A floor |
+| [`sprints/README.md`](sprints/README.md) | **Sprint map** — what is planned in full, what is shape only, and why the horizon ends at the A/A floor |
 | [`sprints/sprint-01.md`](./sprints/sprint-01.md) | **Current Sprint**: TCB migration, pure domain, ports behind mocks, repo cache (B1) |
 | [`sprints/sprint-02.md`](./sprints/sprint-02.md) | Real adapters, the walking skeleton, the two F1 timers (M1a, B2b) |
 | [`sprints/sprint-03.md`](./sprints/sprint-03.md) | Repair edge, evaluation container, **the A/A floor run** (M1a+, B3) |
@@ -34,7 +34,7 @@ This directory contains the operational management documentation for **AETHER v3
 
 1. **Frontmatter follows what the file does, not what it costs.** [`milestones.md`](./milestones.md) and [`roadmap.md`](./roadmap.md) carry **`status: normative`**: their exit gates and dependency edges decide when a phase may end, which binds. [`backlog.md`](./backlog.md) and the sprint plans carry `status: rationale` — they point at normative specs rather than defining anything.
 
-   > **This guideline previously read "every file here carries `status: rationale` to stay exempt from the budget."** That is the one evasion `scripts/docs_budget.py` cannot detect: the ceiling constrains only what self-declares normative, so tagging binding content `rationale` buys unlimited normative words. It was closed by retagging, not by adding a third tag — the two files cost 910 words against roughly 8,000 of headroom, so a new taxonomy would have bought nothing. See [`../README.md`](../README.md).
+   > **This guideline previously read "every file here carries `status: rationale` to stay exempt from the budget."** That is the one evasion `scripts/docs_budget.py` cannot detect: the ceiling constrains only what self-declares normative, so tagging binding content `rationale` buys unlimited normative words. It was closed by retagging, not by adding a third tag — the two files cost 910 words against roughly 8,000 of headroom, so a new taxonomy would have bought nothing. See [`../README.md`](../benchmarks/results/README.md).
 
 2. **Acceptance Criteria**: Every task item must state a mechanical, testable gate (CI check, import-linter contract, conformance suite pass). **If a gate is prose, it is not a gate.**
 

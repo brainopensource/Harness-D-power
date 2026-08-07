@@ -15,7 +15,7 @@ This backlog catalogs all Epics and User Stories for building AETHER v3.0.0. All
 
 **A task is either *scheduled* or it is in the pool. There is no third state, and this table is the only place that decides which.**
 
-The epics below group tasks by *subject*; they do not schedule anything. A task is **scheduled** only when a sprint file in [`sprints/`](./sprints/README.md) names it. Everything else carries a **milestone tag only** — which fixes its *position* in [`roadmap.md`](./roadmap.md)'s dependency DAG without committing a date. That distinction is [ADR-0009](../decisions/0009-gates-are-the-schedule.md)'s: an unmeasured duration used as a schedule commitment is the thing it forbids, and M2-abl's wall-clock is an output of Sprint 4's floor.
+The epics below group tasks by *subject*; they do not schedule anything. A task is **scheduled** only when a sprint file in [`sprints/`](sprints/README.md) names it. Everything else carries a **milestone tag only** — which fixes its *position* in [`roadmap.md`](./roadmap.md)'s dependency DAG without committing a date. That distinction is [ADR-0009](../decisions/0009-gates-are-the-schedule.md)'s: an unmeasured duration used as a schedule commitment is the thing it forbids, and M2-abl's wall-clock is an output of Sprint 4's floor.
 
 ### Scheduled — has a sprint file
 
@@ -209,7 +209,7 @@ Correctness + decoupling: six dead defects fixed, node registry keyed by kind, e
 * **Target Files**: `src/aether/adapters/subprocess_env.py` (new), `adapters/tools/builtin.py`, `measurement/evaluator.py`, `adapters/workspace/git_cli.py`
 * **Normative Specs**: [`measurement.md` §2 (B4)](../measurement.md#2-instrument-blockers), [`measurement.md` §6](../measurement.md#6-what-a-claim-needs-before-it-is-published), [`spec.md` §5](../spec.md#5-execution)
 * **Exit Criteria**: `stdin=DEVNULL` and an **environment allowlist** (not `{**os.environ}`) at every host spawn site; every subprocess carries an `asyncio.wait_for` deadline **derived from the lease**, not a decorative estimate. `CI=1` enters through the container's `--env` allowlist as a declared part of the evaluation environment — changing it is a new manifest hash. **Negative test**: a command that would block on stdin must fail fast rather than hang to the timeout.
-* **Why it matters**: a hung tool call runs to timeout, returns `GateStatus.NONE`, and `NONE` is **excluded from the resolve-rate denominator**. An interactive prompt nobody answers therefore shrinks N *non-randomly* — repositories that prompt are systematically dropped — and it is invisible in the aggregate. Deterministic non-interactivity is a precondition for the floor meaning what it says. See [`proposal_competitors_execution_mechanics_evaluation.md`](../fixes/proposal_competitors_execution_mechanics_evaluation.md) §2.
+* **Why it matters**: a hung tool call runs to timeout, returns `GateStatus.NONE`, and `NONE` is **excluded from the resolve-rate denominator**. An interactive prompt nobody answers therefore shrinks N *non-randomly* — repositories that prompt are systematically dropped — and it is invisible in the aggregate. Deterministic non-interactivity is a precondition for the floor meaning what it says. See [`proposal_competitors_execution_mechanics_evaluation.md`](../proposals/proposal_competitors_execution_mechanics_evaluation.md) §2.
 
 ### TASK-063: Live Log Telemetry on the Lossy Channel Only
 * **Description**: A `LogLineEmitted` event carrying stdout/stderr lines as they arrive, so a TUI or GUI can show `12/45 tests passed…` without waiting for the command to finish.
@@ -238,7 +238,7 @@ Correctness + decoupling: six dead defects fixed, node registry keyed by kind, e
 * **Description**: Instrument worktree creation and AST parse-and-validate.
 * **Target Files**: `src/aether/measurement/timers.py`
 * **Normative Specs**: [ADR-0001](../decisions/0001-python-first-compiled-on-trigger.md)
-* **Exit Criteria**: Latencies published to [`docs/rationale/benchmarks/performance_timers.md`](../rationale/benchmarks/README.md) **with hardware and method recorded**. These two numbers decide the F1 fork. A run showing nothing is recorded as showing nothing.
+* **Exit Criteria**: Latencies published to [`docs/rationale/benchmarks/performance_timers.md`](../benchmarks/results/performance_timers.md) **with hardware and method recorded**. These two numbers decide the F1 fork. A run showing nothing is recorded as showing nothing.
 
 ### TASK-022: Headless Engine API & Event Bus — ✅ DONE (Sprint 2)
 * **Description**: `engine.py` headless API emitting an append-only typed event stream generated from `domain/events.py`.
@@ -328,7 +328,7 @@ Correctness + decoupling: six dead defects fixed, node registry keyed by kind, e
 * **Normative Specs**: [ADR-0013 (M3)](../decisions/0013-workflow-dag-phased.md), [ADR-0014](../decisions/0014-workflow-topology-is-data.md)
 * **Exit Criteria**: `when: on_pass | on_fail | on_instrument_error` routing honoured; **`on_instrument_error` may only reach a terminal flag node**. Every fan-out site has a declared join — unjoined fan-out leaks worktrees and leases. N parallel candidates ⇒ N child leases from one parent reservation (`TASK-034`).
 * **`TASK-067` — execution-based candidate ranker, lands with this task.** `workflow_schema.yaml:105-108` already declares `rank_by` with the constraint written in: *"Rankers ORDER candidates and may never ADMIT one (I9) — admission is the evaluate node, always."* There is no ranker, so Best-of-N would be an N× cost multiplier taking the first-pass candidate. Proposed selector: run the repository's **visible** test suite against each candidate and rank by pass count — zero inference tokens, it is execution not generation. **The trap:** if the visible suite includes the gate's tests, the ranker becomes a shadow evaluator and the harness selects on the answer. The manifest must record the visible/hidden partition per task, and a task where they cannot be separated is **excluded with a published reason** (`TASK-014`'s rule). The gate stays the sole admitter.
-* **Also in scope, deferred here deliberately — background/async effect execution.** Kimi CLI's `run_in_background` pattern was evaluated and refused at M1 ([`proposal_competitors_execution_mechanics_evaluation.md`](../fixes/proposal_competitors_execution_mechanics_evaluation.md) §1): a process outliving its lease makes `actuals` arrive after `release()`, which is the after-the-fact accounting `TASK-034` exists to make unrepresentable; a completion event waking the executor inverts `spec.md` §8 (*events never schedule nodes*); and a wall-clock-dependent completion point breaks `TASK-026`'s byte-deterministic replay. If it lands at all it lands **here**, as a bounded construct that carries a child lease and a declared join — the same model as fan-out — or it is not expressible in a valid topology.
+* **Also in scope, deferred here deliberately — background/async effect execution.** Kimi CLI's `run_in_background` pattern was evaluated and refused at M1 ([`proposal_competitors_execution_mechanics_evaluation.md`](../proposals/proposal_competitors_execution_mechanics_evaluation.md) §1): a process outliving its lease makes `actuals` arrive after `release()`, which is the after-the-fact accounting `TASK-034` exists to make unrepresentable; a completion event waking the executor inverts `spec.md` §8 (*events never schedule nodes*); and a wall-clock-dependent completion point breaks `TASK-026`'s byte-deterministic replay. If it lands at all it lands **here**, as a bounded construct that carries a child lease and a declared join — the same model as fan-out — or it is not expressible in a valid topology.
 
 ### TASK-034: `ResourceGovernor` Reserve / Commit / Release — ✅ DONE (Sprint 2)
 * **Description**: The budget triple as an atomic ledger.
@@ -341,7 +341,7 @@ Correctness + decoupling: six dead defects fixed, node registry keyed by kind, e
 
 ## Epic 5: Capability, Composition & Abstraction (M1b → M3)
 
-Source: [`proposal_abstraction_and_harness_composition.md`](../fixes/proposal_abstraction_and_harness_composition.md).
+Source: [`capability_layer.md`](../development/capability_layer.md).
 **None of these produces a number**, so [ADR-0002](../decisions/0002-no-number-before-the-floor.md) does not gate them — they may run in parallel with the floor. The M1b subset is sequenced **before M2** because `TASK-031`, `TASK-024` and `TASK-033` all target `src/aether/agency/context/`, a package that does not exist.
 
 > **This epic spans three milestones — it is a subject grouping, not a sprint.** Only the **M1b** tasks are scheduled (Sprint 5): `050` `051` `052` `053` `054` `055` `056` `057` `058`. The rest sit in the pool: `059` `060` `061` are **M3** and TCB or TCB-adjacent; `064` `065` `066` `068` `069` are **M2-eng**; `070` is **M2-abl**. The [scheduling ledger](#scheduling-ledger) is authoritative.
@@ -421,7 +421,7 @@ Source: [`proposal_abstraction_and_harness_composition.md`](../fixes/proposal_ab
 * **Target Files**: `src/aether/agency/capabilities/sources.py`
 * **Normative Specs**: [ADR-0011](../decisions/0011-no-lsp-adapter.md) (syntax tier only), [`measurement.md` §6](../measurement.md#6-what-a-claim-needs-before-it-is-published)
 * **Exit Criteria**: `LexicalSource` (identifiers and tracebacks from the issue text → grep), `SymbolSource` (`TreeSitterIndexer.search`), `TestPathSource` (failing test's imports → modules under test), `HistorySource` (`git log -S<identifier>`). **Deterministic and seeded** — a retrieval set that varies run to run makes reproducibility unsatisfiable. Files not retrieved are published in `RetrievedContext.missing`. **Each source is separately ablatable.**
-* **Why it matters**: `STATUS.md` records the SWE-bench floor as blocked on per-instance images (`TASK-036`). That is true and incomplete — **with every image built, the harness still has no mechanism for choosing which files to open.** See [`proposal_sota_gap_analysis.md`](../fixes/proposal_sota_gap_analysis.md) §2.
+* **Why it matters**: `STATUS.md` records the SWE-bench floor as blocked on per-instance images (`TASK-036`). That is true and incomplete — **with every image built, the harness still has no mechanism for choosing which files to open.** See [`proposal_sota_gap_analysis.md`](../proposals/proposal_sota_gap_analysis.md) §2.
 
 ### TASK-065: Retrieval-Recall Diagnostic
 * **Description**: For each unresolved task, did the gold patch's files appear in the retrieved set?
@@ -490,7 +490,7 @@ Source: [`proposal_abstraction_and_harness_composition.md`](../fixes/proposal_ab
 
 ## Epic 6: Per-Node Model Routing & Hybrid Economics (post-floor)
 
-Source: [`proposal_workflows_hybrids_improvements.md`](../fixes/proposal_workflows_hybrids_improvements.md).
+Source: [`proposal_workflows_hybrids_improvements.md`](../proposals/proposal_workflows_hybrids_improvements.md).
 `workflows/hybrid_architect_editor_v1.yaml` is committed and **cannot run**: `params.base_url` is dropped by the architect factory (`engine.py:112-117`) and one provider is built for the whole run (`engine.py:178`). **These tasks build routing; they do not authorise an arm.** Any hybrid arm is admitted through [ADR-0003](../decisions/0003-statistical-admission-protocol.md) after the floor, or not at all.
 
 ### TASK-042: `RoutingModelProvider` — Per-Node Endpoint & Credential Routing
@@ -633,7 +633,7 @@ Every exit gate in [`milestones.md`](./milestones.md) and the task that funds it
 
 Complexity is scored **0–5** (six levels), weighing knowledge domain required, number of interacting sub-tasks/constraints, and blast radius if the task is done wrong — not raw line count. Derived from a full read of `spec.md`, `measurement.md`, `milestones.md`, all 17 ADRs, and the `development/` engineering docs (protocols, schemas, tech stack).
 
-**Sprint tags below are grounded in the sprint files in [`sprints/`](./sprints/README.md).** Sprint 3 was written as "the last sprint planned in full" because sizing past the floor needs the floor's per-task wall-clock. That still holds for **M2-abl and everything after it**. Sprints 4 and 5 are now planned in full anyway, and the reason is a narrow one: neither is sized by inference wall-clock. Sprint 4 is instrument repair plus the floor run itself; Sprint 5 is a refactor that produces no number and calls no model in anger. Tasks past Sprint 5 remain tagged with their milestone only, never a fabricated sprint number.
+**Sprint tags below are grounded in the sprint files in [`sprints/`](sprints/README.md).** Sprint 3 was written as "the last sprint planned in full" because sizing past the floor needs the floor's per-task wall-clock. That still holds for **M2-abl and everything after it**. Sprints 4 and 5 are now planned in full anyway, and the reason is a narrow one: neither is sized by inference wall-clock. Sprint 4 is instrument repair plus the floor run itself; Sprint 5 is a refactor that produces no number and calls no model in anger. Tasks past Sprint 5 remain tagged with their milestone only, never a fabricated sprint number.
 
 | Score | Level | What it takes |
 | :---: | :--- | :--- |
@@ -782,7 +782,7 @@ These land once M2-abl is sized off the floor's per-task wall-clock (`roadmap.md
 
 Sprints 1 through 5 take the AETHER codebase from foundation to **Milestone M1b**, establishing the pure domain, wire-serializable ports, walking skeleton, instrument restoration, and the modular capability layer. 
 
-As mandated by [ADR-0009](../decisions/0009-gates-are-the-schedule.md) and [`sprints/README.md`](./sprints/README.md), tasks beyond Sprint 5 are deliberately unsized and unscheduled until the **Sprint 4 A/A Floor** produces exact per-task wall-clock metrics. 
+As mandated by [ADR-0009](../decisions/0009-gates-are-the-schedule.md) and [`sprints/README.md`](sprints/README.md), tasks beyond Sprint 5 are deliberately unsized and unscheduled until the **Sprint 4 A/A Floor** produces exact per-task wall-clock metrics. 
 
 Once Sprint 5 completes and the floor wall-clock metrics are established, the team will plan the next development phases as follows:
 

@@ -1,11 +1,18 @@
 ---
-status: normative
+status: rationale
 updated: 2026-08-07
 ---
 
 # SWE-bench Pro — 15-Task Stratified Beta Sample
 
 This document maps the **15-task random sample** selected from `ScaleAI/SWE-bench_Pro` for uncontaminated harness testing and beta evaluation (75% confidence interval, ±15% margin of error).
+
+> **Why this is `rationale` and not `normative`.** It is a metadata listing, not a
+> constraint on what may ship. The binding artifact for task selection is the **pinned
+> manifest** (`benchmarks/manifests/*.yaml`) — TCB data whose identity is a canonical-JSON
+> sha256, where a change is a new manifest rather than an edit ([`measurement.md` §6](../measurement.md#6-what-a-claim-needs-before-it-is-published)).
+> This file is how the sample was chosen; the manifest is what binds.
+
 
 **Note:** No repositories or assets have been downloaded yet. This document contains metadata mapping for future content-addressed resolution via `TASK-010` (`repo_cache.py`).
 

@@ -1,11 +1,18 @@
 ---
-status: normative
+status: rationale
 updated: 2026-08-07
 ---
 
 # SWE-bench Verified — 15-Task Stratified Beta Sample
 
 This document maps the **15-task random sample** selected from `princeton-nlp/SWE-bench_Verified` for early harness testing and beta evaluation (75% confidence interval, ±15% margin of error).
+
+> **Why this is `rationale` and not `normative`.** It is a metadata listing, not a
+> constraint on what may ship. The binding artifact for task selection is the **pinned
+> manifest** (`benchmarks/manifests/*.yaml`) — TCB data whose identity is a canonical-JSON
+> sha256, where a change is a new manifest rather than an edit ([`measurement.md` §6](../measurement.md#6-what-a-claim-needs-before-it-is-published)).
+> This file is how the sample was chosen; the manifest is what binds.
+
 
 **Note:** No repositories or assets have been downloaded yet. This document contains only dataset indexing and metadata mapping for future content-addressed resolution via `TASK-010` (`repo_cache.py`).
 
@@ -50,7 +57,12 @@ This document maps the **15-task random sample** selected from `princeton-nlp/SW
 * **Base Commit**: `d7c3045115693e887bcd03599b7ca4650ac5f2cb`
 * **Repo Clone URL**: `https://github.com/sympy/sympy.git`
 * **Problem Summary**:
-  > evalf does not call _imp_ recursively Example from https://stackoverflow.com/questions/41818842/why-cant-i-evaluate-a-composition-of-implemented-functions-in-sympy-at-a-point:  ``` >>> from sympy.utilities.lambdify import implemented_function >>> f = implemented_function('f', lambda x: x ** 2) >>> g = implemented_function('g', lambda x: 2 * x)...
+  > evalf does not call _imp_ recursively Example from https://stackoverflow.com/questions/41818842/why-cant-i-evaluate-a-composition-of-implemented-functions-in-sympy-at-a-point:
+ 
+ ```
+ >>> from sympy.utilities.lambdify import implemented_function
+ >>> f = implemented_function('f', lambda x: x ** 2)
+ >>> g = implemented_function('g', lambda x: 2 * x)...
 
 ### Task 2: `django__django-13590`
 * **Difficulty**: **Easy**
@@ -66,7 +78,15 @@ This document maps the **15-task random sample** selected from `princeton-nlp/SW
 * **Base Commit**: `0192aac24123735b3eaf9b08df46429bb770c283`
 * **Repo Clone URL**: `https://github.com/psf/requests.git`
 * **Problem Summary**:
-  > Proxy authentication bug <!-- Summary. -->  When using proxies in python 3.8.12, I get an error 407. Using any other version of python works fine. I am assuming it could be to do with this https://docs.python.org/3/whatsnew/3.8.html#notable-changes-in-python-3-8-12.  <!-- What you expected. -->  I should get a status of 200.  <!-- What happ...
+  > Proxy authentication bug <!-- Summary. -->
+ 
+ When using proxies in python 3.8.12, I get an error 407. Using any other version of python works fine. I am assuming it could be to do with this https://docs.python.org/3/whatsnew/3.8.html#notable-changes-in-python-3-8-12.
+ 
+ <!-- What you expected. -->
+ 
+ I should get a status of 200.
+ 
+ <!-- What happ...
 
 ### Task 4: `sphinx-doc__sphinx-7910`
 * **Difficulty**: **Easy**
@@ -90,7 +110,25 @@ This document maps the **15-task random sample** selected from `princeton-nlp/SW
 * **Base Commit**: `1e55ae64624d28c5fe8b63ad7979880ee2e6ef3f`
 * **Repo Clone URL**: `https://github.com/pylint-dev/pylint.git`
 * **Problem Summary**:
-  > unused-import false positive for a module used in a type comment ### Steps to reproduce  ```python """Docstring."""  import abc from abc import ABC  X = ...  # type: abc.ABC Y = ...  # type: ABC ```  ### Current behavior  ``` ************* Module a /tmp/a.py:3:0: W0611: Unused import abc (unused-import)  --------------------------...
+  > unused-import false positive for a module used in a type comment ### Steps to reproduce
+ 
+ ```python
+ """Docstring."""
+ 
+ import abc
+ from abc import ABC
+ 
+ X = ...  # type: abc.ABC
+ Y = ...  # type: ABC
+ ```
+ 
+ ### Current behavior
+ 
+ ```
+ ************* Module a
+ /tmp/a.py:3:0: W0611: Unused import abc (unused-import)
+ 
+ --------------------------...
 
 ### Task 7: `sympy__sympy-21596`
 * **Difficulty**: **Medium**
@@ -98,7 +136,23 @@ This document maps the **15-task random sample** selected from `princeton-nlp/SW
 * **Base Commit**: `110997fe18b9f7d5ba7d22f624d156a29bf40759`
 * **Repo Clone URL**: `https://github.com/sympy/sympy.git`
 * **Problem Summary**:
-  > bug in is_subset(Reals) Solving issue #19513 has given rise to another bug. Now: ``` In [8]: S1 = imageset(Lambda(n, n + (n - 1)*(n + 1)*I), S.Integers)  In [9]: S1 Out[9]: {n + ⅈ⋅(n - 1)⋅(n + 1) │ n ∊ ℤ}  In [10]: 2 in S1 Out[10]: False  In [11]: 2 in S1.intersect(Reals) Out[11]: True ``` This output is incorrect.  Correct output i...
+  > bug in is_subset(Reals) Solving issue #19513 has given rise to another bug.
+ Now:
+ ```
+ In [8]: S1 = imageset(Lambda(n, n + (n - 1)*(n + 1)*I), S.Integers)
+ 
+ In [9]: S1
+ Out[9]: {n + ⅈ⋅(n - 1)⋅(n + 1) │ n ∊ ℤ}
+ 
+ In [10]: 2 in S1
+ Out[10]: False
+ 
+ In [11]: 2 in S1.intersect(Reals)
+ Out[11]: True
+ ```
+ This output is incorrect.
+ 
+ Correct output i...
 
 ### Task 8: `scikit-learn__scikit-learn-26194`
 * **Difficulty**: **Medium**
@@ -106,7 +160,8 @@ This document maps the **15-task random sample** selected from `princeton-nlp/SW
 * **Base Commit**: `e886ce4e1444c61b865e7839c9cff5464ee20ace`
 * **Repo Clone URL**: `https://github.com/scikit-learn/scikit-learn.git`
 * **Problem Summary**:
-  > Thresholds can exceed 1 in `roc_curve` while providing probability estimate While working on https://github.com/scikit-learn/scikit-learn/pull/26120, I found out that something was odd with `roc_curve` that returns a threshold greater than 1. A non-regression test (that could be part of `sklearn/metrics/tests/test_ranking.py`) could be as follow: ...
+  > Thresholds can exceed 1 in `roc_curve` while providing probability estimate While working on https://github.com/scikit-learn/scikit-learn/pull/26120, I found out that something was odd with `roc_curve` that returns a threshold greater than 1. A non-regression test (that could be part of `sklearn/metrics/tests/test_ranking.py`) could be as follow:
+ ...
 
 ### Task 9: `pydata__xarray-6744`
 * **Difficulty**: **Medium**
@@ -114,7 +169,12 @@ This document maps the **15-task random sample** selected from `princeton-nlp/SW
 * **Base Commit**: `7cc6cc991e586a6158bb656b8001234ccda25407`
 * **Repo Clone URL**: `https://github.com/pydata/xarray.git`
 * **Problem Summary**:
-  > "center" kwarg ignored when manually iterating over DataArrayRolling ### Discussed in https://github.com/pydata/xarray/discussions/6738  <div type='discussions-op-text'>  <sup>Originally posted by **ckingdon95** June 29, 2022</sup> Hello, I am trying to manually iterate over a DataArrayRolling object, as described [here ](https://docs.xarray.d...
+  > "center" kwarg ignored when manually iterating over DataArrayRolling ### Discussed in https://github.com/pydata/xarray/discussions/6738
+ 
+ <div type='discussions-op-text'>
+ 
+ <sup>Originally posted by **ckingdon95** June 29, 2022</sup>
+ Hello, I am trying to manually iterate over a DataArrayRolling object, as described [here ](https://docs.xarray.d...
 
 ### Task 10: `django__django-14053`
 * **Difficulty**: **Medium**
@@ -154,7 +214,16 @@ This document maps the **15-task random sample** selected from `princeton-nlp/SW
 * **Base Commit**: `99589b08de8c5a2c6cc61e13a37420a868c80599`
 * **Repo Clone URL**: `https://github.com/pylint-dev/pylint.git`
 * **Problem Summary**:
-  > Use Python type hints for UML generation It seems that pyreverse does not read python type hints (as defined by [PEP 484](https://www.python.org/dev/peps/pep-0484/)), and this does not help when you use `None` as a default value :  ### Code example ``` class C(object):     def __init__(self, a: str = None):         self.a = a ```  ### Curr...
+  > Use Python type hints for UML generation It seems that pyreverse does not read python type hints (as defined by [PEP 484](https://www.python.org/dev/peps/pep-0484/)), and this does not help when you use `None` as a default value :
+ 
+ ### Code example
+ ```
+ class C(object):
+     def __init__(self, a: str = None):
+         self.a = a
+ ```
+ 
+ ### Curr...
 
 ### Task 15: `pydata__xarray-6938`
 * **Difficulty**: **Hard**
@@ -162,7 +231,13 @@ This document maps the **15-task random sample** selected from `princeton-nlp/SW
 * **Base Commit**: `c4e40d991c28be51de9ac560ce895ac7f9b14924`
 * **Repo Clone URL**: `https://github.com/pydata/xarray.git`
 * **Problem Summary**:
-  > `.swap_dims()` can modify original object ### What happened?  This is kind of a convoluted example, but something I ran into. It appears that in certain cases `.swap_dims()` can modify the original object, here the `.dims` of a data variable that was swapped into being a dimension coordinate variable.  ### What did you expect to happen?  I ex...
+  > `.swap_dims()` can modify original object ### What happened?
+ 
+ This is kind of a convoluted example, but something I ran into. It appears that in certain cases `.swap_dims()` can modify the original object, here the `.dims` of a data variable that was swapped into being a dimension coordinate variable.
+ 
+ ### What did you expect to happen?
+ 
+ I ex...
 
 ---
 

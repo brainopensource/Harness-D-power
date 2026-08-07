@@ -9,7 +9,7 @@ updated: 2026-08-06
 * **Target Milestone**: [M1a+](../milestones.md#milestone-m1a--bounded-repair-edge) · [B3](../milestones.md#blocker-b3--isolated-evaluation-container--canary-test) · **A/A floor**
 * **Tripwire Window**: 5 Business Days
 * **Entry condition**: Sprint-02 complete. B1, B2b and B4 green — the floor's three preconditions.
-* **Position in the plan**: [`sprints/README.md`](./README.md) — **this is the last sprint planned in full.** Sprint-04 onward is sized by what Task 5 measures.
+* **Position in the plan**: [`sprints/README.md`](README.md) — **this is the last sprint planned in full.** Sprint-04 onward is sized by what Task 5 measures.
 
 > **This sprint is the hinge.** Before it, [ADR-0002](../../decisions/0002-no-number-before-the-floor.md) means the project reports no capability number. After it, admission sample sizes become derivable and the M2 ablations become schedulable. Nothing downstream can be planned honestly until Task 5 lands a real number.
 
@@ -76,7 +76,7 @@ updated: 2026-08-06
 | M1a+ · 1–4 | Task 3 | **Closed.** `workflows/linear_repair_v1.yaml`, static unroll in `workflow/executor.py`, `NONE` never routes into repair, per-iteration parent leases, tail-biased context |
 | Manifest & validity canary | Task 2 | **Closed.** `benchmarks/manifests/internal-floor-01.yaml` (`sha256:7c2c2467…`), 84 tasks screened bidirectionally through the container |
 | Statistics & rig | Task 4 | **Closed.** Verbatim port + derived-N (reproduces ADR-0003's table in all 12 cells) + family gatekeeper; `HarnessUnderTest` seam with the bare-model arm |
-| A/A floor | Task 5 | **Not taken — deferred by decision.** The instrument is complete and rehearsed with zero API calls (`scripts/run_aa_floor.py --dry-run`); the arms cost real spend and were postponed. See [`noise-floor.md`](../../rationale/benchmarks/noise-floor.md) |
+| A/A floor | Task 5 | **Not taken — deferred by decision.** The instrument is complete and rehearsed with zero API calls (`scripts/run_aa_floor.py --dry-run`); the arms cost real spend and were postponed. See [`noise-floor.md`](../../benchmarks/results/noise-floor.md) |
 
 ### Deviations from this plan, and why
 

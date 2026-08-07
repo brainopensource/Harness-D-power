@@ -49,7 +49,7 @@ Writing `sprint-06.md` today is not planning. It is a forecast wearing a task li
 that changed measurement semantics, and it is the one with no plan document — which is how its
 instrument debt went unrecorded until an audit found it. The debt is Sprint 4's Tasks 1–3.
 
-**Sprint-03 is the one that matters.** Until its floor run lands a real number in [`docs/rationale/benchmarks/noise-floor.md`](../../rationale/benchmarks/README.md), [ADR-0002](../../decisions/0002-no-number-before-the-floor.md) means the project publishes **no capability number at all**. Everything before it is instrument construction; everything after it is measurable.
+**Sprint-03 is the one that matters.** Until its floor run lands a real number in [`docs/rationale/benchmarks/noise-floor.md`](../../benchmarks/results/noise-floor.md), [ADR-0002](../../decisions/0002-no-number-before-the-floor.md) means the project publishes **no capability number at all**. Everything before it is instrument construction; everything after it is measurable.
 
 ---
 
@@ -86,7 +86,7 @@ These are not sprint files and should not become sprint files until the sprint b
 
 ## Writing the next sprint file
 
-Copy the shape of [`sprint-01.md`](./sprint-01.md). It is a **pointer document**: every task links to its `TASK-0xx` entry in [`../backlog.md`](../backlog.md) and to the normative section that binds it. Per [`../README.md`](../README.md) guideline 1, sprint files stay `status: rationale` — they allocate, they do not define.
+Copy the shape of [`sprint-01.md`](./sprint-01.md). It is a **pointer document**: every task links to its `TASK-0xx` entry in [`../backlog.md`](../backlog.md) and to the normative section that binds it. Per [`../README.md`](../../benchmarks/results/README.md) guideline 1, sprint files stay `status: rationale` — they allocate, they do not define.
 
 Three checks before a sprint file is done:
 

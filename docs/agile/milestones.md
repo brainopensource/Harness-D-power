@@ -7,7 +7,7 @@ updated: 2026-08-06
 
 Per [ADR-0009](../decisions/0009-gates-are-the-schedule.md), a milestone is complete **only when all its exit gates pass cleanly in CI**. A prose description is not a gate; every gate listed below is backed by an automated test or mechanical verification check.
 
-**This file is `normative`.** Its gate tables decide when a phase may end, which is binding content, so it counts against the word budget like anything else that binds. Tagging it `rationale` to stay exempt was a self-declared exemption the budget could not detect — see [`../README.md`](../README.md).
+**This file is `normative`.** Its gate tables decide when a phase may end, which is binding content, so it counts against the word budget like anything else that binds. Tagging it `rationale` to stay exempt was a self-declared exemption the budget could not detect — see [`../README.md`](../benchmarks/results/README.md).
 
 **Every gate here ships with a test proving it can fail.** A gate that cannot fail is not counted as a gate, and it is the most expensive bug this project can have.
 
@@ -57,7 +57,7 @@ Per [ADR-0009](../decisions/0009-gates-are-the-schedule.md), a milestone is comp
 * **Exit Gate 1**: Walking skeleton executes the 4-node pipeline (`retrieve → generate → apply → evaluate`) end-to-end via headless `engine.py`, **from a schema-validated declarative topology** ([ADR-0014](../decisions/0014-workflow-topology-is-data.md)); the executor refuses a topology failing any static check.
 * **Exit Gate 2 (`dispatch-choke-point`)**: Architecture test proves all side-effects pass through `src/aether/kernel/dispatch.py` with grants verified **at the point of effect**, not at authorization.
 * **Exit Gate 3 (re-scoped)**: Conformance suites pass for the **four boundaries the skeleton actually walks** — `ModelProvider`, `Workspace`/`WorktreeManager`, `ToolRegistry`, `Evaluator`. The remaining ports (`PolicyEngine`, `ResourceGovernor`, `TrajectoryStore`, `Indexer`) enter per [ADR-0005](../decisions/0005-eight-ports-adapter-first.md) as their adapters land and are gated then. *Rev. 2: the previous "8 ports" wording required eight adapters against a backlog funding one — a gate unreachable from its own plan, which is a tripwire guaranteed to fire.*
-* **Exit Gate 4**: Worktree-creation and AST parse-and-validate timers recorded in [`docs/rationale/benchmarks/`](../rationale/benchmarks/README.md). These two numbers decide [ADR-0001](../decisions/0001-python-first-compiled-on-trigger.md)'s F1 fork.
+* **Exit Gate 4**: Worktree-creation and AST parse-and-validate timers recorded in [`docs/rationale/benchmarks/`](../benchmarks/results/README.md). These two numbers decide [ADR-0001](../decisions/0001-python-first-compiled-on-trigger.md)'s F1 fork.
 * **Exit Gate 5**: `ResourceGovernor` reserve → commit → release is exercised end-to-end; the dispatcher **refuses any effect without a live lease**, so after-the-fact accounting is structurally unrepresentable.
 
 ### Milestone M1a+ — Bounded Repair Edge
@@ -69,7 +69,7 @@ Per [ADR-0009](../decisions/0009-gates-are-the-schedule.md), a milestone is comp
 * **Exit Gate 4**: Each repair iteration reserves its own budget; exhausting it terminates the loop rather than the run.
 
 ### Milestone M1a++ — Inner Loop Context Lift
-* **Specification**: [Sprint 3.5 Rationale](../fixes/sprint-3.5-inner-loop-improvements.md), [ADR-0010](../decisions/0010-context-prefix-layers.md), [ADR-0014](../decisions/0014-workflow-topology-is-data.md)
+* **Specification**: [Sprint 3.5 Rationale](sprints/sprint-03.5.md), [ADR-0010](../decisions/0010-context-prefix-layers.md), [ADR-0014](../decisions/0014-workflow-topology-is-data.md)
 * **Exit Gate 1**: `EditFormat` seam (`TASK-037`) passes generic conformance suite for diff & whole-file formats.
 * **Exit Gate 2**: Node registry resolves step implementations dynamically from kind (`TASK-038`).
 * **Exit Gate 3**: `RepairStep` re-reads worktree files dynamically and injects actual state into repair prompts (`TASK-039`).

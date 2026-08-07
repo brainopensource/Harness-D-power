@@ -7,7 +7,7 @@ updated: 2026-08-07
 
 **What this is.** A single view of the whole development arc, for planning and staffing. It
 exists because [`roadmap.md`](./roadmap.md) is `normative` and binds dependency *edges*, and
-[`sprints/README.md`](./sprints/README.md) deliberately refuses to plan past the A/A floor —
+[`sprints/README.md`](sprints/README.md) deliberately refuses to plan past the A/A floor —
 both correct, and neither answers *"what does the shape of the next year look like?"*
 
 **What this is not.** Sprints 1–5 are grounded: 1–3.5 shipped, 4–5 have written plans.
@@ -56,7 +56,7 @@ it verbatim.
 `validator.check_socket_compatibility` can verify a graph **statically, from an injected socket
 map, without importing node classes**. That indirection is what makes topologies data rather
 than code. And I3's wire-serializability — every method `async`, no `Path`, no live object — is
-the property [`proposal_abstraction_and_harness_composition.md`](../fixes/proposal_abstraction_and_harness_composition.md)
+the property [`capability_layer.md`](../development/capability_layer.md)
 §5 identifies as making a Rust or Go sidecar a `composition.py` line change rather than a
 rewrite. It was nearly free on day one and would have been impossible to retrofit.
 
@@ -75,7 +75,7 @@ from a schema-validated topology, through real adapters, with every effect passi
   unrepresentable* rather than merely discouraged. That property is why Sprint 8's Best-of-N
   fan-out can carve N child leases from one parent reservation and have cancellation be
   correct — and it is why the Kimi-style background-task pattern was
-  [evaluated and refused](../fixes/proposal_competitors_execution_mechanics_evaluation.md): a
+  [evaluated and refused](../proposals/proposal_competitors_execution_mechanics_evaluation.md): a
   process outliving its lease reports actuals after `release()`.
 - **The event bus with two drop policies** (`TASK-022`). `"never"` for the trajectory store and
   the measurement harvester, `"drop_oldest"` for display. *Losing a rendering frame is
@@ -178,7 +178,7 @@ configurations disagreeing systematically means something is not identical.
 
 ## Sprint 5 — The Capability Layer 📋
 
-> Plan: [`sprint-05.md`](./sprints/sprint-05.md) · Design: [`proposal_abstraction_and_harness_composition.md`](../fixes/proposal_abstraction_and_harness_composition.md)
+> Plan: [`sprint-05.md`](./sprints/sprint-05.md) · Design: [`capability_layer.md`](../development/capability_layer.md)
 
 **The goal.** Insert the missing layer between *topology (data)* and *dispatch facade*. Today a
 node is the only unit of reuse, and a node is a 60–150 line class that inlines five concerns at

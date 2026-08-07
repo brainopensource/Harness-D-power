@@ -5,7 +5,9 @@ updated: 2026-08-07
 
 # STATUS
 
-**Sprints 1, 2, 3, and 3.5 are 100% COMPLETE.** Sprint 3's A/A floor instruments are built and green; Sprint 3.5 (Phase 0 lock & Inner Loop Lift) fixed six correctness defects, decoupled node/edit-format seams, added auto-discovery of task entry files, and enabled full worktree file re-reading on repair edges ([TASK-039..041](./fixes/sprint-3.5-inner-loop-improvements.md)). **The validation ladder local sweeps (qwen2.5, qwen3.6) and paid DeepSeek runs are verified against the inner loop improvements.** B3 is closed: the evaluation container exists and its canary passes here.
+**Phase 0 is locked** — see [`PHASE-0-LOCK.md`](./PHASE-0-LOCK.md) for what is settled, the nine recorded gaps, and what Phase 1 may change without an ADR. This file is the *implementation* record; the lock is the *constraint* record.
+
+**Sprints 1, 2, 3, and 3.5 are 100% COMPLETE.** Sprint 3's A/A floor instruments are built and green; Sprint 3.5 (Phase 0 lock & Inner Loop Lift) fixed six correctness defects, decoupled node/edit-format seams, added auto-discovery of task entry files, and enabled full worktree file re-reading on repair edges ([TASK-039..041](agile/sprints/sprint-03.5.md)). **The validation ladder local sweeps (qwen2.5, qwen3.6) and paid DeepSeek runs are verified against the inner loop improvements.** B3 is closed: the evaluation container exists and its canary passes here.
 
 | Area | State |
 | :--- | :--- |
@@ -22,9 +24,9 @@ updated: 2026-08-07
 | B3 canary | **Green in this environment.** 7/7 with `AETHER_REQUIRE_CONTAINER=1` — good candidate passes, **broken candidate fails**, host FS outside the worktree invisible, egress refused, plus two negative tests proving the leak and egress probes can go red |
 | Pinned manifest | **`benchmarks/manifests/internal-floor-01.yaml`**, `sha256:7c2c2467…` — 84 tasks, 0 exclusions, splits pinned 50 dev / 21 holdout / 13 sealed, every task screened bidirectionally (gold passes **and** empty fails) through the container |
 | Statistics | **Verbatim port green** against pinned fixtures (`tests/fixtures/aether_statistics/`). The derived-N power simulation **reproduces ADR-0003 rev. 2's published table in all twelve cells** (`scripts/verify_power_table.py`, largest deviation 0.0049) |
-| F1 timers result | **Measured, RT-3 not crossed.** See [`performance_timers.md`](./rationale/benchmarks/performance_timers.md). RT-1/RT-2 need a 1M-LOC corpus; left open, not claimed |
+| F1 timers result | **Measured, RT-3 not crossed.** See [`performance_timers.md`](benchmarks/results/performance_timers.md). RT-1/RT-2 need a 1M-LOC corpus; left open, not claimed |
 | Benchmark results | **None.** No valid number has ever been produced — see [`measurement.md`](./measurement.md) §1 |
-| A/A variance floor | **Not taken.** Instrument complete and rehearsed (`scripts/run_aa_floor.py --dry-run`, zero API calls); the arms are deferred. See [`noise-floor.md`](./rationale/benchmarks/noise-floor.md) |
+| A/A variance floor | **Not taken.** Instrument complete and rehearsed (`scripts/run_aa_floor.py --dry-run`, zero API calls); the arms are deferred. See [`noise-floor.md`](benchmarks/results/noise-floor.md) |
 | SWE-bench floor | **Blocked on per-task environment images.** The 15-task samples are indexed with pinned base commits, but no image exists for any of them, so the validity canary would exclude all 15 as `instrument_error` |
 | Phase 0 decisions | **Ratified and locked.** |
 | Predecessor (`src/sagiha/`) | Reference material being retired |

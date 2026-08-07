@@ -83,12 +83,12 @@ per-task — read a row when you start that task, not before.
 
 | File | For which task | The finding it documents |
 | :--- | :--- | :--- |
-| `docs/fixes/proposal_architecture_audit.md` | T1, T3 | The original I7 / CI / TCB_PATHS findings |
-| `docs/fixes/proposal_abstraction_and_harness_composition.md` | T4 | §4.2 — nodes transitively import `httpx`; the four `worktree_path` copies; the repeated envelope |
-| `docs/fixes/proposal_competitors_execution_mechanics_evaluation.md` | T4b | §2 — stdin, env and timeout defects, and why they are an *instrument* fix |
-| `docs/fixes/proposal_workflows_hybrids_improvements.md` | Anti-drift (§9) | Why the hybrid topology must not run before the floor |
-| `docs/fixes/implemented_sprint_3.5_complete_report.md` | T3 | The document you are downgrading to `rationale` |
-| `docs/fixes/proposal_sota_gap_analysis.md` | **After the sprint** | Localization, ranking, `SearchReplaceFormat`. Sprint 5+. Do not start |
+| `docs/proposals/proposal_architecture_audit.md` | T1, T3 | The original I7 / CI / TCB_PATHS findings |
+| `docs/proposals/proposal_abstraction_and_harness_composition.md` | T4 | §4.2 — nodes transitively import `httpx`; the four `worktree_path` copies; the repeated envelope |
+| `docs/proposals/proposal_competitors_execution_mechanics_evaluation.md` | T4b | §2 — stdin, env and timeout defects, and why they are an *instrument* fix |
+| `docs/proposals/proposal_workflows_hybrids_improvements.md` | Anti-drift (§9) | Why the hybrid topology must not run before the floor |
+| `docs/proposals/implemented_sprint_3.5_complete_report.md` | T3 | The document you are downgrading to `rationale` |
+| `docs/proposals/proposal_sota_gap_analysis.md` | **After the sprint** | Localization, ranking, `SearchReplaceFormat`. Sprint 5+. Do not start |
 
 ### 2.5 The code you will touch
 
@@ -179,7 +179,7 @@ So `tests_unmodified` has nothing to compare against until you add it.
 
 ### T1 — `TASK-049`: I7 enforcement, and delete the inferrer · **blocks T5**
 
-> Documented in: `proposal_architecture_audit.md`. Exit criteria: `backlog.md` TASK-049.
+> Documented in: `PHASE-0-LOCK.md`. Exit criteria: `backlog.md` TASK-049.
 
 **Verified state:** `grep -rn "tests_unmodified" src/aether/` → 0 matches.
 
@@ -360,7 +360,7 @@ assertion-fitting. Record what you see; do not tune to recover it.
 
 ### T3 — CI green at step one, and gates that match reality
 
-> Documented in: `proposal_architecture_audit.md`. Exit criteria: `sprint-04.md` Task 3.
+> Documented in: `PHASE-0-LOCK.md`. Exit criteria: `sprint-04.md` Task 3.
 
 **Verified state, 2026-08-07** (re-run these — the tree moves):
 
@@ -409,7 +409,7 @@ Fixing ruff is not cosmetic; it is what makes four other gates real.
 
 ### T4 — `TASK-050/051/052`: mechanical decoupling
 
-> Documented in: `proposal_abstraction_and_harness_composition.md` §4.2. No behaviour change.
+> Documented in: `capability_layer.md` §4.2. No behaviour change.
 
 **T4a — `domain/effects.py`.** `ReadArgs`, `WriteArgs`, `ApplyPatchArgs`, `ShellArgs` are
 pure frozen models living in `composition.py` (lines 36-62), the module that imports

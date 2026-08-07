@@ -17,7 +17,7 @@ rendering of a normative table is a drift risk, not an aid.
 > **do not exist in `src/aether/` today** — they are `TASK-053`–`058`, `TASK-030a` and a
 > post-M4 milestone respectively. [`STATUS.md`](./STATUS.md) is the authority on what is
 > implemented; when a diagram and the code disagree, **the diagram is the bug**
-> ([`README.md`](./README.md)).
+> ([`README.md`](../README.md)).
 
 ---
 

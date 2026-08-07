@@ -197,7 +197,7 @@ passes green and forbids nothing.
 
 **Recommendation:** this is genuinely post-M3 and should stay there. But record it as
 *deferred with a named milestone* rather than as a dash, and note the vacuous contract target
-in `STATUS.md`. `proposal_harness_evolution.md` and
+in `STATUS.md`. `PHASE-0-LOCK.md` and
 `concepts/rewrite_v300_agi_path_after_all_milestones_are_delivered.md` already hold the
 thinking; they are not backlog entries.
 

@@ -10,7 +10,7 @@ The instrument for taking one is complete, green, and rehearsed end to end; the
 arms themselves were deliberately deferred — the run costs real API spend and
 the decision was to finish Sprint 1–3's code and tests first, then take the
 floor. That is a scheduling decision and it is recorded here as one, exactly as
-[`performance_timers.md`](./performance_timers.md) records what its own run did
+[`performance_timers.md`](performance_timers.md) records what its own run did
 and did not show.
 
 Until this file contains discordance rates:

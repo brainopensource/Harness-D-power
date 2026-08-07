@@ -8,7 +8,7 @@ updated: 2026-08-06
 * **Goal**: Land the TCB path migration, core pure domain models, wire-serializable ports with mock adapters and the conformance meta-suite, the manifest-driven repository cache (B1), and the typed tri-state gate (B4).
 * **Target Milestone**: [M0](../milestones.md#milestone-m0--pure-domain--wire-protocols) · [B1](../milestones.md#blocker-b1--manifest-driven-upstream-repository-cache) · [B2a](../milestones.md#blocker-b2--local-openai-compatible-endpoint) · [B4](../milestones.md#blocker-b4--typed-instrument-error-handling)
 * **Tripwire Window**: 5 Business Days (2026-08-06 to 2026-08-12)
-* **Position in the plan**: [`sprints/README.md`](./README.md)
+* **Position in the plan**: [`sprints/README.md`](README.md)
 
 > **This sprint runs two tracks in parallel.** Serially its tripwires sum to ~7 days against a 5-day window. **Track 1 — architecture**: Tasks 1, 2, 4, 5 (M0, ~3d). **Track 2 — instrument**: Tasks 3 and 6 (B1 + B4, ~3d), which depend on nothing in Track 1. They share only Task 0, which blocks both. One developer across both tracks trips the [ADR-0009](../../decisions/0009-gates-are-the-schedule.md) tripwire on day one — that is the signal to staff the second track or re-scope, never to compress the estimate.
 

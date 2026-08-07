@@ -47,7 +47,7 @@ shape, ship nothing — applied at roadmap scale.
 ## Amendments (2026-08-06, the Phase 0 lock)
 
 Four ADRs were revised rather than superseded, because in each case the decision held and its
-implementation was under-specified. The trail is [`../fixes/`](../fixes/proposal_architecture_audit.md).
+implementation was under-specified. The trail is [`../PHASE-0-LOCK.md`](../PHASE-0-LOCK.md).
 
 | ADR | What changed | Why |
 | :--- | :--- | :--- |
