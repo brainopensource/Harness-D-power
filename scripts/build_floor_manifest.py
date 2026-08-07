@@ -31,6 +31,7 @@ import asyncio
 import os
 import subprocess
 import sys
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -66,21 +67,28 @@ GIT_ENV = {
     "GIT_COMMITTER_DATE": "2026-01-01T00:00:00+00:00",
 }
 
-#: (name, buggy body, fixed body, assertion) — one small, unambiguous defect
-#: each. Deliberately easy: the floor measures *variance between two identical
-#: configurations*, and a suite nothing can solve produces a degenerate floor
-#: where every pair agrees for the wrong reason.
-BUG_FAMILIES: list[tuple[str, str, str, str]] = [
-    ("add", "return a - b", "return a + b", "assert f(2, 3) == 5"),
-    ("sub", "return a + b", "return a - b", "assert f(5, 3) == 2"),
-    ("mul", "return a + b", "return a * b", "assert f(3, 4) == 12"),
-    ("max_of", "return a if a < b else b", "return a if a > b else b", "assert f(9, 4) == 9"),
-    ("min_of", "return a if a > b else b", "return a if a < b else b", "assert f(9, 4) == 4"),
-    ("abs_diff", "return a - b", "return abs(a - b)", "assert f(3, 8) == 5"),
-    ("clamp_low", "return a", "return max(a, b)", "assert f(1, 4) == 4"),
-    ("is_even", "return a % 2 == 1", "return a % 2 == 0", "assert f(4, 0) is True"),
-    ("pow_of", "return a * b", "return a**b", "assert f(2, 5) == 32"),
-    ("floor_div", "return a / b", "return a // b", "assert f(7, 2) == 3"),
+#: (name, buggy body, fixed body, expected(a, b)) — one small, unambiguous
+#: defect shape each. Deliberately easy: the floor measures *variance between
+#: two identical configurations*, and a suite nothing can solve produces a
+#: degenerate floor where every pair agrees for the wrong reason.
+#:
+#: Ten defect **shapes**; each instance draws its own constants from its index,
+#: so 84 instances are 84 distinct problems rather than ten repeated ones. Be
+#: precise about this in any write-up: the suite's diversity is ten shapes
+#: wide, and a floor taken on it says nothing about a suite of real bug reports.
+BugShape = tuple[str, str, str, "Callable[[int, int], object]"]
+
+BUG_SHAPES: list[BugShape] = [
+    ("add", "return a - b", "return a + b", lambda a, b: a + b),
+    ("sub", "return a + b", "return a - b", lambda a, b: a - b),
+    ("mul", "return a + b", "return a * b", lambda a, b: a * b),
+    ("max_of", "return a if a < b else b", "return a if a > b else b", lambda a, b: max(a, b)),
+    ("min_of", "return a if a > b else b", "return a if a < b else b", lambda a, b: min(a, b)),
+    ("abs_diff", "return a - b", "return abs(a - b)", lambda a, b: abs(a - b)),
+    ("clamp_low", "return a", "return max(a, b)", lambda a, b: max(a, b)),
+    ("is_even", "return a % 2 == 1", "return a % 2 == 0", lambda a, b: (a % 2 == 0)),
+    ("pow_of", "return a * b", "return a**b", lambda a, b: a**b),
+    ("floor_div", "return a / b", "return a // b", lambda a, b: a // b),
 ]
 
 
@@ -98,9 +106,37 @@ def _tests_source(assertion: str) -> str:
     return f"import sys\nfrom mod import f\n\ntry:\n    {assertion}\nexcept AssertionError:\n    sys.exit(1)\nsys.exit(0)\n"
 
 
+def _constants(shape: str, index: int) -> tuple[int, int]:
+    """Per-instance constants, derived from the index so they are stable —
+    and chosen so the defect is actually *observable* for this instance.
+
+    Learned from the canary rather than assumed: a first pass used one
+    constant rule for every shape, and 16 of 84 tasks were excluded as
+    `empty_patch_passes` — `abs_diff` with a > b, `clamp_low` with a >= b and
+    `floor_div` with b dividing a are all tasks whose tests pass with no patch
+    at all. Those are free resolves for every arm, which is exactly what the
+    bidirectional canary exists to catch. A generator that emits them is a
+    broken generator, so the shape constrains its own constants here.
+    """
+    a, b = 2 + (index % 7), 3 + (index % 5)
+    if shape in {"abs_diff", "clamp_low", "max_of"}:
+        b = a + 1 + (index % 4)  # the fix must change the answer: b > a
+    elif shape == "min_of":
+        a, b = 5 + (index % 7), 1 + (index % 4)  # a > b
+    elif shape == "floor_div":
+        a, b = 7 + (index % 9), 2 + (index % 3)
+        if a % b == 0:
+            a += 1  # true division must differ from floor division
+    elif shape == "pow_of":
+        b = 3 + (index % 3)  # a * b != a ** b
+    return a, b
+
+
 def generate_task(workdir: Path, index: int) -> TaskCandidate:
     """One deterministic single-bug repair task, as a real git repository."""
-    family, buggy, fixed, assertion = BUG_FAMILIES[index % len(BUG_FAMILIES)]
+    family, buggy, fixed, expected = BUG_SHAPES[index % len(BUG_SHAPES)]
+    a, b = _constants(family, index)
+    assertion = f"assert f({a}, {b}) == {expected(a, b)!r}"
     instance_id = f"internal__{family}-{index:03d}"
     repo = workdir / instance_id
 
@@ -174,8 +210,6 @@ async def build(args: argparse.Namespace) -> int:
         generate_task(workdir, i).model_copy(update={"environment_image_digest": digest})
         for i in range(args.n)
     ]
-    splits = assign_splits([c.instance_id for c in candidates], seed=args.split_seed)
-    candidates = [c.model_copy(update={"split": splits[c.instance_id]}) for c in candidates]
 
     print(f"generated {len(candidates)} tasks in {workdir}")
     print(f"screening with the bidirectional canary ({'contained' if sandbox else 'UNCONTAINED'})…")
@@ -196,6 +230,17 @@ async def build(args: argparse.Namespace) -> int:
         verdicts.append(verdict)
         mark = "admit " if verdict.admitted else "EXCLUDE"
         print(f"  {mark} {candidate.instance_id} ({verdict.reason or 'gold passes, empty fails'})")
+
+    # Splits are assigned over the *admitted* set, after screening. Assigning
+    # them first and then excluding tasks thins each split unevenly, and the
+    # smoke tier's N >= 50 applies to DEV — a floor 10 tasks short of its own
+    # floor because the canary did its job is not a split policy, it is a bug.
+    admitted_ids = [v.instance_id for v in verdicts if v.admitted]
+    splits = assign_splits(admitted_ids, seed=args.split_seed)
+    candidates = [
+        c.model_copy(update={"split": splits[c.instance_id]}) if c.instance_id in splits else c
+        for c in candidates
+    ]
 
     manifest = build_manifest(
         manifest_id=args.manifest_id,
@@ -224,7 +269,15 @@ async def build(args: argparse.Namespace) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--n", type=int, default=50, help="tasks to generate (floor tier needs >= 50)")
+    parser.add_argument(
+        "--n",
+        type=int,
+        default=84,
+        # 0.6 * 84 = 50 dev tasks exactly: the smoke tier floors N at 50 and
+        # binds to the DEV split, so a 50-task manifest with a 60/25/15 split
+        # would leave the floor 20 tasks short of its own floor.
+        help="tasks to generate (>= 84 keeps the DEV split at the smoke tier's N >= 50)",
+    )
     parser.add_argument("--manifest-id", default="internal-floor-01")
     parser.add_argument("--workdir", default=str(DEFAULT_WORKDIR))
     parser.add_argument("--out", default=str(DEFAULT_OUT))

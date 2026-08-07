@@ -22,6 +22,7 @@ from aether.adapters.tools.builtin import BuiltinToolRegistry
 from aether.adapters.trajectory_store.sqlite import SqliteTrajectoryStore
 from aether.adapters.workspace.git_cli import GitCliWorkspace, GitCliWorktreeManager
 from aether.composition import build_dispatcher
+from aether.domain.budget import BudgetDims
 from aether.domain.events import RunCompleted, RunStarted
 from aether.domain.gate import GateReport
 from aether.domain.ids import Frozen, RunId
@@ -57,6 +58,11 @@ NODE_SOCKETS: dict[str, tuple[str, str]] = {
 class RunResult(Frozen):
     run_id: RunId
     gate_report: GateReport
+    # What the run actually spent, read from the governor's ledger rather than
+    # estimated afterwards. Cost per resolved task is a mandatory report column
+    # (ADR-0003 rev. 2 §4), and a number reconstructed after the fact is the
+    # after-the-fact accounting `spec.md` §5 exists to make unrepresentable.
+    usage: BudgetDims = BudgetDims()
 
 
 async def run(
@@ -118,11 +124,12 @@ async def run(
     finally:
         await _drain_to_trajectory_store(bus, trajectory_store, "trajectory_store")
 
+    usage = await governor.remaining(run_id)
     await bus.emit(RunCompleted(run_id=run_id, at=datetime.now(UTC), final_status=gate_report.status.value))
     await _drain_to_trajectory_store(bus, trajectory_store, "trajectory_store")
     bus.unsubscribe("trajectory_store")
 
-    return RunResult(run_id=run_id, gate_report=gate_report)
+    return RunResult(run_id=run_id, gate_report=gate_report, usage=usage)
 
 
 async def _drain_to_trajectory_store(

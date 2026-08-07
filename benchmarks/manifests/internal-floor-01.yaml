@@ -1,4 +1,4 @@
-created_at: '2026-08-07T05:59:05.804425Z'
+created_at: '2026-08-07T06:05:12.547733Z'
 manifest_id: internal-floor-01
 schema_version: 1.0.0
 suite: internal
@@ -9,49 +9,49 @@ tasks:
   repo: internal/add
   split: holdout
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: 5b5aa4a34e9da3485fb771597f015e5d45431547
+- base_commit: 2fb6ecb36c3f10e26614e9a78de0d7aa81e44f0b
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__sub-001
   repo: internal/sub
   split: holdout
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: c9bf8c97fd5ba7ba96abe53eca59b83f2a3350b9
+- base_commit: 3abbd52feabd8037ee6d11d46cdb5b4a790b70cf
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__mul-002
   repo: internal/mul
-  split: dev
+  split: holdout
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: a73f62b8a3beeee80c7fd4c49f6ea78c9a964dbe
+- base_commit: 89242fcd1c96a6ea594ecbe9a27bb4c82a69daa0
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__max_of-003
   repo: internal/max_of
   split: sealed
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: ef8ce93d9739f08c990f9ad4c63aeda200560235
+- base_commit: 838728f111f699304ae558146d65751855638cb5
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__min_of-004
   repo: internal/min_of
-  split: dev
+  split: sealed
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: 7452f4684bc433857565fa9a2b21ed7706ec1629
+- base_commit: 30c7809256f5a0c778610322a5c5f3a8405f6e6d
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__abs_diff-005
   repo: internal/abs_diff
   split: dev
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: 2cdcfed1e55880ea31fc6cc5cc374e639a290abb
+- base_commit: 8a9c0fa18911adb26ccab8a11a62975234dd9594
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__clamp_low-006
   repo: internal/clamp_low
   split: dev
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: 20e8d72c33fc4a373d891b1a0e96461a8f37944c
+- base_commit: 221012a9a074f4c00dc96509332775c15ab696ed
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__is_even-007
   repo: internal/is_even
-  split: sealed
+  split: dev
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: 8d86afe664e4fe506ced25cf3afb519c865fabdb
+- base_commit: 13a4ce5f16928bb708aaaa238641813460da8785
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__pow_of-008
   repo: internal/pow_of
@@ -63,244 +63,448 @@ tasks:
   repo: internal/floor_div
   split: holdout
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: 03137459ba52aaa1b6e24b46b7ddf529d3eac1b5
+- base_commit: fb982c3ec4819011cb2571d42a66a3d6d5869f65
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__add-010
   repo: internal/add
   split: sealed
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: 386b6a36c52cbc38738652465eb6d5060d73bbc5
+- base_commit: cad715d9da5475c8270afd014d00174c3b5b1740
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__sub-011
   repo: internal/sub
   split: dev
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: 62945500d43a10688f1ca17fda8ad5abce136fba
+- base_commit: 96d6b967db9c1bee5dfee2c5b80505a6e39e2a4a
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__mul-012
   repo: internal/mul
   split: holdout
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: 82345e5428822f0fcd416df452002502052c5e3e
+- base_commit: 2150816e3d1b7970318d8515ca12a42465feef0c
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__max_of-013
   repo: internal/max_of
-  split: holdout
+  split: dev
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: 008bf5c8525144cf9df08d1328f2dff9c217d0aa
+- base_commit: d7ee125c857512ddcb57bd0e41836e2786afee35
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__min_of-014
   repo: internal/min_of
   split: dev
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: 7c13df4edcab3a300aeced692633a54e36fcf3cf
+- base_commit: ababd3344362cc646d91622429ad4129a18d2ddd
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__abs_diff-015
   repo: internal/abs_diff
   split: dev
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: 690a7d06b822fb860184a0967cf45d03935a1d3c
+- base_commit: 70ee97949130fb11849ab8a9a2245d6064637c6c
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__clamp_low-016
   repo: internal/clamp_low
   split: dev
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: 71a813aa16c3d0be172f5557522b462d2044bcd8
+- base_commit: e327e3a58dee7d0d9f35e28348663fd83c7a15e4
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__is_even-017
   repo: internal/is_even
   split: dev
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: ea1e3d8dd636fc1955d200b6fb45bf487d08ba53
+- base_commit: 1b94e1690a302d1bc6f7ca03c8f19c70721ecaee
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__pow_of-018
   repo: internal/pow_of
   split: sealed
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: d4820aeb85d909dbdc127746a158ef6a84fd02a2
+- base_commit: 00e610e8dc15b54fe7225a36bca5a60452330303
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__floor_div-019
   repo: internal/floor_div
   split: dev
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: d7d826c5a6f5bc36d84219ad41e045092c70ca89
+- base_commit: 4a6d33252531d93f4a69463699e5935b1684043f
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__add-020
   repo: internal/add
   split: dev
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: ea5e3fce049b1f528f506b0a23670f9a70881d8e
+- base_commit: b98cb5571d39e6469f6926266d9f1e00e13d8e8f
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__sub-021
   repo: internal/sub
   split: dev
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: d932beff977204557bfd075bf2c83e787c305a67
+- base_commit: 06d072cf197117ed4f7b5992b8d2784ab9dfd6a2
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__mul-022
   repo: internal/mul
-  split: holdout
+  split: dev
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: b991af4e600fdb489ca09ec9de78e3c45bd6d591
+- base_commit: fd6d51bd581b9c0adaf95420b34ac17dd5f4620f
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__max_of-023
   repo: internal/max_of
-  split: holdout
+  split: dev
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: 76abaeb4a1c010d4e88745a09d29f2bb10c73012
+- base_commit: 9c178ea312700d76edd686ebc99f0e82ec3f0898
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__min_of-024
   repo: internal/min_of
   split: holdout
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: 301f88467ff69f958d56fd3a184585243f385346
+- base_commit: 454d83c7915556cb5edfb4799e463b44a316929d
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__abs_diff-025
   repo: internal/abs_diff
-  split: holdout
+  split: dev
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: 031cda694dd4400b926cd6e69af913afae09bd27
+- base_commit: 74d2724507a3f827bf0e9c9438733e85e0cb14a7
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__clamp_low-026
   repo: internal/clamp_low
-  split: dev
+  split: sealed
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: c85422213c8e5078a55a21ef16bf1790d3ab14d2
+- base_commit: 3de619edb70910172353603eadede5e5d9f5bbb3
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__is_even-027
   repo: internal/is_even
   split: dev
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: bc6de5edb9c13d41b318d9943c0957bf9cfbaef9
+- base_commit: 1189bd24b7835eea9fe9785081c87883444ac67a
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__pow_of-028
   repo: internal/pow_of
-  split: dev
+  split: holdout
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: 089c3240fb6b2c4f7ddc60f9ca2f3e0c5749231a
+- base_commit: dea4e1ec8d104889d978edfdd0cffd48d2607133
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__floor_div-029
   repo: internal/floor_div
-  split: dev
+  split: sealed
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: 63efdfd922b3357d060c0e16ea58e682d4dafd01
+- base_commit: 365318b3c8eb5ceb7480744a15e185e2cad5c8be
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__add-030
   repo: internal/add
-  split: dev
+  split: holdout
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: 0b756dd87d8533601c737df6c3d7078d5926721f
+- base_commit: d2c8ef5a022a22d56de939a32c480be677f062cc
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__sub-031
   repo: internal/sub
   split: dev
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: fdc62f231ad24a718329391b5b3f28cf4becab7a
+- base_commit: 7271cc44159561d0272ec7a2de837c0c46d60091
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__mul-032
   repo: internal/mul
-  split: dev
+  split: holdout
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: 785b6902bd4198c206d0fa8f91d2c19f69a6a965
+- base_commit: ced5ead1a2e2d93388d58df2a480c2fc29cc20ee
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__max_of-033
   repo: internal/max_of
   split: dev
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: bddac159643f573e2e18a0cc98ac75f3eb5850ee
+- base_commit: 23c78bd4c05f9c10d1c70f1e7282ab2f98cc5c4d
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__min_of-034
   repo: internal/min_of
-  split: dev
+  split: holdout
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: 62949f2d211461d265aa6636fdcb49725b485305
+- base_commit: 4828d430c11a228dd5866026ac9923d3873d02ec
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__abs_diff-035
   repo: internal/abs_diff
-  split: sealed
+  split: holdout
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: fedb3a295eeb5432c8360d89d6367f3f413ed7a6
+- base_commit: 566b6916855f41c85c81fe5a2da0eb6310b49ac7
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__clamp_low-036
   repo: internal/clamp_low
-  split: holdout
+  split: dev
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: 64b15a216fa0d242928b811388d3082036cb6d9d
+- base_commit: f8afcd27d3553b1fcc3f86e5a67b380412ca3c2a
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__is_even-037
   repo: internal/is_even
   split: holdout
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: b24c280f559ba4cbab2f05522baa27ae599d8422
+- base_commit: 342250184be9528f36beee51b964aae40ae870c1
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__pow_of-038
   repo: internal/pow_of
-  split: dev
+  split: holdout
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: e4725d8408081d32ee7879e8526c5efaa959db50
+- base_commit: 1e035d1f87bd7ad2b3bfd17fe46e6f74b914748b
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__floor_div-039
   repo: internal/floor_div
   split: dev
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: ab201f9ec354d8fc577d187abb87d1ba687b258e
+- base_commit: 56c60da26cee92a9c243d40a69a2f0c43acc0693
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__add-040
   repo: internal/add
   split: sealed
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: 51cf023f3e525524783afc2553fcbdc8586e2181
+- base_commit: 22cc15bb5611f5c639cd43fb411e341945a7564c
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__sub-041
   repo: internal/sub
   split: dev
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: 330fb2cd31a1168ab316ddf87ef54d8b61aec7ab
+- base_commit: cd628188b0301a9f280b167a904ad616b5bc97b1
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__mul-042
   repo: internal/mul
   split: dev
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: e6835ab18617ebfe2b96c2e0ea2529f067623ab8
+- base_commit: 7327c3da38f897240e1adaafb4ddc9173584cbc1
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__max_of-043
   repo: internal/max_of
   split: dev
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: 93ca93b6fe37de2b9db407ed16c6eeee27aed839
+- base_commit: ee52d9264a261481a1cf8bad1ce20482f6029612
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__min_of-044
   repo: internal/min_of
-  split: sealed
+  split: holdout
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: 880685772ddc83ab2112aa9782e91b92527005a1
+- base_commit: d8d08764a672fca2310166434ae243440fe88dfe
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__abs_diff-045
   repo: internal/abs_diff
   split: sealed
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: abe9e85ec20d0c83a6af4c6856967e4ad41b81e3
+- base_commit: 4cb07916bb45e3d98c3ceaa0c3dccd579859a771
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__clamp_low-046
   repo: internal/clamp_low
   split: dev
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: 115ad7477f50b165e7f51bc082509f359ea952ae
+- base_commit: 1811a4fb6b2f7595dfc9f1b0c97cf9e0e2e07ca2
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__is_even-047
   repo: internal/is_even
-  split: dev
+  split: holdout
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: 207f74357405f9057ba17cc5c77b43bc8de0d2e7
+- base_commit: bb1886d4f0aa32e914e5e3929065dfc55c36c749
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__pow_of-048
   repo: internal/pow_of
-  split: holdout
+  split: dev
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
-- base_commit: b0d9dab804d917bf8eb5b7e42ec8621366f68e6a
+- base_commit: a8c5f9b139722a4ddf197c0a807be2d14c3f8bcd
   environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
   instance_id: internal__floor_div-049
   repo: internal/floor_div
+  split: dev
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: bcf92531e2eb33f8f48af84b3d09750b554e637b
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: internal__add-050
+  repo: internal/add
+  split: dev
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: 5aad1a34a7e3409d6ea967aca119411e3ca45cc9
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: internal__sub-051
+  repo: internal/sub
+  split: dev
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: 132219f37e240388f45b3409b75b15336bbbf962
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: internal__mul-052
+  repo: internal/mul
+  split: holdout
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: c0326071a9480b5cb6f24fe1ae103979725789b9
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: internal__max_of-053
+  repo: internal/max_of
+  split: sealed
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: dbb3c70175de01f715870290e439db17b8b01518
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: internal__min_of-054
+  repo: internal/min_of
+  split: holdout
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: 20531632f7e93af65fe8c19b82b2a76ba8de4344
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: internal__abs_diff-055
+  repo: internal/abs_diff
+  split: dev
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: 3165f43c8305743a067197385d840ef47cfb35f0
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: internal__clamp_low-056
+  repo: internal/clamp_low
+  split: dev
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: 36b16da692d2a1674e6c93b1fc7375e3d03db2d5
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: internal__is_even-057
+  repo: internal/is_even
+  split: dev
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: d527f3df615c344af18547626e13f6e0e998a6a8
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: internal__pow_of-058
+  repo: internal/pow_of
+  split: dev
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: 13726afe22451f24e781351dc423bb57cf6ac9b1
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: internal__floor_div-059
+  repo: internal/floor_div
+  split: holdout
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: 215ef54f094f637ca83bb9e37ecd46770c1ef648
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: internal__add-060
+  repo: internal/add
+  split: holdout
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: c04f351ad8a78ab1345ce953caebb1fa77173e18
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: internal__sub-061
+  repo: internal/sub
+  split: dev
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: 0ef9ae7ad99ca349f4a4b3c4c67ce00e894d4e99
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: internal__mul-062
+  repo: internal/mul
+  split: sealed
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: fdd7afc0e1891f376e4b74295c7b4e79f6f0d12a
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: internal__max_of-063
+  repo: internal/max_of
+  split: dev
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: bd9b7db7f381332815203a983929d812c48e0470
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: internal__min_of-064
+  repo: internal/min_of
+  split: holdout
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: ef983e449ebde3fee7d38808f21e1a7fce8d53b4
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: internal__abs_diff-065
+  repo: internal/abs_diff
+  split: sealed
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: ef11d55c36f6388e91b5b1ec52b96b7c03939fed
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: internal__clamp_low-066
+  repo: internal/clamp_low
+  split: dev
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: 5f50842ee1d1a6830020cdb714e52e77ee83c92e
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: internal__is_even-067
+  repo: internal/is_even
+  split: dev
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: d5547179d15a459a0ff0abc53fff0563b51ae4e1
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: internal__pow_of-068
+  repo: internal/pow_of
+  split: dev
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: 5163938b6e9b1e34fa26f103e450667872818d45
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: internal__floor_div-069
+  repo: internal/floor_div
+  split: dev
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: 5cfe51976ec826d60f18409d19f7d78fbb8caef3
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: internal__add-070
+  repo: internal/add
+  split: dev
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: 7ba27bfdc08c029247804d86f3483ba53371960e
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: internal__sub-071
+  repo: internal/sub
+  split: dev
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: 3fb155065379dc156d635c48f9b4eb61f3eef39c
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: internal__mul-072
+  repo: internal/mul
+  split: dev
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: e9d47f35466202a0862628f0cc07ce09158a747e
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: internal__max_of-073
+  repo: internal/max_of
+  split: dev
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: 2c746079bce15f7bb473d942342ccbeb1a2aa41f
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: internal__min_of-074
+  repo: internal/min_of
+  split: dev
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: 78021a666c070b658133af3f9d8a052f20e7e7d2
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: internal__abs_diff-075
+  repo: internal/abs_diff
+  split: sealed
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: a88fbaf9be8e57fb3a896f989b86941836bfdabb
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: internal__clamp_low-076
+  repo: internal/clamp_low
+  split: dev
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: 2359d808ea25daed5cd9da27badc031092ea3923
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: internal__is_even-077
+  repo: internal/is_even
+  split: holdout
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: de14a32049bc2d0d6cc076d4f1fb8f6288c5dfc4
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: internal__pow_of-078
+  repo: internal/pow_of
+  split: sealed
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: 4f7eee3e8324be03741433de35e49614f71b5789
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: internal__floor_div-079
+  repo: internal/floor_div
+  split: dev
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: 78542f82e72390d0e946cc9fc73ee8b01f74bddd
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: internal__add-080
+  repo: internal/add
+  split: dev
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: 01e8922993f92ec0c42c7f95a20ea04147183b95
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: internal__sub-081
+  repo: internal/sub
+  split: dev
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: b393b02b6ccd04dfe30fa3f08754525c2aa63c1d
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: internal__mul-082
+  repo: internal/mul
+  split: dev
+  test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
+- base_commit: f6454d393b68fccc4b6226896c8d5827c3ae0302
+  environment_image_digest: sha256:77ab3f1428b477c91908a74369eca5442af651a38444ff32a1ab01c4a652c91b
+  instance_id: internal__max_of-083
+  repo: internal/max_of
   split: dev
   test_command_hash: sha256:519f25ac78e8f653c9d4e01e50f23ff0361343303e25f82eae3fd7caafa9fa24
 validity_gate:
