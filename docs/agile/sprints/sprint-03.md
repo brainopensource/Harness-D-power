@@ -19,7 +19,7 @@ updated: 2026-08-06
 
 ### Task 1: Evaluation Container & B3 Canary (`TASK-016`) — closes B3
 * **Target Seam**: `src/aether/adapters/sandbox/podman.py`, `containers/eval/`
-* **Specification Pointer**: [`measurement.md` §2 (B3)](../../measurement.md#2-instrument-blockers), [`tech_stack_and_infra.md` §3.1](../../development/tech_stack_and_infra.md)
+* **Specification Pointer**: [`measurement.md` §2 (B3)](../../measurement.md#2-instrument-blockers), [`tech_stack_and_infra.md` §3.1](../../architecture/tech_stack_and_infra.md)
 * **Acceptance Criteria**:
   1. Rootless Podman. `--network none`, `--cap-drop all`, `--security-opt no-new-privileges`, read-only root, `--pids-limit`, memory and CPU limits from the governor lease.
   2. **Two mounts only**: the task worktree (RW) and the pinned image layers (RO). No home, no sockets — **the `.pth` leak is fixed by construction**, not by remembering to avoid it.

@@ -28,7 +28,7 @@ The epics below group tasks by *subject*; they do not schedule anything. A task 
 | [**04**](./sprints/sprint-04.md) | 📋 planned | `049` `049b` `050` `051` `052` `062` + **the A/A floor run** |
 | [**05**](./sprints/sprint-05.md) | 📋 planned | `006` `053` `054` `055` `056` `057` `058` |
 
-\* **Marked done with unmet exit criteria.** `TASK-018`'s tool container and `TASK-015`'s OpenHands arm are both open, both stated in the task's own prose, and both scan as ✅. See [`coverage_audit.md`](./coverage_audit.md).
+\* **Marked done with unmet exit criteria.** `TASK-018`'s tool container and `TASK-015`'s OpenHands arm are both open, both stated in the task's own prose, and both scan as ✅. See [`PHASE-0-LOCK.md` §4](../PHASE-0-LOCK.md).
 
 ### Pool — milestone-tagged, not scheduled
 
@@ -40,7 +40,7 @@ The epics below group tasks by *subject*; they do not schedule anything. A task 
 | **M4** | `036` `042` `043` `044` `045` `046` `048` `071` `072` `073` `074` `015b` | M3 + the floor |
 | **CI-gated, no milestone** | `030a` `030b` | Gated by the I11 red-team corpus, not by a milestone |
 | **Post-M1b** | `063` `075` | Land with the first client that renders them |
-| **Post-M4** | `evolution/` · meta-loop | Deliberately deferred ([`coverage_audit.md`](./coverage_audit.md) G6) |
+| **Post-M4** | `evolution/` · meta-loop | Deliberately deferred ([`PHASE-0-LOCK.md` §4](../PHASE-0-LOCK.md) G6) |
 
 ### The promotion rule
 
@@ -180,7 +180,7 @@ Correctness + decoupling: six dead defects fixed, node registry keyed by kind, e
 ### TASK-016: Evaluation Container & B3 Canary (Blocker B3) — ✅ DONE (Sprint 3)
 * **Description**: Rootless Podman evaluation container — the isolation that makes a candidate diff visible to the gate scoring it.
 * **Target Files**: `src/aether/adapters/sandbox/podman.py`, `containers/eval/`
-* **Normative Specs**: [`measurement.md` §2 (B3)](../measurement.md#2-instrument-blockers), [`tech_stack_and_infra.md` §3](../development/tech_stack_and_infra.md), [ADR-0008](../decisions/0008-shell-ast-classifies.md)
+* **Normative Specs**: [`measurement.md` §2 (B3)](../measurement.md#2-instrument-blockers), [`tech_stack_and_infra.md` §3](../architecture/tech_stack_and_infra.md), [ADR-0008](../decisions/0008-shell-ast-classifies.md)
 * **Exit Criteria**: `--network none`, `--cap-drop all`, `--security-opt no-new-privileges`, read-only root, image **created from digest, never tag**. Two mounts only: the task worktree (RW) and pinned image layers (RO) — **no `.pth` leakage by construction**. **Canary: a deliberately broken candidate must fail evaluation**, and the canary runs in the A/A floor environment before the floor run.
 * **Why it matters**: the `.pth` leak is the one instrument defect that *produced numbers*.
 
@@ -249,7 +249,7 @@ Correctness + decoupling: six dead defects fixed, node registry keyed by kind, e
 ### TASK-017: Git Workspace & Worktree Adapter — ✅ DONE (Sprint 2)
 * **Description**: `Workspace` + `WorktreeManager` over the `git` CLI via `asyncio.subprocess`.
 * **Target Files**: `src/aether/adapters/workspace/git_cli.py`
-* **Normative Specs**: [ADR-0005](../decisions/0005-eight-ports-adapter-first.md), [`spec.md` §2 (I3)](../spec.md#2-invariants), [`tech_stack_and_infra.md` §3.2](../development/tech_stack_and_infra.md)
+* **Normative Specs**: [ADR-0005](../decisions/0005-eight-ports-adapter-first.md), [`spec.md` §2 (I3)](../spec.md#2-invariants), [`tech_stack_and_infra.md` §3.2](../architecture/tech_stack_and_infra.md)
 * **Exit Criteria**: Passes both conformance suites. **All paths are repo-relative strings — no `Path` crosses the port** (I3). One worktree per candidate under a run-scoped root. This is where the worktree-creation timer (`TASK-021`) lives.
 * **Named as**: the first real adapter for the `Workspace`/`WorktreeManager` boundary.
 
@@ -333,7 +333,7 @@ Correctness + decoupling: six dead defects fixed, node registry keyed by kind, e
 ### TASK-034: `ResourceGovernor` Reserve / Commit / Release — ✅ DONE (Sprint 2)
 * **Description**: The budget triple as an atomic ledger.
 * **Target Files**: `src/aether/kernel/governor.py`
-* **Normative Specs**: [`spec.md` §5](../spec.md#5-execution), [`tech_stack_and_infra.md` §4.5](../development/tech_stack_and_infra.md)
+* **Normative Specs**: [`spec.md` §5](../spec.md#5-execution), [`tech_stack_and_infra.md` §4.5](../architecture/tech_stack_and_infra.md)
 * **Exit Criteria**: The dispatcher **refuses any effect without a live lease**, making after-the-fact accounting structurally unrepresentable. Integer arithmetic only. Overrun records a typed `BudgetOverrun` event and debits reality. **A child lease's release refunds the parent, not the global pool.**
 * **Why it matters**: budget-recorded-after-the-fact was H2 in the predecessor's refactor plan, and it worsens under Best-of-N fan-out.
 
@@ -530,7 +530,7 @@ Source: [`proposal_workflows_hybrids_improvements.md`](../proposals/proposal_wor
 
 ## Epic 7: Benchmark Delivery & Public Claims (Milestone M4 — Competitor & Leaderboard Validation)
 
-Source: [`coverage_audit.md`](coverage_audit.md) §1 (Gap G1 resolution). Funds the mission statement in [`vision.md`](../vision.md) §1 and [`measurement.md`](../measurement.md) §4 to compete on SWE-bench Verified and SWE-bench Pro.
+Source: [`PHASE-0-LOCK.md` §4](../PHASE-0-LOCK.md) §1 (Gap G1 resolution). Funds the mission statement in [`vision.md`](../vision.md) §1 and [`measurement.md`](../measurement.md) §4 to compete on SWE-bench Verified and SWE-bench Pro.
 
 ### TASK-071: SWE-bench Manifest Build & Canary at Scale (Milestone M4)
 * **Description**: Build, pin, and bidirectionally validate SWE-bench Verified & Pro task manifests at scale, reusing `TASK-014`'s tooling. Screen every task with the bidirectional canary (gold patch passes, empty patch fails).
@@ -666,7 +666,7 @@ Every row is worked by **The Developer** — there is one team, not a role hiera
 | :--- | :--- | :--- | :---: | :--- | :--- |
 | `TASK-011` | Local Model Provider Adapter | B2b (Sprint 2) | **3** · Medium | First real adapter — it sets the precedent every later provider follows | An async `httpx` `ModelProvider` streaming SSE deltas (`TextDelta`/`ToolCallDelta`/`UsageEvent`/`StopEvent`) with enforced token ceilings. Moderate streaming/protocol work, but it's also the adapter proving out the port shape and satisfying TASK-002's "named first real adapter" entry rule — everything that later calls a model goes through what this task establishes. |
 | `TASK-017` | Git Workspace & Worktree Adapter | M1a (Sprint 2) | **3** · Medium | Git-over-subprocess with a strict no-`Path`-crosses-the-port rule | `Workspace` + `WorktreeManager` over the `git` CLI via `asyncio.subprocess`, every path a repo-relative string (I3), one worktree per candidate under a run-scoped root. The concrete surface (`read`/`write`/`apply_patch`/`diff`, `create`/`destroy`/`list_active`) is already specified; the real work is subprocess correctness and patch-application edge cases (rejected hunks), plus hosting the worktree-creation timer TASK-021 depends on. |
-| `TASK-018` | Built-in Tool Registry & Execution Container | M1a (Sprint 2) | **3** · Medium *(rev.)* | A frozen catalog with construction-time taint labeling; the container half didn't ship | `ToolRegistry` adapter (`adapters/tools/builtin.py`, 120 LOC): two tools (`read_file`, `bash`), catalog frozen as a tuple in `__init__` (I6), every `ToolResult` labeled `untrusted-external` at construction (ADR-0015). **The "separate container, own lease class" isolation named in the original rationale never landed** — the module's own docstring says it "runs uncontained this sprint via `asyncio.subprocess`", and [`coverage_audit.md`](./coverage_audit.md) independently flags the tool container as still open. What's actually in the tree is a small, uncontained adapter — real but not the concurrency/security-isolation work a Hard rating implies. Re-promotes to Hard once the container lands. |
+| `TASK-018` | Built-in Tool Registry & Execution Container | M1a (Sprint 2) | **3** · Medium *(rev.)* | A frozen catalog with construction-time taint labeling; the container half didn't ship | `ToolRegistry` adapter (`adapters/tools/builtin.py`, 120 LOC): two tools (`read_file`, `bash`), catalog frozen as a tuple in `__init__` (I6), every `ToolResult` labeled `untrusted-external` at construction (ADR-0015). **The "separate container, own lease class" isolation named in the original rationale never landed** — the module's own docstring says it "runs uncontained this sprint via `asyncio.subprocess`", and [`PHASE-0-LOCK.md` §4](../PHASE-0-LOCK.md) independently flags the tool container as still open. What's actually in the tree is a small, uncontained adapter — real but not the concurrency/security-isolation work a Hard rating implies. Re-promotes to Hard once the container lands. |
 | `TASK-019` | TCB Evaluator Implementation | M1a (Sprint 2) | **4** · Hard | The judge itself — must be provably unreachable from the code it grades | Runs the manifest's pinned test command inside the evaluation container and returns a typed tri-state `GateReport`, verifying the test-command hash before running (a drift is `NONE`, never a result). The harder constraint is architectural: it must physically live in `measurement/`, never `adapters/`, so `import-linter`'s `tcb-isolation` contract can prove `agency/`/`workflow/` cannot import it (I7 — the agent that writes code cannot modify the tests grading it). |
 | `TASK-020` | Declarative Topology Executor | M1a (Sprint 2) | **4** · Hard | Five static graph checks with no escape hatch | A JSON-Schema (Draft 2020-12) structural pass plus five hand-written checks — socket-type compatibility across every edge, evaluator-termination (no path may route around the judge), bounded iteration, declared fan-out, and per-node budget annotation — with **no `--force` flag** and a typed error naming the failed check. `evaluator_termination` is a real graph-reachability property, not a schema field; ADR-0014 calls this component "TCB-adjacent" precisely because a bug here lets a topology bypass I7. |
 | `TASK-022` | Headless Engine API & Event Bus | M1a (Sprint 2) | **4** · Hard | The one stream every client in the system reads from | The headless `engine.py` API and append-only typed event bus every surface (TUI, CLI, CI, a future GUI) consumes with no privileged access. Requires correct backpressure under concurrency — drop-oldest for display consumers, **never** dropped for the trajectory store or measurement harvester — plus an event catalog generated from `domain/events.py` with a drift check. Nearly everything else in the system is either a producer or consumer of what this task builds. |

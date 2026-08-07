@@ -66,7 +66,7 @@ per-task — read a row when you start that task, not before.
 | `.importlinter` | The `aether-*` contracts | `aether-tcb-isolation` names `aether.measurement.evaluator` as forbidden from importing `aether.adapters`. Task 1 lands **inside** that constraint — see §5.1 |
 | `src/aether/measurement/schemas/manifest_schema.yaml` | All | Task 1 extends it. TCB data: a change is a new hash, never an edit |
 | `src/aether/workflow/schemas/workflow_schema.yaml` | The `repair` block, `x-static-checks` | Context for what the validator already enforces. **You do not change this file this sprint** |
-| `docs/development/schemas_and_contracts.md` | §2 | The manifest's specified shape — extend in its idiom, don't redesign |
+| `docs/architecture/schemas_and_contracts.md` | §2 | The manifest's specified shape — extend in its idiom, don't redesign |
 
 ### 2.3 The plan you are executing
 

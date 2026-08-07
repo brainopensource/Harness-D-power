@@ -30,7 +30,7 @@ directory that did not exist — six inbound references to nothing.
   instruments does not appear in this directory in any form.
 - **Every result names its instrument**: manifest hash, model fingerprint, topology hash,
   container digests, `uv.lock` hash, seed — the reproducibility tuple from
-  [`development/tech_stack_and_infra.md`](../development/tech_stack_and_infra.md) §5.
+  [`architecture/tech_stack_and_infra.md`](../architecture/tech_stack_and_infra.md) §5.
 - **A run that shows nothing is recorded as showing nothing.** That rule is the one that would
   have saved the predecessor, and an empty directory is not the same artifact as a null result.
 - Results are `status: rationale` — they are evidence, not contracts. What a result *changes*

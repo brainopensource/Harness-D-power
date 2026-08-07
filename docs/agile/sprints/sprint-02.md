@@ -17,7 +17,7 @@ updated: 2026-08-07
 
 ### Task 1: Local Model Provider Adapter (`TASK-011`) — closes B2b
 * **Target Seam**: `src/aether/adapters/model_provider/openai_compatible.py`
-* **Specification Pointer**: [`measurement.md` §2 (B2)](../../measurement.md#2-instrument-blockers), [ADR-0005](../../decisions/0005-eight-ports-adapter-first.md), [`tech_stack_and_infra.md` §4.2](../../development/tech_stack_and_infra.md)
+* **Specification Pointer**: [`measurement.md` §2 (B2)](../../measurement.md#2-instrument-blockers), [ADR-0005](../../decisions/0005-eight-ports-adapter-first.md), [`tech_stack_and_infra.md` §4.2](../../architecture/tech_stack_and_infra.md)
 * **Acceptance Criteria**:
   1. Passes the `ModelProvider` conformance suite — the same parametrized suite the mock passes, with the adapter added to its params list.
   2. Streams typed `ModelStreamEvent`s over `httpx`; **the stream always terminates with a `StopEvent`**.
@@ -26,7 +26,7 @@ updated: 2026-08-07
 
 ### Task 2: Git Workspace & Worktree Adapter (`TASK-017`)
 * **Target Seam**: `src/aether/adapters/workspace/git_cli.py`
-* **Specification Pointer**: [ADR-0005](../../decisions/0005-eight-ports-adapter-first.md), [`spec.md` §2 (I3)](../../spec.md#2-invariants), [`tech_stack_and_infra.md` §3.2](../../development/tech_stack_and_infra.md)
+* **Specification Pointer**: [ADR-0005](../../decisions/0005-eight-ports-adapter-first.md), [`spec.md` §2 (I3)](../../spec.md#2-invariants), [`tech_stack_and_infra.md` §3.2](../../architecture/tech_stack_and_infra.md)
 * **Acceptance Criteria**:
   1. Passes both the `Workspace` and `WorktreeManager` conformance suites.
   2. **No `Path` crosses the port** — all paths are repo-relative strings, `WorktreeRef.abs_hint` is a log string only (I3).

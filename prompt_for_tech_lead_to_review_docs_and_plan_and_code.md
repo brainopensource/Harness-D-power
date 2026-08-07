@@ -2,6 +2,9 @@
 
 > **Target Auditor Persona**: You are acting as the Chief AI Systems Architect and Principal Autonomous Harness Engineer for **AETHER**. You are reviewing a multi-billion-dollar candidate architecture for autonomous software engineering, self-improving meta-loops, and long-horizon AGI execution.
 
+> [!IMPORTANT]
+> **STRICT EXECUTION CONSTRAINT**: You MUST NOT make any code edits, modify existing codebase files, or alter/delete ANY existing documentation files. Zero mutations to existing code or docs. Your ONLY authorized action is to conduct the deep investigation and output your report file(s) in the repository root named `aether_tech_lead_review_v320.md` (or `aether_tech_lead_review_v320_part_XX.md` if additional volumes are required).
+
 ---
 
 ## 1. Vision & Strategic Objective
@@ -20,15 +23,19 @@ The system relies on a **thin, minimalist, highly decoupled core** built on:
 
 ## 2. Core Directives — Eliminate Superficiality, Drive AGI Systems Excellence
 
-### Directive 1: Zero "Junior-Level" Distractions
+### Directive 1: Zero Code and Zero Documentation Mutations
+* **DO NOT EDIT OR MUTATE ANY EXISTING CODE OR EXISTING DOC FILES.**
+* Your sole output is forensic audit, strategic planning, and report generation written ONLY into the newly created root report file `aether_tech_lead_review_v320.md`.
+
+### Directive 2: Zero "Junior-Level" Distractions
 * Do not waste cycles on superficial link polishes, minor formatting, or paper-thin summaries.
 * Focus on **deep structural systems engineering**: memory hierarchy, capability sandboxing, microkernel choke points, atomic node composition, and statistical admission proofs.
 
-### Directive 2: Atomic Composition & Zero Code Duplication
+### Directive 3: Atomic Composition & Zero Code Duplication
 * Every capability (e.g. Task Planner, Brief Generator, Reflector) MUST be expressed as a **composite subgraph built from reusable atomic nodes (`ModelNode`)** parameterized by `RoleSpec` and YAML data.
-* If a sub-task duplicates logic from a parent task, refactor it into a shared, reusable node or topology fragment (`schema_version: 1.1.0`).
+* Evaluate how sub-capabilities can reuse atomic nodes and topology fragments (`schema_version: 1.1.0`) without duplicating Python logic.
 
-### Directive 3: High-Performance Minimalist Core (SOLID & Hexagonal)
+### Directive 4: High-Performance Minimalist Core (SOLID & Hexagonal)
 * The core runtime (`src/aether/`) must remain **thin, fast, and minimalist**.
 * Enforce strict SOLID principles: pure domain models in `domain/` (I1), async wire protocols in `ports/` (I2, I3), and zero magic DI frameworks (explicit composition root in `composition.py`).
 * Identify opportunities for compiled performance forks (Rust via PyO3 under ADR-0001 if F1 thresholds are crossed).
@@ -67,15 +74,16 @@ Investigate reference implementations in `src/` to extract SOTA mechanics for AE
 
 ---
 
-## 4. Required Output Deliverables
+## 4. Required Output Deliverables (Report Files Only)
 
-Produce a comprehensive, highly technical Tech Lead Audit & Action Plan containing:
+You MUST write your complete, highly technical Tech Lead Audit & Action Plan directly into root report file(s) without modifying any existing project files:
+- Primary Report File: **`aether_tech_lead_review_v320.md`**
+- Additional Volumes (if needed): `aether_tech_lead_review_v320_part_02.md`, etc.
 
+The report MUST contain:
 1. **Forensic Audit & Bug Findings Table**:
    - Exact file paths, line numbers, defect severity, and spec drift descriptions.
-
 2. **Refactored Architecture & Composition Blueprint**:
    - Mermaid DAG diagrams showing reusable atomic nodes, composite subgraphs, and multi-model routing flows.
-
 3. **Master Roadmap & Backlog Update**:
    - Refined execution roadmap (M0 through M5), milestone exit gates, and task complexity distributions.

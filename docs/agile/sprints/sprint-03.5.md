@@ -8,7 +8,7 @@ updated: 2026-08-07
 ## 1. Executive Audit & Drift Assessment
 
 ### Have We Drifted from the Core Architecture or Roadmap?
-**NO.** The work completed in Sprint 3.5 strictly complies with the normative rules in [`docs/spec.md`](../../spec.md), [`docs/development/`](../../development/), [`docs/decisions/`](../../decisions/), and [`docs/agile/roadmap.md`](../../agile/roadmap.md).
+**NO.** The work completed in Sprint 3.5 strictly complies with the normative rules in [`docs/spec.md`](../../spec.md), [`docs/architecture/`](../../architecture/README.md), [`docs/decisions/`](../../decisions/), and [`docs/agile/roadmap.md`](../../agile/roadmap.md).
 
 Specifically:
 - **Core Invariants Maintained**:

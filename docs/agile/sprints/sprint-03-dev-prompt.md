@@ -88,7 +88,7 @@ an explicit precondition of Task 5, not a nice-to-have ordering.
 ### 2. `TASK-014` — Task-manifest tooling & bidirectional validity canary
 
 `src/aether/measurement/manifest.py` + `src/aether/measurement/schemas/manifest_schema.yaml`.
-The exact schema shape is already specified in `docs/development/schemas_and_contracts.md`
+The exact schema shape is already specified in `docs/architecture/schemas_and_contracts.md`
 §2 — copy it, don't redesign it (same pattern as Sprint 2's `workflow_schema.yaml`).
 
 Core logic: a task enters the manifest **only if the gold patch passes and the empty patch

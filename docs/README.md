@@ -11,7 +11,7 @@ updated: 2026-08-05
 | :--- | :--- |
 | **New to the project** | [`vision.md`](./vision.md) → [`PHASE-0-LOCK.md`](./PHASE-0-LOCK.md) → [`spec.md`](./spec.md) → [`STATUS.md`](./STATUS.md) · **~40 minutes** |
 | **Asking "what is this, really?"** | [`vision.md`](./vision.md) §1 (three horizons) → [ADR-0019](./decisions/0019-three-horizons-harness-framework-metaloop.md) → [`architecture/task_types_and_verdicts.md`](./architecture/task_types_and_verdicts.md) |
-| **About to write code** | [`development/coding_guidelines.md`](./development/coding_guidelines.md) → the dev prompt for the current sprint → the `TASK-0xx` entries it names |
+| **About to write code** | [`architecture/coding_guidelines.md`](architecture/coding_guidelines.md) → the dev prompt for the current sprint → the `TASK-0xx` entries it names |
 | **Planning** | [`agile/roadmap.md`](./agile/roadmap.md) → [`agile/milestones.md`](./agile/milestones.md) → [`agile/backlog.md`](./agile/backlog.md#scheduling-ledger) |
 | **An AI agent working here** | [`PHASE-0-LOCK.md`](./PHASE-0-LOCK.md) is the constraint set. Never contradict it without an ADR |
 
@@ -26,12 +26,28 @@ updated: 2026-08-05
 | [`decisions/`](decisions/README.md) | 2 | 19 ADRs, each with a reversal condition |
 | [`STATUS.md`](./STATUS.md) | — | What is *actually* implemented. No claim without pasted command output |
 | [`architecture/`](./architecture/capability_layer.md) | 3 | **What the system is.** Capability layer · task types & verdicts · knowledge & memory · extension contract · self-improvement · skeletons · schemas · diagrams. Deep on purpose |
-| [`development/`](./development/coding_guidelines.md) | 3 | **How you work on it.** Coding guidelines, patterns to adopt and refuse, tech stack |
+| [`architecture/`](architecture/coding_guidelines.md) | 3 | **How you work on it.** Coding guidelines, patterns to adopt and refuse, tech stack |
 | [`agile/`](agile/README.md) | 3 | Roadmap, gates, backlog, sprints, release arc. Gate tables `normative`, the rest `rationale` |
 
 | [`proposals/`](./proposals/) | 3 | **Undecided proposals only.** Ratified ones are deleted — see the lifecycle rule below |
 | [`benchmarks/`](./benchmarks/README.md) | 3 | Task samples in; **`results/`** is where measured numbers land — empty until the floor runs |
 | [`concepts/`](concepts/README.md) | — | Phase 0 decision trail. History, `retrieval: excluded` |
+
+## The shape
+
+Six folders, one purpose each. If a document does not obviously belong to one of them, that is
+a signal it duplicates something.
+
+```
+docs/
+├── *.md              WHAT IS TRUE — vision · PHASE-0-LOCK · spec · measurement · STATUS
+├── decisions/        WHAT WAS DECIDED, and what reverses it  (22 ADRs)
+├── architecture/     HOW THE SYSTEM WORKS  (10 docs, indexed by question)
+├── agile/            WHAT WE ARE DOING  — roadmap · milestones · backlog · sprints/
+├── benchmarks/       EVIDENCE — samples in, results/ out
+├── concepts/         HISTORY — the Phase 0 trail, `retrieval: excluded`
+└── proposals/        UNDECIDED — deleted on ratification (see the lifecycle rule below)
+```
 
 ## Who owns which fact
 
@@ -49,8 +65,8 @@ sync.
 | Port shapes and pseudocode | `architecture/core_skeletons_and_protocols.md` |
 | Schema fields and validator wiring | `architecture/schemas_and_contracts.md` |
 | The capability layer, `ModelNode`, strategies, fragments, sidecars | `architecture/capability_layer.md` |
-| House rules, patterns to adopt and refuse, DoD | `development/coding_guidelines.md` |
-| Runtime, dependencies, sandbox, cost model | `development/tech_stack_and_infra.md` |
+| House rules, patterns to adopt and refuse, DoD | `architecture/coding_guidelines.md` |
+| Runtime, dependencies, sandbox, cost model | `architecture/tech_stack_and_infra.md` |
 | System diagrams | `architecture/architecture_diagrams.md` |
 | Measured results | `benchmarks/results/` |
 | Tasks, exit criteria, scheduled vs pool | `agile/backlog.md` |

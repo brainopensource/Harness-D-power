@@ -16,26 +16,20 @@ forbids turning an unmeasured number into a schedule, and M2-abl's wall-clock is
 inference across derived N — a quantity that does not exist until Sprint 4's floor reports
 p₀₁/p₁₀ and per-task wall-clock. Read rows 6–10 as **ordering and content**, never as dates.
 
-Gaps marked *(unfunded)* come from [`coverage_audit.md`](./coverage_audit.md).
+Gaps marked *(unfunded)* come from [`PHASE-0-LOCK.md` §4](../PHASE-0-LOCK.md).
 
 ---
 
 ## The arc
 
-| # | Milestone · Status | Technical scope (tasks) | Deliverable / exit gate | What it unlocks for us |
-|:--|:--|:--|:--|:--|
-| **1** | M0 · B1 · B2a · B4 — ✅ **done** | `000` `001` `002` `003` `004` `005` `010` `013` — pure domain, 9 wire ports, TCB dispatch choke point, repo cache, tri-state `GateReport` | `domain-is-pure` + `tcb-isolation` green; drift test can fail | Every effect has one auditable path; instrument errors stop counting as failures |
-| **2** | M1a · B2b — ✅ **done** | `011` `017` `018` `019` `020` `021` `022` `026` `034` — real adapters, 4-node linear DAG, governor ledger, event bus | `retrieve→generate→apply→evaluate` runs end to end from a validated topology | A task can actually be attempted; budgets are enforced, not estimated |
-| **3** | M1a+ · B3 — ✅ **done** *(floor deferred)* | `012` `014` `016` `023` — bounded repair edge, Podman evaluator, pinned 84-task manifest, McNemar + derived-N | B3 canary 7/7; manifest `sha256:7c2c2467…`; power table reproduced in 12/12 cells | The judge is isolated and the statistics can refuse a bad claim |
-| **3.5** | M1a++ — ✅ **done** *(unplanned; created instrument debt)* | `037`–`041` — edit-format seam, registry by kind, repair re-reads worktree, architect/reflector | 7 topologies validate; small models start passing | Loop engineering became data-driven — but I7 and the baseline broke |
-| **4** | M1a++R · **A/A floor** — 📋 **planned** | `049` `049b` `050` `051` `052` `062` + the floor run | I7 gate can fail; CI green at step one; **p₀₁/p₁₀ + per-task wall-clock** in `noise-floor.md` | The first number this project is allowed to have. Every later N is derived from it |
-| **5** | M1b — 📋 **planned** | `053`–`058` + `006` — ADR-0018 lattice, `agency/`, ContextSource · Inference · Parser · Assembler, `ModelNode`+`RoleSpec`, `RunConfig`, cassettes | `lint-imports` 9/9 with `agency` populated; golden-prompt equivalence; one typed engine input | A new agent role becomes 5 lines of data. GUI/CLI/TUI forms generate from one schema |
-| **6** | M2-eng — ⬜ *projection, sized off S4* | `032` memoization · `064` localization · `066` SearchReplace · `068` attenuation · `069` turn budget | Unchanged subtrees skip; `ARCHITECT` is read-only **by type**; retrieval-recall diagnostic | Ablations become cheap to re-run; the harness can finally pick which files to open |
-| **7** | M2-abl — ⬜ *projection, genuinely unsized* | `023`+`012` repair ablation (first) · `031/056` context · `025` Architect/Editor · `024` compaction | Each mechanism clears the floor at derived N on HOLDOUT — **or is deleted** | We learn which of our own ideas actually work. Losers leave the codebase |
-| **8** | M3 — ⬜ *projection* | `035` branching + fan-out · `033` cache sequencing · `067` execution-based ranker · `059` strategies · `060` fragments | Every fan-out has a declared join; N child leases from one parent; rankers order, never admit | Best-of-N, rescue cascades, compound DAGs — the topologies that win benchmarks |
-| **9** | **M4-a Benchmark Delivery** — ⬜ *(unfunded)* | `036` images · `071` SWE-bench manifest + validity canary at scale · `072` **SWE-bench** A/A floor · `042`–`045` routing + honest pricing | A pinned SWE-bench manifest with published exclusions; its own discordance rates | The mission's instrument. Hybrid arms become admissible and cost-honest |
-| **10** | **M4-b Publication** — ⬜ *(unfunded)* | `073` paired lift run · `074` SEALED publication (`measurement.md` §6 ×7) · `015b` OpenHands arm · `075` read-only TUI | **Lift ≥ +10 pts with CI, absolute alongside, cost per resolved task** | The claim that sells and the claim that survives a model swap — both defensible |
-| *post* | M5 — ⬜ *deferred by decision* | `evolution/` · meta-loop · self-redesign (ADR-0006/0014/0017) | Topology/role mutations proposed by machine, admitted by statistics + human | The harness improves its own loop within a grant that cannot widen |
+**The table that used to sit here has one home now: the
+[scheduling ledger](./backlog.md#scheduling-ledger).** It is authoritative for *which tasks are
+in which sprint*, and duplicating it here is how the two drifted. This file answers the other
+question — **what each sprint means and why it lands where it does** — one section per sprint,
+below.
+
+Milestone sequencing and its binding dependency edges: [`roadmap.md`](./roadmap.md). Which
+sprints are planned in full versus shape-only, and why: [`sprints/README.md`](./sprints/README.md).
 
 ---
 
@@ -341,7 +335,7 @@ review.
 **The goal.** Point the whole machine at the actual target.
 
 **This phase currently has no milestone, no gate and no task** — see
-[`coverage_audit.md`](./coverage_audit.md) G1. `milestones.md` ends at M3, and the gate-coverage
+[`PHASE-0-LOCK.md` §4](../PHASE-0-LOCK.md) G1. `milestones.md` ends at M3, and the gate-coverage
 map checks *milestone gate → task*, so a mission that is not a milestone is invisible to the
 check. That is the D15 defect class one level up.
 
@@ -432,7 +426,7 @@ composition (I6). That is what keeps the meta-loop's grant small enough to be sa
   in [`roadmap.md`](./roadmap.md), which is `normative`. This file is `rationale` and binds
   nothing.
 - **Two phases are unfunded** (9 and 10) and one is deliberately deferred (M5). See
-  [`coverage_audit.md`](./coverage_audit.md) for the full gap list and the tasks that would
+  [`PHASE-0-LOCK.md` §4](../PHASE-0-LOCK.md) for the full gap list and the tasks that would
   close it.
 - **The gate is the schedule.** A phase ends when its exit gates pass in CI, not when its
   tripwire elapses. A tripwire exceeded by >50% triggers a scope review — **gates are never
