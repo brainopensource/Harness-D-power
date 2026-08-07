@@ -28,3 +28,13 @@ class Lease(Frozen):
 
 class Actuals(Frozen):
     dims: BudgetDims
+
+
+class BudgetOverrun(Frozen):
+    """Emitted when `commit()` actuals exceed the reservation. Reality is
+    debited regardless — the ledger never silently clamps to the reservation."""
+
+    lease_id: LeaseId
+    run_id: RunId
+    reserved: BudgetDims
+    actual: BudgetDims

@@ -95,6 +95,7 @@ type = forbidden
 source_modules =
     aether.kernel.policy
     aether.kernel.dispatch
+    aether.measurement.evaluator
 forbidden_modules =
     aether.agency
     aether.workflow
@@ -107,13 +108,15 @@ type = layers
 layers =
     (aether.engine)
     (aether.agency) | aether.workflow
-    (aether.measurement)
+    aether.measurement
     aether.kernel
-    (aether.adapters)
+    aether.adapters
     aether.ports
     aether.domain
-# Parenthesized layers are packages not yet built (agency: TASK-030b: adapters:
-# TASK-011/017/018/019/026; measurement: TASK-019; engine.py: TASK-022) —
+# Parenthesized layers are packages not yet built (agency: TASK-030b;
+# engine.py: TASK-022) — aether.adapters came off in Sprint 2 Step 1
+# (TASK-026, adapters/trajectory_store/sqlite.py), aether.measurement came off
+# in Step 5 (TASK-019, measurement/evaluator.py) —
 # import-linter makes a parenthesized layer optional rather than erroring on a
 # missing module (verified empirically against import-linter 2.13). Each parens
 # pair comes off in the change that lands that package's first real code,
