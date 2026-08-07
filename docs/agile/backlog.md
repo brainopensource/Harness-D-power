@@ -1,6 +1,6 @@
 ---
 status: rationale
-updated: 2026-08-06
+updated: 2026-08-07
 ---
 
 # AETHER v3.0.0 — Product & Technical Backlog
@@ -13,7 +13,7 @@ This backlog catalogs all Epics and User Stories for building AETHER v3.0.0. All
 
 ## Epic 0: Enforcement Migration (Milestone M0 — **blocking**)
 
-### TASK-000: Migrate TCB Path Constants to `src/aether/`
+### TASK-000: Migrate TCB Path Constants to `src/aether/` — ✅ DONE (Sprint 1)
 * **Description**: Move `.importlinter` `tcb-isolation` targets and CI `TCB_PATHS` from `src/sagiha/…` to `src/aether/…`, **in the same change as the first `src/aether/` file**.
 * **Target Files**: `.importlinter`, `.github/workflows/ci.yml`, `tests/unit/test_path_constant_drift.py`
 * **Normative Specs**: [ADR-0006 "The trap this ADR must not fall into"](../decisions/0006-tcb-boundary-and-meta-loop-authority.md), [`milestones.md` M0 Gate 0](./milestones.md#milestone-m0--pure-domain--wire-protocols)
@@ -24,31 +24,31 @@ This backlog catalogs all Epics and User Stories for building AETHER v3.0.0. All
 
 ## Epic 1: TCB Kernel & Core Domain (Milestone M0)
 
-### TASK-001: Pure Domain Data Models
+### TASK-001: Pure Domain Data Models — ✅ DONE (Sprint 1)
 * **Description**: Implement immutable Pydantic domain models in `src/aether/domain/`. Zero I/O dependencies.
 * **Target Files**: `src/aether/domain/*.py`
 * **Normative Specs**: [`spec.md` §2 (I1)](../spec.md#2-invariants), [AGENTS.md Guideline 2](../../AGENTS.md)
 * **Exit Criteria**: `import-linter` contract `domain-is-pure` passes green. All datetimes tz-aware; budget arithmetic is integer-only by type.
 
-### TASK-002: Wire-Serializable Port Protocols
+### TASK-002: Wire-Serializable Port Protocols — ✅ DONE (Sprint 1)
 * **Description**: Define typed `Protocol` boundaries for the 8 core port areas (9 protocols) in `src/aether/ports/`.
 * **Target Files**: `src/aether/ports/*.py`
 * **Normative Specs**: [`spec.md` §4](../spec.md#4-ports), [ADR-0005 rev. 2](../decisions/0005-eight-ports-adapter-first.md), [`spec.md` §2 (I2, I3)](../spec.md#2-invariants)
 * **Exit Criteria**: Each protocol lands with a mock adapter, a conformance test, **and its first real adapter named**. Reflection meta-test passes: all `async`, no `Path`/handle/callable/generator/live object, no `dict[str, Any]`, **no `Grant` in any public signature**.
 
-### TASK-003: Kernel Dispatch & Policy Engine Choke Point
+### TASK-003: Kernel Dispatch & Policy Engine Choke Point — ✅ DONE (Sprint 1)
 * **Description**: Build the TCB authorization and dispatch choke point.
 * **Target Files**: `src/aether/kernel/dispatch.py`, `src/aether/kernel/policy.py`
 * **Normative Specs**: [`spec.md` §5](../spec.md#5-execution), [`spec.md` §2 (I5, I8)](../spec.md#2-invariants), [ADR-0006](../decisions/0006-tcb-boundary-and-meta-loop-authority.md)
 * **Exit Criteria**: Grants verified immediately prior to effect execution. Architecture test proves no bypass path. **The concrete `PolicyEngine` lives in `kernel/`, never `adapters/`** ([`spec.md` §4](../spec.md#4-ports) residency rule).
 
-### TASK-004: WorkflowStep Node & Socket Types
+### TASK-004: WorkflowStep Node & Socket Types — ✅ DONE (Sprint 1)
 * **Description**: Implement typed `WorkflowStep[In, Out]` and socket types.
 * **Target Files**: `src/aether/workflow/step.py`
 * **Normative Specs**: [ADR-0013 (M0)](../decisions/0013-workflow-dag-phased.md)
 * **Exit Criteria**: Pyright strict passes with zero errors. Steps receive **no adapter handles** — effects reach a dispatch facade injected by the executor.
 
-### TASK-005: Conformance Meta-Suite Harness
+### TASK-005: Conformance Meta-Suite Harness — ✅ DONE (Sprint 1)
 * **Description**: One parametrized suite, N adapters — the enforcement mechanism for I4, previously unfunded.
 * **Target Files**: `tests/conformance/`
 * **Normative Specs**: [`spec.md` §2 (I4)](../spec.md#2-invariants), [ADR-0005 rev. 2](../decisions/0005-eight-ports-adapter-first.md)
@@ -64,13 +64,13 @@ This backlog catalogs all Epics and User Stories for building AETHER v3.0.0. All
 
 ## Epic 2: Measurement Rig & Instrument Blockers
 
-### TASK-010: Manifest-Driven Upstream Repository Cache (Blocker B1)
+### TASK-010: Manifest-Driven Upstream Repository Cache (Blocker B1) — ✅ DONE (Sprint 1)
 * **Description**: Standalone utility cloning and resolving base commits for the repositories **named by the pinned manifest**.
 * **Target Files**: `src/aether/measurement/repo_cache.py`, `scripts/resolve_swebench_bases.py`
 * **Normative Specs**: [`measurement.md` §2 (B1)](../measurement.md#2-instrument-blockers), [ADR-0002](../decisions/0002-no-number-before-the-floor.md)
 * **Exit Criteria**: Repo set derived from the manifest, never hard-coded. 100% of base commits resolve for the floor manifest. Cache is content-addressed and **offline-replayable**.
 
-### TASK-011: Local Model Provider Adapter (Blocker B2b)
+### TASK-011: Local Model Provider Adapter (Blocker B2b) — ✅ DONE (Sprint 2)
 * **Description**: `ModelProvider` adapter for the local OpenAI-compatible endpoint. Named as the first **real** adapter satisfying TASK-002's mock clause for this port.
 * **Target Files**: `src/aether/adapters/model_provider/openai_compatible.py`
 * **Normative Specs**: [`measurement.md` §2 (B2)](../measurement.md#2-instrument-blockers), [ADR-0005](../decisions/0005-eight-ports-adapter-first.md)
@@ -82,7 +82,7 @@ This backlog catalogs all Epics and User Stories for building AETHER v3.0.0. All
 * **Normative Specs**: [`measurement.md` §3](../measurement.md#3-the-aa-variance-floor), [ADR-0003 rev. 2](../decisions/0003-statistical-admission-protocol.md), [`spec.md` §9](../spec.md#9-standing-rules) (predecessor-code clause — provenance in the module docstring)
 * **Exit Criteria**: Pinned JSON fixtures pass. **The module refuses to compute corrected p-values for an undeclared family.** The power simulation is seeded and re-runnable from a family file alone.
 
-### TASK-013: Typed Tri-State `GateReport` (Blocker B4)
+### TASK-013: Typed Tri-State `GateReport` (Blocker B4) — ✅ DONE (Sprint 1)
 * **Description**: The typed distinction between *test failed* and *instrument failed*. Pulled forward from M2 — it is a pure domain type and a **precondition of the A/A floor**.
 * **Target Files**: `src/aether/domain/gate.py`, `src/aether/measurement/evaluator.py`
 * **Normative Specs**: [`measurement.md` §2 (B4)](../measurement.md#2-instrument-blockers), [`milestones.md` B4](./milestones.md#blocker-b4--typed-instrument-error-handling)
@@ -101,7 +101,7 @@ This backlog catalogs all Epics and User Stories for building AETHER v3.0.0. All
 * **Exit Criteria**: `--network none`, `--cap-drop all`, `--security-opt no-new-privileges`, read-only root, image **created from digest, never tag**. Two mounts only: the task worktree (RW) and pinned image layers (RO) — **no `.pth` leakage by construction**. **Canary: a deliberately broken candidate must fail evaluation**, and the canary runs in the A/A floor environment before the floor run.
 * **Why it matters**: the `.pth` leak is the one instrument defect that *produced numbers*.
 
-### TASK-019: Evaluator Implementation (TCB)
+### TASK-019: Evaluator Implementation (TCB) — ✅ DONE (Sprint 2, uncontained; B3 containerization is Sprint 3)
 * **Description**: The judge. Runs the task's pinned test command in the evaluation container and returns a tri-state `GateReport`.
 * **Target Files**: `src/aether/measurement/evaluator.py`
 * **Normative Specs**: [`spec.md` §4](../spec.md#4-ports) (TCB port residency), [`spec.md` §2 (I7)](../spec.md#2-invariants), [ADR-0006](../decisions/0006-tcb-boundary-and-meta-loop-authority.md)
@@ -118,39 +118,39 @@ This backlog catalogs all Epics and User Stories for building AETHER v3.0.0. All
 
 ## Epic 3: Walking Skeleton & Engine (Milestone M1a)
 
-### TASK-020: Declarative Topology Executor
+### TASK-020: Declarative Topology Executor — ✅ DONE (Sprint 2)
 * **Description**: Executor running a schema-validated linear graph `retrieve → generate → apply → evaluate`, plus the TCB topology validator.
 * **Target Files**: `src/aether/workflow/executor.py`, `src/aether/workflow/validator.py`, `src/aether/workflow/nodes/*.py`, `workflows/linear_v1.yaml`
 * **Normative Specs**: [ADR-0013 (M1a)](../decisions/0013-workflow-dag-phased.md), [ADR-0014](../decisions/0014-workflow-topology-is-data.md), [`schemas_and_contracts.md` §1](../development/schemas_and_contracts.md)
 * **Exit Criteria**: The executor **refuses** any topology failing a static check, with a typed error naming the failed check. Each of the five checks has a malformed fixture proving it can fail. **No `--force` flag exists.**
 
-### TASK-021: Performance Timers (Worktree & AST Parse)
+### TASK-021: Performance Timers (Worktree & AST Parse) — ✅ DONE (Sprint 2)
 * **Description**: Instrument worktree creation and AST parse-and-validate.
 * **Target Files**: `src/aether/measurement/timers.py`
 * **Normative Specs**: [ADR-0001](../decisions/0001-python-first-compiled-on-trigger.md)
 * **Exit Criteria**: Latencies published to [`docs/rationale/benchmarks/performance_timers.md`](../rationale/benchmarks/README.md) **with hardware and method recorded**. These two numbers decide the F1 fork. A run showing nothing is recorded as showing nothing.
 
-### TASK-022: Headless Engine API & Event Bus
+### TASK-022: Headless Engine API & Event Bus — ✅ DONE (Sprint 2)
 * **Description**: `engine.py` headless API emitting an append-only typed event stream generated from `domain/events.py`.
 * **Target Files**: `src/aether/engine.py`, `src/aether/kernel/bus.py`, `src/aether/domain/events.py`
 * **Normative Specs**: [`spec.md` §8](../spec.md#8-clients), [ADR-0013](../decisions/0013-workflow-dag-phased.md)
 * **Exit Criteria**: Event-catalog drift check passes. **Events never drive node scheduling** — a sensor that must cause work enqueues a task through the engine API. Display consumers are drop-oldest; the trajectory store and harvester are never dropped.
 
-### TASK-017: Git Workspace & Worktree Adapter
+### TASK-017: Git Workspace & Worktree Adapter — ✅ DONE (Sprint 2)
 * **Description**: `Workspace` + `WorktreeManager` over the `git` CLI via `asyncio.subprocess`.
 * **Target Files**: `src/aether/adapters/workspace/git_cli.py`
 * **Normative Specs**: [ADR-0005](../decisions/0005-eight-ports-adapter-first.md), [`spec.md` §2 (I3)](../spec.md#2-invariants), [`tech_stack_and_infra.md` §3.2](../development/tech_stack_and_infra.md)
 * **Exit Criteria**: Passes both conformance suites. **All paths are repo-relative strings — no `Path` crosses the port** (I3). One worktree per candidate under a run-scoped root. This is where the worktree-creation timer (`TASK-021`) lives.
 * **Named as**: the first real adapter for the `Workspace`/`WorktreeManager` boundary.
 
-### TASK-018: Built-in Tool Registry & Tool-Execution Container
+### TASK-018: Built-in Tool Registry & Tool-Execution Container — ✅ DONE (Sprint 2, uncontained; container image is Sprint 3/B3)
 * **Description**: `ToolRegistry` adapter with the built-in tool set, executing in a **separate** container from the evaluator.
 * **Target Files**: `src/aether/adapters/tools/builtin.py`, `containers/tools/`
 * **Normative Specs**: [ADR-0005](../decisions/0005-eight-ports-adapter-first.md), [ADR-0015](../decisions/0015-taintgate-provenance-model.md), [ADR-0016](../decisions/0016-mcp-integration-trust-model.md)
 * **Exit Criteria**: Catalog **frozen at composition** (I6). **Tool outputs are labelled `untrusted-external` at construction**, not at point of use. Separate image and separate lease class from the evaluator, so a runaway tool loop cannot starve the judge.
 * **Named as**: the first real adapter for `ToolRegistry`. MCP ([ADR-0016](../decisions/0016-mcp-integration-trust-model.md)) is a second adapter of the same port, later.
 
-### TASK-026: SQLite Trajectory Store Adapter
+### TASK-026: SQLite Trajectory Store Adapter — ✅ DONE (Sprint 2)
 * **Description**: Durable append-only event log; a bus consumer like any other.
 * **Target Files**: `src/aether/adapters/trajectory_store/sqlite.py`
 * **Normative Specs**: [`spec.md` §8](../spec.md#8-clients), [ADR-0005](../decisions/0005-eight-ports-adapter-first.md)
@@ -218,7 +218,7 @@ This backlog catalogs all Epics and User Stories for building AETHER v3.0.0. All
 * **Normative Specs**: [ADR-0013 (M3)](../decisions/0013-workflow-dag-phased.md), [ADR-0014](../decisions/0014-workflow-topology-is-data.md)
 * **Exit Criteria**: `when: on_pass | on_fail | on_instrument_error` routing honoured; **`on_instrument_error` may only reach a terminal flag node**. Every fan-out site has a declared join — unjoined fan-out leaks worktrees and leases. N parallel candidates ⇒ N child leases from one parent reservation (`TASK-034`).
 
-### TASK-034: `ResourceGovernor` Reserve / Commit / Release
+### TASK-034: `ResourceGovernor` Reserve / Commit / Release — ✅ DONE (Sprint 2)
 * **Description**: The budget triple as an atomic ledger.
 * **Target Files**: `src/aether/kernel/governor.py`
 * **Normative Specs**: [`spec.md` §5](../spec.md#5-execution), [`tech_stack_and_infra.md` §4.5](../development/tech_stack_and_infra.md)
@@ -300,7 +300,7 @@ Every row is worked by **The Developer** — there is one team, not a role hiera
 | `TASK-004` | WorkflowStep Node & Socket Types | M0 (Sprint 1) | **2** · Easy | Generics and Pyright-strict discipline, no engine yet | `WorkflowStep[In, Out]` generic node, socket types, and an `input_digest()` stub. Self-contained — ADR-0013 deliberately phases the executor out to M1a — so the bar is strict generic typing the later validator can check edges against, not architecture. |
 | `TASK-013` | Typed Tri-State `GateReport` | B4 (Sprint 1) | **1** · Very Easy | One enum, one mapping rule | `GateStatus` (`PASSED`/`FAILED`/`NONE`) plus the rule sending exit-127, uncollectable tests, and test-command-hash mismatches to `NONE` instead of `FAILED`. Small code volume, but this exact mapping is what keeps instrument errors out of the A/A floor's denominator (B4). |
 
-### Sprint 2 — Real Adapters & the Walking Skeleton
+### Sprint 2 — Real Adapters & the Walking Skeleton (done)
 
 | Task ID | Feature / Component | Milestone | Complexity | The Developer — why | Technical Complexity & Rationale |
 | :--- | :--- | :--- | :---: | :--- | :--- |
