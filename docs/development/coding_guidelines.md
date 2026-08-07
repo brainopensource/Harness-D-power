@@ -10,7 +10,7 @@ each names what went wrong so you can tell when the rule stops applying.
 
 This is the *how*. The *what* is [`spec.md`](../spec.md); the *why* is
 [`decisions/`](../decisions/README.md); the *shapes* are
-[`core_skeletons_and_protocols.md`](./core_skeletons_and_protocols.md).
+[`core_skeletons_and_protocols.md`](../architecture/core_skeletons_and_protocols.md).
 
 ---
 

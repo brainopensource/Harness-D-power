@@ -8,7 +8,7 @@ updated: 2026-08-07
 ## 1. Executive Audit & Drift Assessment
 
 ### Have We Drifted from the Core Architecture or Roadmap?
-**NO.** The work completed in Sprint 3.5 strictly complies with the normative rules in [`docs/spec.md`](../spec.md), [`docs/development/`](../development/), [`docs/decisions/`](../decisions/), and [`docs/agile/roadmap.md`](../agile/roadmap.md).
+**NO.** The work completed in Sprint 3.5 strictly complies with the normative rules in [`docs/spec.md`](../../spec.md), [`docs/development/`](../../development/), [`docs/decisions/`](../../decisions/), and [`docs/agile/roadmap.md`](../../agile/roadmap.md).
 
 Specifically:
 - **Core Invariants Maintained**:
@@ -16,7 +16,7 @@ Specifically:
   - **I2 & I3 (Wire Protocols)**: Port boundaries in `src/aether/ports/` remain typed, async, and wire-serializable.
   - **I5 (Single Dispatch Choke Point)**: All effects continue to execute exclusively through `kernel/dispatch.py`.
   - **I8 (TCB Immutability)**: **Zero changes** were made to the Trusted Computing Base (`kernel/`, `measurement/evaluator.py`, `workflow/executor.py`, `workflow/validator.py`, `.importlinter`, CI workflows).
-  - **I10 (Prompt Cache Architecture)**: The five context layers (L1–L5) defined in [ADR-0010](../decisions/0010-context-prefix-layers.md) are strictly preserved across turns.
+  - **I10 (Prompt Cache Architecture)**: The five context layers (L1–L5) defined in [ADR-0010](../../decisions/0010-context-prefix-layers.md) are strictly preserved across turns.
   - **ADR-0014 (Topologies are Data)**: All workflow DAG extensions were authored as declarative YAML topologies (`workflows/*.yaml`) without modifying kernel runtime code.
 
 ### Short-Term Adjustments vs. Long-Term Resolution
@@ -61,31 +61,31 @@ AETHER's roadmap separates harness infrastructure into distinct execution milest
 
 ### Summary of Code & Configuration Changes
 
-#### 1. Repair Context Re-Reading ([`src/aether/workflow/nodes/repair.py`](../../src/aether/workflow/nodes/repair.py))
+#### 1. Repair Context Re-Reading ([`src/aether/workflow/nodes/repair.py`](../../../src/aether/workflow/nodes/repair.py))
 - **Modification**: `RepairStep.__init__` accepts `entry_files: tuple[str, ...]`.
 - **Implementation**: Added `_read_current_files(worktree)` to re-read source files from the candidate worktree before generating the repair prompt.
 - **Effect**: Restores L3 source context on repair turns, preventing models from repairing code against hallucinations.
 
-#### 2. Engine Registry Forwarding ([`src/aether/engine.py`](../../src/aether/engine.py))
+#### 2. Engine Registry Forwarding ([`src/aether/engine.py`](../../../src/aether/engine.py))
 - **Modification**: `build_step_registry()` forwards `entry_files` parameters to `RepairStep`.
 - **Registration**: Added `"architect"` (`ArchitectStep`) and `"reflector"` (`ReflectorStep`) to `NODE_SOCKETS` and `build_step_registry()`.
 
-#### 3. Codeblock Auto-Normalizer ([`src/aether/workflow/edit_format.py`](../../src/aether/workflow/edit_format.py))
+#### 3. Codeblock Auto-Normalizer ([`src/aether/workflow/edit_format.py`](../../../src/aether/workflow/edit_format.py))
 - **Modification**: Upgraded `WholeFileCodeblockFormat.parse()` with an unlabelled fence parser.
 - **Effect**: If a small model outputs ` ```python ` without the path tag `:mod.py`, regex & single-file target heuristics automatically infer the target path and parse Python AST cleanly.
 
-#### 4. Architect & Reflector Planning Nodes ([`src/aether/workflow/nodes/architect.py`](../../src/aether/workflow/nodes/architect.py))
+#### 4. Architect & Reflector Planning Nodes ([`src/aether/workflow/nodes/architect.py`](../../../src/aether/workflow/nodes/architect.py))
 - **New File**: Created `ArchitectStep` (generates 3-line bug fix plan) and `ReflectorStep` (extracts traceback failure lessons).
 - **Effect**: Decouples abstract task planning from code generation (ADR-0007).
 
-#### 5. Dynamic Task Instructions & File Auto-Discovery ([`scripts/run_local_check.py`](../../scripts/run_local_check.py))
+#### 5. Dynamic Task Instructions & File Auto-Discovery ([`scripts/run_local_check.py`](../../../scripts/run_local_check.py))
 - **Modification**: Added `auto_discover_entry_files()` and `build_task_instructions()`.
 - **Effect**: Injects exact `run_tests.py` test assertions into the prompt, turning vague requirements into precise assertion constraints.
 
-#### 6. Topologies Created & Updated ([`workflows/*.yaml`](../../workflows/))
-- Created [`linear_repair_autofiles_v1.yaml`](../../workflows/linear_repair_autofiles_v1.yaml): Auto-discovery whole-file topology.
-- Created [`linear_repair_small_model_v1.yaml`](../../workflows/linear_repair_small_model_v1.yaml): Constrained token ceiling (`max_tokens: 1024`, `max_bytes: 10000`).
-- Created [`decomposed_planning_v1.yaml`](../../workflows/decomposed_planning_v1.yaml): Meta-planning topology (`retrieve → architect → generate → apply → evaluate → reflector`).
+#### 6. Topologies Created & Updated ([`workflows/*.yaml`](../../../workflows/))
+- Created [`linear_repair_autofiles_v1.yaml`](../../../workflows/linear_repair_autofiles_v1.yaml): Auto-discovery whole-file topology.
+- Created [`linear_repair_small_model_v1.yaml`](../../../workflows/linear_repair_small_model_v1.yaml): Constrained token ceiling (`max_tokens: 1024`, `max_bytes: 10000`).
+- Created [`decomposed_planning_v1.yaml`](../../../workflows/decomposed_planning_v1.yaml): Meta-planning topology (`retrieve → architect → generate → apply → evaluate → reflector`).
 
 ---
 

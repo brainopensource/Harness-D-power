@@ -90,7 +90,7 @@ floor, not after.**
 
 **Why M1b sits between the floor and M2, and may start in parallel.** M1b is a refactor: it
 creates `agency/`, extracts the capability protocols, and collapses the duplicated node classes
-([`capability_layer.md`](../development/capability_layer.md)).
+([`capability_layer.md`](../architecture/capability_layer.md)).
 It produces no number, so [ADR-0002](../decisions/0002-no-number-before-the-floor.md) does not
 gate it and it can run alongside the floor. It is placed **before M2** because three M2/M3 tasks —
 `TASK-031` (five-layer assembler), `TASK-024` (compaction), `TASK-033` (cache sequencing) — all

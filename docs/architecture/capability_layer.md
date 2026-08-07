@@ -10,8 +10,8 @@ Ratified by [ADR-0018](../decisions/0018-agency-below-workflow.md). It is a refe
 proposal — where it and the code disagree once M1b lands, **the code wins and this file is a bug**.
 
 Downstream detail lives elsewhere and is not repeated here: port shapes in
-[`core_skeletons_and_protocols.md`](./core_skeletons_and_protocols.md), schema fields in
-[`schemas_and_contracts.md`](./schemas_and_contracts.md), task exit criteria in
+[`core_skeletons_and_protocols.md`](core_skeletons_and_protocols.md), schema fields in
+[`schemas_and_contracts.md`](schemas_and_contracts.md), task exit criteria in
 [`backlog.md`](../agile/backlog.md).
 
 ---

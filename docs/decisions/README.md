@@ -38,6 +38,16 @@ overturn it. It is not a weaker decision — it is an honest one.
 | [0016](./0016-mcp-integration-trust-model.md) | MCP is one `ToolRegistry` adapter; its output is untrusted | lock audit | Accepted |
 | [0017](./0017-subagent-capability-attenuation.md) | A sub-agent is a subgraph; capabilities only narrow | lock audit | Accepted |
 | [0018](./0018-agency-below-workflow.md) | `agency/` sits below `workflow/`, not beside it | abstraction audit | **Proposed** |
+| [0019](./0019-three-horizons-harness-framework-metaloop.md) | Three horizons: harness → framework → meta-loop, in that order | what this project is | Accepted |
+| [0020](./0020-verdict-capability-and-judge-integrity.md) | `Verdict` is a closed capability; I7/I9 restated for non-test judges | F-0019 | Accepted |
+| [0021](./0021-extension-contract-and-trust.md) | Capability is declared; data cannot widen capability; install ≠ trust | F-0019 | Accepted |
+
+**0019–0021 resolve what the project is.** Every document before them described a SWE-bench
+harness while the goal was a self-improving framework — a gap that was not rhetorical: `Task`
+was a SWE-bench record, the judge was a test runner, and `check_evaluator_termination` made
+non-benchmark topologies structurally unexpressible. 0019 chooses, 0020 generalises the judge
+**without relaxing I7 or I9**, and 0021 defines how others extend the system without acquiring
+the ability to grade it. Designs: [`architecture/`](../architecture/).
 
 **0016 and 0017 are decided now and built later** — at growth tier and M3+ respectively. Deciding
 costs a page; building prematurely costs velocity, and [ADR-0005](./0005-eight-ports-adapter-first.md)

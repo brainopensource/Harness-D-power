@@ -96,7 +96,7 @@ review probes first.
 ### 3. The family is declared mechanically, not by discipline
 
 The gate family is a **committed YAML file in the TCB** (`measurement/families/<id>.yaml`,
-schema in [`../development/schemas_and_contracts.md`](../development/schemas_and_contracts.md) §3)
+schema in [`../development/schemas_and_contracts.md`](../architecture/schemas_and_contracts.md) §3)
 merged **before any arm runs**, with `registered_commit` proving it. `statistics.py` **refuses
 to compute corrected p-values for an undeclared family**. Adding a hypothesis after
 registration produces a new family file with a new hash; there is no amend.

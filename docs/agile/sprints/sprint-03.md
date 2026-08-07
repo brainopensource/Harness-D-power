@@ -28,7 +28,7 @@ updated: 2026-08-06
 
 ### Task 2: Task-Manifest Tooling & Validity Canary (`TASK-014`)
 * **Target Seam**: `src/aether/measurement/manifest.py`, `src/aether/measurement/schemas/manifest_schema.yaml`
-* **Specification Pointer**: [`measurement.md` §4.2–4.3](../../measurement.md#42-splits-and-why-they-are-pinned), [`schemas_and_contracts.md` §2](../../development/schemas_and_contracts.md)
+* **Specification Pointer**: [`measurement.md` §4.2–4.3](../../measurement.md#42-splits-and-why-they-are-pinned), [`schemas_and_contracts.md` §2](../../architecture/schemas_and_contracts.md)
 * **Acceptance Criteria**:
   1. A task enters the manifest only if **the gold patch passes and the empty patch fails on our instrument** — bidirectional, per task.
   2. **Exclusions are published with a typed reason.** Silent exclusion is the overfitting vector, and roughly 30% of public Pro tasks were estimated broken in a mid-2026 audit.
@@ -48,7 +48,7 @@ updated: 2026-08-06
 
 ### Task 4: Statistics Engine & Comparative Rig (`TASK-012`, `TASK-015`)
 * **Target Seam**: `src/aether/measurement/{statistics,runner}.py`, `src/aether/measurement/families/`
-* **Specification Pointer**: [ADR-0003 rev. 2](../../decisions/0003-statistical-admission-protocol.md), [`schemas_and_contracts.md` §3](../../development/schemas_and_contracts.md)
+* **Specification Pointer**: [ADR-0003 rev. 2](../../decisions/0003-statistical-admission-protocol.md), [`schemas_and_contracts.md` §3](../../architecture/schemas_and_contracts.md)
 * **Acceptance Criteria**:
   1. `e0/statistics.py` ported **verbatim** — exact McNemar, Holm–Bonferroni, seeded bootstrap — with **provenance in the module docstring** ([`spec.md` §9](../../spec.md#9-standing-rules)). Pinned JSON fixtures pass.
   2. Derived-N power simulation is seeded and **re-runnable from a family file alone**.

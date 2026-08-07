@@ -76,6 +76,12 @@ may be quietly rediscovered as a surprise.
 | **No client** | `spec.md` §8 declares Clients; zero tasks existed | `TASK-075` |
 | **`evolution/` absent** | A `tcb-isolation` target that does not exist, therefore vacuous | Post-M4 |
 
+**Where these came from.** This table is the merged output of the Phase 0 coverage audit —
+gate→task, invariant→mechanism, spec-package→task, and mission→milestone. The last of those
+found the largest gap: the mission had no milestone, so the gate-coverage map (which checks
+*milestone gate → task*) could not see it. Closed by
+[ADR-0019](./decisions/0019-three-horizons-harness-framework-metaloop.md) and M5/M6.
+
 **`TASK-018` and `TASK-015` are marked ✅ with unmet exit criteria** (tool container; OpenHands
 arm). Honest in their own prose, and they scan as done — recorded here so the next reader is not
 misled.

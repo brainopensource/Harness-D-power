@@ -130,4 +130,4 @@ governed by ADR-0006 and [ADR-0014](./0014-workflow-topology-is-data.md) as befo
 - [ADR-0006](./0006-tcb-boundary-and-meta-loop-authority.md) — TCB boundary and the vacuous-migration trap
 - [ADR-0010](./0010-context-prefix-layers.md) — what `agency/context/` is for
 - [ADR-0014](./0014-workflow-topology-is-data.md) — topologies are data; roles extend the same principle
-- [`capability_layer.md`](../development/capability_layer.md) — the design this unblocks, and the audit findings (A1–A8) that raised it
+- [`capability_layer.md`](../architecture/capability_layer.md) — the design this unblocks, and the audit findings (A1–A8) that raised it

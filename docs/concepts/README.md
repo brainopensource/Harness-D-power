@@ -21,7 +21,7 @@ DAG went three implementation plans without a vote.
 | [`rewrite_v300_decision_brief.md`](./rewrite_v300_decision_brief.md) | The meeting agenda. **Revised** — three fork rows were corrected against Track B's text |
 | [`rewrite_v300_phase0_audit_register.md`](./rewrite_v300_phase0_audit_register.md) | **The load-bearing document.** Every contradiction between the two proposals and every untraceable number, with citations |
 | [`rewrite_v300_decision_record.md`](./rewrite_v300_decision_record.md) | The ratification: twelve forks plus the DAG, and how each was reached |
-| [`rewrite_v300_agi_path_after_all_milestones_are_delivered.md`](./rewrite_v300_agi_path_after_all_milestones_are_delivered.md) | The Executive Leadership directive commissioning the long-horizon specs. Its three deliverables landed as [`../development/`](../development/core_skeletons_and_protocols.md); the autonomy ladder it sketches is ratified in [ADR-0014](../decisions/0014-workflow-topology-is-data.md) and [ADR-0017](../decisions/0017-subagent-capability-attenuation.md) |
+| [`rewrite_v300_agi_path_after_all_milestones_are_delivered.md`](./rewrite_v300_agi_path_after_all_milestones_are_delivered.md) | The Executive Leadership directive commissioning the long-horizon specs. Its three deliverables landed as [`../development/`](../architecture/core_skeletons_and_protocols.md); the autonomy ladder it sketches is ratified in [ADR-0014](../decisions/0014-workflow-topology-is-data.md) and [ADR-0017](../decisions/0017-subagent-capability-attenuation.md) |
 
 ## Read this first if you read nothing else
 

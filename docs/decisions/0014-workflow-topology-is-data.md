@@ -63,7 +63,7 @@ mutable surface as a new row, and are **admitted only through the
 and no mechanism promotes without an ablation clearing the floor. Human proposers use the
 identical path; the meta-loop is just another proposer, with no privileged route.
 
-Schema: [`../development/schemas_and_contracts.md`](../development/schemas_and_contracts.md) §1.
+Schema: [`../development/schemas_and_contracts.md`](../architecture/schemas_and_contracts.md) §1.
 
 ## Consequences
 

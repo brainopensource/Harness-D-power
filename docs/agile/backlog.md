@@ -174,7 +174,7 @@ Correctness + decoupling: six dead defects fixed, node registry keyed by kind, e
 ### TASK-014: Task-Manifest Tooling & Bidirectional Validity Canary — ✅ DONE (Sprint 3)
 * **Description**: Build, pin and validate task manifests; run the per-task canary; publish exclusions.
 * **Target Files**: `src/aether/measurement/manifest.py`, `src/aether/measurement/schemas/manifest_schema.yaml`
-* **Normative Specs**: [`measurement.md` §4.2–4.3](../measurement.md#42-splits-and-why-they-are-pinned), [`measurement.md` §6](../measurement.md#6-what-a-claim-needs-before-it-is-published), [`schemas_and_contracts.md` §2](../development/schemas_and_contracts.md)
+* **Normative Specs**: [`measurement.md` §4.2–4.3](../measurement.md#42-splits-and-why-they-are-pinned), [`measurement.md` §6](../measurement.md#6-what-a-claim-needs-before-it-is-published), [`schemas_and_contracts.md` §2](../architecture/schemas_and_contracts.md)
 * **Exit Criteria**: A task enters a manifest only if the **gold patch passes and the empty patch fails** on our instrument. **Exclusions are published with a reason** — silent exclusion is the overfitting vector. Manifest and split assignment are TCB; a change is a new hash.
 
 ### TASK-016: Evaluation Container & B3 Canary (Blocker B3) — ✅ DONE (Sprint 3)
@@ -231,7 +231,7 @@ Correctness + decoupling: six dead defects fixed, node registry keyed by kind, e
 ### TASK-020: Declarative Topology Executor — ✅ DONE (Sprint 2)
 * **Description**: Executor running a schema-validated linear graph `retrieve → generate → apply → evaluate`, plus the TCB topology validator.
 * **Target Files**: `src/aether/workflow/executor.py`, `src/aether/workflow/validator.py`, `src/aether/workflow/nodes/*.py`, `workflows/linear_v1.yaml`
-* **Normative Specs**: [ADR-0013 (M1a)](../decisions/0013-workflow-dag-phased.md), [ADR-0014](../decisions/0014-workflow-topology-is-data.md), [`schemas_and_contracts.md` §1](../development/schemas_and_contracts.md)
+* **Normative Specs**: [ADR-0013 (M1a)](../decisions/0013-workflow-dag-phased.md), [ADR-0014](../decisions/0014-workflow-topology-is-data.md), [`schemas_and_contracts.md` §1](../architecture/schemas_and_contracts.md)
 * **Exit Criteria**: The executor **refuses** any topology failing a static check, with a typed error naming the failed check. Each of the five checks has a malformed fixture proving it can fail. **No `--force` flag exists.**
 
 ### TASK-021: Performance Timers (Worktree & AST Parse) — ✅ DONE (Sprint 2)
@@ -341,7 +341,7 @@ Correctness + decoupling: six dead defects fixed, node registry keyed by kind, e
 
 ## Epic 5: Capability, Composition & Abstraction (M1b → M3)
 
-Source: [`capability_layer.md`](../development/capability_layer.md).
+Source: [`capability_layer.md`](../architecture/capability_layer.md).
 **None of these produces a number**, so [ADR-0002](../decisions/0002-no-number-before-the-floor.md) does not gate them — they may run in parallel with the floor. The M1b subset is sequenced **before M2** because `TASK-031`, `TASK-024` and `TASK-033` all target `src/aether/agency/context/`, a package that does not exist.
 
 > **This epic spans three milestones — it is a subject grouping, not a sprint.** Only the **M1b** tasks are scheduled (Sprint 5): `050` `051` `052` `053` `054` `055` `056` `057` `058`. The rest sit in the pool: `059` `060` `061` are **M3** and TCB or TCB-adjacent; `064` `065` `066` `068` `069` are **M2-eng**; `070` is **M2-abl**. The [scheduling ledger](#scheduling-ledger) is authoritative.

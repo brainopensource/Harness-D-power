@@ -7,7 +7,7 @@ updated: 2026-08-07
 
 **Four diagrams, consolidated from the six files that used to be `docs/workflows/` plus
 `development/system_workflows_and_diagrams.md`.** Everything that merely restated
-[`spec.md` §3](./spec.md#3-structure)'s lattice table or [`vision.md` §3](./vision.md#3-architecture-at-altitude)'s
+[`spec.md` §3](../spec.md#3-structure)'s lattice table or [`vision.md` §3](../vision.md#3-architecture-at-altitude)'s
 component graph was dropped rather than merged — a diagram whose only content is a second
 rendering of a normative table is a drift risk, not an aid.
 
@@ -15,7 +15,7 @@ rendering of a normative table is a drift risk, not an aid.
 > **These diagrams show the target architecture, and parts of it are not built.**
 > `agency/loop.py`, `agency/context/`, `kernel/shell_ast.py` and `evolution/` appear below and
 > **do not exist in `src/aether/` today** — they are `TASK-053`–`058`, `TASK-030a` and a
-> post-M4 milestone respectively. [`STATUS.md`](./STATUS.md) is the authority on what is
+> post-M4 milestone respectively. [`STATUS.md`](../STATUS.md) is the authority on what is
 > implemented; when a diagram and the code disagree, **the diagram is the bug**
 > ([`README.md`](../README.md)).
 

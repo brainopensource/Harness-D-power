@@ -10,6 +10,7 @@ updated: 2026-08-05
 | You are | Read, in order |
 | :--- | :--- |
 | **New to the project** | [`vision.md`](./vision.md) → [`PHASE-0-LOCK.md`](./PHASE-0-LOCK.md) → [`spec.md`](./spec.md) → [`STATUS.md`](./STATUS.md) · **~40 minutes** |
+| **Asking "what is this, really?"** | [`vision.md`](./vision.md) §1 (three horizons) → [ADR-0019](./decisions/0019-three-horizons-harness-framework-metaloop.md) → [`architecture/task_types_and_verdicts.md`](./architecture/task_types_and_verdicts.md) |
 | **About to write code** | [`development/coding_guidelines.md`](./development/coding_guidelines.md) → the dev prompt for the current sprint → the `TASK-0xx` entries it names |
 | **Planning** | [`agile/roadmap.md`](./agile/roadmap.md) → [`agile/milestones.md`](./agile/milestones.md) → [`agile/backlog.md`](./agile/backlog.md#scheduling-ledger) |
 | **An AI agent working here** | [`PHASE-0-LOCK.md`](./PHASE-0-LOCK.md) is the constraint set. Never contradict it without an ADR |
@@ -24,11 +25,12 @@ updated: 2026-08-05
 | [`measurement.md`](./measurement.md) | 2 | **Normative.** Instrument protocol, the A/A floor, gate design |
 | [`decisions/`](decisions/README.md) | 2 | 19 ADRs, each with a reversal condition |
 | [`STATUS.md`](./STATUS.md) | — | What is *actually* implemented. No claim without pasted command output |
-| [`development/`](./development/coding_guidelines.md) | 3 | **The deep reference.** Guidelines, skeletons, schemas, the capability layer, the stack. Detailed on purpose |
+| [`architecture/`](./architecture/capability_layer.md) | 3 | **What the system is.** Capability layer · task types & verdicts · knowledge & memory · extension contract · self-improvement · skeletons · schemas · diagrams. Deep on purpose |
+| [`development/`](./development/coding_guidelines.md) | 3 | **How you work on it.** Coding guidelines, patterns to adopt and refuse, tech stack |
 | [`agile/`](agile/README.md) | 3 | Roadmap, gates, backlog, sprints, release arc. Gate tables `normative`, the rest `rationale` |
-| [`architecture_diagrams.md`](development/architecture_diagrams.md) | 3 | Four diagrams. **Shows the target — parts are unbuilt** |
+
 | [`proposals/`](./proposals/) | 3 | **Undecided proposals only.** Ratified ones are deleted — see the lifecycle rule below |
-| [`benchmarks/`](benchmarks/README.md) · [`rationale/benchmarks/`](benchmarks/results/README.md) | 3 | Task samples; where measured results land |
+| [`benchmarks/`](./benchmarks/README.md) | 3 | Task samples in; **`results/`** is where measured numbers land — empty until the floor runs |
 | [`concepts/`](concepts/README.md) | — | Phase 0 decision trail. History, `retrieval: excluded` |
 
 ## Who owns which fact
@@ -44,11 +46,13 @@ sync.
 | Why a decision went that way, and what reverses it | `decisions/` |
 | What is settled and may not drift | `PHASE-0-LOCK.md` |
 | What is built, verified by command | `STATUS.md` |
-| Port shapes and pseudocode | `development/core_skeletons_and_protocols.md` |
-| Schema fields and validator wiring | `development/schemas_and_contracts.md` |
-| The capability layer, `ModelNode`, strategies, fragments, sidecars | `development/capability_layer.md` |
+| Port shapes and pseudocode | `architecture/core_skeletons_and_protocols.md` |
+| Schema fields and validator wiring | `architecture/schemas_and_contracts.md` |
+| The capability layer, `ModelNode`, strategies, fragments, sidecars | `architecture/capability_layer.md` |
 | House rules, patterns to adopt and refuse, DoD | `development/coding_guidelines.md` |
 | Runtime, dependencies, sandbox, cost model | `development/tech_stack_and_infra.md` |
+| System diagrams | `architecture/architecture_diagrams.md` |
+| Measured results | `benchmarks/results/` |
 | Tasks, exit criteria, scheduled vs pool | `agile/backlog.md` |
 | Phase sequencing and dependency edges | `agile/roadmap.md` · `agile/milestones.md` |
 | How a sprint is executed | `agile/sprints/` |
@@ -84,13 +88,13 @@ judgement.
 plants a dead link and an untagged file and asserts each gate returns non-zero. Before it
 existed, `STATUS.md` reported both gates green while both were red.
 
-**Diagrams live in one file.** [`architecture_diagrams.md`](development/architecture_diagrams.md) holds
+**Diagrams live in one file.** [`architecture/architecture_diagrams.md`](architecture/architecture_diagrams.md) holds
 four: orchestration · inner loop · outer loop · dispatch lifecycle. A diagram whose only content
 is a second rendering of a normative table is a drift risk, not an aid — those were deleted
 rather than merged. Beyond a handful they rot faster than they inform.
 
-**A proposal is transient.** This is the rule whose absence let `proposals/` grow to a quarter of
-the tree.
+**A proposal is transient.** This is the rule whose absence let `fixes/` grow to a quarter of
+the tree before it was renamed `proposals/`.
 
 > A proposal is a **pre-decision** artifact. When it is ratified its content moves to the two
 > places that bind — an **ADR** with a reversal condition, and **backlog tasks** with exit

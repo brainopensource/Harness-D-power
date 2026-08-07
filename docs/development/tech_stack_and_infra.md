@@ -33,7 +33,7 @@ The bar for entry: **stdlib first; a dependency enters only when it is load-bear
 | Domain models & schema validation | **`pydantic` v2** (`~=2.9`) | v2 only; `model_config = ConfigDict(frozen=True)` on all domain models | `domain/`, `ports/` payloads | Already mandated (TASK-001). Rust-core validation is fast enough that a serialization sidecar trigger (below) is unlikely to fire early |
 | JSON wire serialization | pydantic `model_dump_json` / `model_validate_json` | — | port boundaries | **`msgspec` rejected for now**: measurable speedup, but a second schema system violates the one-source-of-truth rule. Trigger: serialization > 5% of end-to-end task wall-clock on a recorded replay |
 | YAML (workflow topologies, manifests, families) | **`ruamel.yaml`** (safe load only) | `~=0.18` | `workflow/` loader, `measurement/` manifests | Round-trip preservation matters for meta-loop edits to topology files (comments, ordering survive). `PyYAML` rejected: lossy round-trip. All loads are `safe`; **no arbitrary-object YAML anywhere, ever** (deserialization is an injection surface) |
-| JSON Schema validation of declarative assets | **`jsonschema`** (`~=4.23`, Draft 2020-12) | — | `workflow/validator.py`, `measurement/` | Schemas in [`schemas_and_contracts.md`](./schemas_and_contracts.md); validator is TCB (ADR-0014) |
+| JSON Schema validation of declarative assets | **`jsonschema`** (`~=4.23`, Draft 2020-12) | — | `workflow/validator.py`, `measurement/` | Schemas in [`schemas_and_contracts.md`](../architecture/schemas_and_contracts.md); validator is TCB (ADR-0014) |
 | AST parsing (target code) | **`tree-sitter`** (`~=0.23`) + **`tree-sitter-language-pack`** | grammars pinned by the pack version | `adapters/indexer/`, T1 verification tier | Ratified (ADR-0011). Language pack gives pinned, prebuilt grammars for every SWE-bench language without per-grammar build steps |
 | Shell command AST (classifier) | **`tree-sitter-bash`** (via the pack) | — | `kernel/shell_ast.py` | One parser technology for all parsing. `bashlex` rejected: unmaintained, POSIX-only. Classification-not-containment per ADR-0008 — a mis-parse is an escalation bug, not a perimeter breach |
 | Git operations | **`git` CLI via `asyncio.subprocess`**, thin typed wrapper | system git `>=2.43` | `adapters/workspace/` | `GitPython`/`pygit2` rejected: GitPython leaks handles and is semi-maintained; pygit2 adds a C build for worktree ops the CLI does flawlessly. The wrapper is where the worktree-creation timer (ADR-0001) lives |
@@ -106,7 +106,7 @@ The `ModelProvider` port returns an **async iterator of typed `ModelStreamEvent`
 
 ### 4.5 `ResourceGovernor` budget triple — exact mechanism
 
-Ledger semantics (full protocol skeleton in [`core_skeletons_and_protocols.md`](./core_skeletons_and_protocols.md) §4):
+Ledger semantics (full protocol skeleton in [`core_skeletons_and_protocols.md`](../architecture/core_skeletons_and_protocols.md) §4):
 
 ```
 reserve(run_id, dims) -> Lease | InsufficientBudget     # atomic, pre-effect

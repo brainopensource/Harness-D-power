@@ -9,7 +9,7 @@ updated: 2026-08-07
 * **Target Milestone**: [M1b](../roadmap.md#phase-matrix--dependencies)
 * **Tripwire Window**: 8 Business Days
 * **Entry condition**: Sprint 4 Tasks 1–4 closed. **Task 5 (the floor) need not have completed** — this sprint produces no number and may run alongside it.
-* **Source**: [`capability_layer.md`](../../development/capability_layer.md)
+* **Source**: [`capability_layer.md`](../../architecture/capability_layer.md)
 
 > **This sprint adds no capability and claims no lift.** It changes what is *cheap to try*. Every mechanism it unblocks still has to clear the floor on its own ablation ([`spec.md` §7](../../spec.md#7-measurement)), and one that does not clear is deleted rather than left dormant.
 
@@ -57,7 +57,7 @@ updated: 2026-08-07
 
 ### Task 5: `ModelNode` + `RoleSpec` (`TASK-057`)
 * **Target Seam**: `src/aether/workflow/nodes/model_node.py`, `src/aether/agency/roles.py`
-  *(the node stays in `workflow/` — `WorkflowStep` lives in `workflow/step.py`, so a node under `agency/` would be an upward import; see [`capability_layer.md`](../../development/capability_layer.md) §3.1)*
+  *(the node stays in `workflow/` — `WorkflowStep` lives in `workflow/step.py`, so a node under `agency/` would be an upward import; see [`capability_layer.md`](../../architecture/capability_layer.md) §3.1)*
 * **Specification Pointer**: [ADR-0007](../../decisions/0007-architect-editor-seam.md), [ADR-0014](../../decisions/0014-workflow-topology-is-data.md)
 * **Acceptance Criteria**:
   1. `ARCHITECT`, `EDITOR`, `REPAIRER`, `REFLECTOR` are **data**: a source list, a parser, a role string. Defining a new role adds no class.

@@ -56,7 +56,7 @@ it verbatim.
 `validator.check_socket_compatibility` can verify a graph **statically, from an injected socket
 map, without importing node classes**. That indirection is what makes topologies data rather
 than code. And I3's wire-serializability — every method `async`, no `Path`, no live object — is
-the property [`capability_layer.md`](../development/capability_layer.md)
+the property [`capability_layer.md`](../architecture/capability_layer.md)
 §5 identifies as making a Rust or Go sidecar a `composition.py` line change rather than a
 rewrite. It was nearly free on day one and would have been impossible to retrofit.
 
@@ -178,7 +178,7 @@ configurations disagreeing systematically means something is not identical.
 
 ## Sprint 5 — The Capability Layer 📋
 
-> Plan: [`sprint-05.md`](./sprints/sprint-05.md) · Design: [`capability_layer.md`](../development/capability_layer.md)
+> Plan: [`sprint-05.md`](./sprints/sprint-05.md) · Design: [`capability_layer.md`](../architecture/capability_layer.md)
 
 **The goal.** Insert the missing layer between *topology (data)* and *dispatch facade*. Today a
 node is the only unit of reuse, and a node is a 60–150 line class that inlines five concerns at

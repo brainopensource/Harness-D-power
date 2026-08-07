@@ -115,3 +115,34 @@ Per [ADR-0009](../decisions/0009-gates-are-the-schedule.md), a milestone is comp
 * **Exit Gate 1**: `src/aether/evolution/` package established and covered under TCB isolation.
 * **Exit Gate 2**: Declarative topology mutation engine operates under attenuated subagent capabilities.
 
+
+---
+
+## Framework & Meta-Loop Exit Gates
+
+Added by [ADR-0019](../decisions/0019-three-horizons-harness-framework-metaloop.md). These fund
+the mission itself, which had no milestone before 2026-08-07 — the gate-coverage map checks
+*milestone gate → task*, so a purpose that was not a milestone was invisible to the check.
+
+### Milestone M5 — Framework (Horizon 2)
+* **Specification**: [ADR-0019](../decisions/0019-three-horizons-harness-framework-metaloop.md), [ADR-0020](../decisions/0020-verdict-capability-and-judge-integrity.md), [ADR-0021](../decisions/0021-extension-contract-and-trust.md)
+* **Exit Gate 1 (generic task model)**: `Task` carries `task_type` + a discriminated `payload`. **The `code_fix` path is byte-identical** — every pre-existing test stays green, or the generalisation was done wrong.
+* **Exit Gate 2 (verdict registry)**: `TestSuiteVerdict` and `AssertionVerdict` implemented, TCB-resident, each carrying `admits`. `RubricVerdict` may exist but **may not be used in a measured arm** until Gate 5.
+* **Exit Gate 3 (verdict termination)**: `check_verdict_termination` replaces `check_evaluator_termination`; `retrieve → answer → judge` **validates**, and a malformed fixture proves the check can still refuse a topology that routes around the judge.
+* **Exit Gate 4 (`judge_unmodified`)**: generalises `tests_unmodified` to every verdict kind. A tampered judge specification yields `NONE`, never `FAILED`. **Negative test required.**
+* **Exit Gate 5 (I9 is mechanical)**: a verdict with `admits: False` **cannot promote a result**. A rubric-only family is refused by the statistics gatekeeper. **Negative test required** — this is the gate that makes M6 survivable.
+* **Exit Gate 6 (a second task type runs)**: one `qa` task with `AssertionVerdict` completes end to end on the same engine as a `code_fix` task. Deterministic on purpose: it needs no judge-agreement floor.
+* **Exit Gate 7 (extension contract)**: an extension declaring `effects: [read, model]` is **denied at the choke point** when it attempts a write — attenuation, not convention. A T3 capability does not load until trusted, and trust is keyed to a **content hash**, never a name.
+* **Exit Gate 8 (per-type floor)**: any task type reporting a number has its own A/A floor. `RubricVerdict` additionally has a published judge-agreement floor (self-agreement + agreement against `HumanVerdict` on a sample).
+
+### Milestone M6 — Meta-Loop (Horizon 3)
+* **Specification**: [ADR-0006](../decisions/0006-tcb-boundary-and-meta-loop-authority.md), [ADR-0014](../decisions/0014-workflow-topology-is-data.md), [`architecture/self_improvement.md`](../architecture/self_improvement.md)
+* **Exit Gate 1**: `evolution/` exists, imports no higher than `ports/`, is imported by nothing, and its `tcb-isolation` target is **no longer vacuous** — it currently names a package that does not exist, so the contract forbids nothing.
+* **Exit Gate 2**: the proposer emits a valid T1/T2 mutation with `ancestry.parent_hash` recorded (the schema field already exists, written for this).
+* **Exit Gate 3**: **a proposed mutation touching the TCB, a rubric, a manifest or a family is refused.** Negative test; removing the check makes the suite go red.
+* **Exit Gate 4**: **the proposer cannot admit its own variant.** Admission without a declared family and derived N is refused. Negative test.
+* **Exit Gate 5**: one variant completes propose → screen → admit-or-delete with family, derived N, Holm-corrected p-value, cost per resolved task and ancestry all recorded.
+* **Exit Gate 6**: a rejected variant is **absent from the tree**, not present and disabled.
+
+**Four of M6's six gates are negative tests.** At H3 the question is not whether the loop can
+improve something — it is whether it can be stopped from improving the wrong thing.

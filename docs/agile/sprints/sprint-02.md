@@ -52,7 +52,7 @@ updated: 2026-08-07
 
 ### Task 5: Declarative Topology Executor (`TASK-020`) + Engine & Bus (`TASK-022`) + Governor (`TASK-034`)
 * **Target Seam**: `src/aether/workflow/{executor,validator}.py`, `src/aether/engine.py`, `src/aether/kernel/{bus,governor}.py`, `workflows/linear_v1.yaml`
-* **Specification Pointer**: [ADR-0013](../../decisions/0013-workflow-dag-phased.md), [ADR-0014](../../decisions/0014-workflow-topology-is-data.md), [`schemas_and_contracts.md` §1](../../development/schemas_and_contracts.md), [`spec.md` §5](../../spec.md#5-execution)
+* **Specification Pointer**: [ADR-0013](../../decisions/0013-workflow-dag-phased.md), [ADR-0014](../../decisions/0014-workflow-topology-is-data.md), [`schemas_and_contracts.md` §1](../../architecture/schemas_and_contracts.md), [`spec.md` §5](../../spec.md#5-execution)
 * **Acceptance Criteria**:
   1. The four-node skeleton (`retrieve → generate → apply → evaluate`) runs end to end through headless `engine.py`, **from a schema-validated YAML topology** — not Python composition.
   2. **The validator refuses any topology failing a static check**, with a typed error naming the check. Each of the five checks has a malformed fixture proving it can fail. **No `--force` flag exists.**

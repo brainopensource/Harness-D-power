@@ -50,7 +50,7 @@ updated: 2026-08-07
 
 ### Task 4: Mechanical Decoupling (`TASK-050`, `TASK-051`, `TASK-052`)
 * **Target Seam**: `src/aether/domain/{effects,envelope,workspace}.py`, `composition.py`, `workflow/nodes/*`
-* **Specification Pointer**: [`spec.md` §3](../../spec.md#3-structure), [`capability_layer.md` §4.2](../../development/capability_layer.md)
+* **Specification Pointer**: [`spec.md` §3](../../spec.md#3-structure), [`capability_layer.md` §4.2](../../architecture/capability_layer.md)
 * **Acceptance Criteria**:
   1. `import aether.workflow.nodes.retrieve` **does not import `httpx` or any `aether.adapters` module**. It imports three of them today, because the effect payload types live in `composition.py` beside the concrete adapter closures.
   2. One `worktree_path`, not four. One copy is inside the TCB evaluator; the judge and the tool registry must be structurally unable to disagree.
