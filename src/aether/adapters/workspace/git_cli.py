@@ -18,8 +18,17 @@ import os
 import time
 from uuid import uuid4
 
+from aether.adapters.subprocess_env import spawn_env
 from aether.domain.ids import RunId
 from aether.domain.workspace import FileSlice, PatchResult, WorktreeRef
+from aether.domain.workspace import worktree_path as _worktree_path
+
+#: `git` commands here are host-side, uncontained subprocesses (TASK-062):
+#: none of them is expected to run long, so one generous deadline covers
+#: `worktree add/remove`, `diff` and `apply` alike rather than threading a
+#: lease through a port whose signature (`Workspace`/`WorktreeManager`)
+#: carries no budget concept today.
+_GIT_TIMEOUT_S = 60
 
 
 class PathEscapesWorktree(ValueError):
@@ -36,8 +45,10 @@ class GitCliError(RuntimeError):
     for a plausible empty result."""
 
 
-def _worktree_path(root: str, run_id: RunId, worktree_id: str) -> str:
-    return os.path.join(root, run_id, worktree_id)
+class GitCliTimeout(GitCliError):
+    """A `git` invocation exceeded `_GIT_TIMEOUT_S` (TASK-062). Typed rather
+    than left as a bare `TimeoutError` so a caller catching `GitCliError`
+    already catches this."""
 
 
 async def _run_git(
@@ -47,11 +58,17 @@ async def _run_git(
         "git",
         *args,
         cwd=cwd,
-        stdin=asyncio.subprocess.PIPE if input_bytes is not None else None,
+        stdin=asyncio.subprocess.PIPE if input_bytes is not None else asyncio.subprocess.DEVNULL,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
+        env=spawn_env(),
     )
-    stdout, stderr = await proc.communicate(input_bytes)
+    try:
+        stdout, stderr = await asyncio.wait_for(proc.communicate(input_bytes), timeout=_GIT_TIMEOUT_S)
+    except TimeoutError as exc:
+        proc.kill()
+        await proc.communicate()
+        raise GitCliTimeout(f"git {' '.join(args)} timed out after {_GIT_TIMEOUT_S}s") from exc
     assert proc.returncode is not None
     return proc.returncode, stdout, stderr
 
@@ -85,7 +102,7 @@ class GitCliWorktreeManager:
         return ref
 
     async def destroy(self, worktree: WorktreeRef) -> None:
-        abs_path = _worktree_path(self._worktrees_root, worktree.run_id, worktree.worktree_id)
+        abs_path = worktree.path(self._worktrees_root)
         code, _stdout, stderr = await _run_git(
             ["worktree", "remove", "--force", abs_path], cwd=self._repo_path
         )
@@ -108,7 +125,7 @@ class GitCliWorkspace:
         self._worktrees_root = worktrees_root
 
     def _path(self, worktree: WorktreeRef) -> str:
-        return _worktree_path(self._worktrees_root, worktree.run_id, worktree.worktree_id)
+        return worktree.path(self._worktrees_root)
 
     def _resolve(self, worktree: WorktreeRef, repo_rel_path: str) -> str:
         """Join a caller-supplied path to the worktree, refusing any that

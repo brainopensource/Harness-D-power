@@ -4,6 +4,7 @@ every ToolResult span labeled untrusted-external at construction (ADR-0015)."""
 from __future__ import annotations
 
 import json
+import time
 
 import pytest
 
@@ -74,6 +75,39 @@ async def test_builtin_registry_read_file_delegates_to_workspace(real_registry) 
     assert result.exit_code == 0
     assert "hello world" in result.spans[0].text
     assert result.spans[0].label == Provenance.UNTRUSTED_EXTERNAL
+
+
+async def test_command_needing_stdin_fails_fast(real_registry) -> None:  # noqa: ANN001
+    """A command that reads stdin returns promptly, not at the timeout.
+
+    TASK-062: `builtin.py::_bash` used to inherit the launching process's
+    stdin. A command that blocks reading stdin — `python3 -c "...
+    sys.stdin.read()"` here — would then hang until the (30s-scale) deadline
+    and the tool call would return a timeout error rather than a real
+    result. With `stdin=asyncio.subprocess.DEVNULL` the child sees immediate
+    EOF, so the read returns at once: this asserts wall-clock elapsed is
+    small, proving it did not wait for any timeout.
+    """
+    registry, worktrees_root = real_registry
+    from aether.domain.ids import RunId
+
+    (__import__("pathlib").Path(worktrees_root) / "run-1" / "wt-stdin").mkdir(parents=True)
+    worktree = WorktreeRef(worktree_id="wt-stdin", run_id=RunId("run-1"), base_commit="a" * 40, abs_hint="/x")
+
+    call = ToolCall(
+        call_id="c-stdin",
+        name="bash",
+        args_json=json.dumps({"command": "python3 -c \"import sys; sys.stdin.read(); print('done')\""}),
+        justifying_spans=(),
+    )
+
+    start = time.monotonic()
+    result = await registry.execute(worktree, call, 30_000)
+    elapsed = time.monotonic() - start
+
+    assert elapsed < 2.0, f"took {elapsed:.2f}s — looks like it waited on stdin, not DEVNULL EOF"
+    assert result.exit_code == 0
+    assert "done" in result.spans[0].text
 
 
 async def test_fixed_catalog_registry_output_also_untrusted_external() -> None:

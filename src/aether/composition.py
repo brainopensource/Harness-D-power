@@ -13,16 +13,14 @@ from __future__ import annotations
 
 import json
 import time
-from typing import Any, Literal
+from typing import Any
 
 from aether.adapters.model_provider.openai_compatible import OpenAICompatibleProvider
 from aether.adapters.tools.builtin import BuiltinToolRegistry
 from aether.adapters.workspace.git_cli import GitCliWorkspace
 from aether.domain.budget import Actuals, BudgetDims, Lease
-from aether.domain.ids import Frozen
+from aether.domain.effects import ApplyPatchArgs, ReadArgs, ShellArgs, WriteArgs
 from aether.domain.model_io import ModelRequest, StopEvent, UsageEvent
-from aether.domain.tools import ToolCall
-from aether.domain.workspace import WorktreeRef
 from aether.kernel.bus import EventBus
 from aether.kernel.dispatch import AdapterTable, Dispatcher, EffectOutcome
 from aether.kernel.governor import ResourceGovernor
@@ -31,34 +29,6 @@ from aether.measurement.evaluator import RealEvaluator
 from aether.measurement.pricing import priced
 from aether.ports.evaluator import EvalSpec
 from aether.ports.policy_engine import EffectRequest
-
-
-class ReadArgs(Frozen):
-    worktree: WorktreeRef
-    repo_rel_path: str
-    start_line: int = 1
-    end_line: int = -1
-
-
-class WriteArgs(Frozen):
-    # "write" effect_class covers both a plain file write and a unified-diff
-    # apply — `kind` discriminates which payload the `_write` closure below
-    # deserializes, since EffectRequest.effect_class has no third bucket.
-    kind: Literal["write_file"] = "write_file"
-    worktree: WorktreeRef
-    repo_rel_path: str
-    text: str
-
-
-class ApplyPatchArgs(Frozen):
-    kind: Literal["apply_patch"] = "apply_patch"
-    worktree: WorktreeRef
-    unified_diff: str
-
-
-class ShellArgs(Frozen):
-    worktree: WorktreeRef
-    call: ToolCall
 
 
 def build_adapter_table(
@@ -91,7 +61,13 @@ def build_adapter_table(
 
     async def _shell(request: EffectRequest, lease: Lease) -> EffectOutcome:
         args = ShellArgs.model_validate_json(request.descriptor)
-        result = await tool_registry.execute(args.worktree, args.call)
+        # TASK-062: the lease this dispatch acquired is the real deadline, not
+        # the cost estimate a node reserved against. `wall_clock_ms=0` means
+        # "no wall-clock dimension was reserved" (BudgetDims default), in
+        # which case the adapter falls back to its own default rather than
+        # spawning with a zero timeout.
+        deadline_ms = lease.reserved.wall_clock_ms or None
+        result = await tool_registry.execute(args.worktree, args.call, deadline_ms)
         return EffectOutcome(status="ok", result_json=result.model_dump_json())
 
     async def _model(request: EffectRequest, lease: Lease) -> EffectOutcome:

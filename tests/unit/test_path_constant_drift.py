@@ -142,6 +142,61 @@ def test_ci_tcb_paths_match_tracked_files() -> None:
     )
 
 
+#: The forward direction (`test_ci_tcb_paths_match_tracked_files`) only proves every
+#: `TCB_PATHS` fragment resolves to something; it says nothing about whether the fragments
+#: *cover* what `spec.md` §6 actually declares immutable. An omission — a TCB module that
+#: exists, is real, and is simply never named — passes the forward test cleanly, which is
+#: exactly the failure mode T3 exists to close (sprint-04.md Task 3, point 3: `TCB_PATHS`
+#: selected neither the evaluator, the manifest, the families, the validator nor the
+#: executor before this change).
+#:
+#: This list is derived from two authoritative sources, cross-referenced:
+#:   1. `docs/spec.md` §6 "Trusted Computing Base" table: "Policy engine · evaluator ·
+#:      gates · task manifests and split assignment · gate-family declarations ·
+#:      workflow schema, validator and executor · CI configuration · `.importlinter`".
+#:   2. `.importlinter`'s `aether-tcb-isolation` and `aether-workflow-tcb-isolation`
+#:      contracts' `source_modules` (the machine-checked forbidden-import boundary),
+#:      which additionally names `aether.measurement.statistics` — not spelled out by
+#:      name in spec.md §6 prose but covered by "evaluator" / "gates" in substance and
+#:      enforced as TCB by import-linter today.
+#: `src/aether/kernel/policy` and `src/aether/kernel/dispatch` are deliberately omitted
+#: here even though they are TCB, because they were already covered by `TCB_PATHS`
+#: before this sprint's change — this list exists to catch the *newly required* coverage,
+#: not to duplicate the whole set.
+SPEC_DECLARED_TCB_PATHS = frozenset(
+    {
+        "src/aether/measurement/evaluator.py",  # spec.md §6 "evaluator"
+        "src/aether/measurement/manifest.py",  # spec.md §6 "task manifests and split assignment"
+        "src/aether/measurement/schemas",  # spec.md §6 "task manifests" (schema)
+        "src/aether/measurement/families",  # spec.md §6 "gate-family declarations"
+        "src/aether/measurement/statistics.py",  # .importlinter aether-tcb-isolation
+        "src/aether/workflow/validator.py",  # spec.md §6 "workflow schema, validator"
+        "src/aether/workflow/executor.py",  # spec.md §6 "... and executor"
+        "src/aether/workflow/schemas",  # spec.md §6 "workflow schema"
+    }
+)
+
+
+def test_tcb_paths_cover_every_spec_declared_tcb_path() -> None:
+    """Reverse direction: every spec-declared TCB path must be covered by a `TCB_PATHS` fragment.
+
+    The forward test (`test_ci_tcb_paths_match_tracked_files`) proves each fragment
+    resolves to something real; it cannot catch a spec-declared TCB module that simply
+    has no fragment naming it at all. This is the direction that catches an omission.
+    """
+    fragments = _tcb_fragments()
+    uncovered = [
+        declared
+        for declared in sorted(SPEC_DECLARED_TCB_PATHS)
+        if not any(declared.startswith(frag) or frag.startswith(declared) for frag in fragments)
+    ]
+    assert not uncovered, (
+        f"spec.md §6 declares these TCB paths but no `TCB_PATHS` fragment in ci.yml covers "
+        f"them: {uncovered}. A spec-declared TCB module with no selecting fragment is "
+        f"unprotected while `PHASE-0-LOCK.md` and STATUS.md record the TCB gate as enforced."
+    )
+
+
 @pytest.mark.xfail(
     strict=True,
     reason=(

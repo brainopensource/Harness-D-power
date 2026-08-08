@@ -95,6 +95,9 @@ class TaskCandidate(Frozen):
     fail_to_pass: tuple[str, ...] = ()
     pass_to_pass: tuple[str, ...] = ()
     perturbed_of: str | None = None
+    #: Repo-relative globs identifying this task's judge (I7). Every existing
+    #: internal-floor-01 task hashes to the same single value.
+    test_paths: tuple[str, ...] = ()
 
 
 class CanaryVerdict(Frozen):
@@ -372,6 +375,8 @@ def build_manifest(
             entry["perturbed_of"] = candidate.perturbed_of
         if verdict.flaky:
             entry["flaky"] = True
+        if candidate.test_paths:
+            entry["test_paths"] = list(candidate.test_paths)
         tasks.append(entry)
 
     instrument: dict[str, Any] = {"contained": instrument_contained, "repeats": repeats}
@@ -381,7 +386,7 @@ def build_manifest(
         instrument["image_digest"] = instrument_image_digest
 
     manifest: dict[str, Any] = {
-        "schema_version": "1.0.0",
+        "schema_version": "1.1.0",
         "manifest_id": manifest_id,
         "suite": suite,
         "created_at": (created_at or datetime.now(UTC)).isoformat().replace("+00:00", "Z"),

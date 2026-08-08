@@ -26,11 +26,11 @@ Until this file contains discordance rates:
 | :--- | :--- |
 | **B3 canary in the floor environment** | **Green here.** 7/7 in `tests/integration/test_b3_canary.py` under `AETHER_REQUIRE_CONTAINER=1`: a good candidate passes, a deliberately broken candidate **fails**, the host filesystem outside the worktree is invisible, egress is refused, and two negative tests prove the leak and egress probes can go red |
 | Evaluation container | Built from `containers/eval/`, referenced **by digest**; the runner is Docker here (the documented `--runtime docker` fallback — Podman is not installed on this host) |
-| Pinned manifest | `benchmarks/manifests/internal-floor-01.yaml`, `sha256:7c2c2467…`, 84 tasks, 0 exclusions, splits pinned 50 dev / 21 holdout / 13 sealed |
+| Pinned manifest | `benchmarks/manifests/internal-floor-01.yaml`, `sha256:5076194a036081ac3d9eb041925cd4792e9f27a6849eaeca94489f38b2dfe6ae`, 84 tasks, 0 exclusions, splits pinned 50 dev / 21 holdout / 13 sealed (rebuilt with `test_paths` for I7 enforcement) |
 | Validity canary | Every one of the 84 screened bidirectionally through the container: gold patch passes **and** empty patch fails |
 | Declared family | `src/aether/measurement/families/aa_floor_smoke_01.yaml`, registered against that manifest hash, smoke tier, N = 50, DEV split |
 | Statistics | Verbatim port green against pinned fixtures; the power simulation reproduces ADR-0003 rev. 2's published table in all twelve cells |
-| Pipeline rehearsal | `scripts/run_aa_floor.py --dry-run` runs both arms against a local stub endpoint — manifest → worktree → repair edge → contained evaluation → statistics — with **zero external calls**. It refuses to write this file, because a floor over two arms that produced no patches is a floor over the empty patch |
+| Pipeline rehearsal | `scripts/run_aa_floor.py --dry-run` runs both arms against a local stub endpoint — manifest → worktree → repair edge → contained evaluation → statistics — with **zero external calls**. Passed 50/50 paired tasks in 138.6s ($p_{01}=0, p_{10}=0$, McNemar $p=1.000$). Refuses to write result file in dry-run mode as designed |
 
 ## Taking it
 

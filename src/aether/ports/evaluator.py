@@ -15,6 +15,8 @@ class EvalSpec(Frozen):
     image_digest: str  # pinned in the task manifest (TCB data)
     test_command_hash: str  # verified against manifest before run
     timeout_ms: int
+    base_commit: str = ""  # pinned commit the I7 diff check runs against
+    test_paths: tuple[str, ...] = ()  # repo-relative globs; a candidate must not touch these (I7)
 
 
 @runtime_checkable

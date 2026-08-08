@@ -53,7 +53,27 @@ _TAIL_CHARS = 4000  # tail-biased truncation: keep the failure block, not the pa
 #: invisible to the judge. Caught by tests/integration/test_repair_e2e.py, which
 #: is why the repair edge is where it surfaced: nothing before it re-evaluated
 #: the same worktree twice.
-_EVAL_ENV = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
+#:
+#: TASK-062: this used to be `{**os.environ, ...}`, handing model-written code
+#: the operator's full shell environment — including e.g. `OPENROUTER_API_KEY`
+#: — on the uncontained path. `adapters/subprocess_env.py` is the canonical
+#: allowlist (`NON_INTERACTIVE` + `spawn_env()`), but `aether-tcb-isolation`
+#: (`.importlinter`) forbids this module from importing `aether.adapters` —
+#: the same reason `SandboxRunner` above is a structural Protocol rather than
+#: an import of `adapters/sandbox/podman.py`. So the allowlist is duplicated
+#: here, minimally, rather than imported; keep it in sync with
+#: `adapters/subprocess_env.py::NON_INTERACTIVE` by hand.
+_NON_INTERACTIVE_ENV: dict[str, str] = {
+    "GIT_TERMINAL_PROMPT": "0",
+    "GIT_ASKPASS": "",
+    "DEBIAN_FRONTEND": "noninteractive",
+    "PAGER": "cat",
+    "MANPAGER": "cat",
+    "PYTHONUNBUFFERED": "1",
+    "PYTHONDONTWRITEBYTECODE": "1",
+}
+_EVAL_ENV_BASE = {k: os.environ[k] for k in ("PATH", "HOME", "LANG") if k in os.environ}
+_EVAL_ENV = {**_EVAL_ENV_BASE, **_NON_INTERACTIVE_ENV}
 
 
 @runtime_checkable
@@ -79,6 +99,40 @@ def tail_biased(text: str, limit: int = _TAIL_CHARS) -> str:
     the same output into context and must not invent a second truncation
     strategy that disagrees with what the gate reported."""
     return text[-limit:]
+
+
+async def _tests_unmodified(spec: EvalSpec, path: str) -> str | None:
+    """None if clean; an instrument_error string if the candidate touched its judge.
+
+    `--name-only` against the pinned base commit catches edits AND additions,
+    which is why the manifest carries globs rather than a digest list. A
+    subprocess, not `GitCliWorkspace`, because `aether-tcb-isolation` forbids
+    this module from importing `aether.adapters` — spawning `git` is not an
+    import.
+    """
+    if not spec.test_paths:
+        return None
+    proc = await asyncio.create_subprocess_exec(
+        "git",
+        "diff",
+        "--name-only",
+        spec.base_commit,
+        "--",
+        *spec.test_paths,
+        cwd=path,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+        stdin=asyncio.subprocess.DEVNULL,
+    )
+    stdout, stderr = await proc.communicate()
+    if proc.returncode != 0:
+        # Cannot verify ⇒ cannot score. Failing open here would make the gate
+        # decorative on exactly the runs where git is misbehaving.
+        return f"tests_unmodified check failed: {stderr.decode(errors='replace')[:200]}"
+    touched = [ln for ln in stdout.decode().splitlines() if ln.strip()]
+    if touched:
+        return f"candidate modified its own test files (I7): {', '.join(sorted(touched))}"
+    return None
 
 
 def _report_from_exit(exit_code: int, output: str) -> GateReport:
@@ -134,6 +188,10 @@ class RealEvaluator:
             )
 
         path = _worktree_path(self._worktrees_root, spec.worktree)
+        tampered = await _tests_unmodified(spec, path)
+        if tampered is not None:
+            return GateReport(gate="tests", status=GateStatus.NONE, instrument_error=tampered)
+
         if self._sandbox is not None:
             return await self._evaluate_contained(spec, command, path)
         return await self._evaluate_uncontained(spec, command, path)
@@ -169,6 +227,7 @@ class RealEvaluator:
             proc = await asyncio.create_subprocess_exec(
                 *shlex.split(command),
                 cwd=path,
+                stdin=asyncio.subprocess.DEVNULL,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 env=_EVAL_ENV,

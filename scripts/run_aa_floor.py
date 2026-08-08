@@ -171,6 +171,7 @@ async def run_arm(
             instructions=problem_statement,
             environment_image_digest=entry["environment_image_digest"],
             test_command_hash=entry["test_command_hash"],
+            test_paths=tuple(entry.get("test_paths", ())),
             source=TaskSource(manifest_hash=manifest_sha, instance_id=instance_id),
         )
         started = time.monotonic()

@@ -18,7 +18,7 @@
 schema_version: "1.0.0"
 family_id: aa_floor_smoke_01
 registered_at: "2026-08-07T00:00:00Z"
-manifest_hash: "sha256:7c2c2467a7430ac7edc79665532154112660805780b87f3f770cb77a5ccd47ef"
+manifest_hash: "sha256:5076194a036081ac3d9eb041925cd4792e9f27a6849eaeca94489f38b2dfe6ae"
 model_fingerprint: "openai_compatible:qwen/qwen3-coder:openrouter"
 outcome: { primary: resolve_pass_at_1, aggregation: first_seeded_pass, extra_passes_per_arm: 0 }
 alpha_family: 0.05
@@ -35,11 +35,11 @@ arms:
   # two ever differ, the run is not an A/A run and the floor it produces is
   # measuring a treatment effect nobody declared.
   - { arm_id: aether_a, harness_id: aether,
-      config_hash: "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-      topology_hash: "sha256:0000000000000000000000000000000000000000000000000000000000000000" }
+      config_hash: "sha256:eca536469b4299210619cd82a9bb62cc0eab5617e755c0360a5aee296fc007f6",
+      topology_hash: "sha256:aeee14a7371d967c9f9e702ea68a1977a9b67d602162153d651ab3cbc4f08145" }
   - { arm_id: aether_b, harness_id: aether,
-      config_hash: "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-      topology_hash: "sha256:0000000000000000000000000000000000000000000000000000000000000000" }
+      config_hash: "sha256:eca536469b4299210619cd82a9bb62cc0eab5617e755c0360a5aee296fc007f6",
+      topology_hash: "sha256:aeee14a7371d967c9f9e702ea68a1977a9b67d602162153d651ab3cbc4f08145" }
 hypotheses:
   - hypothesis_id: aa_null_no_systematic_difference
     arm_a: aether_a

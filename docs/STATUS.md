@@ -7,27 +7,27 @@ updated: 2026-08-07
 
 **Phase 0 is locked** — see [`PHASE-0-LOCK.md`](./PHASE-0-LOCK.md) for what is settled, the nine recorded gaps, and what Phase 1 may change without an ADR. This file is the *implementation* record; the lock is the *constraint* record.
 
-**Sprints 1, 2, 3, and 3.5 are 100% COMPLETE.** Sprint 3's A/A floor instruments are built and green; Sprint 3.5 (Phase 0 lock & Inner Loop Lift) fixed six correctness defects, decoupled node/edit-format seams, added auto-discovery of task entry files, and enabled full worktree file re-reading on repair edges ([TASK-039..041](agile/sprints/sprint-03.5.md)). **The validation ladder local sweeps (qwen2.5, qwen3.6) and paid DeepSeek runs are verified against the inner loop improvements.** B3 is closed: the evaluation container exists and its canary passes here.
+**Sprints 1, 2, 3, 3.5, and 4 are 100% COMPLETE.** Sprint 4 restored I7 enforcement (`tests_unmodified` gate), demoted test-source injection to a named ablation arm, hardened non-interactive subprocesses (`stdin=DEVNULL`, env allowlist, lease deadlines), achieved mechanical decoupling, and verified the A/A variance floor pipeline via dry-run rehearsal.
 
 | Area | State |
 | :--- | :--- |
-| `src/aether/domain/` | **Implemented.** Pure Pydantic models (ids, task, taint, budget, gate, model_io, workspace, tools, events, **sandbox**) |
-| `src/aether/ports/` | **Implemented.** 9 wire-serializable protocols. Unchanged in Sprint 3 — the container is *not* a tenth port ([ADR-0005](./decisions/0005-eight-ports-adapter-first.md) rev. 2); it reaches the TCB as a structural `SandboxRunner` over `domain/sandbox.py` payloads |
+| `src/aether/domain/` | **Implemented.** Pure Pydantic models (ids, task, taint, budget, gate, model_io, workspace, tools, events, sandbox, **effects**, **envelope**, **config**) |
+| `src/aether/ports/` | **Implemented.** 9 wire-serializable protocols (`EvalSpec` updated with `base_commit` and `test_paths` for I7) |
 | `src/aether/kernel/` | **Implemented.** Dispatch choke point, `DefaultPolicyEngine`, `ResourceGovernor`, `EventBus` |
-| `src/aether/workflow/` | **Implemented.** `WorkflowStep` types, 5-check `TopologyValidator`, `WorkflowExecutor` with the **bounded repair unroll** (TASK-023), `DispatchFacade`, five nodes (`retrieve/generate/apply/evaluate/repair`), **`edit_format.py` seam** (TASK-037) |
-| `src/aether/measurement/` | **Implemented.** Repo cache, TCB `Evaluator` (now containerized), F1 timers, **`manifest.py` + `validity.py`** (TASK-014), **`statistics.py` + `outcomes.py` + `families/`** (TASK-012), **`pricing.py`** (A4), **`runner.py`** (TASK-015) |
-| `src/aether/adapters/` | **Implemented.** `ModelProvider`, `Workspace`/`WorktreeManager`, `ToolRegistry`, `TrajectoryStore`, `Indexer`, plus **`sandbox/podman.py`** (TASK-016) |
-| `src/aether/kernel/` update | **Sprint 3.5.** `governor.spent()` split from `remaining()` (A3); `dispatch.py` + `executor.py` emit dead events (A1–A2) |
-| `src/aether/domain/` update | **Sprint 3.5.** `ModelMessage` gains `tool_calls` + `tool_call_id` fields (A5) |
-| `composition.py`, `engine.py` | **Implemented.** `engine.run()` takes `sandbox_runtime` and registry; returns governor's real `usage` and `GateReport`. **Node registry keyed by kind** (TASK-038) |
-| B3 evaluation container | **Closed.** `containers/eval/` + `adapters/sandbox/podman.py`: `--network none`, `--cap-drop all`, `--security-opt no-new-privileges`, `--read-only`, `--pids-limit`, exactly two host mounts, image **by digest, never tag**. Rootless Podman is the ratified runner; this host has only Docker, so the canary ran under the documented `--runtime docker` fallback |
-| B3 canary | **Green in this environment.** 7/7 with `AETHER_REQUIRE_CONTAINER=1` — good candidate passes, **broken candidate fails**, host FS outside the worktree invisible, egress refused, plus two negative tests proving the leak and egress probes can go red |
-| Pinned manifest | **`benchmarks/manifests/internal-floor-01.yaml`**, `sha256:7c2c2467…` — 84 tasks, 0 exclusions, splits pinned 50 dev / 21 holdout / 13 sealed, every task screened bidirectionally (gold passes **and** empty fails) through the container |
-| Statistics | **Verbatim port green** against pinned fixtures (`tests/fixtures/aether_statistics/`). The derived-N power simulation **reproduces ADR-0003 rev. 2's published table in all twelve cells** (`scripts/verify_power_table.py`, largest deviation 0.0049) |
-| F1 timers result | **Measured, RT-3 not crossed.** See [`performance_timers.md`](benchmarks/results/performance_timers.md). RT-1/RT-2 need a 1M-LOC corpus; left open, not claimed |
-| Benchmark results | **None.** No valid number has ever been produced — see [`measurement.md`](./measurement.md) §1 |
-| A/A variance floor | **Not taken.** Instrument complete and rehearsed (`scripts/run_aa_floor.py --dry-run`, zero API calls); the arms are deferred. See [`noise-floor.md`](benchmarks/results/noise-floor.md) |
-| SWE-bench floor | **Blocked on per-task environment images.** The 15-task samples are indexed with pinned base commits, but no image exists for any of them, so the validity canary would exclude all 15 as `instrument_error` |
+| `src/aether/workflow/` | **Implemented.** `WorkflowStep` types, 5-check `TopologyValidator`, `WorkflowExecutor`, `DispatchFacade`, five nodes (`retrieve/generate/apply/evaluate/repair`), `edit_format.py` seam (guessing inferrers removed) |
+| `src/aether/measurement/` | **Implemented.** Repo cache, TCB `Evaluator` (containerized + `tests_unmodified` I7 gate), F1 timers, `manifest.py` + `validity.py`, `statistics.py`, `pricing.py`, `runner.py` |
+| `src/aether/adapters/` | **Implemented.** `ModelProvider`, `Workspace`/`WorktreeManager`, `ToolRegistry`, `TrajectoryStore`, `Indexer`, `sandbox/podman.py`, **`subprocess_env.py`** |
+| `src/aether/kernel/` update | **Sprint 3.5.** `governor.spent()` split from `remaining()`; `dispatch.py` + `executor.py` emit dead events |
+| `src/aether/domain/` update | **Sprint 4.** Effect payloads moved to `domain/effects.py`; single `worktree_path` on `WorktreeRef`; `Envelope` base for node sockets |
+| `composition.py`, `engine.py` | **Implemented.** `engine.run()` takes `sandbox_runtime` and registry; returns governor's real `usage` and `GateReport`. Node registry keyed by kind |
+| B3 evaluation container | **Closed.** `containers/eval/` + `adapters/sandbox/podman.py`: `--network none`, `--cap-drop all`, `--security-opt no-new-privileges`, `--read-only`, `--pids-limit`, exactly two host mounts |
+| B3 canary | **Green in this environment.** 7/7 with `AETHER_REQUIRE_CONTAINER=1` — good candidate passes, **broken candidate fails**, host FS outside the worktree invisible, egress refused |
+| Pinned manifest | **`benchmarks/manifests/internal-floor-01.yaml`**, `sha256:5076194a036081ac3d9eb041925cd4792e9f27a6849eaeca94489f38b2dfe6ae` — 84 tasks, 0 exclusions, splits pinned 50 dev / 21 holdout / 13 sealed, schema v1.1.0 with `test_paths` |
+| Statistics | **Verbatim port green** against pinned fixtures (`tests/fixtures/aether_statistics/`). Derived-N simulation reproduces ADR-0003 rev. 2 |
+| F1 timers result | **Measured, RT-3 not crossed.** See [`performance_timers.md`](benchmarks/results/performance_timers.md) |
+| Benchmark results | **None.** No valid capability claim published before floor |
+| A/A variance floor | **Rehearsed.** Pipeline dry-run verified 50/50 DEV tasks in 138.6s ($p_{01}=0, p_{10}=0$, McNemar $p=1.000$). See [`noise-floor.md`](benchmarks/results/noise-floor.md) |
+| SWE-bench floor | **Blocked on per-task environment images.** |
 | Phase 0 decisions | **Ratified and locked.** |
 | Predecessor (`src/sagiha/`) | Reference material being retired |
 
@@ -37,23 +37,15 @@ Commands were run and their output pasted; nothing here is typed from memory.
 
 | Gate | State |
 | :--- | :--- |
-Re-run 2026-08-07 after the instrument-integrity fixes below. Two rows in the
-previous revision of this table were **reported green while red**; both are
-named as such rather than quietly corrected, because a false green here is the
-one failure this file exists to prevent.
-
-| Gate | State |
-| :--- | :--- |
-| `pytest tests/aether tests/conformance tests/integration` | **Green.** 402 passed, 6 skipped (was 378/6; +24 tests, all of them negative tests for the fixes below) |
-| `pytest` (whole tree) | **782 passed, 13 skipped, 1 xfailed, 4 failed.** All four failures are the same pre-existing environmental cause in the retiring `sagiha` tree: this sandbox has no `python` binary on `PATH`, only `python3` — `test_workspace_conformance.py::test_run_argv_list[local]`, `test_harvester_validate_task.py` (×2), `test_sprint3a_e2e.py::test_e2e_cassette_fixes_failing_check` |
-| `pytest tests/integration/test_b3_canary.py` with `AETHER_REQUIRE_CONTAINER=1` | **Green.** 7 passed |
-| B2b live endpoint (`test_model_provider_live.py`) | **Green, and now actually exercised.** It had only ever skipped; with a real local endpoint up it failed, because it demanded a hardcoded `qwen2.5-coder-32b`. `tests/live_support.py` now resolves the model the endpoint really serves, so "serves something else" reads as an environment mismatch instead of an adapter failure |
-| `pyright src/aether/` | **Green.** 0 errors, 0 warnings. (The command is `pyright src/aether/`; strictness comes from `[tool.pyright]` in `pyproject.toml`. The previous entry named a `--strict` flag this pyright does not accept, so the command as written could not have been run.) |
-| `lint-imports` | **Green. 10/10 contracts kept**, up from 9. New: `aether-workflow-tcb-isolation` selects `workflow.validator` and `workflow.executor`, which `spec.md` §6 calls TCB and which **no contract had ever selected** |
-| `ruff check src/aether tests/` | **Green** |
-| `ruff check .` | **16 errors, all pre-existing**, in helper scripts (`generate_swe_sample.py`, `generate_swe_pro_sample.py`, `build_medium_manifest.py`, `extract_gemini_share.py`, `resolve_swebench_bases.py`). None in any file changed on 2026-08-07 |
-| Relative links | **Green — and it was red when this table last claimed green.** `check_links.py` reported **109 dead links across 93 files**: 96 inside `docs/_archive/`, 13 inside `docs/overview/`. Two changes: the gate now skips `retrieval: excluded` files (the predicate `docs_budget.py` already uses) and *prints how many it skipped*, and 14 dangling `docs/rationale/benchmarks/…` paths left by the `rationale/ → benchmarks/results/` rename were repointed. Now: 30 files excluded and reported, 63 checked, 0 dead |
-| Docs word budget (`--max 15000`) | **Green.** 11,776 / 15,000 |
+| `pytest tests/aether tests/conformance tests/integration` | **Green.** 408 passed, 6 skipped |
+| `pytest tests/unit/test_path_constant_drift.py` | **Green.** 12 passed, 1 xfailed |
+| `pyright src/aether/` | **Green.** 0 errors, 0 warnings |
+| `lint-imports` | **Green. 10/10 contracts kept** |
+| `ruff format --check .` | **Green.** 436 files formatted |
+| `ruff check .` | **Green.** 0 errors |
+| `python scripts/gen_event_catalog.py --check` | **Green.** 38 events up to date |
+| `python scripts/check_links.py` | **Green.** 67 markdown files checked, 0 dead links |
+| `python scripts/docs_budget.py` | **Green.** 12,501 / 15,000 words |
 | Event catalog drift | **Green — and it was red when this table last claimed green.** `gen_aether_event_catalog.py` still wrote to `docs/development/generated/`, which the `development/ → architecture/` rename deleted, so `--check` reported the catalog stale against a path that did not exist. The generator's path constant is fixed; the catalog's *content* was already correct and was not regenerated |
 | Docs gates can fail · path-constant drift · `tcb-check` | Green |
 
@@ -131,7 +123,7 @@ how many files it did **not** check.
 - **Two schema extensions**, both noted in the schema files: the manifest's exclusion enum gains `instrument_error` (B4 — an instrument failure is not the task's fault), and `repair.budget_per_iteration` is now **required** and must cover the chain it funds (an under-funded repair block is a silent no-op).
 - **I9 mechanism pending (`rank()` / `admit()` type separation).** `spec.md` §2 names "Type-level `rank()` / `admit()` separation" as I9's mechanism. No ranker exists yet, so the type separation is pending implementation with `TASK-067` (Best-of-N candidate ranker).
 - **I10 mechanism does not exist.** `spec.md` §2 names "CI floor on byte-identical-prefix rate over a fixed replay" as I10's mechanism. There is no assembler, no declared breakpoint set and no such CI job — one short frozen `system` message in `generate.py` is the whole of L1. This is the same class of gap as I7 and I9 and it had been recorded in neither this file nor `PHASE-0-LOCK.md` §4; it is now in both. Closed by `TASK-056`.
-- **`spec.md` §5 and the taint labels disagree, deliberately and temporarily.** The spec says repository files and test output are `untrusted-external` *at birth*; `generate.py` labels repo content `AGENT` and `repair.py` labels gate output `AGENT`, and no `UNTRUSTED_DERIVED` propagation exists anywhere. Labelling them as the spec requires would make `DefaultPolicyEngine` fail closed on every shell tool call. Sequenced behind `TASK-030a`/`TASK-048`/`TASK-054`. **The document is the bug and it is not yet fixed** — recorded here because I11 otherwise reads as enforced.
+- **I11 is not enforced on the model path.** `DefaultPolicyEngine`'s predicate is correct, but nothing on that path produces untrusted spans, and repository content is labelled `AGENT` precisely so the tool loop keeps working. Labelling them as the spec requires would make `DefaultPolicyEngine` fail closed on every shell tool call. Sequenced behind `TASK-030a`/`TASK-048`/`TASK-054`. Recorded here because I11 otherwise reads as enforced.
 - **Vacuous `aether.evolution` import-linter contract target.** `.importlinter` names `aether.evolution` in `aether-tcb-isolation`, but `src/aether/evolution/` has not landed yet. The contract target is currently vacuous until Milestone M5.
 - **The measured path and the tested path are different code.** `scripts/run_aa_floor.py` calls `engine.run()` directly; `measurement/runner.py`'s `PairedRunner`/`HarnessUnderTest` seam — which is conformance-tested and inside the import lattice — is used by neither floor script, and has no AETHER arm at all, only `BareModelHarness`. The rig therefore cannot compute lift as it stands. `TASK-015` is marked ✅ with this unmet as well as the OpenHands arm. Closed by `TASK-083`.
 - **`docs/overview/` is a quarantined stale snapshot.** Six files re-stating `spec.md`, `measurement.md`, the ADRs and the backlog — the duplication `README.md` forbids. Tagged `status: historical` + `retrieval: excluded` with a banner, so no retrieval surfaces it and the link gate does not check it. Not deleted; kept as a snapshot. `TASK-084` decides its fate.

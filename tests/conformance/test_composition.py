@@ -11,8 +11,9 @@ import pytest
 from aether.adapters.model_provider.openai_compatible import OpenAICompatibleProvider
 from aether.adapters.tools.builtin import BuiltinToolRegistry
 from aether.adapters.workspace.git_cli import GitCliWorkspace, GitCliWorktreeManager
-from aether.composition import ReadArgs, build_dispatcher
+from aether.composition import build_dispatcher
 from aether.domain.budget import BudgetDims
+from aether.domain.effects import ReadArgs
 from aether.domain.ids import RunId, SpanId
 from aether.domain.taint import Provenance, TaintSpan
 from aether.domain.workspace import FileSlice

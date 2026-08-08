@@ -33,8 +33,8 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from aether.composition import ReadArgs
 from aether.domain.budget import BudgetDims
+from aether.domain.effects import ReadArgs
 from aether.domain.gate import GateStatus
 from aether.domain.ids import SpanId
 from aether.domain.model_io import ModelMessage, ModelRequest, StopEvent, StopReason, TextDelta

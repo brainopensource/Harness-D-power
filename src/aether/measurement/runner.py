@@ -295,6 +295,7 @@ def candidate_to_task(candidate: TaskCandidate, manifest_hash: str) -> Task:
         instructions=_problem_statement(candidate),
         environment_image_digest=candidate.environment_image_digest,
         test_command_hash=hash_command(candidate.test_command),
+        test_paths=candidate.test_paths,
         source=TaskSource(manifest_hash=manifest_hash, instance_id=candidate.instance_id),
     )
 

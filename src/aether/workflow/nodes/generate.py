@@ -23,8 +23,8 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from aether.composition import ShellArgs
 from aether.domain.budget import BudgetDims
+from aether.domain.effects import ShellArgs
 from aether.domain.ids import Frozen, SpanId
 from aether.domain.model_io import (
     ModelMessage,

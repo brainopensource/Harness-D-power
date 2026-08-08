@@ -12,8 +12,8 @@ worktree, which is the thing the choke point exists to make impossible.
 
 from __future__ import annotations
 
-from aether.composition import ApplyPatchArgs, WriteArgs
 from aether.domain.budget import BudgetDims
+from aether.domain.effects import ApplyPatchArgs, WriteArgs
 from aether.domain.ids import Frozen
 from aether.domain.task import Task
 from aether.domain.workspace import WorktreeRef

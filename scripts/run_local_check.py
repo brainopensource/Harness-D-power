@@ -32,6 +32,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from aether import engine  # noqa: E402
+from aether.domain.config import AblationFlags, config_hash  # noqa: E402
 from aether.domain.gate import GateStatus  # noqa: E402
 from aether.domain.task import Task, TaskSource  # noqa: E402
 from aether.measurement.manifest import load_manifest, manifest_hash, tasks_in_split  # noqa: E402
@@ -44,15 +45,25 @@ DEFAULT_SUITE_DIR = Path.home() / ".cache" / "aether" / "internal_suite"
 TEST_COMMAND = "python3 run_tests.py"
 
 
-def build_task_instructions(task_dir: Path, entry_files: list[str]) -> str:
-    test_file = task_dir / "run_tests.py"
-    test_content = test_file.read_text(encoding="utf-8") if test_file.exists() else ""
+def build_task_instructions(
+    task_dir: Path, entry_files: list[str], *, ablations: AblationFlags | None = None
+) -> str:
+    """Baseline: no retrieval beyond benchmark-provided context
+    (measurement.md §4.1). Injecting `run_tests.py`'s source measures
+    assertion-fitting, not bug-fixing, and is reachable only through
+    `ablations.inject_test_source` — off by default."""
+    if ablations is None:
+        ablations = AblationFlags()
     files_str = ", ".join(entry_files)
-    return (
-        f"The tests in `run_tests.py` assert the correct behaviour. "
-        f"Fix the bug in the following files: {files_str} so the tests pass.\n\n"
-        f"## run_tests.py\n```python\n{test_content}\n```"
-    )
+    parts = [
+        "The tests in `run_tests.py` assert the correct behaviour. "
+        f"Fix the bug in the following files: {files_str} so the tests pass."
+    ]
+    if ablations.inject_test_source:
+        test_file = task_dir / "run_tests.py"
+        test_content = test_file.read_text(encoding="utf-8") if test_file.exists() else ""
+        parts.append(f"## run_tests.py\n```python\n{test_content}\n```")
+    return "\n\n".join(parts)
 
 
 def auto_discover_entry_files(task_dir: Path) -> list[str]:
@@ -66,6 +77,7 @@ def auto_discover_entry_files(task_dir: Path) -> list[str]:
 
 async def main_async(args: argparse.Namespace, manifest: dict[str, Any]) -> int:
     sha = manifest_hash(manifest)
+    ablations = AblationFlags(inject_test_source=args.ablation_inject_test_source)
     # The manifest is the static truth; a run downsamples it. Seeded, so
     # "10 random tasks" is a reproducible 10 and not a different suite per run.
     pool = tasks_in_split(manifest, args.split)
@@ -84,6 +96,8 @@ async def main_async(args: argparse.Namespace, manifest: dict[str, Any]) -> int:
         f"sampled {len(tasks)}/{len(pool)} (seed {args.sample_seed})"
     )
     print(f"evaluator  {'contained (' + args.runtime + ')' if not args.uncontained else 'UNCONTAINED'}")
+    arm = "baseline (no test source)" if not ablations.inject_test_source else "ABLATION: inject_test_source"
+    print(f"arm        {arm}  config={config_hash(ablations)[:22]}…")
 
     ceiling = int(args.usd_cap * 1_000_000) if args.usd_cap else None
     if ceiling is not None:
@@ -109,7 +123,7 @@ async def main_async(args: argparse.Namespace, manifest: dict[str, Any]) -> int:
         task_instructions = (
             args.instructions
             if args.instructions is not None
-            else build_task_instructions(task_dir, task_entry_files)
+            else build_task_instructions(task_dir, task_entry_files, ablations=ablations)
         )
 
         task = Task(
@@ -119,6 +133,7 @@ async def main_async(args: argparse.Namespace, manifest: dict[str, Any]) -> int:
             instructions=task_instructions,
             environment_image_digest=entry["environment_image_digest"],
             test_command_hash=entry["test_command_hash"],
+            test_paths=tuple(entry.get("test_paths", ())),
             source=TaskSource(manifest_hash=sha, instance_id=instance_id),
         )
         started = time.monotonic()
@@ -201,6 +216,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--runtime", default="docker", choices=["podman", "docker"])
     parser.add_argument("--uncontained", action="store_true")
     parser.add_argument("--instructions", default=None)
+    parser.add_argument(
+        "--ablation-inject-test-source",
+        action="store_true",
+        help="deviate from the pre-registered baseline: embed run_tests.py's source in the "
+        "prompt (measures assertion-fitting, not bug-fixing; measurement.md §4.1)",
+    )
     args = parser.parse_args(argv)
     Path(args.workdir).mkdir(parents=True, exist_ok=True)
     manifest = load_manifest(Path(args.manifest).read_text(encoding="utf-8"))

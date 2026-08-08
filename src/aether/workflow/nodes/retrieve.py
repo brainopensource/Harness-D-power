@@ -19,23 +19,19 @@ put *named* files in front of the model, honestly.
 
 from __future__ import annotations
 
-from aether.composition import ReadArgs
 from aether.domain.budget import BudgetDims
-from aether.domain.ids import Frozen
-from aether.domain.task import Task
-from aether.domain.workspace import FileSlice, WorktreeRef
+from aether.domain.effects import ReadArgs
+from aether.domain.envelope import Envelope
+from aether.domain.workspace import FileSlice
 from aether.workflow.dispatch_facade import DispatchFacade
 from aether.workflow.step import StepContext, WorkflowStep
 
 
-class TaskInput(Frozen):
-    task: Task
-    worktree: WorktreeRef
+class TaskInput(Envelope):
+    pass
 
 
-class RetrievedContext(Frozen):
-    task: Task
-    worktree: WorktreeRef
+class RetrievedContext(Envelope):
     instructions: str
     #: Every file this node actually read, in the order it was asked for.
     files: tuple[FileSlice, ...] = ()

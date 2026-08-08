@@ -67,6 +67,8 @@ class EvaluateStep(WorkflowStep[AppliedPatch, EvaluatedCandidate]):
             image_digest=payload.task.environment_image_digest,
             test_command_hash=payload.task.test_command_hash,
             timeout_ms=self._timeout_ms,
+            base_commit=payload.task.base_commit,
+            test_paths=payload.task.test_paths,
         )
         report = await self._dispatch.evaluate(spec, BudgetDims(wall_clock_ms=self._timeout_ms))
         return EvaluatedCandidate(
