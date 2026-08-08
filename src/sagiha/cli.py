@@ -173,7 +173,7 @@ def run(
     mode: str = typer.Option(
         "replay", "--mode", "-m", help="Model execution mode ('replay', 'live', 'record')"
     ),
-    model_name: str = typer.Option("qwen2.5-coder:7b", "--model-name", help="Model name for live mode"),
+    model_name: str = typer.Option("qwen3.6:27b", "--model-name", help="Model name for live mode"),
     base_url: str = typer.Option(
         "http://localhost:11434/v1", "--base-url", help="OpenAI-compatible endpoint URL"
     ),
@@ -192,8 +192,23 @@ def run(
     if level not in ("interactive", "hybrid", "autonomous", "scheduled"):
         typer.echo(f"invalid --autonomy={autonomy!r}")
         raise SystemExit(2)
+    if not acceptance:
+        typer.echo(
+            "warning: no --acceptance check given; using a no-op check ('true') that always "
+            "passes — admitted=True will not mean the task was actually verified",
+            err=True,
+        )
     checks = acceptance if acceptance else ["true"]
     cassette_path = cassette or ".sagiha/cassettes/default.json"
+    if mode == "replay" and goal is not None and resume is None and not Path(cassette_path).exists():
+        typer.echo(
+            f"--mode=replay (the default) requires a pre-recorded cassette at {cassette_path}, "
+            "but none exists. To actually call an LLM, pass --mode live, e.g.:\n"
+            f"  sagiha run {goal!r} --mode live --model-name <ollama-model> "
+            "--base-url http://localhost:11434/v1",
+            err=True,
+        )
+        raise SystemExit(2)
     outcome, payload = asyncio.run(
         _run_or_resume(
             goal=goal,
