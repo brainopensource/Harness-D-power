@@ -42,10 +42,12 @@ class RoleSpec(Frozen):
 
     def request_from(self, payload: Any) -> ContextRequest:
         """Extract a `ContextRequest` projection from any step payload."""
-        task = getattr(payload, "task", None)
-        worktree = getattr(payload, "worktree", None)
-        instructions = getattr(task, "instructions", "") if task else ""
-        entry_files = getattr(payload, "retrieved_files", ())
+        task = payload.task
+        worktree = payload.worktree
+        instructions = getattr(payload, "instructions", "")
+        if not instructions and task:
+            instructions = task.instructions
+        entry_files = getattr(payload, "entry_files", ())
         if not entry_files and task:
             entry_files = getattr(task, "entry_files", ())
         plan = getattr(payload, "plan", "")

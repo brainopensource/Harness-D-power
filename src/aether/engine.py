@@ -176,7 +176,7 @@ async def run(
     model_api_key = os.getenv(primary_route.api_key_env) if primary_route.api_key_env else None
 
     cmd_str = config.test_command or "python3 run_tests.py"
-    cmd_fn = resolve_command or (lambda _spec: cmd_str)
+    cmd_fn: Callable[[EvalSpec], str] = resolve_command or (lambda _spec: cmd_str)
 
     workspace = GitCliWorkspace(worktrees_root)
     worktree_manager = GitCliWorktreeManager(repo_path, worktrees_root)

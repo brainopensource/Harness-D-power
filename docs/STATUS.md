@@ -7,7 +7,7 @@ updated: 2026-08-07
 
 **Phase 0 is locked** — see [`PHASE-0-LOCK.md`](./PHASE-0-LOCK.md) for what is settled, the nine recorded gaps, and what Phase 1 may change without an ADR. This file is the *implementation* record; the lock is the *constraint* record.
 
-**Sprints 1, 2, 3, 3.5, and 4 are 100% COMPLETE.** Sprint 4 restored I7 enforcement (`tests_unmodified` gate), demoted test-source injection to a named ablation arm, hardened non-interactive subprocesses (`stdin=DEVNULL`, env allowlist, lease deadlines), achieved mechanical decoupling, and verified the A/A variance floor pipeline via dry-run rehearsal.
+**Sprints 1, 2, 3, 3.5, 4, and 5 are 100% COMPLETE.** Sprint 5 established the unified agency architecture (`RoleSpec`, `ModelNode`, `LayeredAssembler`, `ContextSource`, `Inference`, `OutputParser`), `Envelope` base sockets, holdout floor guard, and sealed `RunConfig` with leak-proof hashing.
 
 | Area | State |
 | :--- | :--- |

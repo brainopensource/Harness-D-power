@@ -14,7 +14,10 @@ from typing import Any, Literal, Protocol, runtime_checkable
 
 from aether.agency.capabilities.edit_format import EditFormat, ParsedEdit, get_edit_format
 from aether.agency.registry import Registry
+from aether.domain.envelope import Envelope
 from aether.domain.ids import Frozen
+from aether.domain.task import Task
+from aether.domain.workspace import WorktreeRef
 
 ARCHITECT_INSTRUCTIONS = (
     "Output a short 3-line analysis plan listing:\n"
@@ -34,20 +37,20 @@ class ParsedOutput(Frozen):
     edit: ParsedEdit | None = None
     text: str = ""
 
-    def into(self, payload: Any, result: Any = None, output_type: type[Any] | None = None) -> Any:
+    def into(self, payload: Envelope, result: Any = None, output_type: type[Any] | None = None) -> Any:
         """Fold this parse into the node's output payload."""
         from aether.domain.envelope import GeneratedPatch
 
-        task = getattr(payload, "task", None)
-        worktree = getattr(payload, "worktree", None)
-        iteration = getattr(payload, "iteration", 0)
-        retrieved_files = getattr(payload, "retrieved_files", ())
+        task: Task = payload.task
+        worktree: WorktreeRef = payload.worktree
+        iteration: int = getattr(payload, "iteration", 0)
+        retrieved_files: tuple[str, ...] = getattr(payload, "retrieved_files", ())
         if not retrieved_files and hasattr(payload, "files"):
             retrieved_files = tuple(f.repo_rel_path for f in getattr(payload, "files", ()))
-        stop_reason = getattr(result, "stop_reason", "end") if result else "end"
-        text = result.text if result and hasattr(result, "text") else self.text
+        stop_reason: str = getattr(result, "stop_reason", "end") if result else "end"
+        text: str = result.text if result and hasattr(result, "text") else self.text
 
-        target_cls = output_type or type(payload)
+        target_cls: Any = output_type if output_type is not None else payload.__class__
         if target_cls.__name__ == "RetrievedContext":
             return target_cls(
                 task=task,
@@ -74,7 +77,12 @@ class OutputParser(Protocol):
 
     def instructions(self) -> str: ...
 
-    def parse(self, raw: str) -> ParsedOutput: ...
+    def parse(
+        self,
+        raw: str,
+        known_files: tuple[str, ...] = (),
+        test_paths: tuple[str, ...] = (),
+    ) -> ParsedOutput: ...
 
 
 class EditFormatParser:

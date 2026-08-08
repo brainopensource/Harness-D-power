@@ -37,5 +37,11 @@ class GeneratedPatch(Envelope):
     stop_reason: str = "end"
     retrieved_files: tuple[str, ...] = ()
 
+    @property
+    def patch_text(self) -> str:
+        """Sprint 2's name for the model's output. Retained for callers and
+        tests written against it."""
+        return self.raw_output
+
 
 __all__ = ["Envelope", "GeneratedPatch"]

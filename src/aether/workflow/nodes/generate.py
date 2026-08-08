@@ -25,7 +25,7 @@ from datetime import UTC, datetime
 
 from aether.domain.budget import BudgetDims
 from aether.domain.effects import ShellArgs
-from aether.domain.envelope import Envelope, GeneratedPatch
+from aether.domain.envelope import GeneratedPatch
 from aether.domain.ids import SpanId
 from aether.domain.model_io import (
     ModelMessage,
@@ -36,9 +36,7 @@ from aether.domain.model_io import (
     ToolCallRef,
 )
 from aether.domain.taint import Provenance, TaintSpan
-from aether.domain.task import Task
 from aether.domain.tools import ToolCall, ToolSpec
-from aether.domain.workspace import WorktreeRef
 from aether.workflow.dispatch_facade import DispatchFacade
 from aether.workflow.edit_format import DEFAULT_EDIT_FORMAT, get_edit_format
 from aether.workflow.nodes.retrieve import RetrievedContext

@@ -81,6 +81,9 @@ Workflows are specified in YAML files under `workflows/`:
 - **Iterative Self-Repair Workflow (`workflows/linear_repair_v1.yaml`)**:
   - `retrieve` → `generate` → `apply` → `evaluate` → [if failed] → `repair` → `apply` → `evaluate` (up to N iterations).
   - Automatically feeds test failure tracebacks back into the `repair` step for self-healing bug fixes.
+- **Small-Model Repair Workflow (`workflows/linear_repair_small_model_v1.yaml`)**:
+  - `retrieve` → `generate` → `apply` → `evaluate` → [if failed] → `repair` → `apply` → `evaluate` (up to 3 repair iterations).
+  - Explicitly optimized for local small models (`1.5B–3B`, e.g. `qwen2.5:1.5b`, `llama3.2:3b`). Configured with `whole_file_codeblock` edit format, tighter token ceilings, and Tier 1/2 parser format tolerance.
 
 ### Outputs & Gate Reports
 
@@ -104,8 +107,8 @@ When running Ollama natively on Windows 11 with WSL2 Ubuntu as host:
    - If Ollama is listening on `localhost:11434` or `0.0.0.0:11434`, use base URL `http://localhost:11434/v1` or `http://127.0.0.1:11434/v1`.
    - If using the WSL2 host bridge IP: `http://<WINDOWS_HOST_IP>:11434/v1`.
 3. **Recommended Local Models**:
-   - `deepseek-r1:8b` or `deepseek-r1:14b`
-   - `qwen2.5-coder:7b` or `qwen2.5-coder:32b`
+   - Small models (1.5B–3B): `qwen2.5:1.5b` or `llama3.2:3b` (use with `workflows/linear_repair_small_model_v1.yaml` for Sprint 5 Tier 1/2 format compliance).
+   - Medium/Large local models: `deepseek-r1:8b`, `deepseek-r1:14b`, `qwen2.5-coder:7b`, or `qwen3.6:27b`.
 
 ### Paid / Cloud LLMs (OpenAI, OpenRouter, DeepSeek Cloud)
 
@@ -149,7 +152,8 @@ uv run python3 scripts/run_aether_task.py \
   --test-file run_tests.py \
   --test-code "import main; assert main.is_even(4) is True; print('PASSED')" \
   --model qwen2.5:1.5b \
-  --base-url http://127.0.0.1:11434/v1
+  --base-url http://127.0.0.1:11434/v1 \
+  --topology workflows/linear_repair_small_model_v1.yaml
 ```
 
 ### Option B: Call `aether.engine.run()` directly from a script
@@ -379,6 +383,7 @@ In `linear_repair_v1.yaml`, if the `evaluate` node returns `FAILED`, execution a
 | **Inspect DB via sqlite3** | `sqlite3 trajectory.db "SELECT seq, event_type, at FROM stored_events;"` |
 | **Linear Workflow** | `workflows/linear_v1.yaml` |
 | **Repair Workflow** | `workflows/linear_repair_v1.yaml` |
+| **Small-Model Repair Workflow** | `workflows/linear_repair_small_model_v1.yaml` |
 
 There is no AETHER-native replay verification CLI yet — `sagiha replay` is
 `src/sagiha/`'s own command, unrelated to `aether.engine`.

@@ -57,7 +57,7 @@ class ModelNode(WorkflowStep[Any, Any]):
         req = self._spec.request_from(payload)
 
         # 1. Gather blocks from capabilities
-        blocks_list = []
+        blocks_list: list[Any] = []
         for src_name in self._spec.sources:
             src = get_source(src_name)
             gathered = await src.gather(self._dispatch, req)
