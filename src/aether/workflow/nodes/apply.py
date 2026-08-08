@@ -2,8 +2,8 @@
 
 The node no longer knows what a patch *looks like*. It asks the node's
 `EditFormat` to parse the reply and then performs whatever that produced, so a
-new format is a class in `workflow/edit_format.py` and a line of YAML rather
-than a change here.
+new format is a class in `agency/capabilities/edit_format.py` and a line of
+YAML rather than a change here.
 
 Every write still goes through the dispatch facade, so the choke point sees
 them (I5) — a format that wrote files itself would be a second path to the
@@ -12,18 +12,18 @@ worktree, which is the thing the choke point exists to make impossible.
 
 from __future__ import annotations
 
-from aether.composition import ApplyPatchArgs, WriteArgs
+from aether.agency.capabilities.edit_format import DEFAULT_EDIT_FORMAT, get_edit_format
 from aether.domain.budget import BudgetDims
-from aether.domain.ids import Frozen
+from aether.domain.effects import ApplyPatchArgs, WriteArgs
+from aether.domain.envelope import Envelope
 from aether.domain.task import Task
 from aether.domain.workspace import WorktreeRef
 from aether.workflow.dispatch_facade import DispatchFacade
-from aether.workflow.edit_format import DEFAULT_EDIT_FORMAT, get_edit_format
 from aether.workflow.nodes.generate import GeneratedPatch
 from aether.workflow.step import StepContext, WorkflowStep
 
 
-class AppliedPatch(Frozen):
+class AppliedPatch(Envelope):
     task: Task
     worktree: WorktreeRef
     applied: bool
@@ -40,6 +40,7 @@ class AppliedPatch(Frozen):
     #: model never got to edit is not a failed attempt. Distinct from `detail`,
     #: which reports why a *real* model reply could not be applied.
     instrument_error: str | None = None
+    retrieved_files: tuple[str, ...] = ()
 
 
 class ApplyStep(WorkflowStep[GeneratedPatch, AppliedPatch]):
@@ -69,13 +70,18 @@ class ApplyStep(WorkflowStep[GeneratedPatch, AppliedPatch]):
                     "model provider failed (transport, HTTP or truncated stream); "
                     "no completion was produced, so this candidate was never measured"
                 ),
+                retrieved_files=payload.retrieved_files,
             )
 
         # The node's own format wins over whatever produced the text: a
         # topology that generates one shape and applies another is a
         # configuration error, and honouring the apply node's declaration is
         # what makes it visible immediately rather than three nodes later.
-        parsed = self._edit_format.parse(payload.raw_output)
+        parsed = self._edit_format.parse(
+            payload.raw_output,
+            known_files=payload.retrieved_files,
+            test_paths=payload.task.test_paths,
+        )
 
         if parsed.errors:
             return AppliedPatch(
@@ -85,6 +91,7 @@ class ApplyStep(WorkflowStep[GeneratedPatch, AppliedPatch]):
                 detail="; ".join(parsed.errors),
                 patch_text=payload.raw_output,
                 iteration=payload.iteration,
+                retrieved_files=payload.retrieved_files,
             )
 
         if parsed.is_empty:
@@ -95,6 +102,7 @@ class ApplyStep(WorkflowStep[GeneratedPatch, AppliedPatch]):
                 detail="the model produced no edit",
                 patch_text=payload.raw_output,
                 iteration=payload.iteration,
+                retrieved_files=payload.retrieved_files,
             )
 
         if parsed.kind == "unified_diff":
@@ -109,6 +117,7 @@ class ApplyStep(WorkflowStep[GeneratedPatch, AppliedPatch]):
                 detail=result.detail,
                 patch_text=payload.raw_output,
                 iteration=payload.iteration,
+                retrieved_files=payload.retrieved_files,
             )
 
         for file_edit in parsed.files:
@@ -128,4 +137,5 @@ class ApplyStep(WorkflowStep[GeneratedPatch, AppliedPatch]):
             patch_text=payload.raw_output,
             files_changed=tuple(f.repo_rel_path for f in parsed.files),
             iteration=payload.iteration,
+            retrieved_files=payload.retrieved_files,
         )

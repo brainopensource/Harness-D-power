@@ -19,7 +19,7 @@ jobs:
           fetch-depth: 0
       - name: Reject TCB modifications from agent-authored branches
         run: |
-          TCB_PATHS='src/sagiha/kernel/policy|src/sagiha/outer_loop/evaluator|src/aether/kernel/policy|src/aether/kernel/dispatch|benchmarks/definitions|\.github/workflows|\.importlinter'
+          TCB_PATHS='src/sagiha/kernel/policy|src/sagiha/outer_loop/evaluator|src/aether/kernel/policy|src/aether/kernel/dispatch|src/aether/measurement/evaluator\.py|src/aether/measurement/manifest\.py|src/aether/measurement/schemas|src/aether/measurement/families|src/aether/measurement/statistics\.py|src/aether/workflow/validator\.py|src/aether/workflow/executor\.py|src/aether/workflow/schemas|benchmarks/definitions|\.github/workflows|\.importlinter'
           if git diff --name-only origin/main...HEAD | grep -qE "$TCB_PATHS"; then
             if [ "${{ github.event.pull_request.user.login }}" = "sagiha-agent" ]; then
               echo "::error::PR touches the trusted computing base"; exit 1

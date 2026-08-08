@@ -11,8 +11,8 @@ import json
 
 from pydantic import TypeAdapter
 
-from aether.composition import ApplyPatchArgs, ReadArgs, ShellArgs, WriteArgs
 from aether.domain.budget import BudgetDims
+from aether.domain.effects import ApplyPatchArgs, IndexArgs, IndexResult, ReadArgs, ShellArgs, WriteArgs
 from aether.domain.gate import GateReport
 from aether.domain.model_io import ModelRequest, ModelStreamEvent
 from aether.domain.taint import TaintSpan
@@ -65,6 +65,11 @@ class DispatchFacade:
 
     async def write(self, args: WriteArgs, cost_estimate: BudgetDims = _ZERO_BUDGET) -> None:
         await self._dispatch("write", args.model_dump_json(), cost_estimate)
+
+    async def index(self, args: IndexArgs, cost_estimate: BudgetDims = _ZERO_BUDGET) -> IndexResult:
+        outcome = await self._dispatch("index", args.model_dump_json(), cost_estimate)
+        assert outcome.result_json is not None
+        return IndexResult.model_validate_json(outcome.result_json)
 
     async def apply_patch(
         self, args: ApplyPatchArgs, cost_estimate: BudgetDims = _ZERO_BUDGET

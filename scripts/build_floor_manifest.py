@@ -267,6 +267,7 @@ def generate_medium_task(workdir: Path, index: int) -> TaskCandidate:
             "(and `store.py` if the fix belongs there) so the tests pass."
         ),
         split="dev",
+        test_paths=("run_tests.py",),
     )
 
 
@@ -359,6 +360,7 @@ def generate_task(workdir: Path, index: int) -> TaskCandidate:
             "`run_tests.py` asserts the behaviour it should have. Fix `mod.py`."
         ),
         split="dev",
+        test_paths=("run_tests.py",),
     )
 
 

@@ -23,9 +23,10 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from aether.composition import ShellArgs
 from aether.domain.budget import BudgetDims
-from aether.domain.ids import Frozen, SpanId
+from aether.domain.effects import ShellArgs
+from aether.domain.envelope import GeneratedPatch
+from aether.domain.ids import SpanId
 from aether.domain.model_io import (
     ModelMessage,
     ModelRequest,
@@ -35,9 +36,7 @@ from aether.domain.model_io import (
     ToolCallRef,
 )
 from aether.domain.taint import Provenance, TaintSpan
-from aether.domain.task import Task
 from aether.domain.tools import ToolCall, ToolSpec
-from aether.domain.workspace import WorktreeRef
 from aether.workflow.dispatch_facade import DispatchFacade
 from aether.workflow.edit_format import DEFAULT_EDIT_FORMAT, get_edit_format
 from aether.workflow.nodes.retrieve import RetrievedContext
@@ -52,30 +51,6 @@ SYSTEM_ROLE = (
 
 def build_system_text(edit_instructions: str) -> str:
     return f"{SYSTEM_ROLE}\n\n{edit_instructions}"
-
-
-class GeneratedPatch(Frozen):
-    task: Task
-    worktree: WorktreeRef
-    #: The model's reply, unparsed. Kept raw so the repair edge can show the
-    #: model what it actually said, and so a parse failure is diagnosable.
-    raw_output: str = ""
-    edit_format: str = DEFAULT_EDIT_FORMAT
-    iteration: int = 0  # 0 = first attempt; >0 = produced by the repair edge
-    #: Why the completion ended. Carried because `provider_error` is *our*
-    #: failure, not the task's: without it a 429, a socket reset or a read
-    #: timeout arrives here as an empty `raw_output`, which `ApplyStep` reads as
-    #: "the model produced no edit" and the gate then scores `FAILED` on an
-    #: unmodified worktree. B4 was built for the evaluator and not for the
-    #: provider, and the asymmetry was invisible because both paths end in a
-    #: `GateReport`. Consumed by `ApplyStep` -> `EvaluateStep`.
-    stop_reason: StopReason = "end"
-
-    @property
-    def patch_text(self) -> str:
-        """Sprint 2's name for the model's output. Retained for callers and
-        tests written against it."""
-        return self.raw_output
 
 
 class GenerateStep(WorkflowStep[RetrievedContext, GeneratedPatch]):
@@ -219,4 +194,5 @@ class GenerateStep(WorkflowStep[RetrievedContext, GeneratedPatch]):
             raw_output="".join(patch_text_parts),
             edit_format=self._edit_format.name,
             stop_reason=stop_reason,
+            retrieved_files=tuple(f.repo_rel_path for f in payload.files),
         )

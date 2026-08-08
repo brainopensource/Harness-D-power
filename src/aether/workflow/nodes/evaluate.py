@@ -13,8 +13,8 @@ the same class of hole the socket types exist to close.
 from __future__ import annotations
 
 from aether.domain.budget import BudgetDims
+from aether.domain.envelope import Envelope
 from aether.domain.gate import GateReport, GateStatus
-from aether.domain.ids import Frozen
 from aether.domain.task import Task
 from aether.domain.workspace import WorktreeRef
 from aether.ports.evaluator import EvalSpec
@@ -23,12 +23,22 @@ from aether.workflow.nodes.apply import AppliedPatch
 from aether.workflow.step import StepContext, WorkflowStep
 
 
-class EvaluatedCandidate(Frozen):
+class EvaluatedCandidate(Envelope):
     task: Task
     worktree: WorktreeRef
     report: GateReport
     patch_text: str = ""
     iteration: int = 0
+    #: `AppliedPatch.detail` when the reply was rejected before it touched the
+    #: worktree (unparseable, an escaping path, a syntax error) — carried
+    #: forward so the repair prompt can name the real cause. Without this the
+    #: tests still run against the unmodified worktree (`applied=False` is not
+    #: an instrument error — see `test_a_real_completion_is_still_judged_
+    #: normally`), and `report.detail` becomes a downstream symptom (e.g. a
+    #: missing-attribute traceback) that never mentions what was actually
+    #: wrong with the reply, so repair keeps repeating the same mistake.
+    apply_detail: str = ""
+    retrieved_files: tuple[str, ...] = ()
 
 
 class EvaluateStep(WorkflowStep[AppliedPatch, EvaluatedCandidate]):
@@ -59,6 +69,7 @@ class EvaluateStep(WorkflowStep[AppliedPatch, EvaluatedCandidate]):
                 ),
                 patch_text=payload.patch_text,
                 iteration=payload.iteration,
+                retrieved_files=payload.retrieved_files,
             )
 
         spec = EvalSpec(
@@ -67,6 +78,8 @@ class EvaluateStep(WorkflowStep[AppliedPatch, EvaluatedCandidate]):
             image_digest=payload.task.environment_image_digest,
             test_command_hash=payload.task.test_command_hash,
             timeout_ms=self._timeout_ms,
+            base_commit=payload.task.base_commit,
+            test_paths=payload.task.test_paths,
         )
         report = await self._dispatch.evaluate(spec, BudgetDims(wall_clock_ms=self._timeout_ms))
         return EvaluatedCandidate(
@@ -75,4 +88,6 @@ class EvaluateStep(WorkflowStep[AppliedPatch, EvaluatedCandidate]):
             report=report,
             patch_text=payload.patch_text,
             iteration=payload.iteration,
+            apply_detail="" if payload.applied else payload.detail,
+            retrieved_files=payload.retrieved_files,
         )

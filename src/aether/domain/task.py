@@ -28,4 +28,5 @@ class Task(Frozen):
     instructions: str
     environment_image_digest: str
     test_command_hash: str
+    test_paths: tuple[str, ...] = ()  # repo-relative globs a candidate must not touch (I7)
     source: TaskSource

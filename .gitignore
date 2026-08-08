@@ -110,3 +110,4 @@ src_front/packages/
 src_front/apps/cli/node_modules/
 src_front/apps/desktop/node_modules/
 uv.lock
+swe_tasks/

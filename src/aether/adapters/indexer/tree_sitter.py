@@ -21,10 +21,6 @@ _DEF_NODE_KIND: dict[str, str] = {"function_definition": "function", "class_defi
 _IGNORED_DIR_NAMES = {".git", "__pycache__", "node_modules", ".venv"}
 
 
-def _worktree_path(worktrees_root: str, worktree: WorktreeRef) -> str:
-    return os.path.join(worktrees_root, worktree.run_id, worktree.worktree_id)
-
-
 class TreeSitterIndexer:
     """Symbol index is per worktree, held in process memory — rebuilt by a
     fresh `build()` call, not incrementally maintained (Block 4 territory)."""
@@ -34,7 +30,7 @@ class TreeSitterIndexer:
         self._index: dict[str, list[SymbolHit]] = {}
 
     async def build(self, worktree: WorktreeRef) -> None:
-        path = _worktree_path(self._worktrees_root, worktree)
+        path = worktree.path(self._worktrees_root)
         self._index[worktree.worktree_id] = await asyncio.to_thread(self._build_sync, path)
 
     def _build_sync(self, path: str) -> list[SymbolHit]:

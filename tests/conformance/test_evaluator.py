@@ -4,7 +4,9 @@ tri-state B4 contract — exit 0 = PASSED, exit 1 = FAILED, everything else
 
 from __future__ import annotations
 
+import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -188,6 +190,88 @@ async def test_the_image_digest_from_the_manifest_reaches_the_container_spec(wor
     assert sandbox.seen is not None
     assert sandbox.seen.image_digest == "sha256:" + "a" * 64
     assert sandbox.seen.worktree_host_path.endswith("run-1/wt-1")
+
+
+# --- I7 (TASK-049): a candidate must not be able to edit its own judge. ---
+
+_GIT_ENV = {
+    "GIT_AUTHOR_NAME": "test",
+    "GIT_AUTHOR_EMAIL": "test@test.invalid",
+    "GIT_COMMITTER_NAME": "test",
+    "GIT_COMMITTER_EMAIL": "test@test.invalid",
+    "GIT_AUTHOR_DATE": "2026-01-01T00:00:00+00:00",
+    "GIT_COMMITTER_DATE": "2026-01-01T00:00:00+00:00",
+}
+
+
+def _git(cwd: Path, *args: str) -> str:
+    import os
+
+    return subprocess.run(
+        ["git", *args], cwd=cwd, check=True, capture_output=True, text=True, env={**os.environ, **_GIT_ENV}
+    ).stdout.strip()
+
+
+def _init_pinned_worktree(path: Path) -> str:
+    (path / "run_tests.py").write_text("import sys\nsys.exit(1)\n")
+    _git(path, "init", "-q", "-b", "main")
+    _git(path, "add", ".")
+    _git(path, "commit", "-q", "-m", "base")
+    return _git(path, "rev-parse", "HEAD")
+
+
+async def test_i7_gate_catches_a_modified_test_file(worktree_dir) -> None:  # noqa: ANN001
+    """A candidate that overwrites the file grading it is unmeasured (NONE),
+    not scored — removing this gate is what test_i7_gate_can_fail proves."""
+    worktrees_root, worktree = worktree_dir
+    path = Path(worktrees_root) / worktree.run_id / worktree.worktree_id
+    base_commit = _init_pinned_worktree(path)
+    # The candidate tampers with its own judge: rewrites run_tests.py to pass.
+    (path / "run_tests.py").write_text("import sys\nsys.exit(0)\n")
+
+    command = f"{sys.executable} run_tests.py"
+    evaluator = RealEvaluator(worktrees_root, resolve_command=lambda spec: command)
+    spec = EvalSpec(
+        task_id=TaskId("t1"),
+        worktree=worktree,
+        image_digest="sha256:" + "a" * 64,
+        test_command_hash=hash_command(command),
+        timeout_ms=5000,
+        base_commit=base_commit,
+        test_paths=("run_tests.py",),
+    )
+
+    report = await evaluator.evaluate(spec)
+
+    assert report.status == GateStatus.NONE
+    assert "I7" in (report.instrument_error or "")
+
+
+async def test_i7_gate_can_fail(worktree_dir) -> None:  # noqa: ANN001
+    """The negative test: with no `test_paths` declared (the gate disabled),
+    the exact same tamper from the test above goes undetected and scores
+    PASSED. This is what proves the check above is doing real work — a check
+    that always reports the same thing regardless of tampering is decorative."""
+    worktrees_root, worktree = worktree_dir
+    path = Path(worktrees_root) / worktree.run_id / worktree.worktree_id
+    base_commit = _init_pinned_worktree(path)
+    (path / "run_tests.py").write_text("import sys\nsys.exit(0)\n")
+
+    command = f"{sys.executable} run_tests.py"
+    evaluator = RealEvaluator(worktrees_root, resolve_command=lambda spec: command)
+    spec = EvalSpec(
+        task_id=TaskId("t1"),
+        worktree=worktree,
+        image_digest="sha256:" + "a" * 64,
+        test_command_hash=hash_command(command),
+        timeout_ms=5000,
+        base_commit=base_commit,
+        test_paths=(),  # gate disabled
+    )
+
+    report = await evaluator.evaluate(spec)
+
+    assert report.status == GateStatus.PASSED, "tampering went undetected with the gate disabled"
 
 
 async def test_a_second_evaluation_sees_the_new_candidate_not_a_stale_cache(worktree_dir) -> None:  # noqa: ANN001

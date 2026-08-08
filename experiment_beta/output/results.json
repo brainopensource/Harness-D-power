@@ -1,0 +1,50 @@
+[
+  {
+    "task": "is_even",
+    "raw_output": "```python\ndef is_even(n: int) -> bool:\n    return n % 2 == 0\n```",
+    "original_parsed_files": [],
+    "original_errors": [
+      "unlabelled code block: name the file with ```python:<path>, a `# filename: <path>` first line, or a `=== <path> ===` header. The target is never inferred from the surrounding text."
+    ],
+    "improved_parsed_files": [
+      "main.py"
+    ],
+    "improved_errors": [
+      "bound unlabelled block to the sole retrieved file 'main.py' (Tier 2)"
+    ],
+    "test_passed": true,
+    "test_output": "PASSED"
+  },
+  {
+    "task": "add",
+    "raw_output": "```python\ndef add(a: int, b: int) -> int:\n    return a + b\n\nif __name__ == \"__main__\":\n    result = add(3, 4)\n    print(result)\n```",
+    "original_parsed_files": [],
+    "original_errors": [
+      "unlabelled code block: name the file with ```python:<path>, a `# filename: <path>` first line, or a `=== <path> ===` header. The target is never inferred from the surrounding text."
+    ],
+    "improved_parsed_files": [
+      "main.py"
+    ],
+    "improved_errors": [
+      "bound unlabelled block to the sole retrieved file 'main.py' (Tier 2)"
+    ],
+    "test_passed": true,
+    "test_output": "PASSED"
+  },
+  {
+    "task": "reverse_string",
+    "raw_output": "```python:\ndef reverse_string(s: str) -> str:\n    return s[::-1]\n\nif __name__ == \"__main__\":\n    input_str = \"hello\"\n    print(reverse_string(input_str))\n```\n```",
+    "original_parsed_files": [],
+    "original_errors": [
+      "unlabelled code block: name the file with ```python:<path>, a `# filename: <path>` first line, or a `=== <path> ===` header. The target is never inferred from the surrounding text."
+    ],
+    "improved_parsed_files": [
+      "main.py"
+    ],
+    "improved_errors": [
+      "bound unlabelled block to the sole retrieved file 'main.py' (Tier 2)"
+    ],
+    "test_passed": true,
+    "test_output": "PASSED"
+  }
+]

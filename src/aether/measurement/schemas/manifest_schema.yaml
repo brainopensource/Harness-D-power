@@ -121,3 +121,13 @@ properties:
           default: false
           description: Marked from within-arm discordance across seeded passes;
             analyzed with-and-without, never silently dropped.
+        test_paths:
+          type: array
+          minItems: 1
+          items: { type: string }
+          description: >
+            Repo-relative globs identifying the files that constitute this task's gate.
+            A candidate that modifies OR ADDS a file matching any of these has edited its
+            own judge: the evaluator returns GateStatus.NONE (I7, spec.md §2). Globs
+            rather than per-file hashes on purpose — a hash list cannot catch a file the
+            candidate creates.

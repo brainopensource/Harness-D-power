@@ -1,0 +1,33 @@
+{
+  "kind": "architect",
+  "node_id": "architect",
+  "request": {
+    "max_tokens": 512,
+    "messages": [
+      {
+        "cache_breakpoint": true,
+        "labels": [
+          "trusted-system"
+        ],
+        "role": "system",
+        "text": "You are a precise software architect planning a bug fix in a repository. You examine the task and entry files and output a clear, concise plan.\n\nOutput a short 3-line analysis plan listing:\n1. Target function/class\n2. Expected behavior vs current bug\n3. Proposed code fix logic",
+        "tool_call_id": null,
+        "tool_calls": []
+      },
+      {
+        "cache_breakpoint": true,
+        "labels": [
+          "operator"
+        ],
+        "role": "user",
+        "text": "`add(a, b)` returns the wrong value for positive inputs. Fix it so `add(1, 2) == 3`.",
+        "tool_call_id": null,
+        "tool_calls": []
+      }
+    ],
+    "model": "deepseek/deepseek-chat",
+    "seed": null,
+    "temperature": 0.0,
+    "tools": []
+  }
+}

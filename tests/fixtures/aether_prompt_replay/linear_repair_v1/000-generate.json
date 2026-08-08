@@ -1,0 +1,33 @@
+{
+  "kind": "generate",
+  "node_id": "generate",
+  "request": {
+    "max_tokens": 4096,
+    "messages": [
+      {
+        "cache_breakpoint": true,
+        "labels": [
+          "trusted-system"
+        ],
+        "role": "system",
+        "text": "You are a precise software engineer fixing a bug in an existing repository. You are shown the relevant files. Change as little as possible.\n\nReply with a unified diff and nothing else.\nUse `diff --git a/<path> b/<path>` headers with `---`/`+++` lines and `@@` hunks.\nContext lines must match the file exactly. Do not explain the change.",
+        "tool_call_id": null,
+        "tool_calls": []
+      },
+      {
+        "cache_breakpoint": true,
+        "labels": [
+          "operator"
+        ],
+        "role": "user",
+        "text": "`add(a, b)` returns the wrong value for positive inputs. Fix it so `add(1, 2) == 3`.",
+        "tool_call_id": null,
+        "tool_calls": []
+      }
+    ],
+    "model": "stub-model",
+    "seed": null,
+    "temperature": 0.0,
+    "tools": []
+  }
+}

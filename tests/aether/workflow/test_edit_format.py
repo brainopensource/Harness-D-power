@@ -227,3 +227,53 @@ def test_a_path_the_model_actually_stated_is_still_honoured() -> None:
 
     headed = fmt.parse("=== mod.py ===\n```python\ndef f():\n    return 1\n```")
     assert [f.repo_rel_path for f in headed.files] == ["mod.py"]
+
+
+def test_multi_hash_comment_filename_is_recovered() -> None:
+    """Tier 1.1 — markdown-trained models write `### main.py`."""
+    fmt = WholeFileCodeblockFormat()
+    raw = "```python\n### main.py\ndef is_even(n):\n    return n % 2 == 0\n```"
+    parsed = fmt.parse(raw)
+    assert [f.repo_rel_path for f in parsed.files] == ["main.py"]
+
+
+def test_empty_colon_label_falls_through_to_comment_recovery() -> None:
+    """Tier 1.2 — ````python:` with empty path falls through to comment recovery."""
+    fmt = WholeFileCodeblockFormat()
+    raw = "```python:\n# main.py\ndef is_even(n):\n    return n % 2 == 0\n```"
+    parsed = fmt.parse(raw)
+    assert [f.repo_rel_path for f in parsed.files] == ["main.py"]
+
+
+def test_leading_slash_is_stripped_only_when_file_is_known() -> None:
+    """Tier 1.3 — `/main.py` is stripped to `main.py` when `main.py` is in known_files."""
+    fmt = WholeFileCodeblockFormat()
+    raw = "```python:/main.py\ndef is_even(n):\n    return n % 2 == 0\n```"
+
+    # Known file -> recovered
+    parsed = fmt.parse(raw, known_files=("main.py",))
+    assert [f.repo_rel_path for f in parsed.files] == ["main.py"]
+
+    # Unknown file -> refused
+    parsed_unknown = fmt.parse(raw, known_files=("other.py",))
+    assert not parsed_unknown.files
+    assert parsed_unknown.errors and "escape the worktree" in parsed_unknown.errors[0]
+
+
+def test_tier_2_binds_unlabelled_block_to_sole_retrieved_non_test_file() -> None:
+    """Tier 2 — bind unlabelled code block to the sole retrieved non-test file."""
+    fmt = WholeFileCodeblockFormat()
+    raw = "```python\ndef is_even(n):\n    return n % 2 == 0\n```"
+
+    # Exactly 1 eligible file -> bound
+    parsed = fmt.parse(raw, known_files=("main.py",), test_paths=("test_main.py",))
+    assert [f.repo_rel_path for f in parsed.files] == ["main.py"]
+    assert not parsed.errors
+
+    # Multiple files -> ambiguous, refused
+    parsed_multi = fmt.parse(raw, known_files=("a.py", "b.py"))
+    assert not parsed_multi.files
+
+    # Sole file is a test file -> refused (must not overwrite test)
+    parsed_test_only = fmt.parse(raw, known_files=("test_main.py",), test_paths=("test_main.py",))
+    assert not parsed_test_only.files

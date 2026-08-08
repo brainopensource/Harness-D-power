@@ -20,14 +20,20 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 from datetime import UTC, datetime
 
+from aether.adapters.subprocess_env import spawn_env
 from aether.domain.ids import SpanId
 from aether.domain.taint import Provenance, TaintSpan
 from aether.domain.tools import ToolCall, ToolResult, ToolSpec
 from aether.domain.workspace import WorktreeRef
 from aether.ports.workspace import Workspace
+
+#: Matches the cost estimate `workflow/nodes/generate.py` reserves against
+#: (`BudgetDims(wall_clock_ms=30000)`) — the fallback when a caller does not
+#: thread a real lease-derived deadline through `execute()`. TASK-062: this
+#: used to be no deadline at all; a hung tool call ran forever.
+_DEFAULT_DEADLINE_MS = 30_000
 
 _READ_FILE_SCHEMA = json.dumps(
     {
@@ -48,10 +54,6 @@ _BASH_SCHEMA = json.dumps(
         "required": ["command"],
     }
 )
-
-
-def _worktree_path(worktrees_root: str, worktree: WorktreeRef) -> str:
-    return os.path.join(worktrees_root, worktree.run_id, worktree.worktree_id)
 
 
 class BuiltinToolRegistry:
@@ -76,13 +78,15 @@ class BuiltinToolRegistry:
     async def catalog(self) -> tuple[ToolSpec, ...]:
         return self._catalog
 
-    async def execute(self, worktree: WorktreeRef, call: ToolCall) -> ToolResult:
+    async def execute(
+        self, worktree: WorktreeRef, call: ToolCall, deadline_ms: int | None = None
+    ) -> ToolResult:
         args: dict[str, object] = json.loads(call.args_json) if call.args_json else {}
 
         if call.name == "read_file":
             text, exit_code = await self._read_file(worktree, args)
         elif call.name == "bash":
-            text, exit_code = await self._bash(worktree, args)
+            text, exit_code = await self._bash(worktree, args, deadline_ms)
         else:
             text, exit_code = f"unknown tool: {call.name}", 127
 
@@ -107,14 +111,24 @@ class BuiltinToolRegistry:
         except OSError as exc:
             return str(exc), 1
 
-    async def _bash(self, worktree: WorktreeRef, args: dict[str, object]) -> tuple[str, int]:
-        path = _worktree_path(self._worktrees_root, worktree)
+    async def _bash(
+        self, worktree: WorktreeRef, args: dict[str, object], deadline_ms: int | None = None
+    ) -> tuple[str, int]:
+        path = worktree.path(self._worktrees_root)
+        deadline = (deadline_ms if deadline_ms and deadline_ms > 0 else _DEFAULT_DEADLINE_MS) / 1000
         proc = await asyncio.create_subprocess_shell(
             str(args["command"]),
             cwd=path,
+            stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
+            env=spawn_env(),
         )
-        stdout, _ = await proc.communicate()
+        try:
+            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=deadline)
+        except TimeoutError:
+            proc.kill()
+            await proc.communicate()
+            return f"command timed out after {deadline_ms or _DEFAULT_DEADLINE_MS}ms", 124
         assert proc.returncode is not None
         return stdout.decode(errors="replace"), proc.returncode

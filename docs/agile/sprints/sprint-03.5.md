@@ -1,5 +1,5 @@
 ---
-status: historical
+status: rationale
 updated: 2026-08-07
 ---
 

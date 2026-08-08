@@ -10,19 +10,24 @@ root; `src/aether/composition.py` is the wiring root it calls into.
 from __future__ import annotations
 
 import asyncio
+import os
 from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+from aether.adapters.indexer.tree_sitter import TreeSitterIndexer
 from aether.adapters.model_provider.openai_compatible import OpenAICompatibleProvider
 from aether.adapters.sandbox.podman import ContainerSandbox
 from aether.adapters.tools.builtin import BuiltinToolRegistry
 from aether.adapters.trajectory_store.sqlite import SqliteTrajectoryStore
 from aether.adapters.workspace.git_cli import GitCliWorkspace, GitCliWorktreeManager
+from aether.agency.capabilities.edit_format import DEFAULT_EDIT_FORMAT
+from aether.agency.roles import ARCHITECT, EDITOR, REFLECTOR, REPAIRER, RoleSpec
 from aether.composition import build_dispatcher
 from aether.domain.budget import BudgetDims
+from aether.domain.config import ModelRoute, RunConfig
 from aether.domain.events import RunCompleted, RunStarted
 from aether.domain.gate import GateReport
 from aether.domain.ids import Frozen, RunId
@@ -31,17 +36,16 @@ from aether.domain.tools import ToolSpec
 from aether.kernel.bus import EventBus
 from aether.kernel.governor import ResourceGovernor
 from aether.measurement.evaluator import RealEvaluator
+from aether.measurement.floor import FLOOR_ARTIFACT, FloorNotPublished, published_floor
 from aether.ports.evaluator import EvalSpec
 from aether.ports.trajectory_store import StoredEvent
 from aether.workflow.dispatch_facade import DispatchFacade
-from aether.workflow.edit_format import DEFAULT_EDIT_FORMAT
 from aether.workflow.executor import WorkflowExecutor
 from aether.workflow.nodes.apply import ApplyStep
-from aether.workflow.nodes.architect import ArchitectStep, ReflectorStep
 from aether.workflow.nodes.evaluate import EvaluatedCandidate, EvaluateStep
-from aether.workflow.nodes.generate import GenerateStep
-from aether.workflow.nodes.repair import RepairStep
-from aether.workflow.nodes.retrieve import RetrieveStep, TaskInput
+from aether.workflow.nodes.generate import GeneratedPatch
+from aether.workflow.nodes.model_node import ModelNode
+from aether.workflow.nodes.retrieve import RetrievedContext, RetrieveStep, TaskInput
 from aether.workflow.step import StepFactory, WorkflowStep
 from aether.workflow.validator import load_topology, validate_topology
 
@@ -79,18 +83,42 @@ def build_step_registry(
     runtime.
     """
 
+    def _model_factory(
+        kind: str,
+        spec: RoleSpec,
+        input_type: type[Frozen],
+        output_type: type[Frozen],
+        default_max_tokens: int = 4096,
+    ):
+        def factory(params: Mapping[str, Any]) -> WorkflowStep[Any, Any]:
+            parser_name = spec.parser
+            if parser_name == "edit_format":
+                edit_format = str(params.get("edit_format", DEFAULT_EDIT_FORMAT))
+                parser_name = f"edit:{edit_format}"
+            effective_spec = RoleSpec(
+                role_id=spec.role_id,
+                role_text=spec.role_text,
+                sources=spec.sources,
+                parser=parser_name,
+                inference=spec.inference,
+                wants_tools=spec.wants_tools,
+            )
+            return ModelNode(
+                facade,
+                node_kind=kind,
+                input_type=input_type,
+                output_type=output_type,
+                spec=effective_spec,
+                model_name=str(params.get("model", model_name)),
+                max_tokens=int(params.get("max_tokens", default_max_tokens)),
+                tool_catalog=tool_catalog if params.get("tools", False) else (),
+            )
+
+        return factory
+
     def retrieve(params: Mapping[str, Any]) -> WorkflowStep[Any, Any]:
         entry_files = tuple(params.get("entry_files") or default_entry_files)
         return RetrieveStep(facade, entry_files=entry_files, max_bytes=int(params.get("max_bytes", 20_000)))
-
-    def generate(params: Mapping[str, Any]) -> WorkflowStep[Any, Any]:
-        return GenerateStep(
-            facade,
-            model_name=str(params.get("model", model_name)),
-            tool_catalog=tool_catalog if params.get("tools", False) else (),
-            max_tokens=int(params.get("max_tokens", 4096)),
-            edit_format=str(params.get("edit_format", DEFAULT_EDIT_FORMAT)),
-        )
 
     def apply_step(params: Mapping[str, Any]) -> WorkflowStep[Any, Any]:
         return ApplyStep(facade, edit_format=str(params.get("edit_format", DEFAULT_EDIT_FORMAT)))
@@ -98,37 +126,14 @@ def build_step_registry(
     def evaluate(params: Mapping[str, Any]) -> WorkflowStep[Any, Any]:
         return EvaluateStep(facade, timeout_ms=int(params.get("timeout_ms", 60_000)))
 
-    def repair(params: Mapping[str, Any]) -> WorkflowStep[Any, Any]:
-        return RepairStep(
-            facade,
-            model_name=str(params.get("model", model_name)),
-            max_tokens=int(params.get("max_tokens", 4096)),
-            edit_format=str(params.get("edit_format", DEFAULT_EDIT_FORMAT)),
-            entry_files=tuple(params.get("entry_files") or default_entry_files),
-        )
-
-    def architect(params: Mapping[str, Any]) -> WorkflowStep[Any, Any]:
-        return ArchitectStep(
-            facade,
-            model_name=str(params.get("model", model_name)),
-            max_tokens=int(params.get("max_tokens", 1024)),
-        )
-
-    def reflector(params: Mapping[str, Any]) -> WorkflowStep[Any, Any]:
-        return ReflectorStep(
-            facade,
-            model_name=str(params.get("model", model_name)),
-            max_tokens=int(params.get("max_tokens", 1024)),
-        )
-
     return {
         "retrieve": retrieve,
-        "architect": architect,
-        "generate": generate,
+        "architect": _model_factory("architect", ARCHITECT, RetrievedContext, RetrievedContext, 1024),
+        "generate": _model_factory("generate", EDITOR, RetrievedContext, GeneratedPatch, 4096),
         "apply": apply_step,
         "evaluate": evaluate,
-        "reflector": reflector,
-        "repair": repair,
+        "reflector": _model_factory("reflector", REFLECTOR, EvaluatedCandidate, EvaluatedCandidate, 1024),
+        "repair": _model_factory("repair", REPAIRER, EvaluatedCandidate, GeneratedPatch, 4096),
     }
 
 
@@ -144,38 +149,45 @@ class RunResult(Frozen):
 
 async def run(
     task: Task,
+    config: RunConfig,
     *,
-    repo_path: str,
-    worktrees_root: str,
-    topology_path: str,
-    resolve_command: Callable[[EvalSpec], str],
-    model_base_url: str = "http://localhost:11434/v1",
-    model_name: str = "qwen2.5-coder-32b",
-    model_api_key: str | None = None,
-    api_key: str | None = None,
-    trajectory_db_path: str = ":memory:",
-    entry_file: str = "README.md",
-    sandbox_runtime: str | None = None,
-    usd_micros_ceiling: int | None = None,
-    entry_files: tuple[str, ...] | None = None,
+    resolve_command: Callable[[EvalSpec], str] | None = None,
 ) -> RunResult:
-    """`sandbox_runtime` ("podman" | "docker") puts the evaluator inside the B3
-    container (TASK-016). Left None the judge runs uncontained — fine for the
-    smoke suite, never valid for a published number (measurement.md §2 B3).
+    """Headless engine entry point taking a single `RunConfig` parameter."""
+    if config.split in ("holdout", "sealed"):
+        repo_root = Path(config.repo_path) if config.repo_path else Path.cwd()
+        if published_floor(repo_root) is None:
+            raise FloorNotPublished(
+                f"Split {config.split!r} requested but no A/A noise floor exists in {FLOOR_ARTIFACT}"
+            )
 
-    `usd_micros_ceiling` seeds a hard spend ceiling for this run; effects past
-    it are refused at the choke point. `entry_files` overrides what the
-    retrieve node reads when the topology does not name files itself.
-    """
     run_id = RunId(f"run-{uuid4().hex[:12]}")
+    repo_path = config.repo_path
+    worktrees_root = config.worktrees_root
+    topology_path = config.topology_path
+    trajectory_db_path = config.trajectory_db_path
+    sandbox_runtime = config.sandbox.runtime
+    usd_micros_ceiling = config.budget.usd_micros if config.budget.usd_micros > 0 else None
+    entry_files = config.entry_files
+
+    primary_route = config.routes[0] if config.routes else ModelRoute()
+    model_base_url = primary_route.base_url or "http://localhost:11434/v1"
+    model_name = primary_route.model or "qwen2.5-coder-32b"
+    model_api_key = os.getenv(primary_route.api_key_env) if primary_route.api_key_env else None
+
+    cmd_str = config.test_command or "python3 run_tests.py"
+    cmd_fn: Callable[[EvalSpec], str] = resolve_command or (lambda _spec: cmd_str)
 
     workspace = GitCliWorkspace(worktrees_root)
     worktree_manager = GitCliWorktreeManager(repo_path, worktrees_root)
     tool_registry = BuiltinToolRegistry(workspace, worktrees_root)
-    resolved_api_key = model_api_key or api_key
-    model_provider = OpenAICompatibleProvider(model_base_url, model_name, api_key=resolved_api_key)
+    model_provider = OpenAICompatibleProvider(model_base_url, model_name, api_key=model_api_key)
     sandbox = ContainerSandbox(sandbox_runtime) if sandbox_runtime is not None else None
-    evaluator = RealEvaluator(worktrees_root, resolve_command, sandbox=sandbox)
+    evaluator = RealEvaluator(worktrees_root, cmd_fn, sandbox=sandbox)
+    # Always constructed, like every other adapter here, whether or not the
+    # topology's roles use it (TASK-054): `SymbolSource` is a capability this
+    # sprint makes reachable, not one this sprint wires into a shipped role.
+    indexer = TreeSitterIndexer(worktrees_root)
     # The bus is constructed first: the governor and the dispatcher both emit
     # to it, and a component that takes it later cannot emit at all.
     bus = EventBus()
@@ -187,7 +199,7 @@ async def run(
         # on a caller to notice (spec.md §5, and A4 made `usd_micros` real).
         governor.seed_run_budget(run_id, BudgetDims(usd_micros=usd_micros_ceiling))
     dispatcher = build_dispatcher(
-        workspace, tool_registry, model_provider, evaluator, governor, model_base_url, bus
+        workspace, tool_registry, model_provider, evaluator, indexer, governor, model_base_url, bus
     )
     trajectory_store = SqliteTrajectoryStore(trajectory_db_path)
 
@@ -203,7 +215,7 @@ async def run(
         facade,
         model_name=model_name,
         tool_catalog=tool_catalog,
-        default_entry_files=entry_files or (entry_file,),
+        default_entry_files=entry_files or ("README.md",),
     )
     executor = WorkflowExecutor(topology, registry, bus, governor)
 

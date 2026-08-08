@@ -129,21 +129,53 @@ name = AETHER: full architectural lattice (spec.md §3)
 type = layers
 layers =
     aether.engine
-    (aether.agency) | aether.workflow
+    aether.workflow
+    aether.agency
     aether.measurement
     aether.kernel
     aether.adapters
     aether.ports
     aether.domain
-# Parenthesized layers are packages not yet built (agency: TASK-030b) —
+# ADR-0018 (ratified TASK-053, ADR-0018): `aether.agency` moved from an
+# independent sibling of `aether.workflow` — `(aether.agency) | aether.workflow`
+# — to the layer directly beneath it. The parenthesised, piped form was
+# correct only while `agency/` held no real code: import-linter treats a
+# parenthesised layer as optional rather than erroring on a missing module
+# (verified empirically against import-linter 2.13), which is what let this
+# contract stay green with an empty package. The parentheses come off in the
+# same commit that lands agency/'s first real file (`agency/capabilities/`,
+# T2) — landing the package empty and the lattice edit separately would be
+# the vacuous-contract trap ADR-0006 names about itself: a layer nothing has
+# populated selects nothing and forbids nothing.
+#
 # aether.adapters came off in Sprint 2 Step 1 (TASK-026,
 # adapters/trajectory_store/sqlite.py), aether.measurement came off in Step 5
 # (TASK-019, measurement/evaluator.py), aether.engine came off in Step 11
-# (TASK-022, engine.py) — import-linter makes a parenthesized layer optional
-# rather than erroring on a missing module (verified empirically against
-# import-linter 2.13). Each parens pair comes off in the change that lands
-# that package's first real code, mirroring car-layering's own documented
-# precedent for incremental extension. `aether.composition` is a top-level
-# wiring root, not a listed layer — engine.py and workflow/* both depend on
-# it (composition depends on neither), so it sits outside this lattice by
-# design rather than by gap.
+# (TASK-022, engine.py). `aether.composition` is a top-level wiring root, not
+# a listed layer — engine.py and workflow/* both depend on it (composition
+# depends on neither), so it sits outside this lattice by design rather than
+# by gap.
+
+[importlinter:contract:aether-agency-cannot-reach-the-judge]
+name = AETHER: the mutable capability layer cannot reach the TCB judge (I7, ADR-0018)
+type = forbidden
+source_modules =
+    aether.agency
+forbidden_modules =
+    aether.workflow
+    aether.measurement
+    aether.evolution
+# `aether-layers` already forbids agency -> workflow by layer order; this
+# contract states it explicitly and additionally forbids agency ->
+# measurement, which layer order alone PERMITS because measurement sits
+# below agency in the lattice above. Without this contract, nothing stops a
+# capability from importing `aether.measurement.evaluator` and constructing
+# its own `RealEvaluator` — a second judge, which is the one thing I7
+# forbids and the reason `capability_layer.md` §2.2 declares the `Verdict`
+# capability deliberately closed. ADR-0018's own prose claimed this
+# constraint before this contract existed to enforce it, which is the exact
+# failure mode ADR-0006 names about itself: a document describing an
+# enforcement mechanism that has not been written yet reads as safe and is
+# not. `tail_biased` moving to `domain/text.py` (T1.4) is the direct
+# consequence of this contract: `agency/` needs it and may not reach
+# `measurement/evaluator.py` to get it.

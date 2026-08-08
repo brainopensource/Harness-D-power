@@ -10,6 +10,7 @@ updated: 2026-08-05
 | You are | Read, in order |
 | :--- | :--- |
 | **New to the project** | [`vision.md`](./vision.md) → [`PHASE-0-LOCK.md`](./PHASE-0-LOCK.md) → [`spec.md`](./spec.md) → [`STATUS.md`](./STATUS.md) · **~40 minutes** |
+| **User / Developer using CLI** | [`GUIDELINES_CLI.md`](./GUIDELINES_CLI.md) — Quick starts, local vs paid LLMs, workflows & trajectory DB tracing |
 | **Asking "what is this, really?"** | [`vision.md`](./vision.md) §1 (three horizons) → [ADR-0019](./decisions/0019-three-horizons-harness-framework-metaloop.md) → [`architecture/task_types_and_verdicts.md`](./architecture/task_types_and_verdicts.md) |
 | **About to write code** | [`architecture/coding_guidelines.md`](architecture/coding_guidelines.md) → the dev prompt for the current sprint → the `TASK-0xx` entries it names |
 | **Planning** | [`agile/roadmap.md`](./agile/roadmap.md) → [`agile/milestones.md`](./agile/milestones.md) → [`agile/backlog.md`](./agile/backlog.md#scheduling-ledger) |
@@ -22,6 +23,7 @@ updated: 2026-08-05
 | [`vision.md`](./vision.md) | 1 | Mission and architecture at altitude. Orientation, ~10 min |
 | [`PHASE-0-LOCK.md`](./PHASE-0-LOCK.md) | **1** | **Normative.** What is settled, what is a known gap, what Phase 1 may and may not change |
 | [`spec.md`](./spec.md) | 2 | **Normative.** Invariants I1–I11, the lattice, the ports, the TCB |
+| [`GUIDELINES_CLI.md`](./GUIDELINES_CLI.md) | 2 | **Rationale.** High-level guide, CLI scripts, Local/Cloud LLM config, DB log tracing |
 | [`measurement.md`](./measurement.md) | 2 | **Normative.** Instrument protocol, the A/A floor, gate design |
 | [`decisions/`](decisions/README.md) | 2 | **21 ADRs** (20 Accepted, ADR-0018 Proposed), each with a reversal condition |
 | [`STATUS.md`](./STATUS.md) | — | What is *actually* implemented. No claim without pasted command output |

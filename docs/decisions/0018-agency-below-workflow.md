@@ -4,7 +4,8 @@ updated: 2026-08-07
 ---
 # ADR-0018: `agency/` Sits Below `workflow/`, Not Beside It
 
-**Status**: Proposed · **Date**: 2026-08-07 · **Fork**: raised by the abstraction audit
+**Status**: Accepted · **Date**: 2026-08-08 · **Ratified by**: `TASK-053`, Sprint 5
+**Fork**: raised by the abstraction audit
 
 ## Context
 
@@ -68,9 +69,18 @@ that is the correct direction and it is the direction the system already runs in
 ### What does not change
 
 - **`agency/` cannot import `workflow/`, `measurement/`, or the evaluator.** Layer order forbids
-  it, and `aether-tcb-isolation` names `aether.agency` as a forbidden importer of
-  `measurement.evaluator` explicitly. *The thing that judges still cannot be reached from the
-  thing being judged* — I7 is untouched, and this ADR would be rejected if it were not.
+  the first: `agency` sits below `workflow`. It does **not** forbid the second — the proposed
+  lattice puts `agency` *above* `measurement`, so layer order alone *permits* `agency →
+  measurement`, the ordinary direction for a downward edge. **A dedicated forbidden-import
+  contract, `aether-agency-cannot-reach-the-judge`, is what closes that gap**, added in the same
+  change as the lattice edit. An earlier draft of this ADR claimed `aether-tcb-isolation` already
+  named `aether.agency` as a forbidden importer of `measurement.evaluator`; verified false —
+  that contract's `forbidden_modules` list names `aether.agency` as a forbidden *importee* of the
+  TCB kernel/measurement modules, not a forbidden *importer* of them, which is the opposite
+  direction. Nothing enforced the sentence this ADR was making until the new contract landed.
+  *The thing that judges still cannot be reached from the thing being judged* — I7 is untouched,
+  and this ADR would be rejected if it were not — but the claim is now backed by a contract this
+  ADR names, not by a misreading of an existing one.
 - **`kernel/` and `measurement/` still cannot import `agency/`.** Unchanged.
 - **`evolution/` still imports no higher than `ports/` and is imported by nothing** (ADR-0006).
 - **The dispatch choke point is unchanged.** `agency/` capabilities receive a `DispatchFacade`
@@ -101,11 +111,19 @@ governed by ADR-0006 and [ADR-0014](./0014-workflow-topology-is-data.md) as befo
 - One more layer in a lattice that is already eight deep. Mitigated by the fact that this layer
   was always specified — it is being filled, not invented.
 
-**Neutral.** Contract count stays at 9. This ADR adds no contract; it corrects one.
+**Neutral, corrected.** An earlier draft said contract count stays at 9. Verified false at
+ratification: Sprint 4's forensic audit (finding F11) had already added a tenth contract,
+`aether-workflow-tcb-isolation`, naming the workflow validator and executor as TCB — this ADR
+predates that and never accounted for it. **This ADR's own lattice edit adds an eleventh**,
+`aether-agency-cannot-reach-the-judge` (see "What does not change" above). Contract count goes
+from 10 to 11, and this document is now the second place that undercounted it — the check that
+would have caught the first undercount is `tests/aether/agency/test_lattice.py
+::test_lint_imports_is_green_on_the_real_tree`, which asserts the literal string `"Contracts: 11
+kept, 0 broken."` rather than trusting prose in an ADR to stay current.
 
 ## Enforcement
 
-- `lint-imports` must be **9/9 with `agency/` populated**. A contract that selects zero modules
+- `lint-imports` must be **11/11 with `agency/` populated**. A contract that selects zero modules
   forbids nothing and passes green, so the check that matters is that the change lands **in the
   same commit as the first real `agency/` file** — the same trap ADR-0006 names for the TCB path
   migration, and the reason `TASK-000` was sequenced as the first PR of Sprint 1.

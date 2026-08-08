@@ -33,8 +33,8 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from aether.composition import ReadArgs
 from aether.domain.budget import BudgetDims
+from aether.domain.effects import ReadArgs
 from aether.domain.gate import GateStatus
 from aether.domain.ids import SpanId
 from aether.domain.model_io import ModelMessage, ModelRequest, StopEvent, StopReason, TextDelta
@@ -88,12 +88,25 @@ def build_repair_prompt(payload: EvaluatedCandidate, current_files: str = "") ->
 
     files_section = f"## Current source files\n{current_files}\n\n" if current_files else ""
     assertion_section = f"## Failing assertion line\n{isolated_assertion}\n\n" if isolated_assertion else ""
+    # `apply_detail` is set only when the previous reply was rejected before it
+    # touched the worktree (bad path, invalid syntax, no labelled block). The
+    # test output below is then a red herring — it is the unmodified worktree
+    # failing, not the model's fix — so the real cause has to be named
+    # explicitly or the model repeats the same mistake (audit: leading-slash
+    # paths from small local models rejected every repair attempt because
+    # this section did not exist).
+    rejection_section = (
+        f"## Your previous reply was rejected before it was tested\n{payload.apply_detail}\n\n"
+        if payload.apply_detail
+        else ""
+    )
 
     return (
         f"A previous attempt at this task failed its tests.\n\n"
         f"## Task\n{payload.task.instructions}\n\n"
         f"{files_section}"
         f"## Previous attempt\n{previous}\n\n"
+        f"{rejection_section}"
         f"{assertion_section}"
         f"## Failing test output (tail)\n{failure}\n\n"
         f"Correct the change so these tests pass."
@@ -148,6 +161,7 @@ class RepairStep(WorkflowStep[EvaluatedCandidate, GeneratedPatch]):
                 raw_output=payload.patch_text,
                 edit_format=self._edit_format.name,
                 iteration=payload.iteration,
+                retrieved_files=payload.retrieved_files,
             )
 
         current_files = await self._read_current_files(payload.worktree)
@@ -193,6 +207,7 @@ class RepairStep(WorkflowStep[EvaluatedCandidate, GeneratedPatch]):
             edit_format=self._edit_format.name,
             iteration=payload.iteration + 1,
             stop_reason=stop_reason,
+            retrieved_files=payload.retrieved_files,
         )
 
 

@@ -63,10 +63,10 @@ src/aether/
 ├── domain/          pure models — zero I/O (I1)
 ├── ports/           Protocols — async, wire-serializable (I2, I3)
 ├── kernel/          TCB — dispatch, bus, governor, policy (I5, I8)
-├── agency/          the loop — mutable by the meta-loop
-│   └── context/     assembler · compactor · tokens · taint_gate
 ├── adapters/        behind ports
 ├── measurement/     TCB — evaluator, gates, statistics, runner, harvester
+├── agency/          the mutable capability layer — sources, assembler, inference, roles
+│   └── context/     assembler · compactor · tokens · taint_gate
 ├── workflow/        WorkflowStep DAG + schema/validator/executor (ADR-0013, ADR-0014) — TCB
 ├── evolution/       offline only — never imported by anything (ADR-0006)
 ├── tui/
@@ -79,8 +79,11 @@ contracts encode all of it. A package outside the lattice is where coupling accr
 unobserved.
 
 ```
-engine  >  (agency, workflow)  >  kernel  >  adapters  >  ports  >  domain
+engine  >  workflow  >  agency  >  measurement  >  kernel  >  adapters  >  ports  >  domain
 ```
+
+`agency` sits **below** `workflow` (ADR-0018): the TCB executor drives mutable capabilities,
+not the other way round.
 
 | Package | May import | May be imported by | Contract |
 | :--- | :--- | :--- | :--- |
@@ -88,16 +91,20 @@ engine  >  (agency, workflow)  >  kernel  >  adapters  >  ports  >  domain
 | `ports/` | `domain/` | everything above | `ports-are-pure` |
 | `adapters/` | `ports/`, `domain/` | `kernel/`, `composition.py` | layer order |
 | `kernel/` | `adapters/`, `ports/`, `domain/` | `agency/`, `workflow/`, `engine.py` | `tcb-isolation` |
-| `measurement/` | `ports/`, `domain/`, `kernel/` | `workflow/`, `engine.py` | `tcb-isolation` |
-| `workflow/` | `kernel/`, `measurement/`, `ports/`, `domain/` | `engine.py` | layer order |
-| `agency/` | `kernel/`, `ports/`, `domain/` | `workflow/`, `engine.py` | layer order |
+| `measurement/` | `ports/`, `domain/`, `kernel/` | `agency/`, `workflow/`, `engine.py` | `tcb-isolation` |
+| `agency/` | `kernel/`, `ports/`, `domain/` | `workflow/`, `engine.py` | layer order + `agency-cannot-reach-the-judge` |
+| `workflow/` | `agency/`, `kernel/`, `measurement/`, `ports/`, `domain/` | `engine.py` | layer order |
 | `evolution/` | **`ports/` and `domain/` only** | **nothing** | `tcb-isolation` forbidden importer |
 | `tui/` | `engine.py`, `domain/` | — | layer order |
 
-Three rules carry the weight:
+Four rules carry the weight:
 
 - **`kernel/` and `measurement/` may not import `agency/` or `workflow/`.** The thing that
   judges cannot reach up into the thing being judged.
+- **`agency/` may not import `measurement/`, even though the bare lattice line above would
+  permit the edge** (`measurement` sits below `agency`). A dedicated forbidden-import contract
+  closes that gap: `spec.md`'s port-versioning and TCB rules exist so that a capability cannot
+  construct its own `Evaluator` and become a second judge, which is the one thing I7 forbids.
 - **`evolution/` imports no higher than `ports/` and is imported by nothing.** "Offline" is a
   description; this is the import rule that makes it one (ADR-0006).
 - **`workflow/` sits above `kernel/`** because the executor dispatches through the choke point.
