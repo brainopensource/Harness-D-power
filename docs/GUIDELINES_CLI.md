@@ -1,6 +1,6 @@
 ---
 status: rationale
-updated: 2026-08-07
+updated: 2026-08-08
 ---
 
 # AETHER CLI & Orchestration Guidelines
@@ -13,10 +13,15 @@ Welcome to the **AETHER Autonomous Coding Agent Harness & Orchestrator**. This g
 
 AETHER is a SOTA autonomous coding agent harness designed around capability security, a microkernel dispatch choke point, declarative workflow topologies, and deterministic evaluation gates.
 
+AETHER has no CLI of its own yet (only the Python `engine.run()` API and ad-hoc
+scripts — see §4). The `sagiha` command that exists in this repo belongs to
+`src/sagiha/`, a separate, retiring predecessor project (`AGENTS.md`); its
+`RunLoop` does **not** call `aether.engine` and is not part of this diagram.
+
 ```
                   +-----------------------------------+
-                  |        Client Script / CLI        |
-                  | (sagiha run / python -m scripts)  |
+                  |   Client Script (scripts/*.py)    |
+                  |  or a direct engine.run() call    |
                   +-----------------+-----------------+
                                     |
                                     v
@@ -121,47 +126,36 @@ To use cloud provider endpoints:
 
 ---
 
-## 4. CLI Tools & Scripting Guidelines
+## 4. Running AETHER Today
 
-### Method A: Using the CLI Tool (`sagiha run` / `sagiha replay`)
+**AETHER has no console-script CLI yet.** `sagiha run` / `sagiha replay` are
+real commands, but they belong to `src/sagiha/` — a separate, retiring
+predecessor codebase (`AGENTS.md`) with its own kernel and run loop. They do
+not call `aether.engine`, do not exercise anything under `src/aether/`, and a
+`sagiha run` invocation proves nothing about AETHER. (`TASK-058` and
+`TASK-075` in `docs/agile/backlog.md` scope AETHER's own client; until they
+land, use one of the two options below.)
 
-The repository provides a Typer-based CLI entry point:
+### Option A: `scripts/run_aether_task.py` — generic ad-hoc runner
+
+Wraps `aether.engine.run()` with real CLI flags for an arbitrary goal, entry
+file(s), and test command — the closest thing to a CLI AETHER has today:
 
 ```bash
-# Run a task using a local Ollama model
-uv run sagiha run "Create main.py that prints the sum of two numbers (5 + 7 = 12)" \
-  --model-name "deepseek-r1:8b" \
-  --base-url "http://localhost:11434/v1" \
-  --mode live \
-  --workspace . \
-  --trajectory-db .sagiha/trajectories.db
-
-# Replay and verify a previous run from cassette/trajectory DB
-uv run sagiha replay verify --trajectory-db .sagiha/trajectories.db
+uv run python3 scripts/run_aether_task.py \
+  --workspace swe_tasks/my_task \
+  --entry-file main.py \
+  --instructions "Write is_even(n: int) -> bool in main.py returning True if n is even." \
+  --test-file run_tests.py \
+  --test-code "import main; assert main.is_even(4) is True; print('PASSED')" \
+  --model qwen2.5:1.5b \
+  --base-url http://127.0.0.1:11434/v1
 ```
 
-#### Key Arguments & Flags:
-- `goal` (Argument): The task description for the agent.
-- `--model-name`: Model identifier (e.g. `deepseek-r1:8b`, `qwen2.5-coder:7b`, `gpt-4o`).
-- `--base-url`: LLM API endpoint base URL.
-- `--mode`: Execution mode (`live` for real LLM calls, `replay` to replay recorded events, `record` to capture live calls into cassettes).
-- `--trajectory-db`: Path to the SQLite trajectory database (default: `.sagiha/trajectories.db`).
-- `--max-steps`: Maximum steps before governor intervention.
+### Option B: Call `aether.engine.run()` directly from a script
 
-### Method B: Using Custom Python Runner Scripts
-
-For headless, programmatic execution, invoke `aether.engine.run()` directly from Python scripts.
-
-CLI Flag Pattern for Python Scripts:
-```bash
-python -m scripts.run_task \
-  --instructions "Create main.py printing sum of 5 and 7" \
-  --local \
-  --deepseek \
-  --model-name "deepseek-r1:8b" \
-  --maxattempts 1 \
-  --trajectory-db "./my_trajectory.db"
-```
+For full control, invoke the headless engine API yourself — see the tutorials
+in §6. `scripts/run_aether_demo.py` is a minimal worked example.
 
 ---
 
@@ -380,9 +374,11 @@ In `linear_repair_v1.yaml`, if the `evaluate` node returns `FAILED`, execution a
 
 | Action | Command / Function |
 | :--- | :--- |
-| **Run Task via CLI** | `uv run sagiha run "goal" --base-url "http://localhost:11434/v1" --mode live` |
+| **Run an ad-hoc task** | `uv run python3 scripts/run_aether_task.py --workspace ... --instructions "..." --entry-file main.py --test-code "..." --model ...` |
 | **Run Task via Python API** | `await aether.engine.run(task, repo_path=..., topology_path=..., ...)` |
 | **Inspect DB via sqlite3** | `sqlite3 trajectory.db "SELECT seq, event_type, at FROM stored_events;"` |
-| **Replay Run** | `uv run sagiha replay verify --trajectory-db trajectory.db` |
 | **Linear Workflow** | `workflows/linear_v1.yaml` |
 | **Repair Workflow** | `workflows/linear_repair_v1.yaml` |
+
+There is no AETHER-native replay verification CLI yet — `sagiha replay` is
+`src/sagiha/`'s own command, unrelated to `aether.engine`.

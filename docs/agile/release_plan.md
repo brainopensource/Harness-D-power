@@ -172,7 +172,7 @@ configurations disagreeing systematically means something is not identical.
 
 ## Sprint 5 — The Capability Layer 📋
 
-> Plan: [`sprint-05.md`](./sprints/sprint-05.md) · Design: [`capability_layer.md`](../architecture/capability_layer.md)
+> Plan: [`sprint-05.md`](./sprints/sprint-05.md) · Developer prompt: [`sprint-05-dev-prompt.md`](./sprints/sprint-05-dev-prompt.md) · Design: [`capability_layer.md`](../architecture/capability_layer.md)
 
 **The goal.** Insert the missing layer between *topology (data)* and *dispatch facade*. Today a
 node is the only unit of reuse, and a node is a 60–150 line class that inlines five concerns at
