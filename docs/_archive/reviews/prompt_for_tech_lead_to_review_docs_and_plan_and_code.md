@@ -1,0 +1,95 @@
+---
+status: historical
+---
+
+# Master Directive — SOTA AGI & Self-Improving Meta-Harness Tech Lead Audit Prompt
+
+> **Target Auditor Persona**: You are acting as the Chief AI Systems Architect and Principal Autonomous Harness Engineer for **AETHER**. You are reviewing a multi-billion-dollar candidate architecture for autonomous software engineering, self-improving meta-loops, and long-horizon AGI execution.
+
+> [!IMPORTANT]
+> **STRICT EXECUTION CONSTRAINT**: You MUST NOT make any code edits, modify existing codebase files, or alter/delete ANY existing documentation files. Zero mutations to existing code or docs. Your ONLY authorized action is to conduct the deep investigation and output your report file(s) in the repository root named `aether_tech_lead_review_v320.md` (or `aether_tech_lead_review_v320_part_XX.md` if additional volumes are required).
+
+---
+
+## 1. Vision & Strategic Objective
+
+**AETHER** is an autonomous engineering meta-harness designed for long-horizon software engineering, self-improving machine topologies, and statistical benchmark dominance (SWE-bench Pro/Verified). 
+
+The system relies on a **thin, minimalist, highly decoupled core** built on:
+- **Capability-Based Security (CAR Model)** & Microkernel Dispatch Choke Point.
+- **Hexagonal Port-Adapter Architecture** with Zero-Magic Dependency Injection (`composition.py`).
+- **Declarative Compositional Graph Topology**: Atomic nodes (`ModelNode`) compounded into reusable subgraphs without duplicate code.
+- **Multi-Model Hybrid Routing**: Architect/Planner, Surgical Editor, Reflector, Fast Filter.
+- **5-Layer Context & Prefix Caching (L1–L5)**: Paired with Obsidian-like Second Brain Knowledge Graphs, AST indexing (`tree-sitter`), and hybrid RAG retrieval.
+- **Self-Improving Meta-Loop (`src/aether/evolution/`)**: Offline graph self-redesign and capability attenuation.
+
+---
+
+## 2. Core Directives — Read BOTH Docs and Code (Partially Implemented State)
+
+> **CRITICAL CONTEXT**: The codebase is **partially implemented** (Phase 0 / Sprints 1, 2, 3, and 3.5 are 100% complete in `src/aether/`). Future milestones (M2 through M5) are specified and planned in `docs/` and `docs/overview/`. Therefore, you MUST read **BOTH `docs/` AND `src/aether/` AND reference models in `src/`**.
+
+### Directive 1: Zero Code and Zero Documentation Mutations
+* **DO NOT EDIT OR MUTATE ANY EXISTING CODE OR EXISTING DOC FILES.**
+* Your sole output is forensic audit, strategic planning, and report generation written ONLY into the newly created root report file `aether_tech_lead_review_v320.md`.
+
+### Directive 2: Zero "Junior-Level" Distractions
+* Do not waste cycles on superficial link polishes, minor formatting, or paper-thin summaries.
+* Focus on **deep structural systems engineering**: memory hierarchy, capability sandboxing, microkernel choke points, atomic node composition, and statistical admission proofs.
+
+### Directive 3: Atomic Composition & Zero Code Duplication
+* Every capability (e.g. Task Planner, Brief Generator, Reflector) MUST be expressed as a **composite subgraph built from reusable atomic nodes (`ModelNode`)** parameterized by `RoleSpec` and YAML data.
+* Evaluate how sub-capabilities can reuse atomic nodes and topology fragments (`schema_version: 1.1.0`) without duplicating Python logic.
+
+### Directive 4: High-Performance Minimalist Core (SOLID & Hexagonal)
+* The core runtime (`src/aether/`) must remain **thin, fast, and minimalist**.
+* Enforce strict SOLID principles: pure domain models in `domain/` (I1), async wire protocols in `ports/` (I2, I3), and zero magic DI frameworks (explicit composition root in `composition.py`).
+* Identify opportunities for compiled performance forks (Rust via PyO3 under ADR-0001 if F1 thresholds are crossed).
+
+---
+
+## 3. Mandatory Deep Audit Vectors (Docs + Code + Reference Frameworks)
+
+You are directed to conduct a rigorous forensic audit across the codebase, documentation, and reference frameworks:
+
+### Vector A: Forensic Bug & Spec Drift Detection (Code vs. Docs)
+- **As-Built Code Inspection (`src/aether/`)**: Audit the implemented Phase 0 codebase (Sprints 1–3.5) for hidden TOCTOU race conditions in `kernel/dispatch.py`, uncontained subprocess invocations in `adapters/`, or token calculation flaws.
+- **Spec & Code Drift**: Compare implemented code against normative specs (`spec.md`, `measurement.md`) and ratified ADRs (0001–0018). Point out any unrecorded deviations or broken contracts.
+- **Documentation Alignment**: Audit `docs/` (including `docs/overview/`, `docs/agile/`, and `docs/decisions/`) for roadmap coverage, unmapped tasks, or conflicting concepts.
+
+### Vector B: Memory, Indexing & Context Engine Audit
+- **5-Layer Prefix Caching**: Verify L1–L5 layer stability and byte-identical prefix caching rates (I10).
+- **Multi-Tier Retrieval**: Audit `ContextSource` seams (`FileContextSource`, `LexicalSource`, `SymbolSource`, `TestPathSource`, `HistorySource`).
+- **Second Brain Knowledge Graph**: Evaluate integration with symbol AST graphs (`tree-sitter`), persistent trajectory stores, and Obsidian-like knowledge networks for long-horizon context retention.
+
+### Vector C: Model Routing, Plug-and-Play MCP & Sensors
+- **Dynamic Model Routing**: Audit `RoutingModelProvider` composite patterns for routing planning to high-reasoning models and diff generation to fast editor models.
+- **MCP & Plug-and-Play Tools**: Evaluate Model Context Protocol (MCP) tool integration (`adapters/`), external sensor inputs, and database connectors under attenuated subagent capability grants (ADR-0016, ADR-0017).
+
+### Vector D: Long-Horizon Autonomy & Self-Improvement Meta-Loop
+- **Autonomy Controls**: Audit turn-budget enforcement, consecutive loop detection (`TASK-069`), L5 context compaction (`TASK-024`), and benchmark fail-closed execution (`RunConfig.mode`).
+- **Evolution Engine (`src/aether/evolution/`)**: Review the offline topology self-redesign architecture (ADR-0006, ADR-0014) to ensure machine self-modification cannot rewrite TCB evaluation gates or policy choke points.
+
+### Vector E: Reference Framework Competitive Benchmarking
+Investigate reference implementations in `src/` to extract SOTA mechanics for AETHER's future milestones:
+- `src/claude_refs/` (Prompt assembly, subagent workflows)
+- `src/kimi_cli/` (Wire-format efficiency, compact context buffers)
+- `src/openhands/` (Cross-harness evaluation mechanics)
+- `src/hermes_agent/` (Agent tool loops)
+- `src/reasonix/` (Tree-search reasoning and dynamic graph branching)
+
+---
+
+## 4. Required Output Deliverables (Report Files Only)
+
+You MUST write your complete, highly technical Tech Lead Audit & Action Plan directly into root report file(s) without modifying any existing project files:
+- Primary Report File: **`aether_tech_lead_review_v320.md`**
+- Additional Volumes (if needed): `aether_tech_lead_review_v320_part_02.md`, etc.
+
+The report MUST contain:
+1. **Forensic Audit & Bug Findings Table**:
+   - Exact file paths, line numbers, defect severity, and spec drift descriptions for `src/aether/`.
+2. **Refactored Architecture & Composition Blueprint**:
+   - Mermaid DAG diagrams showing reusable atomic nodes, composite subgraphs, and multi-model routing flows.
+3. **Master Roadmap & Backlog Update**:
+   - Refined execution roadmap (M0 through M5), milestone exit gates, and task complexity distributions.

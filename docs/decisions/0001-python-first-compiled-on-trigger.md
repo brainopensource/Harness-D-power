@@ -4,7 +4,7 @@ updated: 2026-08-05
 ---
 # ADR-0001: Python-First; Compiled Sidecars Only on a Measured Trigger
 
-**Status**: Accepted · **Date**: 2026-08-05 · **Fork**: F1
+**Status**: Accepted (provisional) · **Date**: 2026-08-05 · **Fork**: F1
 
 ## Context
 
@@ -54,7 +54,7 @@ is why it needs a measurement rather than a debate.
 ## Reversal Conditions
 
 A measured number crossing RT-1, RT-2 or RT-3 on real hardware, recorded in
-`docs/rationale/benchmarks/`, promotes **exactly the component that crossed it** — never the
+`docs/benchmarks/results/`, promotes **exactly the component that crossed it** — never the
 whole core.
 
 The two timers may reverse this ADR directly. If worktree creation or AST parse-and-validate

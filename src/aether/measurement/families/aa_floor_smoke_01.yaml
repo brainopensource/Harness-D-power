@@ -1,0 +1,50 @@
+# Pre-registered gate family for the A/A variance floor (ADR-0003 rev. 2 §3).
+#
+# Committed BEFORE the floor's arms run. `statistics.FamilyRegistry` refuses to
+# compute corrected p-values for anything not declared here, so this file
+# existing before the run is what makes the floor's p-value admissible at all.
+#
+# An A/A floor declares a family for one reason: it computes a corrected
+# p-value, and the gatekeeper does not exempt runs it happens to trust. The
+# hypothesis is the A/A null — two identical configurations differ only by
+# variance. **A significant result here is a bug report about the harness, not
+# a discovery**: it means two identical configurations disagree systematically.
+#
+# The `power` block records the *prior* used for sizing, taken from ADR-0003
+# rev. 2's "clean" row, because the discordance this floor is about to measure
+# does not exist yet — that is the chicken-and-egg the floor breaks. Every
+# family declared *after* the floor cites the floor's measured p01/p10 instead,
+# and cites it in its PR.
+schema_version: "1.0.0"
+family_id: aa_floor_smoke_01
+registered_at: "2026-08-07T00:00:00Z"
+manifest_hash: "sha256:7c2c2467a7430ac7edc79665532154112660805780b87f3f770cb77a5ccd47ef"
+model_fingerprint: "openai_compatible:qwen/qwen3-coder:openrouter"
+outcome: { primary: resolve_pass_at_1, aggregation: first_seeded_pass, extra_passes_per_arm: 0 }
+alpha_family: 0.05
+correction: holm_bonferroni
+sample: { tier: smoke, n: 50, split: dev }
+power:
+  minimal_effect_pts: 10
+  assumed_p01: 0.12          # prior, from ADR-0003 rev. 2's clean row — NOT measured yet
+  assumed_p10: 0.02
+  target_power: 0.8
+  simulation_seed: 7
+arms:
+  # Identical by construction: same topology hash, same config hash. If these
+  # two ever differ, the run is not an A/A run and the floor it produces is
+  # measuring a treatment effect nobody declared.
+  - { arm_id: aether_a, harness_id: aether,
+      config_hash: "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      topology_hash: "sha256:0000000000000000000000000000000000000000000000000000000000000000" }
+  - { arm_id: aether_b, harness_id: aether,
+      config_hash: "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      topology_hash: "sha256:0000000000000000000000000000000000000000000000000000000000000000" }
+hypotheses:
+  - hypothesis_id: aa_null_no_systematic_difference
+    arm_a: aether_a
+    arm_b: aether_b
+    direction: two_sided
+    statistic: exact_mcnemar
+    ci: { method: seeded_bootstrap, iterations: 2000, seed: 7 }
+cost_criterion: { metric: usd_per_resolved_task, max_increase_pct: 20 }

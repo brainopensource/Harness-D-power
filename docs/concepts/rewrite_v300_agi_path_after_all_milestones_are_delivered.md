@@ -1,3 +1,9 @@
+---
+status: rationale
+retrieval: excluded
+updated: 2026-08-06
+---
+
 # Exploratory Architectural Specs for System Evolution
 
 **To**: Project Lead, Lead Architect, AI/ML Lead, and Core Engine Tech Leads  

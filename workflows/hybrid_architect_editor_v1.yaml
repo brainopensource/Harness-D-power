@@ -1,0 +1,35 @@
+schema_version: "1.0.0"
+topology_id: hybrid_architect_editor_v1
+description: "Hybrid DeepSeek Flash Architect (planning) + Local Qwen Editor (code generation)"
+nodes:
+  - { id: retrieve,  kind: retrieve,  budget: { wall_clock_ms: 120000 },
+      params: { max_bytes: 10000 } }
+  - { id: architect, kind: architect,
+      params: { 
+        model: "deepseek/deepseek-chat", 
+        base_url: "https://openrouter.ai/api/v1",
+        max_tokens: 512 
+      },
+      budget: { usd_micros: 50000, prompt_tokens: 10000, completion_tokens: 512 } }
+  - { id: generate,  kind: generate,
+      params: { edit_format: whole_file_codeblock, max_tokens: 1024 },
+      budget: { usd_micros: 200000, prompt_tokens: 30000, completion_tokens: 2000 } }
+  - { id: apply,     kind: apply,     params: { edit_format: whole_file_codeblock },
+      budget: { wall_clock_ms: 30000 } }
+  - { id: evaluate,  kind: evaluate,  budget: { wall_clock_ms: 900000, concurrency_slots: 1 } }
+  - { id: repair,    kind: repair,
+      params: { edit_format: whole_file_codeblock, max_tokens: 1024 },
+      budget: { usd_micros: 200000, prompt_tokens: 30000, completion_tokens: 2000 } }
+edges:
+  - { from: retrieve,  to: architect }
+  - { from: architect, to: generate }
+  - { from: generate,  to: apply }
+  - { from: apply,     to: evaluate }
+repair:
+  from_node: evaluate
+  via_nodes: [repair, apply]
+  back_to: evaluate
+  max_iterations: 3
+  budget_per_iteration: { usd_micros: 300000, prompt_tokens: 120000,
+                          completion_tokens: 8000, wall_clock_ms: 960000,
+                          concurrency_slots: 1 }

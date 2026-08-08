@@ -1,0 +1,8 @@
+schema_version: "1.0.0"
+topology_id: bad_socket_compat
+description: "producer/consumer socket types mismatch"
+nodes:
+  - { id: node_a, kind: kind_a, budget: { wall_clock_ms: 1000 } }
+  - { id: node_b, kind: kind_b, budget: { wall_clock_ms: 1000 } }
+edges:
+  - { from: node_a, to: node_b }

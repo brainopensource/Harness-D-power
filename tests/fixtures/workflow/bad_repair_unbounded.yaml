@@ -1,0 +1,17 @@
+schema_version: "1.0.0"
+topology_id: bad_repair_unbounded
+description: "repair block with no max_iterations — an unbounded loop"
+nodes:
+  - { id: retrieve, kind: retrieve, budget: { wall_clock_ms: 1000 } }
+  - { id: generate, kind: generate, budget: { wall_clock_ms: 1000 } }
+  - { id: apply,    kind: apply,    budget: { wall_clock_ms: 1000 } }
+  - { id: evaluate, kind: evaluate, budget: { wall_clock_ms: 1000 } }
+  - { id: repair,   kind: repair,   budget: { wall_clock_ms: 1000 } }
+edges:
+  - { from: retrieve, to: generate }
+  - { from: generate, to: apply }
+  - { from: apply,    to: evaluate }
+repair:
+  from_node: evaluate
+  via_nodes: [repair, apply]
+  back_to: evaluate

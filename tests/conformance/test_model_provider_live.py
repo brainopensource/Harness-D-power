@@ -1,0 +1,53 @@
+"""Live smoke test against a real local OpenAI-compatible endpoint (B2b).
+
+Skips when nothing is listening on :11434; hard-fails when
+AETHER_REQUIRE_LIVE_MODEL=1 promises one is there. Not part of the deterministic
+conformance suite — see tests/live_support.py.
+"""
+
+from __future__ import annotations
+
+import pytest
+
+from aether.adapters.model_provider.openai_compatible import OpenAICompatibleProvider
+from aether.domain.model_io import ModelMessage, ModelRequest, StopEvent
+from aether.domain.taint import Provenance, TaintSpan
+from tests.live_support import LOCAL_BASE_URL, require_live_model
+
+
+@pytest.mark.live
+async def test_local_endpoint_streams_a_real_completion() -> None:
+    # Whatever this endpoint actually serves — a hardcoded model turns "the
+    # endpoint serves something else" into a false adapter failure.
+    model = require_live_model()
+
+    from datetime import UTC, datetime
+
+    from aether.domain.ids import SpanId
+
+    provider = OpenAICompatibleProvider(LOCAL_BASE_URL, model)
+    request = ModelRequest(
+        model=model,
+        messages=(
+            ModelMessage(
+                role="user",
+                spans=(
+                    TaintSpan(
+                        span_id=SpanId("s1"),
+                        label=Provenance.OPERATOR,
+                        text="Say hello in one word.",
+                        source="live_smoke_test",
+                        created_at=datetime.now(UTC),
+                    ),
+                ),
+            ),
+        ),
+        max_tokens=16,
+    )
+
+    events = [event async for event in provider.stream(request)]
+
+    assert isinstance(events[-1], StopEvent)
+    assert events[-1].reason != "provider_error", (
+        f"endpoint {LOCAL_BASE_URL} rejected a completion for model {model!r}"
+    )

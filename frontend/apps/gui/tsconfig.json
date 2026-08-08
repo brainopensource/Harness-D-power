@@ -1,8 +1,0 @@
-{
-  "extends": "@sagiha/config/tsconfig.base.json",
-  "compilerOptions": {
-    "noEmit": true,
-    "types": ["vite/client", "@testing-library/jest-dom"]
-  },
-  "include": ["src"]
-}

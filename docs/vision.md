@@ -12,26 +12,45 @@ updated: 2026-08-05
 
 ## 1. The mission
 
-**Build an autonomous coding agent harness that competes at the top of the public
-leaderboards.**
+**Build a decoupled framework for autonomous agents — proven on the public leaderboards, and
+designed to eventually improve its own workflows.**
 
-The targets are **SWE-bench Pro** and **SWE-bench Verified** — an agent gets a real bug
-report from a real open-source repository and must produce a patch that makes the project's
-own hidden tests pass. Pro is harder and newer, and is our primary screen.
+Three things, in this order, and the order is not reversible
+([ADR-0019](./decisions/0019-three-horizons-harness-framework-metaloop.md)):
 
-Two things that are easy to misread:
+| Horizon | What it is | Why it comes when it does |
+| :--- | :--- | :--- |
+| **H1 — Harness** | A SWE-bench harness with a deterministic judge and a calibrated instrument | You cannot trust any looser verdict until you have calibrated a strict one |
+| **H2 — Framework** | Many task types — code fix, Q&A, explanation, research — each with its own verdict; capability declared in data; third parties extend without forking | A meta-loop needs a space of variants to search, and that space has to be **data** |
+| **H3 — Meta-loop** | The system proposes changes to its own roles, topologies and prompts; the statistics admit or delete them | Last, because everything below exists to stop it grading itself |
 
-**We are not building a model.** We build the system *around* one — tools, a workspace, a
-memory, a security perimeter, a feedback loop. The industry term is a **harness**. A frontier
-model called once with a bug report resolves maybe 20–40% of tasks; the same model inside a
-good harness resolves substantially more. **That delta is the entire product.**
+**We are not building a model.** We build the system *around* one — tools, a workspace, memory,
+retrieval, a security perimeter, a feedback loop. The industry term is a **harness**. A frontier
+model called once with a bug report resolves maybe 20–40% of tasks; the same model inside a good
+harness resolves substantially more. **That delta is the entire product.**
 
-**So we measure two numbers, always together.** The absolute score is dominated by which
-model we are allowed to call — a commercial decision, not an engineering one. The number
-that reflects our work is **lift**: the resolve-rate delta between a bare model call and the
-same model inside AETHER on identical tasks. Lift is the claim that survives a model swap
-and a leaderboard reshuffle. Absolute is the claim that sells. We publish both, and never one
-without the other.
+**SWE-bench is the proving ground, not the purpose.** It is the one task type with a judge that
+cannot be argued with, which is exactly what makes it the calibration instrument for everything
+looser that follows. Coding is the first capability, not the only one.
+
+**So we measure two numbers, always together.** The absolute score is dominated by which model
+we are allowed to call — a commercial decision, not an engineering one. The number that reflects
+our work is **lift**: the resolve-rate delta between a bare model call and the same model inside
+AETHER on identical tasks. Lift survives a model swap and a leaderboard reshuffle. Absolute is
+the claim that sells. We publish both, and never one without the other.
+
+### Why the third horizon is the hard one
+
+Four competing harnesses were read at source level. Every one of them has the *primitives* for
+self-improvement — trajectory logs, LLM judges, versioned configs, memory consolidation. **Not
+one has closed the loop.** The most advanced, Hermes, ships a real GEPA optimiser whose
+"continuous improvement" phase is a one-line empty file.
+
+The reason is always the same, and it is the reason this project looks over-engineered for four
+sprints: **you cannot safely let a system improve itself until you have a judge it cannot
+influence.** An LLM judge that also grades the changes made to it has no fixed point. Everything
+in [`measurement.md`](./measurement.md) — the floor, derived N, the family gatekeeper, I7, I9 —
+is the precondition for H3, not overhead on H1.
 
 ---
 
@@ -150,10 +169,10 @@ last one.
 | You want | Read |
 | :--- | :--- |
 | What is true | [`spec.md`](./spec.md) — the normative statement |
-| Why a decision went the way it did | [`decisions/`](./decisions/README.md) — ADRs with reversal conditions |
+| Why a decision went the way it did | [`decisions/`](decisions/README.md) — ADRs with reversal conditions |
 | How anything gets measured | [`measurement.md`](./measurement.md) |
 | What is actually built | [`STATUS.md`](./STATUS.md) |
-| How Phase 0 reached its decisions | [`00/`](./00/) — the audit and decision trail |
+| How Phase 0 reached its decisions | [`concepts/`](concepts/README.md) — the audit and decision trail |
 
 **Contracts live in code.** When a document and `src/aether/ports/` disagree, the code is
 right and the document is a bug.

@@ -1,0 +1,134 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "aether://schemas/workflow/1.0.0"
+title: AETHER Workflow Topology
+type: object
+additionalProperties: false
+required: [schema_version, topology_id, description, nodes, edges]
+
+properties:
+  schema_version: { type: string, pattern: '^1\.\d+\.\d+$' }
+  topology_id:
+    type: string
+    pattern: '^[a-z][a-z0-9_]{2,63}$'
+    description: Stable human id. Machine identity is the canonical-JSON sha256.
+  description: { type: string, minLength: 1, maxLength: 500 }
+  ancestry:
+    type: object
+    additionalProperties: false
+    description: >
+      Provenance for meta-loop-proposed variants: which topology this mutated
+      from, and the admission record that let it in (M5 gates G5.2/G5.3;
+      rollback = re-pinning parent_hash).
+    properties:
+      parent_hash: { type: string, pattern: '^sha256:[0-9a-f]{64}$' }
+      admitted_by_family: { type: string, pattern: '^sha256:[0-9a-f]{64}$' }
+      proposer: { type: string, enum: [human, meta_loop] }
+
+  nodes:
+    type: array
+    minItems: 2
+    items:
+      type: object
+      additionalProperties: false
+      required: [id, kind, budget]
+      properties:
+        id: { type: string, pattern: '^[a-z][a-z0-9_]{1,63}$' }
+        kind:
+          type: string
+          description: >
+            Must resolve to a WorkflowStep registered at composition (I6).
+            Topologies reference kinds, never classes; an unknown kind is a
+            validation error, not a late import.
+          examples: [retrieve, generate, apply, evaluate, repair, rank]
+        params:
+          type: object
+          description: >
+            Kind-specific configuration, validated against the step's own
+            declared params schema (two-phase validation).
+        budget:
+          $ref: '#/$defs/budget_dims'
+          description: >
+            Reservation ceiling for this node per execution (static check 5:
+            every effectful node carries one; the executor reserves before
+            dispatch — reserve/commit/release, spec §5).
+
+  edges:
+    type: array
+    minItems: 1
+    items:
+      type: object
+      additionalProperties: false
+      required: [from, to]
+      properties:
+        from: { type: string }
+        to: { type: string }
+        when:
+          type: string
+          enum: [always, on_pass, on_fail, on_instrument_error]
+          default: always
+          description: >
+            Conditional routing keyed to the tri-state GateReport of the source
+            node. on_instrument_error MUST route to a terminal flag node, never
+            into repair — an instrument failure is not a repair candidate (B4).
+
+  repair:
+    type: object
+    additionalProperties: false
+    description: >
+      Bounded repair loops (the ADR-0013 amendment). Executed as a static
+      unroll — a cycle with a bound is still a DAG. Absent block = no repair.
+    required: [from_node, via_nodes, back_to, max_iterations]
+    properties:
+      from_node: { type: string, description: "evaluate-kind node whose on_fail feeds the loop" }
+      via_nodes: { type: array, minItems: 1, items: { type: string } }
+      back_to: { type: string }
+      max_iterations: { type: integer, minimum: 1, maximum: 16 }
+      budget_per_iteration: { $ref: '#/$defs/budget_dims' }
+
+  fan_out:
+    type: array
+    description: Declared Best-of-N sites (static check 4; ADR-0010 sequencing).
+    items:
+      type: object
+      additionalProperties: false
+      required: [node, n, cache_sequencing]
+      properties:
+        node: { type: string }
+        n: { type: integer, minimum: 2, maximum: 32 }
+        cache_sequencing:
+          type: string
+          enum: [warm_first_then_parallel, fully_sequential]
+          description: >
+            warm_first_then_parallel = candidate 1 issued alone to warm the
+            shared prefix, then 2..N in parallel. Naive parallel over a cold
+            prefix is a large cost multiple and is not expressible here.
+        rank_by:
+          type: string
+          description: >
+            Optional learned/proxy ranker id. Rankers ORDER candidates and may
+            never ADMIT one (I9) — admission is the evaluate node, always.
+
+$defs:
+  budget_dims:
+    type: object
+    additionalProperties: false
+    properties:
+      usd_micros: { type: integer, minimum: 0 }
+      prompt_tokens: { type: integer, minimum: 0 }
+      completion_tokens: { type: integer, minimum: 0 }
+      wall_clock_ms: { type: integer, minimum: 0 }
+      concurrency_slots: { type: integer, minimum: 0 }
+
+x-static-checks:   # enforced by TopologyValidator (TCB); schema-adjacent contract
+  - socket_compatibility: >
+      For every edge (a→b): a.output_type must be assignable to b.input_type,
+      using the WorkflowStep[In, Out] socket types registered for each kind.
+  - evaluator_termination: >
+      Every path from every entry node terminates at a node of kind `evaluate`
+      (structural I7 — no topology routes around the judge). `on_instrument_error`
+      terminal flag nodes are the sole exemption.
+  - acyclicity: The graph excluding declared `repair` blocks is a DAG.
+  - repair_reachability: repair.via_nodes and back_to lie on a path re-entering
+      the from_node's evaluate; unrolled depth = max_iterations.
+  - fanout_join: every fan_out node has a declared join (rank or first-pass) —
+      unjoined fan-out leaks worktrees and leases.

@@ -1,0 +1,19 @@
+schema_version: "1.0.0"
+topology_id: bad_repair_socket_mismatch
+description: "the unrolled repair chain's sockets do not line up"
+nodes:
+  - { id: retrieve, kind: retrieve, budget: { wall_clock_ms: 1000 } }
+  - { id: generate, kind: generate, budget: { wall_clock_ms: 1000 } }
+  - { id: apply,    kind: apply,    budget: { wall_clock_ms: 1000 } }
+  - { id: evaluate, kind: evaluate, budget: { wall_clock_ms: 1000 } }
+  - { id: repair,   kind: repair,   budget: { wall_clock_ms: 1000 } }
+edges:
+  - { from: retrieve, to: generate }
+  - { from: generate, to: apply }
+  - { from: apply,    to: evaluate }
+repair:
+  from_node: evaluate
+  via_nodes: [repair]
+  back_to: evaluate
+  max_iterations: 2
+  budget_per_iteration: { wall_clock_ms: 2000 }

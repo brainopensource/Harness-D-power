@@ -41,7 +41,7 @@ _GROUP_INTRO = {
         "never be mistaken for a gated one by a later benchmark report or outer-loop training set.\n\n"
         "`run.started` carries the extension manifest because a trajectory that replays against a "
         "different extension set is not a replay. See "
-        "[ADR-0013](../08-decisions/0013-extension-registration.md)."
+        "[ADR-0013](../decisions/0013-workflow-dag-phased.md)."
     ),
     "Reasoning": (
         "`model.delta` is the one high-volume event and the only one observers are permitted to drop "
@@ -107,11 +107,11 @@ updated: 2026-07-30
 > [!IMPORTANT]
 > **This file is generated** from `src/sagiha/domain/events.py` by `scripts/gen_event_catalog.py`,
 > run in CI with `--check`. Edit the Python, not this file — see
-> [Contracts to Code](../implementation/contracts-to-code.md).
+> [Core Skeletons and Protocols](../architecture/core_skeletons_and_protocols.md).
 
 ## **Why This Module Exists**
 
-[Event Bus & Hooks](../02-architecture/event-bus-and-hooks.md) explains the *mechanism*: one stream,
+[Architecture Diagrams](../architecture/architecture_diagrams.md) explains the *mechanism*: one stream,
 many consumers, observers that cannot influence and interceptors that cannot mutate. This file is the
 *registry*: what every event is, what it carries, who emits it, who consumes it, and whether replay
 depends on it.
@@ -123,7 +123,7 @@ needs a new event is a feature that changes this table, in public, on purpose.
 
 ## **Conventions**
 
-* Every event extends `Event` ([Domain Schemas](../03-contracts-and-models/domain-schemas.md)):
+* Every event extends `Event` ([Schemas and Contracts](../architecture/schemas_and_contracts.md)):
   `event`, `schema_version`, `run_id`, `step_id`, aware-UTC `timestamp`.
 * Names are `group.past_tense`. Events describe **what happened**, never what should happen — an event
   named as a command is a method call wearing a costume.
@@ -131,7 +131,7 @@ needs a new event is a feature that changes this table, in public, on purpose.
 * **Replay-relevant** means the future `sagiha replay --verify-all` gate
   (**Planned — Sprint 3**, [STATUS.md](../STATUS.md)) asserts on it. Those events are the replay
   contract; changing one requires an upcaster
-  ([Port Stability](../03-contracts-and-models/port-stability-and-versioning.md)).
+  ([Schemas and Contracts](../architecture/schemas_and_contracts.md)).
 
 Subscriber abbreviations: **TS** TrajectoryStore · **OT** OTel exporter · **UI** TUI/SSE/A2A
 streamers · **HK** user hooks · **GV** ResourceGovernor · **MI** MetaImprover / trajectory mining.
@@ -141,7 +141,7 @@ _FOOTER = """
 ## **Profile-Dependent Events**
 
 Which events a run *can* emit is a function of its
-[execution profile](../02-architecture/execution-profiles.md). A consumer must treat these as
+[spec](../spec.md). A consumer must treat these as
 optional rather than assuming every run produces them.
 
 | Event group | Requires | Absent under |
@@ -172,7 +172,7 @@ identically whether the task is a refactor or a question. In particular **every 
 3. Decide replay-relevance deliberately via `replay_relevant`. Marking a high-volume rendering event
    replay-relevant makes every cassette larger and every replay slower, for no audit value.
 4. Changing an existing event's payload requires a version bump **and** an upcaster
-   ([Port Stability](../03-contracts-and-models/port-stability-and-versioning.md)).
+   ([Schemas and Contracts](../architecture/schemas_and_contracts.md)).
 """
 
 
@@ -228,6 +228,7 @@ def main() -> int:
         print(f"{OUTPUT_PATH} is up to date ({len(ALL_EVENTS)} events)")
         return 0
 
+    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT_PATH.write_text(rendered)
     print(f"wrote {OUTPUT_PATH} ({len(ALL_EVENTS)} events)")
     return 0

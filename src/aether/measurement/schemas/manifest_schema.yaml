@@ -1,0 +1,123 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "aether://schemas/manifest/1.0.0"
+title: AETHER Pinned Task Manifest
+type: object
+additionalProperties: false
+required: [schema_version, manifest_id, suite, created_at, validity_gate, tasks]
+
+properties:
+  schema_version: { type: string, pattern: '^1\.\d+\.\d+$' }
+  manifest_id: { type: string, pattern: '^[a-z][a-z0-9_-]{2,63}$' }
+  suite:
+    type: string
+    enum: [swe_bench_verified, swe_bench_pro, terminal_bench, internal]
+  created_at: { type: string, format: date-time }
+  parent_manifest: { type: string, pattern: '^sha256:[0-9a-f]{64}$' }
+
+  validity_gate:
+    type: object
+    additionalProperties: false
+    description: >
+      The per-task bidirectional canary policy applied when this manifest was
+      built: gold patch must pass AND empty patch must fail on OUR instrument.
+      Exclusions are published, never silent — silent exclusion is the
+      overfitting vector.
+    required: [gold_pass_required, empty_fail_required, exclusions]
+    properties:
+      gold_pass_required: { type: boolean, const: true }
+      empty_fail_required: { type: boolean, const: true }
+      instrument:
+        type: object
+        additionalProperties: false
+        description: >
+          What screened this manifest. `contained: false` means the canary ran
+          on the uncontained evaluator — legitimate for tooling smoke, never
+          for a published number (measurement.md §2 B3).
+        required: [contained]
+        properties:
+          contained: { type: boolean }
+          runtime: { type: string, enum: [podman, docker] }
+          image_digest: { type: string, pattern: '^sha256:[0-9a-f]{64}$' }
+          repeats: { type: integer, minimum: 1, maximum: 8 }
+      exclusions:
+        type: array
+        items:
+          type: object
+          additionalProperties: false
+          required: [instance_id, reason]
+          properties:
+            instance_id: { type: string }
+            reason:
+              type: string
+              enum: [gold_patch_fails, empty_patch_passes, image_unbuildable,
+                     flaky_tests, upstream_retracted, instrument_error]
+              description: >
+                `instrument_error` extends the set drafted in
+                schemas_and_contracts.md §2. B4's whole point is that an
+                instrument failure is not a task result; without this value a
+                GateStatus.NONE during screening would have to be recorded as
+                `gold_patch_fails`, which blames the task for our own broken
+                instrument. Recorded as a deliberate deviation in
+                docs/agile/sprints/sprint-03.md.
+            detail: { type: string }
+
+  tasks:
+    type: array
+    minItems: 1
+    items:
+      type: object
+      additionalProperties: false
+      required: [instance_id, repo, base_commit, environment_image_digest,
+                 test_command_hash, split]
+      properties:
+        instance_id: { type: string, minLength: 1 }
+        problem_statement:
+          type: string
+          minLength: 1
+          description: >
+            The issue text the harness is asked to resolve. Optional in the
+            schema **only** so the pinned `internal-floor-01` manifest, written
+            before this field existed, still loads — it is TCB data and a change
+            is a new manifest, never an edit (L15). It is not optional in
+            practice: `build_manifest` refuses to admit a task without one, and
+            `runner.candidate_to_task` raises rather than substituting the
+            instance_id, which is what it silently did until 2026-08-07.
+            A manifest whose tasks lack it cannot produce a valid number
+            (measurement.md §4.1).
+        repo:
+          type: string
+          pattern: '^[\w.-]+/[\w.-]+$'
+          description: Upstream org/name. The B1 cache clones the distinct set of these.
+        base_commit: { type: string, pattern: '^[0-9a-f]{40}$' }
+        environment_image_digest:
+          type: string
+          pattern: '^sha256:[0-9a-f]{64}$'
+          description: Evaluation container created from digest, never tag (sandbox §3.1).
+        test_command_hash:
+          type: string
+          pattern: '^sha256:[0-9a-f]{64}$'
+          description: >
+            Hash of the exact test invocation. The Evaluator verifies the
+            command it is about to run against this hash — a drifted command
+            is an instrument error (GateStatus.NONE), not a test result.
+        fail_to_pass: { type: array, items: { type: string } }
+        pass_to_pass: { type: array, items: { type: string } }
+        split:
+          type: string
+          enum: [dev, holdout, sealed]
+          description: >
+            dev = ablations, burn freely · holdout = admission decisions,
+            ≤1 evaluation per candidate mechanism · sealed = publication runs
+            only, every touch logged. Assignment is pinned here (TCB) so it
+            cannot drift per-run.
+        perturbed_of:
+          type: string
+          description: >
+            If set, this instance is a surface-rewritten variant of the named
+            instance_id (contamination indicator set); paired reporting only,
+            never mixed into the primary pool.
+        flaky:
+          type: boolean
+          default: false
+          description: Marked from within-arm discordance across seeded passes;
+            analyzed with-and-without, never silently dropped.

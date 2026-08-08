@@ -63,7 +63,7 @@ Track A's evasion: **a trigger nobody has instrumented cannot fire.** Each RT mu
 named measurement before it counts as a trigger.
 
 **Reversal condition.** A measured number crossing RT-1/2/3 on real hardware, recorded in
-`docs/rationale/benchmarks/`, promotes exactly the component that crossed it — never the
+`docs/benchmarks/results/`, promotes exactly the component that crossed it — never the
 whole core. Wire-serializable ports (I3) are what keep this cheap; that is the invariant
 paying for itself.
 
@@ -90,7 +90,7 @@ claimed. This is a post-mortem, not a preference.
 - **B3 and B4 arrive with the components they isolate** — the evaluation container and the
   gate respectively.
 - **No capability number is published before the floor is.** Until
-  `docs/rationale/benchmarks/noise-floor.md` holds a real number, the project reports no
+  `docs/benchmarks/results/noise-floor.md` holds a real number, the project reports no
   results — which is the current and correct state.
 
 **Explicitly not** *"fix everything before writing code."* Two independent reviewers have

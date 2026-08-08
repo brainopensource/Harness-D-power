@@ -1,0 +1,27 @@
+schema_version: "1.0.0"
+topology_id: linear_repair_small_model_v1
+description: "Optimized topology for local small models (1.5B-3B) with explicit format hints, tighter context, and lower token ceilings"
+nodes:
+  - { id: retrieve, kind: retrieve, budget: { wall_clock_ms: 120000 },
+      params: { max_bytes: 10000 } }
+  - { id: generate, kind: generate,
+      params: { edit_format: whole_file_codeblock, max_tokens: 1024 },
+      budget: { usd_micros: 200000, prompt_tokens: 30000, completion_tokens: 2000 } }
+  - { id: apply,    kind: apply,    params: { edit_format: whole_file_codeblock },
+      budget: { wall_clock_ms: 30000 } }
+  - { id: evaluate, kind: evaluate, budget: { wall_clock_ms: 900000, concurrency_slots: 1 } }
+  - { id: repair,   kind: repair,
+      params: { edit_format: whole_file_codeblock, max_tokens: 1024 },
+      budget: { usd_micros: 200000, prompt_tokens: 30000, completion_tokens: 2000 } }
+edges:
+  - { from: retrieve, to: generate }
+  - { from: generate, to: apply }
+  - { from: apply,    to: evaluate }
+repair:
+  from_node: evaluate
+  via_nodes: [repair, apply]
+  back_to: evaluate
+  max_iterations: 3
+  budget_per_iteration: { usd_micros: 300000, prompt_tokens: 120000,
+                          completion_tokens: 8000, wall_clock_ms: 960000,
+                          concurrency_slots: 1 }

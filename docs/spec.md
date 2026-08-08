@@ -11,8 +11,9 @@ points at it — `src/aether/ports/` defines, `docs/spec.md` navigates.
 
 **When this document and the code disagree, the code is right and this document is the bug.**
 
-Decisions and their reversal conditions are ADRs under [`decisions/`](./decisions/README.md).
-Why any of it is so is [`vision.md`](./vision.md) and the Phase 0 trail in [`00/`](./00/).
+Decisions and their reversal conditions are ADRs under [`decisions/`](decisions/README.md).
+Why any of it is so is [`vision.md`](./vision.md) and the Phase 0 trail in
+[`concepts/`](concepts/README.md).
 
 ---
 
@@ -43,7 +44,8 @@ Each has a mechanical enforcement. An invariant enforced by discipline is a wish
 | **I7** | **Generator ≠ Evaluator.** The agent that writes code cannot modify the tests grading it | `tests_unmodified` hard gate |
 | **I8** | **Immutable TCB.** Policy, evaluator, gates, benchmark definitions and CI are unmodifiable by agent or meta-loop | import-linter `tcb-isolation` + CI `tcb-check` |
 | **I9** | **Hard gates admit; proxies rank.** A learned scorer may order candidates, never admit one | Type-level `rank()` / `admit()` separation |
-| **I10** | **Prompt cache is architecture.** Fixed prefix layers, explicit `cache_control`, hit rate is a gated metric | CI floor on hit rate over a fixed replay |
+| **I10** | **Prompt cache is architecture.** Fixed prefix layers, explicit breakpoints; the gated metric is **harness-side prefix stability** | CI floor on byte-identical-prefix rate over a fixed replay |
+| **I11** | **Taint cannot acquire authority.** Every context span carries a provenance label; propagation is deterministic; an untrusted or untrusted-derived span can never satisfy a policy predicate that grants or widens capability | Pinned injection corpus in CI — gate is **zero capability grants** (ADR-0015) |
 
 **I3 is the one that saves the project.** It lets any port move out of process — to a
 compiled sidecar, a container, a remote peer — without changing a caller. It is nearly free
@@ -65,15 +67,42 @@ src/aether/
 │   └── context/     assembler · compactor · tokens · taint_gate
 ├── adapters/        behind ports
 ├── measurement/     TCB — evaluator, gates, statistics, runner, harvester
-├── workflow/        WorkflowStep DAG (ADR-0013)
-├── evolution/       offline only — never imported by agency/ (ADR-0006)
+├── workflow/        WorkflowStep DAG + schema/validator/executor (ADR-0013, ADR-0014) — TCB
+├── evolution/       offline only — never imported by anything (ADR-0006)
 ├── tui/
 ├── engine.py        headless API — the surface every client uses
 └── composition.py   explicit wiring; no DI container
 ```
 
-Import-linter layer order: `agency > kernel > adapters > ports > domain`, plus contracts
-`domain-is-pure`, `ports-are-pure`, `tcb-isolation`.
+**The full import lattice.** Every package has a declared position; the import-linter
+contracts encode all of it. A package outside the lattice is where coupling accretes
+unobserved.
+
+```
+engine  >  (agency, workflow)  >  kernel  >  adapters  >  ports  >  domain
+```
+
+| Package | May import | May be imported by | Contract |
+| :--- | :--- | :--- | :--- |
+| `domain/` | stdlib + pydantic only | everything | `domain-is-pure` |
+| `ports/` | `domain/` | everything above | `ports-are-pure` |
+| `adapters/` | `ports/`, `domain/` | `kernel/`, `composition.py` | layer order |
+| `kernel/` | `adapters/`, `ports/`, `domain/` | `agency/`, `workflow/`, `engine.py` | `tcb-isolation` |
+| `measurement/` | `ports/`, `domain/`, `kernel/` | `workflow/`, `engine.py` | `tcb-isolation` |
+| `workflow/` | `kernel/`, `measurement/`, `ports/`, `domain/` | `engine.py` | layer order |
+| `agency/` | `kernel/`, `ports/`, `domain/` | `workflow/`, `engine.py` | layer order |
+| `evolution/` | **`ports/` and `domain/` only** | **nothing** | `tcb-isolation` forbidden importer |
+| `tui/` | `engine.py`, `domain/` | — | layer order |
+
+Three rules carry the weight:
+
+- **`kernel/` and `measurement/` may not import `agency/` or `workflow/`.** The thing that
+  judges cannot reach up into the thing being judged.
+- **`evolution/` imports no higher than `ports/` and is imported by nothing.** "Offline" is a
+  description; this is the import rule that makes it one (ADR-0006).
+- **`workflow/` sits above `kernel/`** because the executor dispatches through the choke point.
+  The topology schema, validator and executor are TCB; the topologies themselves are not
+  (ADR-0014).
 
 **Language: Python 3.13, monoglot.** Compiled sidecars arrive per component on a measured
 trigger, never speculatively (ADR-0001).
@@ -83,8 +112,9 @@ trigger, never speculatively (ADR-0001).
 ## 4. Ports
 
 **Eight boundaries, nine protocols.** A port enters `ports/` **in the same change as its
-first adapter and its conformance test** (ADR-0005). No exceptions; the predecessor
-declared seventeen and five had no implementation.
+first adapter and its conformance test** (ADR-0005). A mock adapter satisfies that rule only
+when the first real adapter is named. No other exceptions; the predecessor declared seventeen
+and five had no implementation.
 
 `ModelProvider` · `Workspace` · `WorktreeManager` · `ToolRegistry` · `PolicyEngine` (TCB) ·
 `ResourceGovernor` · `TrajectoryStore` · `Evaluator` (TCB) · `Indexer`
@@ -99,6 +129,22 @@ measurement, and `LSPAdapter` (ADR-0011).
 handle, callable, generator or live object; no untyped `dict[str, Any]`; all datetimes
 timezone-aware; **no `Grant` in any public signature**.
 
+**TCB port residency.** A port is a boundary; where its *concrete implementation* lives decides
+whether the path-keyed import contracts select it. So it is a rule, not a style:
+
+> **The implementations of TCB ports live inside TCB paths.** `PolicyEngine` in `kernel/`,
+> `Evaluator` in `measurement/`. **Never in `adapters/`.** Only non-TCB ports have adapters
+> under `adapters/`.
+
+Without this, `tcb-isolation` selects an evaluator that has quietly moved into the mutable
+layer, and I7 is enforced by a contract pointing at the wrong directory.
+
+**Port versioning.** Protocols are **frozen per minor version and additive-only within one**:
+a new optional method or an added optional field is a minor change; anything that breaks an
+existing adapter is **a new protocol name**, entering under ADR-0005 with its own first
+adapter. For a project whose thesis is "swap anything," a compatibility rule is what makes the
+swap safe; the alternative is discovering the contract by breaking it.
+
 ---
 
 ## 5. Execution
@@ -112,8 +158,19 @@ authorize → verify grant → acquire lease → dispatch → release
 `verify` happens immediately before the effect, not at authorization time. Between issuance
 and use, arguments can change and a resumed run can carry a stale grant.
 
-**Untrusted content** — repository files, issue text, tool output, web results — carries
-provenance and can never acquire instruction authority. The TaintGate is deterministic.
+**Untrusted content can never acquire instruction authority (I11).** Every context span
+carries one of five provenance labels — `trusted-system`, `operator`, `agent`,
+`untrusted-external`, `untrusted-derived`. Repository files, issue text, tool output, test
+output and web results are `untrusted-external` **at birth**. Propagation is deterministic and
+monotone: a completion that consumed any untrusted span produces `untrusted-derived` output.
+
+The binding rule sits in the policy engine, not in the gate: **a request that widens capability
+fails closed when any span justifying it is untrusted or untrusted-derived.** The gate labels;
+the policy decides. Enforcement is a pinned injection corpus in CI whose gate is **zero
+capability grants** (ADR-0015).
+
+Untrusted content may *inform* work — the agent must read the repository. It may not
+*authorize* it.
 
 **The sandbox is the perimeter** (ADR-0008). Shell AST analysis **classifies** effects and
 escalates; it never contains. A control that looks like security invites the real security
@@ -132,8 +189,8 @@ structure.** Nodes emit events; events never drive node scheduling (ADR-0013).
 
 | | Contents |
 | :--- | :--- |
-| **Immutable** | Policy engine · evaluator · gates · benchmark definitions · CI configuration · `.importlinter` |
-| **Mutable by the meta-loop** | Prompts · skills · instructions · retrieval parameters |
+| **Immutable** | Policy engine · evaluator · gates · **task manifests and split assignment** · **gate-family declarations** · **workflow schema, validator and executor** · CI configuration · `.importlinter` |
+| **Mutable by the meta-loop** | Prompts · skills · instructions · retrieval parameters · **workflow topologies** (as data, ADR-0014) · **memory content** |
 
 The meta-loop may **auto-commit within the mutable surface** and must open a **PR for
 anything else** (ADR-0006). It may rewrite a prompt automatically precisely because it
@@ -161,9 +218,14 @@ Full protocol: [`measurement.md`](./measurement.md). The binding rules:
   silently passes.
 - **Stubs raise.** They never return a plausible value. An exception swallowed into `[]`
   makes failure indistinguishable from "no results".
-- Admission: **exact McNemar**, **Holm–Bonferroni** across the gate family, **N ≥ 50**,
-  α = 0.05 family-wise (ADR-0003).
-- No mechanism promotes to production without an ablation clearing the noise floor.
+- Admission: **exact McNemar**, **Holm–Bonferroni** across a **pre-declared** gate family,
+  α = 0.05 family-wise, and **N derived for ≥ 0.80 power** at the declared minimal effect —
+  never a fixed N (ADR-0003 rev. 2). Primary outcome is **pass@1 on the first seeded pass**;
+  extra passes estimate flakiness and never merge into it.
+- Admission also requires **cost per resolved task non-inferior within a declared margin**
+  (default ≤ +20%) — not raw cost held flat.
+- No mechanism promotes to production without an ablation clearing the noise floor. **This
+  includes workflow topologies**, whoever proposed them (ADR-0014).
 
 ---
 
@@ -183,7 +245,10 @@ maintained by hand here.
 
 - **Code wins.** Contracts live in `src/aether/ports/`; documents navigate.
 - **No external code enters `src/aether/`.** Concepts and published theory transfer;
-  implementation does not.
+  implementation does not. **Predecessor code in this repository is not external**: it may be
+  ported verbatim when its claimed properties verify line by line, with the provenance noted
+  in the module docstring. `e0/statistics.py` is the case this clause exists for — 259 LOC
+  that verify, ported under ADR-0003, and the only Phase 0 asset that earned it.
 - **An experiment produces a number and a recommendation.** It becomes a decision only
   through an ADR with a reversal condition. Experiments live outside `src/aether/`, are
   exempt from these invariants, and are deletable.

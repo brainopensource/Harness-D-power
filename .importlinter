@@ -1,5 +1,7 @@
 [importlinter]
-root_package = sagiha
+root_packages =
+    sagiha
+    aether
 # Required whenever any contract forbids an external module (domain-is-pure forbids httpx and
 # sqlite3) — otherwise import-linter refuses to build a graph that could check them.
 include_external_packages = True
@@ -60,3 +62,88 @@ layers =
     sagiha.adapters
     sagiha.ports
     sagiha.domain
+
+# --- AETHER v3.0 (docs/spec.md) — added alongside, not in place of, the sagiha
+# contracts above: sagiha (12,949 LOC) is retiring reference material but is
+# still present and still linted/tested elsewhere in CI (TASK-000). ---
+
+[importlinter:contract:aether-domain-is-pure]
+name = AETHER: domain models have no I/O dependencies (I1)
+type = forbidden
+source_modules = aether.domain
+forbidden_modules =
+    aether.adapters
+    aether.kernel
+    aether.measurement
+    httpx
+    sqlite3
+
+[importlinter:contract:aether-ports-are-pure]
+name = AETHER: ports import nothing internal (I2, I3)
+type = forbidden
+source_modules = aether.ports
+forbidden_modules =
+    aether.adapters
+    aether.kernel
+    aether.agency
+    aether.workflow
+    aether.measurement
+
+[importlinter:contract:aether-tcb-isolation]
+name = AETHER: trusted computing base depends on nothing mutable (I5, I8)
+type = forbidden
+source_modules =
+    aether.kernel.policy
+    aether.kernel.dispatch
+    aether.measurement.evaluator
+    aether.measurement.manifest
+    aether.measurement.statistics
+forbidden_modules =
+    aether.agency
+    aether.workflow
+    aether.evolution
+    aether.adapters
+
+[importlinter:contract:aether-workflow-tcb-isolation]
+name = AETHER: the workflow schema, validator and executor are TCB (spec.md §6)
+type = forbidden
+source_modules =
+    aether.workflow.validator
+    aether.workflow.executor
+forbidden_modules =
+    aether.agency
+    aether.evolution
+    aether.adapters
+# A separate contract rather than two more source_modules on
+# `aether-tcb-isolation`, because that contract forbids `aether.workflow` and
+# these two modules legitimately import `aether.workflow.step`. `spec.md` §6
+# lists "workflow schema, validator and executor" as immutable TCB and
+# PHASE-0-LOCK L7 locks it; until 2026-08-07 no contract selected them, so the
+# strongest claim in the lock about topology validation was enforced by nothing
+# while CI stayed green — the exact trap ADR-0006 names about itself.
+# `workflow/nodes/*` is deliberately NOT here: nodes import `aether.composition`
+# and are mutable-surface code, not TCB.
+
+[importlinter:contract:aether-layers]
+name = AETHER: full architectural lattice (spec.md §3)
+type = layers
+layers =
+    aether.engine
+    (aether.agency) | aether.workflow
+    aether.measurement
+    aether.kernel
+    aether.adapters
+    aether.ports
+    aether.domain
+# Parenthesized layers are packages not yet built (agency: TASK-030b) —
+# aether.adapters came off in Sprint 2 Step 1 (TASK-026,
+# adapters/trajectory_store/sqlite.py), aether.measurement came off in Step 5
+# (TASK-019, measurement/evaluator.py), aether.engine came off in Step 11
+# (TASK-022, engine.py) — import-linter makes a parenthesized layer optional
+# rather than erroring on a missing module (verified empirically against
+# import-linter 2.13). Each parens pair comes off in the change that lands
+# that package's first real code, mirroring car-layering's own documented
+# precedent for incremental extension. `aether.composition` is a top-level
+# wiring root, not a listed layer — engine.py and workflow/* both depend on
+# it (composition depends on neither), so it sits outside this lattice by
+# design rather than by gap.

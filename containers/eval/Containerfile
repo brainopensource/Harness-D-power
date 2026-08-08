@@ -1,0 +1,34 @@
+# Evaluation container (TASK-016, Blocker B3) — the image the TCB Evaluator
+# runs a candidate's pinned test command inside.
+#
+# Deliberately minimal and deliberately NOT an editable install of this
+# project: B3 was an editable install's `.pth` leaking the live `src/` tree
+# into every supposedly-isolated worktree, which made candidate diffs
+# invisible to the gates scoring them. Nothing here may install, link or
+# reference the harness source. The only code this image ever sees is what
+# arrives on the RW worktree mount.
+#
+# Built by scripts/build_eval_image.py, which then resolves the built image's
+# digest. The evaluator is never handed the tag below — it is handed a
+# `sha256:` digest, because a tag is a mutable pointer and an evaluation whose
+# environment can be re-pointed under it is not reproducible.
+FROM python:3.13-slim
+
+# git only: worktree evaluation needs `git diff`/`git status` to be meaningful
+# inside the container. No network reaches this image at run time
+# (`--network none`), so nothing here can fetch anything later.
+RUN apt-get update && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Bind mounts look like a filesystem boundary to git; without this, git
+# commands inside the mounted worktree fail even though .git is present.
+ENV GIT_DISCOVERY_ACROSS_FILESYSTEM=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /workspace
+
+# No ENTRYPOINT: the evaluator supplies the manifest's pinned, hash-verified
+# test command as argv. An entrypoint here would be a second, unhashed place
+# where the command under measurement is decided.
+CMD ["python3", "-c", "print('aether eval image: no command supplied')"]

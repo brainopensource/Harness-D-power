@@ -18,6 +18,8 @@ dependencies = [
   "tree-sitter>=0.23",          # AST parsing
   "tree-sitter-language-pack>=0.7",   # bundled grammars, avoids per-language pins
   "email-validator>=2.3.0",
+  "pyyaml>=6.0",                 # workflow/manifest topologies are YAML (schemas_and_contracts.md)
+  "jsonschema>=4.20",            # structural half of the topology validator (TASK-020)
 ]
 
 [project.optional-dependencies]
@@ -49,7 +51,7 @@ dev       = [
 sagiha = "sagiha.cli:app"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/sagiha"]
+packages = ["src/sagiha", "src/aether"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -57,6 +59,8 @@ testpaths = ["tests"]
 addopts = "--strict-markers"
 markers = [
   "podman: requires rootless Podman and the sagiha/runtime:latest image (v2-S5 perimeter)",
+  "container: requires a container runtime and aether/eval:build (B3 perimeter, TASK-016)",
+  "live: requires a live local OpenAI-compatible endpoint on :11434 (B2b perimeter)",
 ]
 
 [tool.pyright]
@@ -64,10 +68,10 @@ markers = [
 # strict passes on src/sagiha/domain/ and src/sagiha/ports/ with zero suppressions." tests/ is
 # exercised by pytest, not gated on strict typing — dynamic introspection code (walking
 # Protocols via inspect/typing) is inherently hard to type strictly and that is not a defect.
-# Scoped to src/sagiha, not src/: the vendored reference harnesses
+# Scoped to src/sagiha and src/aether, not src/: the vendored reference harnesses
 # (src/claude_code, src/grok_build, src/hermes_agent, src/open_code) are
 # third-party trees and produce ~400k strict errors that drown the signal.
-include = ["src/sagiha"]
+include = ["src/sagiha", "src/aether"]
 typeCheckingMode = "strict"
 pythonVersion = "3.13"
 venvPath = "."
@@ -97,7 +101,10 @@ extend-exclude = [
     "src/grok_build",
     "src/hermes_agent",
     "src/hermes_self_evolution",
+    "src/kimi_cli",
     "src/open_code",
+    "src/openhands",
+    "src/reasonix",
 ]
 
 [tool.ruff.lint]
@@ -105,15 +112,20 @@ select = ["E", "F", "I", "UP", "B", "ASYNC"]
 
 [tool.ruff.lint.per-file-ignores]
 "src/sagiha/cli.py" = ["B008"]
+# core_skeletons_and_protocols.md §8 specifies WorkflowStep via classic TypeVar +
+# Generic[In, Out], not PEP 695 type params — kept literal to the skeleton, and
+# because In/Out need to stay importable module-level names for the reflection
+# test (PEP 695 type params are not module attributes).
+"src/aether/workflow/step.py" = ["UP046"]
 
 [tool.mypy]
 python_version = "3.13"
 strict = true
-packages = ["sagiha"]
+packages = ["aether"]
 mypy_path = "src"
 
 [tool.coverage.run]
-source = ["src/sagiha"]
+source = ["src/aether"]
 
 [tool.coverage.report]
 # 80% is the project-wide floor. sagiha/kernel/policy and sagiha/domain carry a
@@ -122,4 +134,9 @@ source = ["src/sagiha"]
 # See docs/06-guides-and-patterns/ci-and-quality-gates.md.
 fail_under = 80
 exclude_also = ["if TYPE_CHECKING:"]
+
+[dependency-groups]
+dev = [
+    "python-dotenv>=1.2.2",
+]
 

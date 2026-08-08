@@ -1,5 +1,6 @@
 ---
 status: historical
+retrieval: excluded
 phase: 0 — planning
 updated: 2026-08-03
 ---

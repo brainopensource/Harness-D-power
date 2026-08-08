@@ -4,17 +4,17 @@ on:
   push:
     branches: [main]
     paths:
-      - "frontend/apps/**"
-      - "frontend/packages/**"
-      - "frontend/*.json"
-      - "frontend/*.yaml"
+      - "src_front/apps/**"
+      - "src_front/packages/**"
+      - "src_front/*.json"
+      - "src_front/*.yaml"
       - ".github/workflows/frontend-ci.yml"
   pull_request:
     paths:
-      - "frontend/apps/**"
-      - "frontend/packages/**"
-      - "frontend/*.json"
-      - "frontend/*.yaml"
+      - "src_front/apps/**"
+      - "src_front/packages/**"
+      - "src_front/*.json"
+      - "src_front/*.yaml"
       - ".github/workflows/frontend-ci.yml"
 
 jobs:
@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: frontend
+        working-directory: src_front
     steps:
       - uses: actions/checkout@v4
 
@@ -33,7 +33,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          cache-dependency-path: frontend/pnpm-lock.yaml
+          cache-dependency-path: src_front/pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
