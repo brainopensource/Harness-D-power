@@ -11,7 +11,7 @@ from aether.domain.taint import TaintSpan
 
 class EffectRequest(Frozen):
     run_id: RunId
-    effect_class: Literal["read", "write", "shell", "network", "model", "evaluate"]
+    effect_class: Literal["read", "write", "shell", "network", "model", "evaluate", "index"]
     descriptor: str  # e.g. shell string, path, model name
     justifying_spans: tuple[TaintSpan, ...]  # full spans: the gate audits labels
     widens_capability: bool  # classifier output (shell_ast / static)

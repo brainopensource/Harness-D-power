@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 
 import pytest
 
+from aether.adapters.indexer.tree_sitter import TreeSitterIndexer
 from aether.adapters.model_provider.openai_compatible import OpenAICompatibleProvider
 from aether.adapters.tools.builtin import BuiltinToolRegistry
 from aether.adapters.workspace.git_cli import GitCliWorkspace, GitCliWorktreeManager
@@ -46,8 +47,9 @@ def wired(tmp_path):  # noqa: ANN001
     tool_registry = BuiltinToolRegistry(workspace, worktrees_root)
     model_provider = OpenAICompatibleProvider("http://localhost:11434/v1", "test-model")
     evaluator = RealEvaluator(worktrees_root, resolve_command=lambda spec: "true")
+    indexer = TreeSitterIndexer(worktrees_root)
     governor = ResourceGovernor()
-    dispatcher = build_dispatcher(workspace, tool_registry, model_provider, evaluator, governor)
+    dispatcher = build_dispatcher(workspace, tool_registry, model_provider, evaluator, indexer, governor)
 
     return dispatcher, worktree_manager, base_commit, governor
 

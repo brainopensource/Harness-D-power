@@ -70,6 +70,7 @@ class GeneratedPatch(Frozen):
     #: provider, and the asymmetry was invisible because both paths end in a
     #: `GateReport`. Consumed by `ApplyStep` -> `EvaluateStep`.
     stop_reason: StopReason = "end"
+    retrieved_files: tuple[str, ...] = ()
 
     @property
     def patch_text(self) -> str:
@@ -219,4 +220,5 @@ class GenerateStep(WorkflowStep[RetrievedContext, GeneratedPatch]):
             raw_output="".join(patch_text_parts),
             edit_format=self._edit_format.name,
             stop_reason=stop_reason,
+            retrieved_files=tuple(f.repo_rel_path for f in payload.files),
         )

@@ -19,8 +19,8 @@ requires breaking something here, that is a signal to write an ADR, not to proce
 
 | # | Locked | Enforced by |
 | :--- | :--- | :--- |
-| **L1** | The import lattice `engine > (agency \| workflow) > measurement > kernel > adapters > ports > domain` | `.importlinter`, 10 contracts, 0 broken (4 AETHER + 5 retiring `sagiha` + 1 new) |
-| **L1 note** | `agency` and `workflow` are **siblings**. Revisions before 2026-08-07 stated `workflow > agency` — that is [ADR-0018](./decisions/0018-agency-below-workflow.md)'s *proposed* lattice, not the enforced one, and a lock stating an unenforced constraint is the failure mode the lock exists to prevent. Becomes true when ADR-0018 ratifies with `TASK-053` | ADR-0018 (**Proposed**) |
+| **L1** | The import lattice `engine > workflow > agency > measurement > kernel > adapters > ports > domain` | `.importlinter`, 11 contracts, 0 broken (6 AETHER + 5 retiring `sagiha`) |
+| **L1 note** | `workflow > agency`, ratified 2026-08-08 by [ADR-0018](./decisions/0018-agency-below-workflow.md) (`TASK-053`, Sprint 5). Before that date `agency` and `workflow` were **siblings** in the enforced lattice — this row previously said so, and a lock stating an unenforced constraint is the failure mode the lock exists to prevent. The change added an eleventh contract, `aether-agency-cannot-reach-the-judge`, because layer order alone permits `agency → measurement` under the new ordering and I7 requires that edge closed explicitly | ADR-0018 (**Accepted**) |
 | **L2** | Invariants **I1–I11** as stated in [`spec.md`](./spec.md) §2 | Per-invariant mechanisms; **four** have known gaps (I7, I9, I10, I11) — §4 |
 | **L3** | **Eight port areas, nine protocols.** A port arrives with its first adapter | ADR-0005 rev. 2; conformance meta-suite |
 | **L4** | Ports are **wire-serializable**: every method `async`, no `Path`/handle/callable/generator/live object | Reflection contract over all ports (I3) |

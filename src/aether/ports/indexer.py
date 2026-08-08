@@ -4,16 +4,12 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from aether.domain.ids import Frozen
-from aether.domain.workspace import WorktreeRef
+from aether.domain.workspace import SymbolHit, WorktreeRef
 
-
-class SymbolHit(Frozen):
-    repo_rel_path: str
-    line: int
-    kind: str
-    name: str
-    snippet: str
+#: Re-exported for existing callers — `SymbolHit` moved to `domain/workspace.py`
+#: (T2.4) so `domain/effects.py` can build `IndexArgs`/`IndexResult` without
+#: importing `ports/`, which `domain-is-pure` forbids.
+__all__ = ["Indexer", "SymbolHit"]
 
 
 @runtime_checkable

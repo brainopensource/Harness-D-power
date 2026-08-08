@@ -144,7 +144,7 @@ async def _dispatch_one_model_call(base_url: str, run_id: RunId, governor: Resou
     from aether.ports.policy_engine import EffectRequest
 
     provider = OpenAICompatibleProvider(base_url, "deepseek/deepseek-v4-flash")
-    dispatcher = build_dispatcher(None, None, provider, None, governor, base_url)  # type: ignore[arg-type]
+    dispatcher = build_dispatcher(None, None, provider, None, None, governor, base_url)  # type: ignore[arg-type]
 
     from datetime import UTC, datetime
 

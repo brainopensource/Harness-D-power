@@ -43,3 +43,21 @@ class PatchResult(Frozen):
     applied: bool
     rejected_hunks: int
     detail: str = ""
+
+
+class SymbolHit(Frozen):
+    """A syntax-tier symbol match (`ports/indexer.py`'s `Indexer.search`).
+
+    Defined here rather than in `ports/indexer.py`, matching every other port
+    payload shape in this tree (`EvalSpec`'s `WorktreeRef`, `ModelRequest`,
+    `ToolResult` all live in `domain/`): `domain/` may import stdlib and
+    Pydantic only (spec.md §3), so a port's own module is not the place for a
+    type `domain/effects.py` also needs — `IndexArgs`/`IndexResult` (T2.4)
+    would otherwise have to import `ports/`, which `domain-is-pure` forbids.
+    """
+
+    repo_rel_path: str
+    line: int
+    kind: str
+    name: str
+    snippet: str

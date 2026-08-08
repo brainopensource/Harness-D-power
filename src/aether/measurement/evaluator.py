@@ -39,10 +39,9 @@ from typing import Protocol, runtime_checkable
 
 from aether.domain.gate import GateReport, GateStatus
 from aether.domain.sandbox import ContainerLimits, ContainerResult, ContainerSpec
+from aether.domain.text import tail_biased
 from aether.domain.workspace import WorktreeRef
 from aether.ports.evaluator import EvalSpec
-
-_TAIL_CHARS = 4000  # tail-biased truncation: keep the failure block, not the pass list
 
 #: `PYTHONDONTWRITEBYTECODE=1` is a B3-class defence, not tidiness, and the
 #: container path sets it too. CPython invalidates a cached `.pyc` on
@@ -90,15 +89,6 @@ def hash_command(command: str) -> str:
 
 def _worktree_path(worktrees_root: str, worktree: WorktreeRef) -> str:
     return os.path.join(worktrees_root, worktree.run_id, worktree.worktree_id)
-
-
-def tail_biased(text: str, limit: int = _TAIL_CHARS) -> str:
-    """Tail-biased truncation. Test output is failure-at-the-end shaped: the
-    traceback is what a reader — and the repair edge (TASK-023) — needs, the
-    pass list is what burns the budget. Public because the repair node feeds
-    the same output into context and must not invent a second truncation
-    strategy that disagrees with what the gate reported."""
-    return text[-limit:]
 
 
 async def _tests_unmodified(spec: EvalSpec, path: str) -> str | None:
@@ -248,3 +238,11 @@ class RealEvaluator:
 
         exit_code = proc.returncode if proc.returncode is not None else -1
         return _report_from_exit(exit_code, tail_biased((stdout + stderr).decode(errors="replace")))
+
+
+#: Re-exported for one release (ADR-0018, T1.4): `tail_biased` moved to
+#: `domain/text.py` so `agency.capabilities.sources.GateOutputSource` can use
+#: the same truncation without `agency/` importing `measurement/`, which the
+#: lattice change forbids. `workflow/nodes/repair.py` still imports it from
+#: here; both names resolve to the same function.
+__all__ = ["RealEvaluator", "SandboxRunner", "hash_command", "tail_biased"]

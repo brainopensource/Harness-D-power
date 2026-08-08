@@ -16,11 +16,13 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+from aether.adapters.indexer.tree_sitter import TreeSitterIndexer
 from aether.adapters.model_provider.openai_compatible import OpenAICompatibleProvider
 from aether.adapters.sandbox.podman import ContainerSandbox
 from aether.adapters.tools.builtin import BuiltinToolRegistry
 from aether.adapters.trajectory_store.sqlite import SqliteTrajectoryStore
 from aether.adapters.workspace.git_cli import GitCliWorkspace, GitCliWorktreeManager
+from aether.agency.capabilities.edit_format import DEFAULT_EDIT_FORMAT
 from aether.composition import build_dispatcher
 from aether.domain.budget import BudgetDims
 from aether.domain.events import RunCompleted, RunStarted
@@ -34,7 +36,6 @@ from aether.measurement.evaluator import RealEvaluator
 from aether.ports.evaluator import EvalSpec
 from aether.ports.trajectory_store import StoredEvent
 from aether.workflow.dispatch_facade import DispatchFacade
-from aether.workflow.edit_format import DEFAULT_EDIT_FORMAT
 from aether.workflow.executor import WorkflowExecutor
 from aether.workflow.nodes.apply import ApplyStep
 from aether.workflow.nodes.architect import ArchitectStep, ReflectorStep
@@ -176,6 +177,10 @@ async def run(
     model_provider = OpenAICompatibleProvider(model_base_url, model_name, api_key=resolved_api_key)
     sandbox = ContainerSandbox(sandbox_runtime) if sandbox_runtime is not None else None
     evaluator = RealEvaluator(worktrees_root, resolve_command, sandbox=sandbox)
+    # Always constructed, like every other adapter here, whether or not the
+    # topology's roles use it (TASK-054): `SymbolSource` is a capability this
+    # sprint makes reachable, not one this sprint wires into a shipped role.
+    indexer = TreeSitterIndexer(worktrees_root)
     # The bus is constructed first: the governor and the dispatcher both emit
     # to it, and a component that takes it later cannot emit at all.
     bus = EventBus()
@@ -187,7 +192,7 @@ async def run(
         # on a caller to notice (spec.md §5, and A4 made `usd_micros` real).
         governor.seed_run_budget(run_id, BudgetDims(usd_micros=usd_micros_ceiling))
     dispatcher = build_dispatcher(
-        workspace, tool_registry, model_provider, evaluator, governor, model_base_url, bus
+        workspace, tool_registry, model_provider, evaluator, indexer, governor, model_base_url, bus
     )
     trajectory_store = SqliteTrajectoryStore(trajectory_db_path)
 

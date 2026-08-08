@@ -29,6 +29,16 @@ class EvaluatedCandidate(Frozen):
     report: GateReport
     patch_text: str = ""
     iteration: int = 0
+    #: `AppliedPatch.detail` when the reply was rejected before it touched the
+    #: worktree (unparseable, an escaping path, a syntax error) — carried
+    #: forward so the repair prompt can name the real cause. Without this the
+    #: tests still run against the unmodified worktree (`applied=False` is not
+    #: an instrument error — see `test_a_real_completion_is_still_judged_
+    #: normally`), and `report.detail` becomes a downstream symptom (e.g. a
+    #: missing-attribute traceback) that never mentions what was actually
+    #: wrong with the reply, so repair keeps repeating the same mistake.
+    apply_detail: str = ""
+    retrieved_files: tuple[str, ...] = ()
 
 
 class EvaluateStep(WorkflowStep[AppliedPatch, EvaluatedCandidate]):
@@ -59,6 +69,7 @@ class EvaluateStep(WorkflowStep[AppliedPatch, EvaluatedCandidate]):
                 ),
                 patch_text=payload.patch_text,
                 iteration=payload.iteration,
+                retrieved_files=payload.retrieved_files,
             )
 
         spec = EvalSpec(
@@ -77,4 +88,6 @@ class EvaluateStep(WorkflowStep[AppliedPatch, EvaluatedCandidate]):
             report=report,
             patch_text=payload.patch_text,
             iteration=payload.iteration,
+            apply_detail="" if payload.applied else payload.detail,
+            retrieved_files=payload.retrieved_files,
         )

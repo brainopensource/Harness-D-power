@@ -1,0 +1,33 @@
+{
+  "recorder_version": "1",
+  "topologies": {
+    "decomposed_planning_v1": {
+      "prompt_count": 3,
+      "topology_hash": "sha256:451767d24995a4ba1061fcf567b0bf086bfa3f84c4418619f1d9cb0ff93ed010"
+    },
+    "hybrid_architect_editor_v1": {
+      "prompt_count": 3,
+      "topology_hash": "sha256:014d091cccb83b60be736588d3a08b2fad2eac534f13097b5b8220b5777f8dfb"
+    },
+    "linear_repair_autofiles_v1": {
+      "prompt_count": 2,
+      "topology_hash": "sha256:e135ecf46973b55ba4a99ce8784ad95c62c5c6b55777fd3b326fdc881ad1d1b1"
+    },
+    "linear_repair_small_model_v1": {
+      "prompt_count": 2,
+      "topology_hash": "sha256:ea0ec3c029839c6c325a75c5b6637a5968e198e21603561ea155b8ff30b4f928"
+    },
+    "linear_repair_v1": {
+      "prompt_count": 2,
+      "topology_hash": "sha256:aeee14a7371d967c9f9e702ea68a1977a9b67d602162153d651ab3cbc4f08145"
+    },
+    "linear_repair_wholefile_v1": {
+      "prompt_count": 2,
+      "topology_hash": "sha256:fc7d56e71773d8c00a2f6e48962f2d452f7368e9b568de2a5b21e41c3989e074"
+    },
+    "linear_v1": {
+      "prompt_count": 1,
+      "topology_hash": "sha256:d85912e6e4f43d3434d54283cae082d14a771cff243610e2c8cf2cc3a0684bc1"
+    }
+  }
+}

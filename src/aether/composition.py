@@ -15,11 +15,12 @@ import json
 import time
 from typing import Any
 
+from aether.adapters.indexer.tree_sitter import TreeSitterIndexer
 from aether.adapters.model_provider.openai_compatible import OpenAICompatibleProvider
 from aether.adapters.tools.builtin import BuiltinToolRegistry
 from aether.adapters.workspace.git_cli import GitCliWorkspace
 from aether.domain.budget import Actuals, BudgetDims, Lease
-from aether.domain.effects import ApplyPatchArgs, ReadArgs, ShellArgs, WriteArgs
+from aether.domain.effects import ApplyPatchArgs, IndexArgs, IndexResult, ReadArgs, ShellArgs, WriteArgs
 from aether.domain.model_io import ModelRequest, StopEvent, UsageEvent
 from aether.kernel.bus import EventBus
 from aether.kernel.dispatch import AdapterTable, Dispatcher, EffectOutcome
@@ -36,6 +37,7 @@ def build_adapter_table(
     tool_registry: BuiltinToolRegistry,
     model_provider: OpenAICompatibleProvider,
     evaluator: RealEvaluator,
+    indexer: TreeSitterIndexer,
     model_base_url: str | None = None,
 ) -> AdapterTable:
     """Effect_class -> adapter closure. Each closure performs the real I/O,
@@ -119,12 +121,22 @@ def build_adapter_table(
             result_json=report.model_dump_json(),
         )
 
+    async def _index(request: EffectRequest, lease: Lease) -> EffectOutcome:
+        # `build()` is per-worktree and held in memory (tree_sitter.py); a
+        # symbol search rebuilds it rather than trusting a stale index from an
+        # earlier candidate's worktree contents.
+        args = IndexArgs.model_validate_json(request.descriptor)
+        await indexer.build(args.worktree)
+        hits = await indexer.search(args.worktree, args.query, args.limit)
+        return EffectOutcome(status="ok", result_json=IndexResult(hits=hits).model_dump_json())
+
     return {
         "read": _read,
         "write": _write,
         "shell": _shell,
         "model": _model,
         "evaluate": _evaluate,
+        "index": _index,
     }
 
 
@@ -133,6 +145,7 @@ def build_dispatcher(
     tool_registry: BuiltinToolRegistry,
     model_provider: OpenAICompatibleProvider,
     evaluator: RealEvaluator,
+    indexer: TreeSitterIndexer,
     governor: ResourceGovernor,
     model_base_url: str | None = None,
     bus: EventBus | None = None,
@@ -140,5 +153,7 @@ def build_dispatcher(
     """`model_base_url` is passed for **pricing**, not for calling: a localhost
     endpoint bills nothing, and a run against one should not be charged against
     a dollar cap meant for a paid provider."""
-    adapters = build_adapter_table(workspace, tool_registry, model_provider, evaluator, model_base_url)
+    adapters = build_adapter_table(
+        workspace, tool_registry, model_provider, evaluator, indexer, model_base_url
+    )
     return Dispatcher(policy=DefaultPolicyEngine(), governor=governor, adapters=adapters, bus=bus)

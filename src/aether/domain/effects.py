@@ -17,7 +17,7 @@ from typing import Literal
 
 from aether.domain.ids import Frozen
 from aether.domain.tools import ToolCall
-from aether.domain.workspace import WorktreeRef
+from aether.domain.workspace import SymbolHit, WorktreeRef
 
 
 class ReadArgs(Frozen):
@@ -47,3 +47,17 @@ class ApplyPatchArgs(Frozen):
 class ShellArgs(Frozen):
     worktree: WorktreeRef
     call: ToolCall
+
+
+class IndexArgs(Frozen):
+    """T2.4: the additive `effect_class` that makes `SymbolSource` reachable
+    through the dispatcher instead of holding an `Indexer` handle directly —
+    which I5 forbids (every effect passes the choke point)."""
+
+    worktree: WorktreeRef
+    query: str
+    limit: int = 20
+
+
+class IndexResult(Frozen):
+    hits: tuple[SymbolHit, ...] = ()
