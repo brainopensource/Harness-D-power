@@ -147,9 +147,7 @@ def _executor(verdicts: list[GateStatus], max_iterations: int = 3):  # noqa: ANN
 async def test_a_failing_gate_routes_into_repair_and_stops_when_it_passes() -> None:
     executor, evaluate, repair, _apply, _gov = _executor([GateStatus.FAILED, GateStatus.PASSED])
 
-    result = await executor.execute(
-        RunId("run-1"), AppliedPatch(task=TASK, worktree=WORKTREE, applied=True)
-    )
+    result = await executor.execute(RunId("run-1"), AppliedPatch(task=TASK, worktree=WORKTREE, applied=True))
 
     assert repair.calls == 1
     assert evaluate.calls == 2  # initial + one repaired re-evaluation
@@ -160,9 +158,7 @@ async def test_the_loop_is_bounded_by_max_iterations() -> None:
     """A candidate that never passes stops at the bound, not at exhaustion."""
     executor, evaluate, repair, _apply, _gov = _executor([GateStatus.FAILED], max_iterations=3)
 
-    result = await executor.execute(
-        RunId("run-1"), AppliedPatch(task=TASK, worktree=WORKTREE, applied=True)
-    )
+    result = await executor.execute(RunId("run-1"), AppliedPatch(task=TASK, worktree=WORKTREE, applied=True))
 
     assert repair.calls == 3
     assert evaluate.calls == 4  # the initial verdict plus one per iteration
@@ -183,9 +179,7 @@ async def test_an_instrument_error_never_routes_into_repair() -> None:
     against it teaches the loop to fix our bugs instead of the task's."""
     executor, evaluate, repair, _apply, _gov = _executor([GateStatus.NONE])
 
-    result = await executor.execute(
-        RunId("run-1"), AppliedPatch(task=TASK, worktree=WORKTREE, applied=True)
-    )
+    result = await executor.execute(RunId("run-1"), AppliedPatch(task=TASK, worktree=WORKTREE, applied=True))
 
     assert repair.calls == 0
     assert evaluate.calls == 1
@@ -220,9 +214,7 @@ async def test_exhausting_the_budget_ends_the_loop_not_the_run() -> None:
     # A run ceiling that funds the linear chain but not a repair iteration.
     governor.seed_run_budget(RunId("run-1"), BudgetDims(wall_clock_ms=5000, usd_micros=0))
 
-    result = await executor.execute(
-        RunId("run-1"), AppliedPatch(task=TASK, worktree=WORKTREE, applied=True)
-    )
+    result = await executor.execute(RunId("run-1"), AppliedPatch(task=TASK, worktree=WORKTREE, applied=True))
 
     assert repair.calls == 0
     assert result.report.status is GateStatus.FAILED

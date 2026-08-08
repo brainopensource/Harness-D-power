@@ -127,12 +127,12 @@ is a precondition for the floor meaning what it says.
 ```python
 # domain/... no. This is I/O policy, so: src/aether/adapters/subprocess_env.py
 NON_INTERACTIVE = {
-    "GIT_TERMINAL_PROMPT": "0",      # git fails instead of prompting        (Kimi's one var)
-    "GIT_ASKPASS": "",               # and does not fall back to an askpass helper
+    "GIT_TERMINAL_PROMPT": "0",  # git fails instead of prompting        (Kimi's one var)
+    "GIT_ASKPASS": "",  # and does not fall back to an askpass helper
     "DEBIAN_FRONTEND": "noninteractive",
     "PAGER": "cat",
-    "MANPAGER": "cat",               # pydoc/git read MANPAGER before PAGER
-    "PYTHONUNBUFFERED": "1",         # required by §3's streaming, harmless now
+    "MANPAGER": "cat",  # pydoc/git read MANPAGER before PAGER
+    "PYTHONUNBUFFERED": "1",  # required by §3's streaming, harmless now
     "CI": "1",
 }
 ```

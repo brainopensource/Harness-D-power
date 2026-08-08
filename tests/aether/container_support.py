@@ -21,9 +21,7 @@ import pytest
 from aether.adapters.sandbox.podman import runtime_available
 
 EVAL_TAG = "aether/eval:build"
-BUILD_HINT = (
-    "python3 scripts/build_eval_image.py --runtime {runtime}   # builds and prints the digest"
-)
+BUILD_HINT = "python3 scripts/build_eval_image.py --runtime {runtime}   # builds and prints the digest"
 
 
 def detect_runtime() -> str | None:

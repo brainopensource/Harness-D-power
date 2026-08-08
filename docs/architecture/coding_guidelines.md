@@ -90,14 +90,18 @@ The template is `workflow/edit_format.py`. Copy it verbatim:
 @runtime_checkable
 class Thing(Protocol):
     name: str
-    def instructions(self) -> str: ...      # what we ask for
-    def parse(self, raw: str) -> Parsed: ...# how we read the answer
+
+    def instructions(self) -> str: ...  # what we ask for
+    def parse(self, raw: str) -> Parsed: ...  # how we read the answer
+
 
 THINGS: dict[str, Thing] = {A.name: A(), B.name: B()}
+
 
 class UnknownThing(Exception):
     """Raised at construction. A topology naming something nobody implements
     must fail at load, not when the first answer arrives."""
+
 
 def get_thing(name: str) -> Thing:
     thing = THINGS.get(name)

@@ -235,7 +235,7 @@ async def test_the_network_probe_can_fail_when_network_none_is_removed(instrumen
     (worktree_dir / "run_tests.py").write_text(
         "import socket, sys\n"
         "try:\n"
-        "    socket.create_connection((\"1.1.1.1\", 80), timeout=5)\n"
+        '    socket.create_connection(("1.1.1.1", 80), timeout=5)\n'
         "except OSError:\n"
         "    sys.exit(0)\n"
         "sys.exit(1)\n"

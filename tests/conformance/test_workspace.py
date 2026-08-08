@@ -119,9 +119,7 @@ async def test_a_path_escaping_the_worktree_is_refused(tmp_path, repo_rel_path: 
     worktrees_root = tmp_path / "worktrees"
     (worktrees_root / "run-1" / "wt-1").mkdir(parents=True)
     workspace = GitCliWorkspace(str(worktrees_root))
-    worktree = WorktreeRef(
-        worktree_id="wt-1", run_id=RunId("run-1"), base_commit="a" * 40, abs_hint="x"
-    )
+    worktree = WorktreeRef(worktree_id="wt-1", run_id=RunId("run-1"), base_commit="a" * 40, abs_hint="x")
 
     with pytest.raises(PathEscapesWorktree):
         await workspace.write(worktree, repo_rel_path, "pwned")
@@ -136,9 +134,7 @@ async def test_an_ordinary_nested_path_still_works(tmp_path) -> None:  # noqa: A
     worktrees_root = tmp_path / "worktrees"
     (worktrees_root / "run-1" / "wt-1").mkdir(parents=True)
     workspace = GitCliWorkspace(str(worktrees_root))
-    worktree = WorktreeRef(
-        worktree_id="wt-1", run_id=RunId("run-1"), base_commit="a" * 40, abs_hint="x"
-    )
+    worktree = WorktreeRef(worktree_id="wt-1", run_id=RunId("run-1"), base_commit="a" * 40, abs_hint="x")
 
     await workspace.write(worktree, "src/pkg/mod.py", "X = 1\n")
     slice_ = await workspace.read(worktree, "src/pkg/mod.py")

@@ -188,9 +188,7 @@ class GenerateStep(WorkflowStep[RetrievedContext, GeneratedPatch]):
                     role="assistant",
                     spans=(),
                     tool_calls=tuple(
-                        ToolCallRef(
-                            call_id=call_id, name=info["name"], args_json=info["args"] or "{}"
-                        )
+                        ToolCallRef(call_id=call_id, name=info["name"], args_json=info["args"] or "{}")
                         for call_id, info in tool_calls.items()
                     ),
                 )
@@ -208,9 +206,7 @@ class GenerateStep(WorkflowStep[RetrievedContext, GeneratedPatch]):
                     BudgetDims(wall_clock_ms=30000),
                     justifying_spans=justifying,
                 )
-                messages.append(
-                    ModelMessage(role="tool", spans=result.spans, tool_call_id=call_id)
-                )
+                messages.append(ModelMessage(role="tool", spans=result.spans, tool_call_id=call_id))
                 # Now in the model's context, therefore justifying whatever it
                 # asks for next. Monotone: a span never loses its label here.
                 justifying = (*justifying, *result.spans)
@@ -224,4 +220,3 @@ class GenerateStep(WorkflowStep[RetrievedContext, GeneratedPatch]):
             edit_format=self._edit_format.name,
             stop_reason=stop_reason,
         )
-

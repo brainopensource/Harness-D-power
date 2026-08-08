@@ -96,9 +96,7 @@ async def test_real_governor_concurrent_reserves_are_atomic() -> None:
     run_id = RunId("run-1")
     governor.seed_run_budget(run_id, BudgetDims(usd_micros=100))
 
-    results = await asyncio.gather(
-        *(governor.reserve(run_id, BudgetDims(usd_micros=10)) for _ in range(20))
-    )
+    results = await asyncio.gather(*(governor.reserve(run_id, BudgetDims(usd_micros=10)) for _ in range(20)))
 
     granted = [r for r in results if not isinstance(r, ReservationDenied)]
     denied = [r for r in results if isinstance(r, ReservationDenied)]

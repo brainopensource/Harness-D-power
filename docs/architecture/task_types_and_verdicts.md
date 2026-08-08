@@ -22,11 +22,11 @@ nobody has thought of yet.
 ```python
 class Task(Frozen):
     task_id: TaskId
-    repo: str                        # ← SWE-bench
-    base_commit: str                 # ← SWE-bench
+    repo: str  # ← SWE-bench
+    base_commit: str  # ← SWE-bench
     instructions: str
-    environment_image_digest: str    # ← SWE-bench
-    test_command_hash: str           # ← SWE-bench
+    environment_image_digest: str  # ← SWE-bench
+    test_command_hash: str  # ← SWE-bench
     source: TaskSource
 ```
 
@@ -43,18 +43,19 @@ The unit of work is not a unit of work. It is a benchmark row.
 
 ```python
 class TaskType(StrEnum):
-    CODE_FIX = "code_fix"      # produce a patch that makes hidden tests pass
-    QA       = "qa"            # answer a question about a corpus
-    EXPLAIN  = "explain"       # produce a faithful explanation of code or behaviour
-    RESEARCH = "research"      # gather and synthesise from external sources
-    GENERIC  = "generic"       # anything with a declared verdict
+    CODE_FIX = "code_fix"  # produce a patch that makes hidden tests pass
+    QA = "qa"  # answer a question about a corpus
+    EXPLAIN = "explain"  # produce a faithful explanation of code or behaviour
+    RESEARCH = "research"  # gather and synthesise from external sources
+    GENERIC = "generic"  # anything with a declared verdict
+
 
 class Task(Frozen):
     task_id: TaskId
     task_type: TaskType
     instructions: str
-    payload: TaskPayload          # discriminated on task_type
-    verdict_spec: VerdictSpec     # WHICH judge — TCB data, pinned by hash
+    payload: TaskPayload  # discriminated on task_type
+    verdict_spec: VerdictSpec  # WHICH judge — TCB data, pinned by hash
     source: TaskSource
 ```
 
@@ -72,28 +73,33 @@ class CodeFixPayload(Frozen):
     base_commit: str
     environment_image_digest: str
     test_command_hash: str
-    test_paths: tuple[str, ...] = ()     # TASK-049's I7 globs
+    test_paths: tuple[str, ...] = ()  # TASK-049's I7 globs
+
 
 class QAPayload(Frozen):
     kind: Literal["qa"] = "qa"
-    corpus: CorpusRef                    # what may be retrieved from
+    corpus: CorpusRef  # what may be retrieved from
     question: str
-    answer_schema: str | None = None     # JSON Schema, when the answer is structured
+    answer_schema: str | None = None  # JSON Schema, when the answer is structured
+
 
 class ExplainPayload(Frozen):
     kind: Literal["explain"] = "explain"
     corpus: CorpusRef
-    subject: str                         # "the dispatch choke point"
+    subject: str  # "the dispatch choke point"
     audience: Literal["new_contributor", "reviewer", "operator"]
+
 
 class ResearchPayload(Frozen):
     kind: Literal["research"] = "research"
     question: str
-    allowed_sources: tuple[str, ...]     # egress is declared, never ambient
+    allowed_sources: tuple[str, ...]  # egress is declared, never ambient
+
 
 class GenericPayload(Frozen):
     kind: Literal["generic"] = "generic"
-    inputs_json: str                     # wire-serializable (I3)
+    inputs_json: str  # wire-serializable (I3)
+
 
 TaskPayload = CodeFixPayload | QAPayload | ExplainPayload | ResearchPayload | GenericPayload
 ```

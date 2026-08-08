@@ -68,11 +68,7 @@ def _repair_edges(topology: dict[str, Any]) -> list[dict[str, str]]:
     # Unknown node ids are `bounded_iteration`'s to report — it runs first and
     # names them precisely. Reporting them here as a socket mismatch would
     # point the reader at the wrong rule.
-    return [
-        {"from": a, "to": b}
-        for a, b in zip(chain, chain[1:], strict=False)
-        if a in nodes and b in nodes
-    ]
+    return [{"from": a, "to": b} for a, b in zip(chain, chain[1:], strict=False) if a in nodes and b in nodes]
 
 
 def check_socket_compatibility(topology: dict[str, Any], node_sockets: Mapping[str, tuple[str, str]]) -> None:
@@ -193,9 +189,7 @@ def check_bounded_iteration(topology: dict[str, Any]) -> None:
         for dim, value in node_budget.items():
             required[dim] = required.get(dim, 0) + int(value)
     granted: dict[str, int] = per_iteration
-    short = {
-        dim: (need, granted.get(dim, 0)) for dim, need in required.items() if granted.get(dim, 0) < need
-    }
+    short = {dim: (need, granted.get(dim, 0)) for dim, need in required.items() if granted.get(dim, 0) < need}
     if short:
         detail = ", ".join(f"{dim}: needs {need}, has {has}" for dim, (need, has) in sorted(short.items()))
         raise TopologyValidationError(

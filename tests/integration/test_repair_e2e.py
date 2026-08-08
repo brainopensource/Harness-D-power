@@ -35,9 +35,7 @@ RUN_TESTS = "import sys\nfrom calc import add\nsys.exit(0 if add(1, 2) == 3 else
 
 
 def _git(*args: str, cwd: str) -> str:
-    return subprocess.run(
-        ["git", *args], cwd=cwd, check=True, capture_output=True, text=True
-    ).stdout
+    return subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, text=True).stdout
 
 
 def _sse(text: str = "") -> bytes:

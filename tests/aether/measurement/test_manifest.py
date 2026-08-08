@@ -199,9 +199,11 @@ async def test_screen_all_screens_every_candidate() -> None:
 
 def test_a_valid_manifest_validates() -> None:
     candidates = [_candidate("good-1")]
-    verdicts = [CanaryVerdict(
-        instance_id="good-1", admitted=True, gold_status=GateStatus.PASSED, empty_status=GateStatus.FAILED
-    )]
+    verdicts = [
+        CanaryVerdict(
+            instance_id="good-1", admitted=True, gold_status=GateStatus.PASSED, empty_status=GateStatus.FAILED
+        )
+    ]
     validate_manifest(_build(verdicts, candidates))  # must not raise
 
 
@@ -225,12 +227,14 @@ def test_a_valid_manifest_validates() -> None:
 )
 def test_the_schema_gate_can_fail(mutate, check: str) -> None:  # noqa: ANN001
     manifest = _build(
-        [CanaryVerdict(
-            instance_id="good-1",
-            admitted=True,
-            gold_status=GateStatus.PASSED,
-            empty_status=GateStatus.FAILED,
-        )],
+        [
+            CanaryVerdict(
+                instance_id="good-1",
+                admitted=True,
+                gold_status=GateStatus.PASSED,
+                empty_status=GateStatus.FAILED,
+            )
+        ],
         [_candidate("good-1")],
     )
     mutate(manifest)
@@ -243,12 +247,14 @@ def test_the_schema_gate_can_fail(mutate, check: str) -> None:  # noqa: ANN001
 
 def test_duplicate_instances_are_refused() -> None:
     manifest = _build(
-        [CanaryVerdict(
-            instance_id="good-1",
-            admitted=True,
-            gold_status=GateStatus.PASSED,
-            empty_status=GateStatus.FAILED,
-        )],
+        [
+            CanaryVerdict(
+                instance_id="good-1",
+                admitted=True,
+                gold_status=GateStatus.PASSED,
+                empty_status=GateStatus.FAILED,
+            )
+        ],
         [_candidate("good-1")],
     )
     manifest["tasks"].append(dict(manifest["tasks"][0]))
@@ -261,12 +267,14 @@ def test_duplicate_instances_are_refused() -> None:
 
 def test_a_task_cannot_be_both_admitted_and_excluded() -> None:
     manifest = _build(
-        [CanaryVerdict(
-            instance_id="good-1",
-            admitted=True,
-            gold_status=GateStatus.PASSED,
-            empty_status=GateStatus.FAILED,
-        )],
+        [
+            CanaryVerdict(
+                instance_id="good-1",
+                admitted=True,
+                gold_status=GateStatus.PASSED,
+                empty_status=GateStatus.FAILED,
+            )
+        ],
         [_candidate("good-1")],
     )
     manifest["validity_gate"]["exclusions"].append(
@@ -284,12 +292,14 @@ def test_a_task_cannot_be_both_admitted_and_excluded() -> None:
 
 def _one_task_manifest() -> dict[str, object]:
     return _build(
-        [CanaryVerdict(
-            instance_id="good-1",
-            admitted=True,
-            gold_status=GateStatus.PASSED,
-            empty_status=GateStatus.FAILED,
-        )],
+        [
+            CanaryVerdict(
+                instance_id="good-1",
+                admitted=True,
+                gold_status=GateStatus.PASSED,
+                empty_status=GateStatus.FAILED,
+            )
+        ],
         [_candidate("good-1")],
     )
 
@@ -343,8 +353,7 @@ def test_splits_partition_every_task_and_respect_the_ratios() -> None:
 
     assert set(assignment) == set(ids)
     counts = {
-        split: sum(1 for v in assignment.values() if v == split)
-        for split in ("dev", "holdout", "sealed")
+        split: sum(1 for v in assignment.values() if v == split) for split in ("dev", "holdout", "sealed")
     }
     assert counts == {"dev": 12, "holdout": 5, "sealed": 3}
 

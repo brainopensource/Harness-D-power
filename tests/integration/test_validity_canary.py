@@ -38,9 +38,7 @@ RUN_TESTS = "import sys\nfrom calc import add\nsys.exit(0 if add(1, 2) == 3 else
 
 
 def _git(*args: str, cwd: str) -> str:
-    return subprocess.run(
-        ["git", *args], cwd=cwd, check=True, capture_output=True, text=True
-    ).stdout
+    return subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, text=True).stdout
 
 
 @pytest.fixture
@@ -69,9 +67,7 @@ def upstream(tmp_path: Path):  # noqa: ANN201
 def instrument(upstream, tmp_path: Path):  # noqa: ANN001, ANN201
     repo_path, _base, _patch = upstream
     test_command = f"{sys.executable} run_tests.py"
-    evaluator = RealEvaluator(
-        str(tmp_path / "worktrees"), resolve_command=lambda spec: test_command
-    )
+    evaluator = RealEvaluator(str(tmp_path / "worktrees"), resolve_command=lambda spec: test_command)
     return (
         WorktreeValidityInstrument(repo_path, str(tmp_path / "worktrees"), evaluator),
         test_command,

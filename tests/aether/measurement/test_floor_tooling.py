@@ -122,8 +122,14 @@ def test_the_declared_floor_family_is_pinned_to_the_committed_manifest() -> None
     if not manifest_path.exists():
         pytest.skip("no pinned floor manifest in this checkout")
     family = load_family(
-        (Path(__file__).resolve().parents[3] / "src" / "aether" / "measurement" / "families"
-         / "aa_floor_smoke_01.yaml").read_text()
+        (
+            Path(__file__).resolve().parents[3]
+            / "src"
+            / "aether"
+            / "measurement"
+            / "families"
+            / "aa_floor_smoke_01.yaml"
+        ).read_text()
     )
     manifest = load_manifest(manifest_path.read_text())
 
@@ -147,8 +153,7 @@ def _arm(arm_id: str, statuses: list[GateStatus]) -> ArmRun:
         container_digest="sha256:" + "c" * 64,
         contained=True,
         results=tuple(
-            TaskOutcome(task_id=f"t{i}", status=s, wall_clock_ms=100 + i)
-            for i, s in enumerate(statuses)
+            TaskOutcome(task_id=f"t{i}", status=s, wall_clock_ms=100 + i) for i, s in enumerate(statuses)
         ),
     )
 
@@ -193,8 +198,13 @@ def test_the_report_says_which_suite_the_floor_belongs_to() -> None:
     takes this for a SWE-bench floor has been misled by us, not by themselves."""
     arm = _arm("aether_a", [GateStatus.PASSED])
     report = floor.build_report(
-        noise_floor_from(arm, arm, iterations=50, seed=7), arm, arm,
-        {"family_id": "f", "registered_at": "x"}, 1.0, 1.0, 1.0,
+        noise_floor_from(arm, arm, iterations=50, seed=7),
+        arm,
+        arm,
+        {"family_id": "f", "registered_at": "x"},
+        1.0,
+        1.0,
+        1.0,
     )
 
     assert "not for SWE-bench" in report

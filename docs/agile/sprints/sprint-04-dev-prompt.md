@@ -227,9 +227,16 @@ async def _tests_unmodified(self, spec: EvalSpec, path: str) -> str | None:
     if not spec.test_paths:
         return None
     proc = await asyncio.create_subprocess_exec(
-        "git", "diff", "--name-only", spec.base_commit, "--", *spec.test_paths,
-        cwd=path, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
-        stdin=asyncio.subprocess.DEVNULL,          # T4b's rule applies here too
+        "git",
+        "diff",
+        "--name-only",
+        spec.base_commit,
+        "--",
+        *spec.test_paths,
+        cwd=path,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+        stdin=asyncio.subprocess.DEVNULL,  # T4b's rule applies here too
     )
     stdout, stderr = await proc.communicate()
     if proc.returncode != 0:
@@ -272,8 +279,8 @@ class EvalSpec(Frozen):
     image_digest: str
     test_command_hash: str
     timeout_ms: int
-    base_commit: str = ""                    # NEW
-    test_paths: tuple[str, ...] = ()         # NEW
+    base_commit: str = ""  # NEW
+    test_paths: tuple[str, ...] = ()  # NEW
 ```
 
 **This is not a new protocol.** `spec.md` §4: *"a new optional method or an added optional
@@ -306,9 +313,11 @@ guessed edit.**
 def test_i7_gate_catches_a_modified_test_file():
     """Write to a path matching test_paths, evaluate, assert NONE + instrument_error."""
 
+
 def test_i7_gate_can_fail():
     """Delete/bypass the check and assert this suite goes RED.
     A gate that cannot fail is not counted as a gate (measurement.md §5)."""
+
 
 def test_unlabelled_fence_with_no_target_yields_no_edit():
     """parse() returns ParsedEdit with errors and zero files — never a guessed path."""
@@ -337,6 +346,7 @@ class AblationFlags(Frozen):
     Every field defaults to the baseline. A run that deviates says so in its own
     config hash, which is what makes it an *arm* rather than a contaminated run.
     """
+
     inject_test_source: bool = False
 
 
@@ -457,14 +467,15 @@ uncontained path.
 ```python
 # src/aether/adapters/subprocess_env.py
 NON_INTERACTIVE: dict[str, str] = {
-    "GIT_TERMINAL_PROMPT": "0",     # git fails instead of prompting
-    "GIT_ASKPASS": "",              # and does not fall back to an askpass helper
+    "GIT_TERMINAL_PROMPT": "0",  # git fails instead of prompting
+    "GIT_ASKPASS": "",  # and does not fall back to an askpass helper
     "DEBIAN_FRONTEND": "noninteractive",
     "PAGER": "cat",
-    "MANPAGER": "cat",              # git and pydoc read MANPAGER before PAGER
+    "MANPAGER": "cat",  # git and pydoc read MANPAGER before PAGER
     "PYTHONUNBUFFERED": "1",
     "PYTHONDONTWRITEBYTECODE": "1",
 }
+
 
 def spawn_env(*, extra: Mapping[str, str] = {}) -> dict[str, str]:
     """An ALLOWLIST, not a copy of os.environ. An evaluation whose behaviour

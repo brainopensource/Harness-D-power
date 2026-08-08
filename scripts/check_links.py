@@ -107,9 +107,7 @@ def _display_path(md: Path) -> Path:
         return md
 
 
-def check(
-    docs_root: Path, *, list_all: bool = False, skipped: list[Path] | None = None
-) -> list[DeadLink]:
+def check(docs_root: Path, *, list_all: bool = False, skipped: list[Path] | None = None) -> list[DeadLink]:
     dead: list[DeadLink] = []
     for md in sorted(docs_root.rglob("*.md")):
         text = md.read_text(encoding="utf-8")

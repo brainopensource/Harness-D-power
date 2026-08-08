@@ -81,9 +81,7 @@ def build_step_registry(
 
     def retrieve(params: Mapping[str, Any]) -> WorkflowStep[Any, Any]:
         entry_files = tuple(params.get("entry_files") or default_entry_files)
-        return RetrieveStep(
-            facade, entry_files=entry_files, max_bytes=int(params.get("max_bytes", 20_000))
-        )
+        return RetrieveStep(facade, entry_files=entry_files, max_bytes=int(params.get("max_bytes", 20_000)))
 
     def generate(params: Mapping[str, Any]) -> WorkflowStep[Any, Any]:
         return GenerateStep(

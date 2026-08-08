@@ -85,7 +85,7 @@ discovery mechanism in the tree is `scripts/run_local_check.py:56-62`:
 ```python
 def auto_discover_entry_files(task_dir: Path) -> list[str]:
     files = []
-    for p in task_dir.glob("**/*.py"):        # every .py under the task
+    for p in task_dir.glob("**/*.py"):  # every .py under the task
         if p.name == "run_tests.py":
             continue
         files.append(str(p.relative_to(task_dir)))

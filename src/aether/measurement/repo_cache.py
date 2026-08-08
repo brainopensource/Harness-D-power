@@ -100,8 +100,7 @@ class RepoCache:
             cached = self.is_commit_present(repo_dir, target.base_commit)
             status = "CACHED" if cached else "PENDING_DOWNLOAD"
             print(
-                f"  [{status}] Task `{target.task_id}` -> repo `{target.repo}` "
-                f"@ `{target.base_commit[:10]}`"
+                f"  [{status}] Task `{target.task_id}` -> repo `{target.repo}` @ `{target.base_commit[:10]}`"
             )
             return True
 

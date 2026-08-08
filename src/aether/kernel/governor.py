@@ -88,9 +88,7 @@ class ResourceGovernor:
         explicit parent lease still enforces every dimension exactly.
         """
         self._run_root_remaining[run_id] = dims
-        self._run_constrained[run_id] = {
-            name for name, value in dims.model_dump().items() if value > 0
-        }
+        self._run_constrained[run_id] = {name for name, value in dims.model_dump().items() if value > 0}
 
     async def reserve(
         self, run_id: RunId, dims: BudgetDims, parent: LeaseId | None = None
@@ -110,11 +108,7 @@ class ResourceGovernor:
                 available = self._run_root_remaining.get(run_id)
                 if available is not None:
                     constrained = self._run_constrained.get(run_id, set())
-                    over = [
-                        name
-                        for name in constrained
-                        if getattr(dims, name) > getattr(available, name)
-                    ]
+                    over = [name for name in constrained if getattr(dims, name) > getattr(available, name)]
                     if over:
                         return ReservationDenied(
                             shortfall=_sub(dims, available),
@@ -123,10 +117,7 @@ class ResourceGovernor:
                     # Only the constrained dimensions are drawn down; the rest
                     # are not being tracked and must not go negative.
                     self._run_root_remaining[run_id] = available.model_copy(
-                        update={
-                            name: getattr(available, name) - getattr(dims, name)
-                            for name in constrained
-                        }
+                        update={name: getattr(available, name) - getattr(dims, name) for name in constrained}
                     )
 
             self._next_id += 1
@@ -179,9 +170,7 @@ class ResourceGovernor:
         # one while holding the ledger's lock is how a deadlock gets designed in.
         if overrun is not None and self._bus is not None:
             await self._bus.emit(
-                BudgetOverrunEmitted(
-                    run_id=overrun.run_id, at=datetime.now(UTC), overrun=overrun
-                )
+                BudgetOverrunEmitted(run_id=overrun.run_id, at=datetime.now(UTC), overrun=overrun)
             )
 
     async def release(self, lease_id: LeaseId) -> None:

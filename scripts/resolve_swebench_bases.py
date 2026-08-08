@@ -15,7 +15,7 @@ from pathlib import Path
 repo_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(repo_root / "src"))
 
-from aether.measurement.repo_cache import main
+from aether.measurement.repo_cache import main  # noqa: E402
 
 if __name__ == "__main__":
     raise SystemExit(main())

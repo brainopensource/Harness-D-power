@@ -48,7 +48,7 @@ async def test_evaluator_satisfies_protocol(evaluator, worktree_dir) -> None:  #
 
 async def test_real_evaluator_exit_0_is_passed(worktree_dir) -> None:  # noqa: ANN001
     worktrees_root, worktree = worktree_dir
-    command = f"{sys.executable} -c \"import sys; sys.exit(0)\""
+    command = f'{sys.executable} -c "import sys; sys.exit(0)"'
     evaluator = RealEvaluator(worktrees_root, resolve_command=lambda spec: command)
 
     report = await evaluator.evaluate(_spec(worktree, command))
@@ -59,7 +59,7 @@ async def test_real_evaluator_exit_0_is_passed(worktree_dir) -> None:  # noqa: A
 
 async def test_real_evaluator_exit_1_is_failed_not_none(worktree_dir) -> None:  # noqa: ANN001
     worktrees_root, worktree = worktree_dir
-    command = f"{sys.executable} -c \"import sys; sys.exit(1)\""
+    command = f'{sys.executable} -c "import sys; sys.exit(1)"'
     evaluator = RealEvaluator(worktrees_root, resolve_command=lambda spec: command)
 
     report = await evaluator.evaluate(_spec(worktree, command))
@@ -70,7 +70,7 @@ async def test_real_evaluator_exit_1_is_failed_not_none(worktree_dir) -> None:  
 
 async def test_real_evaluator_other_exit_code_is_none_not_failed(worktree_dir) -> None:  # noqa: ANN001
     worktrees_root, worktree = worktree_dir
-    command = f"{sys.executable} -c \"import sys; sys.exit(2)\""
+    command = f'{sys.executable} -c "import sys; sys.exit(2)"'
     evaluator = RealEvaluator(worktrees_root, resolve_command=lambda spec: command)
 
     report = await evaluator.evaluate(_spec(worktree, command))
@@ -92,7 +92,7 @@ async def test_real_evaluator_missing_command_is_none_not_failed(worktree_dir) -
 
 async def test_real_evaluator_command_hash_mismatch_is_none(worktree_dir) -> None:  # noqa: ANN001
     worktrees_root, worktree = worktree_dir
-    actual_command = f"{sys.executable} -c \"import sys; sys.exit(0)\""
+    actual_command = f'{sys.executable} -c "import sys; sys.exit(0)"'
     evaluator = RealEvaluator(worktrees_root, resolve_command=lambda spec: actual_command)
 
     spec = EvalSpec(
@@ -110,7 +110,7 @@ async def test_real_evaluator_command_hash_mismatch_is_none(worktree_dir) -> Non
 
 async def test_real_evaluator_timeout_is_none(worktree_dir) -> None:  # noqa: ANN001
     worktrees_root, worktree = worktree_dir
-    command = f"{sys.executable} -c \"import time; time.sleep(5)\""
+    command = f'{sys.executable} -c "import time; time.sleep(5)"'
     evaluator = RealEvaluator(worktrees_root, resolve_command=lambda spec: command)
 
     report = await evaluator.evaluate(_spec(worktree, command, timeout_ms=200))

@@ -66,6 +66,7 @@ To eliminate duplicated node logic, AETHER replaces dedicated step classes with 
 ```python
 class RoleSpec(BaseModel):
     """Declarative specification for an LLM role capability."""
+
     name: str
     system_prompt_template: str
     allowed_tools: list[str]
@@ -92,11 +93,8 @@ AETHER enforces modular protocol seams so context retrieval and code editing str
 ```python
 class ContextSource(Protocol):
     """Protocol boundary for repository context retrieval."""
-    async def fetch_context(
-        self, 
-        task: Task, 
-        workspace: Workspace
-    ) -> list[ContextBlock]: ...
+
+    async def fetch_context(self, task: Task, workspace: Workspace) -> list[ContextBlock]: ...
 ```
 
 1. **`FileContextSource`**: Reads explicit entry files declared in task manifest.
@@ -110,11 +108,8 @@ class ContextSource(Protocol):
 ```python
 class EditFormat(Protocol):
     """Protocol for applying LLM edits to worktree files."""
-    def parse_and_apply(
-        self, 
-        content: str, 
-        completion: str
-    ) -> EditResult: ...
+
+    def parse_and_apply(self, content: str, completion: str) -> EditResult: ...
 ```
 
 1. **`UnifiedDiffFormat`**: Standard unified diff patches (`--- a/file`, `+++ b/file`) with `--3way` fallback.
@@ -130,6 +125,7 @@ The `RunConfig` domain model aggregates all 15 execution keyword arguments into 
 ```python
 class RunConfig(BaseModel):
     """Execution configuration model for AETHER runs."""
+
     model_name: str
     topology_file: str
     manifest_file: str

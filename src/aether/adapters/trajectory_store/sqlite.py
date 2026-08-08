@@ -52,8 +52,7 @@ class SqliteTrajectoryStore:
             conn = self._connect()
             try:
                 conn.execute(
-                    "INSERT INTO events (run_id, seq, event_type, payload_json, at) "
-                    "VALUES (?, ?, ?, ?, ?)",
+                    "INSERT INTO events (run_id, seq, event_type, payload_json, at) VALUES (?, ?, ?, ?, ?)",
                     (event.run_id, event.seq, event.event_type, event.payload_json, event.at.isoformat()),
                 )
                 conn.commit()

@@ -108,11 +108,7 @@ def test_a_labelled_block_becomes_a_file_write() -> None:
 
 
 def test_several_files_in_one_reply() -> None:
-    raw = (
-        "```python:a.py\nX = 1\n```\n"
-        "some prose between blocks\n"
-        "```python:b.py\nY = 2\n```\n"
-    )
+    raw = "```python:a.py\nX = 1\n```\nsome prose between blocks\n```python:b.py\nY = 2\n```\n"
 
     parsed = WholeFileCodeblockFormat().parse(raw)
 

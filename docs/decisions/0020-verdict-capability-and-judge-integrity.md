@@ -34,8 +34,10 @@ score.** That is the concrete mistake this ADR exists to not repeat.
 ```python
 class Verdict(Protocol):
     """TCB-resident. Decides PASSED / FAILED / NONE for one task type."""
+
     verdict_kind: str
-    admits: bool          # may this verdict alone admit a result?
+    admits: bool  # may this verdict alone admit a result?
+
     async def judge(self, spec: VerdictSpec, candidate: Candidate) -> GateReport: ...
 ```
 

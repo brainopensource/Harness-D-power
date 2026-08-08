@@ -563,8 +563,7 @@ def validate_family(family: dict[str, Any]) -> None:
             if hypothesis[side] not in arm_ids:
                 raise FamilyValidationError(
                     "hypothesis_arms",
-                    f"hypothesis '{hypothesis['hypothesis_id']}' names undeclared arm "
-                    f"'{hypothesis[side]}'",
+                    f"hypothesis '{hypothesis['hypothesis_id']}' names undeclared arm '{hypothesis[side]}'",
                 )
 
 

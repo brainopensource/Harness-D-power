@@ -8,8 +8,8 @@ scope: src/aether/ only — forensic code audit
 > **Remediation landed 2026-08-07.** Eight of the eighteen findings below — **F1, F2, F3, F4,
 > F5, F6, F7, F11** — are fixed in the working tree, each with a negative test that fails
 > against the pre-fix code. The record of what changed and why is
-> [`docs/STATUS.md`](docs/STATUS.md) → *Instrument-integrity fixes*; the follow-on work is
-> [`docs/agile/backlog.md`](docs/agile/backlog.md) → **Epic 8**.
+> [`STATUS.md`](../../STATUS.md) → *Instrument-integrity fixes*; the follow-on work is
+> [`backlog.md`](../../agile/backlog.md) → **Epic 8**.
 >
 > **This report is left as written.** It is the diagnosis, not the changelog, and a finding
 > rewritten after the fix loses the evidence that it was ever true. Two corrections of fact are
@@ -130,10 +130,10 @@ because the recorded description is **wrong about the mechanism**.
 
 ```python
 # measurement/runner.py:135-142  (BareModelHarness.attempt)
-text=self._template.format(problem_statement=candidate.instance_id),
+text = (self._template.format(problem_statement=candidate.instance_id),)
 
 # measurement/runner.py:263-271  (candidate_to_task)
-instructions=candidate.instance_id,
+instructions = (candidate.instance_id,)
 ```
 
 `TaskCandidate` (`measurement/manifest.py:76-88`) has fields for `instance_id`, `repo`,
@@ -236,14 +236,15 @@ provider with a cap that cannot fire is an unbounded spend authorisation.
 
 ```python
 # kernel/dispatch.py:91-104
-lease = await self._governor.reserve(request.run_id, cost_estimate)   # 3 lease
-if isinstance(lease, ReservationDenied): ...
-adapter = self._adapters[request.effect_class]                        # 4 dispatch  ← outside try
+lease = await self._governor.reserve(request.run_id, cost_estimate)  # 3 lease
+if isinstance(lease, ReservationDenied):
+    ...
+adapter = self._adapters[request.effect_class]  # 4 dispatch  ← outside try
 try:
     outcome = await adapter(request, lease)
     ...
 except Exception:
-    await self._governor.release(lease.lease_id)                      # 5 release
+    await self._governor.release(lease.lease_id)  # 5 release
     raise
 ```
 
@@ -263,11 +264,13 @@ Also worth noting on the same path: the `except` branch releases the lease but e
 
 ```python
 # workflow/nodes/generate.py:131-196
-spans = self._build_spans(payload, str(ctx.node_id))   # built ONCE, before the loop
+spans = self._build_spans(payload, str(ctx.node_id))  # built ONCE, before the loop
 for _round in range(self.MAX_ROUNDS):
     ...
     result = await self._dispatch.shell(
-        ShellArgs(...), ..., justifying_spans=spans,   # ← same spans, every round
+        ShellArgs(...),
+        ...,
+        justifying_spans=spans,  # ← same spans, every round
     )
     messages.append(ModelMessage(role="tool", spans=result.spans, tool_call_id=call_id))
 ```

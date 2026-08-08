@@ -164,9 +164,5 @@ def build_dispatcher(
     """`model_base_url` is passed for **pricing**, not for calling: a localhost
     endpoint bills nothing, and a run against one should not be charged against
     a dollar cap meant for a paid provider."""
-    adapters = build_adapter_table(
-        workspace, tool_registry, model_provider, evaluator, model_base_url
-    )
-    return Dispatcher(
-        policy=DefaultPolicyEngine(), governor=governor, adapters=adapters, bus=bus
-    )
+    adapters = build_adapter_table(workspace, tool_registry, model_provider, evaluator, model_base_url)
+    return Dispatcher(policy=DefaultPolicyEngine(), governor=governor, adapters=adapters, bus=bus)

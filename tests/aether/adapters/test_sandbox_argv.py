@@ -62,9 +62,7 @@ def test_memory_and_cpu_limits_are_applied() -> None:
 def test_exactly_two_mounts_and_no_others() -> None:
     """The `.pth` leak is fixed by construction: there is no third host path
     for host code to arrive on. No home, no sockets, no repo root."""
-    argv = build_run_argv(
-        _spec(worktree_host_path="/wt", layers_host_path="/layers"), runtime="podman"
-    )
+    argv = build_run_argv(_spec(worktree_host_path="/wt", layers_host_path="/layers"), runtime="podman")
     mounts = _flag_values(argv, "--volume")
     assert mounts == ["/wt:/workspace:rw", "/layers:/opt/aether/layers:ro"]
     assert not _flag_values(argv, "--mount")

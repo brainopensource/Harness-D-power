@@ -80,9 +80,7 @@ async def test_a_provider_failure_is_carried_off_the_generate_node() -> None:
     facade = _FailingProviderFacade()
     step = GenerateStep(facade, model_name="m")  # type: ignore[arg-type]
 
-    patch = await step.run(
-        CTX, RetrievedContext(task=_task(), worktree=_worktree(), instructions="fix it")
-    )
+    patch = await step.run(CTX, RetrievedContext(task=_task(), worktree=_worktree(), instructions="fix it"))
 
     assert patch.stop_reason == "provider_error"
     assert patch.raw_output == ""

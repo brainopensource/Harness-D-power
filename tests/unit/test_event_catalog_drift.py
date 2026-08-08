@@ -46,9 +46,7 @@ def test_every_declared_event_has_a_producer() -> None:
 
     src = REPO_ROOT / "src" / "aether"
     sources = {
-        path: path.read_text(encoding="utf-8")
-        for path in src.rglob("*.py")
-        if path.name != "events.py"
+        path: path.read_text(encoding="utf-8") for path in src.rglob("*.py") if path.name != "events.py"
     }
 
     unproduced: list[str] = []

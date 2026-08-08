@@ -7,16 +7,19 @@ from pathlib import Path
 ROWS_ENDPOINT = "https://datasets-server.huggingface.co/rows"
 DATASET = "ScaleAI/SWE-bench_Pro"
 
+
 def fetch_sample():
     all_rows = []
     for offset in [0, 100, 200, 300, 400]:
-        params = urllib.parse.urlencode({
-            "dataset": DATASET,
-            "config": "default",
-            "split": "test",
-            "offset": offset,
-            "length": 100,
-        })
+        params = urllib.parse.urlencode(
+            {
+                "dataset": DATASET,
+                "config": "default",
+                "split": "test",
+                "offset": offset,
+                "length": 100,
+            }
+        )
         url = f"{ROWS_ENDPOINT}?{params}"
         try:
             req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
@@ -30,17 +33,19 @@ def fetch_sample():
     print(f"Total rows fetched from {DATASET}: {len(all_rows)}")
     return all_rows
 
+
 def classify_difficulty(row):
     patch = str(row.get("patch", ""))
     lines = patch.count("\n")
     files = max(1, patch.count("diff --git") or patch.count("+++ b/"))
-    
+
     if lines <= 60 and files <= 2:
         return "Easy"
     elif lines <= 160 and files <= 4:
         return "Medium"
     else:
         return "Hard"
+
 
 def main():
     rows = fetch_sample()
@@ -55,7 +60,7 @@ def main():
 
     print(f"Easy: {len(by_diff['Easy'])}, Medium: {len(by_diff['Medium'])}, Hard: {len(by_diff['Hard'])}")
 
-    rng = random.Random(2026) # Fixed seed
+    rng = random.Random(2026)  # Fixed seed
     selected = []
     used_ids = set()
 
@@ -87,9 +92,16 @@ def main():
         "",
         "# SWE-bench Pro — 15-Task Stratified Beta Sample",
         "",
-        "This document maps the **15-task random sample** selected from `ScaleAI/SWE-bench_Pro` for uncontaminated harness testing and beta evaluation (75% confidence interval, ±15% margin of error).",
+        (
+            "This document maps the **15-task random sample** selected from `ScaleAI/SWE-bench_Pro` "
+            "for uncontaminated harness testing and beta evaluation "
+            "(75% confidence interval, ±15% margin of error)."
+        ),
         "",
-        "**Note:** No repositories or assets have been downloaded yet. This document contains metadata mapping for future content-addressed resolution via `TASK-010` (`repo_cache.py`).",
+        (
+            "**Note:** No repositories or assets have been downloaded yet. This document contains "
+            "metadata mapping for future content-addressed resolution via `TASK-010` (`repo_cache.py`)."
+        ),
         "",
         "## 📊 Sample Summary",
         "",
@@ -104,7 +116,10 @@ def main():
         "",
         "## 🛠️ Task Mapping Table",
         "",
-        "| Index | Difficulty | Task ID | Repository | GitHub Issue URL | Base Commit SHA | Patch Size (Lines / Files) |",
+        (
+            "| Index | Difficulty | Task ID | Repository | GitHub Issue URL | Base Commit SHA | "
+            "Patch Size (Lines / Files) |"
+        ),
         "| :---: | :---: | :--- | :--- | :--- | :--- | :---: |",
     ]
 
@@ -116,7 +131,7 @@ def main():
         patch = str(r.get("patch", ""))
         p_lines = patch.count("\n")
         p_files = max(1, patch.count("diff --git") or patch.count("+++ b/"))
-        
+
         parts = task_id.split("__")
         if len(parts) >= 2:
             issue_num = parts[-1].split("-")[-1]
@@ -125,16 +140,12 @@ def main():
             github_url = f"https://github.com/{repo}"
 
         lines.append(
-            f"| {idx} | **{diff}** | `{task_id}` | `{repo}` | [#{task_id.split('-')[-1]}]({github_url}) | `{base_commit[:10]}` | ~{p_lines} lines / {p_files} file(s) |"
+            f"| {idx} | **{diff}** | `{task_id}` | `{repo}` | "
+            f"[#{task_id.split('-')[-1]}]({github_url}) | `{base_commit[:10]}` | "
+            f"~{p_lines} lines / {p_files} file(s) |"
         )
 
-    lines.extend([
-        "",
-        "---",
-        "",
-        "## 📑 Detailed Task Specifications",
-        ""
-    ])
+    lines.extend(["", "---", "", "## 📑 Detailed Task Specifications", ""])
 
     for idx, r in enumerate(selected, 1):
         diff = classify_difficulty(r)
@@ -144,40 +155,48 @@ def main():
         problem_desc = str(r.get("problem_statement", "")).strip()
         if len(problem_desc) > 350:
             problem_desc = problem_desc[:350] + "..."
-        
+
         # Clean problem statement formatting for markdown
         clean_desc = problem_desc.replace("\n", " ").replace("`github.com", "`https://github.com")
 
-        lines.extend([
-            f"### Task {idx}: `{task_id}`",
-            f"* **Difficulty**: **{diff}**",
-            f"* **Repository**: `{repo}`",
-            f"* **Base Commit**: `{base_commit}`",
-            f"* **Repo Clone URL**: `https://github.com/{repo}.git`",
-            "* **Problem Summary**:",
-            f"  > {clean_desc}",
-            ""
-        ])
+        lines.extend(
+            [
+                f"### Task {idx}: `{task_id}`",
+                f"* **Difficulty**: **{diff}**",
+                f"* **Repository**: `{repo}`",
+                f"* **Base Commit**: `{base_commit}`",
+                f"* **Repo Clone URL**: `https://github.com/{repo}.git`",
+                "* **Problem Summary**:",
+                f"  > {clean_desc}",
+                "",
+            ]
+        )
 
-    lines.extend([
-        "---",
-        "",
-        "## ⚙️ How to Download & Run This Sample",
-        "",
-        "To download the base commits locally for this Pro suite, run the abstract repository cache command:",
-        "",
-        "```bash",
-        "# Download base commits for SWE Pro 15-task sample",
-        "python scripts/resolve_swebench_bases.py --suite swe-pro",
-        "",
-        "# Or dry-run without downloading",
-        "python scripts/resolve_swebench_bases.py --suite swe-pro --dry-run",
-        "```",
-        ""
-    ])
+    lines.extend(
+        [
+            "---",
+            "",
+            "## ⚙️ How to Download & Run This Sample",
+            "",
+            (
+                "To download the base commits locally for this Pro suite, "
+                "run the abstract repository cache command:"
+            ),
+            "",
+            "```bash",
+            "# Download base commits for SWE Pro 15-task sample",
+            "python scripts/resolve_swebench_bases.py --suite swe-pro",
+            "",
+            "# Or dry-run without downloading",
+            "python scripts/resolve_swebench_bases.py --suite swe-pro --dry-run",
+            "```",
+            "",
+        ]
+    )
 
     output_path.write_text("\n".join(lines), encoding="utf-8")
     print(f"Successfully generated report at {output_path}")
+
 
 if __name__ == "__main__":
     main()

@@ -89,10 +89,7 @@ class ArchitectStep(WorkflowStep[RetrievedContext, RetrievedContext]):
         plan_text = "".join(e.text for e in events if isinstance(e, TextDelta))
 
         # Append plan to task instructions so downstream generate node receives it in L4
-        augmented_instructions = (
-            f"{payload.instructions}\n\n"
-            f"## Architect Plan\n{plan_text.strip()}"
-        )
+        augmented_instructions = f"{payload.instructions}\n\n## Architect Plan\n{plan_text.strip()}"
         return payload.model_copy(update={"instructions": augmented_instructions})
 
 

@@ -154,8 +154,7 @@ class WorkflowExecutor:
                 f"registered: {sorted(registry)}"
             )
         self._steps: dict[str, WorkflowStep[Any, Any]] = {
-            node["id"]: registry[node["kind"]](node.get("params") or {})
-            for node in topology["nodes"]
+            node["id"]: registry[node["kind"]](node.get("params") or {}) for node in topology["nodes"]
         }
 
     async def execute(self, run_id: RunId, initial_payload: Any) -> Any:
@@ -185,9 +184,7 @@ class WorkflowExecutor:
         except Exception as exc:
             await self._governor.release(lease.lease_id)
             await self._bus.emit(
-                NodeCompleted(
-                    run_id=run_id, at=datetime.now(UTC), node_id=NodeId(node_id), status="error"
-                )
+                NodeCompleted(run_id=run_id, at=datetime.now(UTC), node_id=NodeId(node_id), status="error")
             )
             raise WorkflowExecutionError(node_id, exc) from exc
 
@@ -200,9 +197,7 @@ class WorkflowExecutor:
         report = gate_report_of(result)
         if report is not None:
             await self._bus.emit(
-                GateReportEmitted(
-                    run_id=run_id, at=datetime.now(UTC), node_id=NodeId(node_id), report=report
-                )
+                GateReportEmitted(run_id=run_id, at=datetime.now(UTC), node_id=NodeId(node_id), report=report)
             )
 
         await self._bus.emit(

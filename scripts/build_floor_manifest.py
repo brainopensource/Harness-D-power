@@ -86,7 +86,7 @@ BUG_SHAPES: list[BugShape] = [
     ("min_of", "return a if a > b else b", "return a if a < b else b", lambda a, b: min(a, b)),
     ("abs_diff", "return a - b", "return abs(a - b)", lambda a, b: abs(a - b)),
     ("clamp_low", "return a", "return max(a, b)", lambda a, b: max(a, b)),
-    ("is_even", "return a % 2 == 1", "return a % 2 == 0", lambda a, b: (a % 2 == 0)),
+    ("is_even", "return a % 2 == 1", "return a % 2 == 0", lambda a, b: a % 2 == 0),
     ("pow_of", "return a * b", "return a**b", lambda a, b: a**b),
     ("floor_div", "return a / b", "return a // b", lambda a, b: a // b),
 ]
@@ -404,8 +404,7 @@ async def build(args: argparse.Namespace, workdir: Path, out_dir: Path) -> int:
 
     generate = generate_medium_task if args.suite_shape == "medium" else generate_task
     candidates = [
-        generate(workdir, i).model_copy(update={"environment_image_digest": digest})
-        for i in range(args.n)
+        generate(workdir, i).model_copy(update={"environment_image_digest": digest}) for i in range(args.n)
     ]
 
     print(f"generated {len(candidates)} tasks in {workdir}")

@@ -110,10 +110,7 @@ class _StubHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:  # noqa: N802
         length = int(self.headers.get("Content-Length", "0"))
         self.rfile.read(length)
-        body = (
-            b'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n'
-            b"data: [DONE]\n\n"
-        )
+        body = b'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n'
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Content-Length", str(len(body)))
@@ -294,15 +291,15 @@ remains untaken and is blocked on per-task environment images.
 | :--- | :--- |
 | Paired tasks (both arms measured) | {floor.n_tasks} |
 | Instrument errors excluded (B4) | {floor.n_instrument_errors} |
-| Resolve rate, arm A | {'n/a' if rate_a is None else f'{rate_a:.1%}'} |
-| Resolve rate, arm B | {'n/a' if rate_b is None else f'{rate_b:.1%}'} |
+| Resolve rate, arm A | {"n/a" if rate_a is None else f"{rate_a:.1%}"} |
+| Resolve rate, arm B | {"n/a" if rate_b is None else f"{rate_b:.1%}"} |
 | Mean absolute A/A drift | {floor.mean_delta:.4f} |
 | Bootstrap CI (α={floor.alpha}, 2000 iters, seed {floor.seed}) | [{ci_lo:.4f}, {ci_hi:.4f}] |
 | **Discordance p₀₁** | **{floor.p01:.4f}** |
 | **Discordance p₁₀** | **{floor.p10:.4f}** |
 | Discordant pairs | {floor.n_discordant} |
 | Exact McNemar p | {p_value:.4f} |
-| Holm-adjusted p (family `{family['family_id']}`) | {adjusted:.4f} |
+| Holm-adjusted p (family `{family["family_id"]}`) | {adjusted:.4f} |
 
 **p₀₁ and p₁₀ are the deliverable.** Every future family's derived N is
 computed from them (ADR-0003 rev. 2 §1); without them no admission run in this
@@ -316,10 +313,10 @@ systematically.
 
 | Statistic | Value |
 | :--- | :--- |
-| Mean | {per_task['mean_ms']} ms |
-| Median | {per_task['median_ms']} ms |
-| p90 | {per_task['p90_ms']} ms |
-| Max | {per_task['max_ms']} ms |
+| Mean | {per_task["mean_ms"]} ms |
+| Median | {per_task["median_ms"]} ms |
+| p90 | {per_task["p90_ms"]} ms |
+| Max | {per_task["max_ms"]} ms |
 | Both arms, wall-clock total | {elapsed_s:.1f} s |
 
 ## Instrument
@@ -334,7 +331,7 @@ systematically.
 | Contained (B3) | {arm_a.contained} |
 | Lockfile hash | `{_lockfile_hash()}` |
 | Seed | {arm_a.seed} |
-| Family | `{family['family_id']}` registered {family['registered_at']} |
+| Family | `{family["family_id"]}` registered {family["registered_at"]} |
 | Host | {platform.platform()} · {platform.python_version()} |
 
 ## Rules this file is held to

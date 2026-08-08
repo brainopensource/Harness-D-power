@@ -61,7 +61,7 @@ async def test_it_reads_every_file_the_node_names() -> None:
 
 
 async def test_a_missing_file_is_published_not_swallowed() -> None:
-    """"The model was never shown the file" and "the model was shown it and
+    """ "The model was never shown the file" and "the model was shown it and
     failed" are different diagnoses, and the second is only believable when the
     first is ruled out."""
     facade = _Facade({"mod.py": "def f(): ..."})
@@ -120,15 +120,12 @@ async def test_retrieved_files_reach_the_model_prompt() -> None:
             self.request = request
             return [StopEvent(reason="end")]
 
-    retrieved = await _run(_Facade({"mod.py": "def f(a, b):\n    return a - b\n"}),
-                           entry_files=("mod.py",))
+    retrieved = await _run(_Facade({"mod.py": "def f(a, b):\n    return a - b\n"}), entry_files=("mod.py",))
     facade = _ModelFacade()
     await GenerateStep(facade, model_name="m").run(CTX, retrieved)  # type: ignore[arg-type]
 
     assert facade.request is not None
-    prompt = "".join(
-        span.text for message in facade.request.messages for span in message.spans
-    )
+    prompt = "".join(span.text for message in facade.request.messages for span in message.spans)
     assert "return a - b" in prompt  # the actual source, not a hallucinated stand-in
     assert "mod.py" in prompt
     assert facade.request.messages[0].role == "system"  # the L1 seed leads

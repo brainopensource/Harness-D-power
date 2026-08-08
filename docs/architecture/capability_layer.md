@@ -105,17 +105,24 @@ class ModelNode(WorkflowStep[Any, Any]):
     with different capabilities bound at composition."""
 
     def __init__(
-        self, *, node_kind: str,
-        input_type: type[Frozen], output_type: type[Frozen],
-        sources: tuple[ContextSource, ...], assembler: PromptAssembler,
-        inference: Inference, parser: OutputParser, role: str,
+        self,
+        *,
+        node_kind: str,
+        input_type: type[Frozen],
+        output_type: type[Frozen],
+        sources: tuple[ContextSource, ...],
+        assembler: PromptAssembler,
+        inference: Inference,
+        parser: OutputParser,
+        role: str,
     ) -> None: ...
 
     async def run(self, ctx: StepContext, payload: Any) -> Any:
-        blocks  = [b for s in self._sources for b in await s.gather(ctx, payload)]
-        request = self._assembler.assemble(role=self._role, blocks=blocks,
-                                           contract=self._parser.instructions())
-        reply   = await self._inference.invoke(ctx, request)
+        blocks = [b for s in self._sources for b in await s.gather(ctx, payload)]
+        request = self._assembler.assemble(
+            role=self._role, blocks=blocks, contract=self._parser.instructions()
+        )
+        reply = await self._inference.invoke(ctx, request)
         return self._parser.parse(reply).into(payload)
 ```
 
@@ -123,19 +130,30 @@ Roles become **data**:
 
 ```python
 # agency/roles.py
-ARCHITECT = RoleSpec(role=ARCHITECT_SYSTEM_ROLE,
-                     sources=(InstructionsSource(), EntryFileSource()),
-                     parser=PlanParser())                      # → a `plan` field, not `instructions`
-EDITOR    = RoleSpec(role=EDITOR_SYSTEM_ROLE,
-                     sources=(InstructionsSource(), PlanSource(), EntryFileSource()),
-                     parser=EditFormatParser("whole_file_codeblock"))
-REPAIRER  = RoleSpec(role=EDITOR_SYSTEM_ROLE,
-                     sources=(InstructionsSource(), PlanSource(), CurrentFileSource(),
-                              PreviousAttemptSource(), GateOutputSource(tail=3000)),
-                     parser=EditFormatParser("whole_file_codeblock"))
-REFLECTOR = RoleSpec(role=REFLECTOR_SYSTEM_ROLE,
-                     sources=(GateOutputSource(tail=2000), PreviousAttemptSource()),
-                     parser=LessonParser())
+ARCHITECT = RoleSpec(
+    role=ARCHITECT_SYSTEM_ROLE, sources=(InstructionsSource(), EntryFileSource()), parser=PlanParser()
+)  # → a `plan` field, not `instructions`
+EDITOR = RoleSpec(
+    role=EDITOR_SYSTEM_ROLE,
+    sources=(InstructionsSource(), PlanSource(), EntryFileSource()),
+    parser=EditFormatParser("whole_file_codeblock"),
+)
+REPAIRER = RoleSpec(
+    role=EDITOR_SYSTEM_ROLE,
+    sources=(
+        InstructionsSource(),
+        PlanSource(),
+        CurrentFileSource(),
+        PreviousAttemptSource(),
+        GateOutputSource(tail=3000),
+    ),
+    parser=EditFormatParser("whole_file_codeblock"),
+)
+REFLECTOR = RoleSpec(
+    role=REFLECTOR_SYSTEM_ROLE,
+    sources=(GateOutputSource(tail=2000), PreviousAttemptSource()),
+    parser=LessonParser(),
+)
 ```
 
 **The architect and the editor differ by their source list and their parser, and by nothing
@@ -155,15 +173,16 @@ of node plus ~40 of role data.
 
 ```python
 class ContextBlock(Frozen):
-    layer: Layer            # L1..L5 — ADR-0010
-    label: Provenance       # set by the SOURCE, never by the node
+    layer: Layer  # L1..L5 — ADR-0010
+    label: Provenance  # set by the SOURCE, never by the node
     heading: str
     text: str
     source_id: str
 
+
 class GateOutputSource:
     layer = Layer.L5
-    label = Provenance.AGENT     # test output is agent-derived — stated once, here
+    label = Provenance.AGENT  # test output is agent-derived — stated once, here
 ```
 
 This closes A4 and makes A6 **structurally impossible**: a node can no longer concatenate model
@@ -214,10 +233,11 @@ silently drops a second outgoing edge) and `_run_repair_unroll` (line 213).
 class ExecutionStrategy(Protocol):
     async def advance(self, ctx: ExecCtx, region: Region, payload: Any) -> Any: ...
 
-LinearStrategy        # today's _topological_order
-BoundedRepeatStrategy # today's _run_repair_unroll, generalised
-BestOfNStrategy       # TASK-035 — N children of one parent lease, declared join
-CascadeStrategy       # BoundedRepeat with a per-iteration override table
+
+LinearStrategy  # today's _topological_order
+BoundedRepeatStrategy  # today's _run_repair_unroll, generalised
+BestOfNStrategy  # TASK-035 — N children of one parent lease, declared join
+CascadeStrategy  # BoundedRepeat with a per-iteration override table
 ```
 
 The escalating rescue cascade then needs no schema change:
@@ -316,10 +336,10 @@ live in the module that imports its concrete peers.
 ```python
 # domain/config.py
 class RunConfig(Frozen):
-    topology: TopologyRef          # hash or path
+    topology: TopologyRef  # hash or path
     manifest: ManifestRef
     split: Literal["dev", "holdout", "sealed"]
-    routes: tuple[ModelRoute, ...] # per-role endpoint; credentials by env NAME, never value
+    routes: tuple[ModelRoute, ...]  # per-role endpoint; credentials by env NAME, never value
     budget: BudgetDims
     sandbox: SandboxConfig
     seed: int

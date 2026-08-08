@@ -17,7 +17,11 @@ URL = (
 out_arg = (
     sys.argv[2]
     if len(sys.argv) > 2
-    else (sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].startswith("http") else "gemini_share_a80e0c8ea417.md")
+    else (
+        sys.argv[1]
+        if len(sys.argv) > 1 and not sys.argv[1].startswith("http")
+        else "gemini_share_a80e0c8ea417.md"
+    )
 )
 OUT = Path(out_arg)
 

@@ -139,9 +139,7 @@ async def test_untrusted_tool_output_justifies_the_next_tool_call() -> None:
         test_command_hash="sha256:" + "f" * 64,
         source=TaskSource(manifest_hash="sha256:" + "0" * 64, instance_id="t1"),
     )
-    worktree = WorktreeRef(
-        worktree_id="wt1", run_id=RunId("r1"), base_commit="a" * 40, abs_hint="/tmp/wt1"
-    )
+    worktree = WorktreeRef(worktree_id="wt1", run_id=RunId("r1"), base_commit="a" * 40, abs_hint="/tmp/wt1")
 
     await GenerateStep(facade, model_name="m").run(  # type: ignore[arg-type]
         StepContext(run_id=RunId("r1"), node_id=NodeId("n1"), lease=LeaseId("l1")),

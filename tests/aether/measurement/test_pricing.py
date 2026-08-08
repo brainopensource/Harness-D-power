@@ -87,9 +87,7 @@ async def test_a_dollar_ceiling_actually_stops_the_run() -> None:
     denied: ReservationDenied | None = None
     for _ in range(10):
         # ~74k prompt + 20k completion tokens on deepseek-v4-flash ≈ $0.042
-        cost = BudgetDims(
-            usd_micros=cost_usd_micros("deepseek/deepseek-v4-flash", 74_000, 20_000)
-        )
+        cost = BudgetDims(usd_micros=cost_usd_micros("deepseek/deepseek-v4-flash", 74_000, 20_000))
         lease = await governor.reserve(run_id, cost)
         if isinstance(lease, ReservationDenied):
             denied = lease

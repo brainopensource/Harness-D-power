@@ -54,9 +54,7 @@ PRICES: dict[str, ModelPrice] = {
 
 #: The price of a model we have no rate for. High on purpose: an unknown model
 #: should trip a cap early and loudly rather than spend silently under one.
-UNKNOWN_PRICE = ModelPrice(
-    prompt_usd_micros_per_mtok=10_000_000, completion_usd_micros_per_mtok=30_000_000
-)
+UNKNOWN_PRICE = ModelPrice(prompt_usd_micros_per_mtok=10_000_000, completion_usd_micros_per_mtok=30_000_000)
 
 #: Endpoints that bill nothing. Matched against the base URL, so a local run
 #: does not have to name every model it might serve.
@@ -84,9 +82,7 @@ def cost_usd_micros(
     return math.ceil(prompt_cost + completion_cost)
 
 
-def priced(
-    model: str, dims: BudgetDims, *, base_url: str | None = None
-) -> BudgetDims:
+def priced(model: str, dims: BudgetDims, *, base_url: str | None = None) -> BudgetDims:
     """`dims` with `usd_micros` filled in from its own token counts.
 
     Never overwrites a `usd_micros` the provider itself reported — a measured

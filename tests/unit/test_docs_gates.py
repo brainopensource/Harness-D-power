@@ -135,16 +135,12 @@ def test_budget_gate_fails_on_an_untagged_file(docs_tree: Path) -> None:
 
 def test_budget_gate_fails_on_an_invented_status(docs_tree: Path) -> None:
     """A file cannot dodge the ceiling by inventing a status value outside the taxonomy."""
-    (docs_tree / "invented.md").write_text(
-        "---\nstatus: operational\n---\n\nwords\n", encoding="utf-8"
-    )
+    (docs_tree / "invented.md").write_text("---\nstatus: operational\n---\n\nwords\n", encoding="utf-8")
     assert _budget(docs_tree) == 1
 
 
 def test_budget_gate_fails_when_over_the_ceiling(docs_tree: Path) -> None:
-    (docs_tree / "fat.md").write_text(
-        "---\nstatus: normative\n---\n\n" + ("word " * 500), encoding="utf-8"
-    )
+    (docs_tree / "fat.md").write_text("---\nstatus: normative\n---\n\n" + ("word " * 500), encoding="utf-8")
     assert _budget(docs_tree, ceiling=100) == 1
 
 
@@ -164,9 +160,7 @@ def test_budget_gate_fails_when_the_adr_exemption_selects_nothing(docs_tree: Pat
 def test_budget_gate_does_not_count_rationale_or_historical(docs_tree: Path) -> None:
     """Guard against over-tightening in the other direction: the declared escape hatches
     must keep working, or the ceiling becomes unmeetable and gets raised instead of obeyed."""
-    (docs_tree / "hist.md").write_text(
-        "---\nstatus: historical\n---\n\n" + ("word " * 500), encoding="utf-8"
-    )
+    (docs_tree / "hist.md").write_text("---\nstatus: historical\n---\n\n" + ("word " * 500), encoding="utf-8")
     assert _budget(docs_tree, ceiling=100) == 0
 
 

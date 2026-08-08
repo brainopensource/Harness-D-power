@@ -70,8 +70,7 @@ class WorktreeValidityInstrument:
                         gate="tests",
                         status=GateStatus.NONE,
                         instrument_error=(
-                            f"patch did not apply ({result.rejected_hunks} rejected hunks): "
-                            f"{result.detail}"
+                            f"patch did not apply ({result.rejected_hunks} rejected hunks): {result.detail}"
                         ),
                     )
 

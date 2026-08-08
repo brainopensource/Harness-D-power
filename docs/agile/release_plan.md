@@ -192,8 +192,13 @@ and become **data**: a source list, a parser, a role string.
 ```python
 REPAIRER = RoleSpec(
     role=EDITOR_SYSTEM_ROLE,
-    sources=(InstructionsSource(), PlanSource(), CurrentFileSource(),
-             PreviousAttemptSource(), GateOutputSource(tail=3000)),
+    sources=(
+        InstructionsSource(),
+        PlanSource(),
+        CurrentFileSource(),
+        PreviousAttemptSource(),
+        GateOutputSource(tail=3000),
+    ),
     parser=EditFormatParser("whole_file_codeblock"),
 )
 ```

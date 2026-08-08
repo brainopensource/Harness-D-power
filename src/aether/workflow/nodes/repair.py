@@ -74,7 +74,7 @@ def build_repair_prompt(payload: EvaluatedCandidate, current_files: str = "") ->
     """
     previous = payload.patch_text.strip() or "(no patch was produced on the previous attempt)"
     failure = tail_biased(payload.report.detail, REPAIR_OUTPUT_CHARS) or "(the gate reported no output)"
-    
+
     isolated_assertion = ""
     for line in payload.report.detail.splitlines():
         line_stripped = line.strip()
@@ -88,7 +88,7 @@ def build_repair_prompt(payload: EvaluatedCandidate, current_files: str = "") ->
 
     files_section = f"## Current source files\n{current_files}\n\n" if current_files else ""
     assertion_section = f"## Failing assertion line\n{isolated_assertion}\n\n" if isolated_assertion else ""
-    
+
     return (
         f"A previous attempt at this task failed its tests.\n\n"
         f"## Task\n{payload.task.instructions}\n\n"

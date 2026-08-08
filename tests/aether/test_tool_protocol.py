@@ -102,9 +102,7 @@ async def test_cache_breakpoint_is_not_a_wire_field_here() -> None:
     """A6: OpenAI-compatible endpoints have no `cache_control` marker and cache
     implicitly on a stable prefix. Pinning that as a decision, so the field's
     absence from the payload is a choice rather than an omission (ADR-0010)."""
-    payload = await _send(
-        (ModelMessage(role="user", spans=(_span("hello"),), cache_breakpoint=True),)
-    )
+    payload = await _send((ModelMessage(role="user", spans=(_span("hello"),), cache_breakpoint=True),))
 
     assert "cache_breakpoint" not in payload["messages"][0]
     assert "cache_control" not in payload["messages"][0]
@@ -186,6 +184,4 @@ async def test_a_real_endpoint_accepts_the_tool_sequence() -> None:
 
     assert events, "no events streamed"
     assert events[-1].kind == "stop"
-    assert events[-1].reason != "provider_error", (
-        "the endpoint rejected the tool-call message sequence"
-    )
+    assert events[-1].reason != "provider_error", "the endpoint rejected the tool-call message sequence"

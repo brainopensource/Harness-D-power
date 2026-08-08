@@ -54,7 +54,7 @@ async def test_engine_run_completes_end_to_end_and_produces_a_gate_report(fixtur
     worktrees_root = str(tmp_path / "worktrees")
     trajectory_db = str(tmp_path / "trajectory.db")
 
-    test_command = f"{sys.executable} -c \"import sys; sys.exit(0)\""
+    test_command = f'{sys.executable} -c "import sys; sys.exit(0)"'
 
     task = Task(
         task_id="smoke-task-1",  # type: ignore[arg-type]
@@ -109,7 +109,7 @@ async def test_engine_run_evaluate_gate_report_is_passed_when_command_exits_zero
     repo_path, base_commit = fixture_repo
     worktrees_root = str(tmp_path / "worktrees")
 
-    test_command = f"{sys.executable} -c \"import sys; sys.exit(0)\""
+    test_command = f'{sys.executable} -c "import sys; sys.exit(0)"'
     task = Task(
         task_id="smoke-task-2",  # type: ignore[arg-type]
         repo=repo_path,
@@ -144,7 +144,7 @@ async def test_engine_run_evaluate_gate_report_is_passed_when_command_exits_zero
 async def test_engine_run_passes_api_key_header(fixture_repo, tmp_path) -> None:  # noqa: ANN001
     repo_path, base_commit = fixture_repo
     worktrees_root = str(tmp_path / "worktrees")
-    test_command = f"{sys.executable} -c \"import sys; sys.exit(0)\""
+    test_command = f'{sys.executable} -c "import sys; sys.exit(0)"'
     task = Task(
         task_id="smoke-task-3",  # type: ignore[arg-type]
         repo=repo_path,
@@ -178,14 +178,13 @@ async def test_engine_run_passes_api_key_header(fixture_repo, tmp_path) -> None:
         assert route.calls.last.request.headers.get("Authorization") == "Bearer sk-or-v1-testkey123"
 
 
-
 async def test_the_previously_dead_events_reach_the_trajectory_store(fixture_repo, tmp_path) -> None:  # noqa: ANN001
     """Sprint 3.5: `EffectDispatched` and `GateReportEmitted` were declared in
     the catalog and emitted by nothing. A client subscribing to them received
     silence. This asserts they arrive on a real run."""
     repo_path, base_commit = fixture_repo
     trajectory_db = str(tmp_path / "trajectory.db")
-    test_command = f"{sys.executable} -c \"import sys; sys.exit(0)\""
+    test_command = f'{sys.executable} -c "import sys; sys.exit(0)"'
 
     task = Task(
         task_id="events-1",  # type: ignore[arg-type]

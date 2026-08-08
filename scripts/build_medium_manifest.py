@@ -23,8 +23,8 @@ from __future__ import annotations
 import argparse
 import asyncio
 import subprocess
-import textwrap
 import sys
+import textwrap
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -116,7 +116,13 @@ class SmartPlaylist(Playlist):
 
 BASE = {"storage.py": STORAGE, "smart_rules.py": SMART_RULES, "playlist.py": PLAYLIST}
 
-_HEADER = "import sys\nfrom storage import StorageEngine\nfrom smart_rules import SmartRuleEvaluator\nfrom playlist import Playlist, SmartPlaylist\n\n\ndef main():\n"
+_HEADER = (
+    "import sys\n"
+    "from storage import StorageEngine\n"
+    "from smart_rules import SmartRuleEvaluator\n"
+    "from playlist import Playlist, SmartPlaylist\n\n\n"
+    "def main():\n"
+)
 _FOOTER = (
     "\n\nif __name__ == '__main__':\n"
     "    try:\n"
@@ -217,8 +223,7 @@ VARIANTS: list[tuple[str, dict[str, str], str]] = [
         "missing_validation",
         {
             "playlist.py": PLAYLIST.replace(
-                '        if not track.get("id"):\n'
-                '            raise ValueError("Track must have an id")\n',
+                '        if not track.get("id"):\n            raise ValueError("Track must have an id")\n',
                 "",
             )
         },
@@ -236,11 +241,7 @@ VARIANTS: list[tuple[str, dict[str, str], str]] = [
     ),
     (
         "remove_by_wrong_key",
-        {
-            "playlist.py": PLAYLIST.replace(
-                'if t.get("id") != track_id', 'if t.get("title") != track_id'
-            )
-        },
+        {"playlist.py": PLAYLIST.replace('if t.get("id") != track_id', 'if t.get("title") != track_id')},
         """
         pl = Playlist("p1", StorageEngine())
         pl.add_track({"id": "t1", "title": "Keep"})
@@ -328,7 +329,11 @@ class StorageEngine:
     ),
     (
         "get_cache_raises_on_missing",
-        {"storage.py": STORAGE.replace("return self._cache.get(playlist_id)", "return self._cache[playlist_id]")},
+        {
+            "storage.py": STORAGE.replace(
+                "return self._cache.get(playlist_id)", "return self._cache[playlist_id]"
+            )
+        },
         """
         storage = StorageEngine()
         assert storage.get_cache("never-set") is None, "get_cache raised instead of returning None"
