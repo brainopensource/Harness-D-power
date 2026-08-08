@@ -121,11 +121,11 @@ select = ["E", "F", "I", "UP", "B", "ASYNC"]
 [tool.mypy]
 python_version = "3.13"
 strict = true
-packages = ["sagiha", "aether"]
+packages = ["aether"]
 mypy_path = "src"
 
 [tool.coverage.run]
-source = ["src/sagiha", "src/aether"]
+source = ["src/aether"]
 
 [tool.coverage.report]
 # 80% is the project-wide floor. sagiha/kernel/policy and sagiha/domain carry a
