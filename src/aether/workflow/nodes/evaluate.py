@@ -13,8 +13,8 @@ the same class of hole the socket types exist to close.
 from __future__ import annotations
 
 from aether.domain.budget import BudgetDims
+from aether.domain.envelope import Envelope
 from aether.domain.gate import GateReport, GateStatus
-from aether.domain.ids import Frozen
 from aether.domain.task import Task
 from aether.domain.workspace import WorktreeRef
 from aether.ports.evaluator import EvalSpec
@@ -23,7 +23,7 @@ from aether.workflow.nodes.apply import AppliedPatch
 from aether.workflow.step import StepContext, WorkflowStep
 
 
-class EvaluatedCandidate(Frozen):
+class EvaluatedCandidate(Envelope):
     task: Task
     worktree: WorktreeRef
     report: GateReport

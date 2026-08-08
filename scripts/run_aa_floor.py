@@ -51,6 +51,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from aether import engine  # noqa: E402
+from aether.domain.config import ModelRoute, RunConfig, SandboxConfig  # noqa: E402
 from aether.domain.gate import GateStatus  # noqa: E402
 from aether.domain.task import Task, TaskSource  # noqa: E402
 from aether.measurement.manifest import (  # noqa: E402
@@ -68,7 +69,7 @@ from aether.measurement.statistics import (  # noqa: E402
 
 DEFAULT_MANIFEST = REPO_ROOT / "benchmarks" / "manifests" / "internal-floor-01.yaml"
 DEFAULT_SUITE_DIR = Path.home() / ".cache" / "aether" / "internal_suite"
-DEFAULT_REPORT = REPO_ROOT / "docs" / "rationale" / "benchmarks" / "noise-floor.md"
+DEFAULT_REPORT = REPO_ROOT / "docs" / "benchmarks" / "results" / "noise-floor.md"
 TOPOLOGY = REPO_ROOT / "workflows" / "linear_repair_v1.yaml"
 TEST_COMMAND = "python3 run_tests.py"
 FAMILY_ID = "aa_floor_smoke_01"
@@ -176,18 +177,20 @@ async def run_arm(
         )
         started = time.monotonic()
         try:
-            result = await engine.run(
-                task,
+            config = RunConfig(
+                topology_path=str(TOPOLOGY),
                 repo_path=str(repo_path),
                 worktrees_root=str(Path(args.workdir) / arm_id / instance_id),
-                topology_path=str(TOPOLOGY),
-                resolve_command=lambda spec: TEST_COMMAND,
-                model_base_url=model_base_url,
-                model_name=args.model,
-                model_api_key=api_key,
                 trajectory_db_path=str(Path(args.workdir) / f"{arm_id}.db"),
-                entry_file="README.md",
-                sandbox_runtime=None if args.uncontained else args.runtime,
+                sandbox=SandboxConfig(runtime=None if args.uncontained else args.runtime),
+                entry_files=("README.md",),
+                routes=(ModelRoute(base_url=model_base_url, model=args.model, api_key_env="OPENROUTER_API_KEY"),),
+                test_command=TEST_COMMAND,
+            )
+            result = await engine.run(
+                task,
+                config,
+                resolve_command=lambda spec: TEST_COMMAND,
             )
             outcome = TaskOutcome(
                 task_id=instance_id,

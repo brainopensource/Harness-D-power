@@ -37,6 +37,7 @@ class RetrievedContext(Envelope):
     files: tuple[FileSlice, ...] = ()
     #: Named but unreadable. Published, not swallowed — see the module docstring.
     missing: tuple[str, ...] = ()
+    plan: str = ""
 
     @property
     def file_slice(self) -> FileSlice | None:

@@ -5,7 +5,7 @@
     "max_tokens": 1024,
     "messages": [
       {
-        "cache_breakpoint": false,
+        "cache_breakpoint": true,
         "labels": [
           "trusted-system"
         ],
@@ -15,14 +15,13 @@
         "tool_calls": []
       },
       {
-        "cache_breakpoint": false,
+        "cache_breakpoint": true,
         "labels": [
           "operator",
-          "agent",
           "agent"
         ],
         "role": "user",
-        "text": "`add(a, b)` returns the wrong value for positive inputs. Fix it so `add(1, 2) == 3`.\n\n## Architect Plan\nSTUB_COMPLETION_FOR_PROMPT_CAPTURE=== mod.py ===\ndef add(a, b):\n    return a - b  # BUG: should be a + b\n=== store.py ===\nclass Store:\n    def __init__(self):\n        self.items = []\n",
+        "text": "`add(a, b)` returns the wrong value for positive inputs. Fix it so `add(1, 2) == 3`.STUB_COMPLETION_FOR_PROMPT_CAPTURE",
         "tool_call_id": null,
         "tool_calls": []
       }

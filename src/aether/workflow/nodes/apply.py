@@ -15,7 +15,7 @@ from __future__ import annotations
 from aether.agency.capabilities.edit_format import DEFAULT_EDIT_FORMAT, get_edit_format
 from aether.domain.budget import BudgetDims
 from aether.domain.effects import ApplyPatchArgs, WriteArgs
-from aether.domain.ids import Frozen
+from aether.domain.envelope import Envelope
 from aether.domain.task import Task
 from aether.domain.workspace import WorktreeRef
 from aether.workflow.dispatch_facade import DispatchFacade
@@ -23,7 +23,7 @@ from aether.workflow.nodes.generate import GeneratedPatch
 from aether.workflow.step import StepContext, WorkflowStep
 
 
-class AppliedPatch(Frozen):
+class AppliedPatch(Envelope):
     task: Task
     worktree: WorktreeRef
     applied: bool

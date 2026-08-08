@@ -28,3 +28,14 @@ from aether.domain.workspace import WorktreeRef
 class Envelope(Frozen):
     task: Task
     worktree: WorktreeRef
+
+
+class GeneratedPatch(Envelope):
+    raw_output: str = ""
+    edit_format: str = "whole_file_codeblock"
+    iteration: int = 0
+    stop_reason: str = "end"
+    retrieved_files: tuple[str, ...] = ()
+
+
+__all__ = ["Envelope", "GeneratedPatch"]

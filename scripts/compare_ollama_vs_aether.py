@@ -23,6 +23,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from aether import engine  # noqa: E402
+from aether.domain.config import ModelRoute, RunConfig  # noqa: E402
 from aether.domain.ids import TaskId  # noqa: E402
 from aether.domain.task import Task, TaskSource  # noqa: E402
 from aether.measurement.evaluator import hash_command  # noqa: E402
@@ -155,17 +156,19 @@ async def run_comparison(model: str, base_url: str, topology: str) -> None:
     )
 
     t1 = time.monotonic()
-    run_res = await engine.run(
-        task,
+    config = RunConfig(
+        topology_path=topology,
         repo_path=str(DEMO_REPO),
         worktrees_root=str(WORKTREES),
-        topology_path=topology,
-        resolve_command=lambda spec: test_cmd,
-        model_base_url=base_url,
-        model_name=model,
         trajectory_db_path=str(TRAJECTORY_DB),
-        sandbox_runtime=None,
         entry_files=("main.py",),
+        routes=(ModelRoute(base_url=base_url, model=model),),
+        test_command=test_cmd,
+    )
+    run_res = await engine.run(
+        task,
+        config,
+        resolve_command=lambda spec: test_cmd,
     )
     aether_elapsed = time.monotonic() - t1
 

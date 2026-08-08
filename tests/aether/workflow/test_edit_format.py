@@ -277,4 +277,3 @@ def test_tier_2_binds_unlabelled_block_to_sole_retrieved_non_test_file() -> None
     # Sole file is a test file -> refused (must not overwrite test)
     parsed_test_only = fmt.parse(raw, known_files=("test_main.py",), test_paths=("test_main.py",))
     assert not parsed_test_only.files
-

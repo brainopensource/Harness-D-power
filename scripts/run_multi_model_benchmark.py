@@ -26,6 +26,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from aether import engine  # noqa: E402
+from aether.domain.config import ModelRoute, RunConfig  # noqa: E402
 from aether.domain.ids import TaskId  # noqa: E402
 from aether.domain.task import Task, TaskSource  # noqa: E402
 from aether.measurement.evaluator import hash_command  # noqa: E402
@@ -156,17 +157,19 @@ async def run_single_benchmark(
     )
 
     t0 = time.monotonic()
-    result = await engine.run(
-        task,
+    config = RunConfig(
+        topology_path=topology_path,
         repo_path=str(repo_dir),
         worktrees_root=str(worktrees_root),
-        topology_path=topology_path,
-        resolve_command=lambda spec: test_cmd,
-        model_base_url=base_url,
-        model_name=model_tag,
         trajectory_db_path=str(db_path),
-        sandbox_runtime=None,
         entry_files=("main_001.py",),
+        routes=(ModelRoute(base_url=base_url, model=model_tag),),
+        test_command=test_cmd,
+    )
+    result = await engine.run(
+        task,
+        config,
+        resolve_command=lambda spec: test_cmd,
     )
     elapsed = time.monotonic() - t0
 

@@ -16,6 +16,7 @@ import pytest
 import respx
 
 from aether import engine
+from aether.domain.config import ModelRoute, RunConfig
 from aether.domain.gate import GateStatus
 from aether.domain.task import Task, TaskSource
 from aether.measurement.evaluator import hash_command
@@ -77,16 +78,18 @@ async def test_engine_run_completes_end_to_end_and_produces_a_gate_report(fixtur
             )
         )
 
-        result = await engine.run(
-            task,
+        config = RunConfig(
+            topology_path=f"{WORKFLOWS_ROOT}/linear_v1.yaml",
             repo_path=repo_path,
             worktrees_root=worktrees_root,
-            topology_path=f"{WORKFLOWS_ROOT}/linear_v1.yaml",
-            resolve_command=lambda spec: test_command,
-            model_base_url=MODEL_BASE_URL,
-            model_name="qwen2.5-coder-32b",
             trajectory_db_path=trajectory_db,
-            entry_file="README.md",
+            entry_files=("README.md",),
+            routes=(ModelRoute(base_url=MODEL_BASE_URL, model="qwen2.5-coder-32b"),),
+        )
+        result = await engine.run(
+            task,
+            config,
+            resolve_command=lambda spec: test_command,
         )
 
     assert result.gate_report.status in {GateStatus.PASSED, GateStatus.FAILED, GateStatus.NONE}
@@ -127,24 +130,28 @@ async def test_engine_run_evaluate_gate_report_is_passed_when_command_exits_zero
             )
         )
 
-        result = await engine.run(
-            task,
+        config2 = RunConfig(
+            topology_path=f"{WORKFLOWS_ROOT}/linear_v1.yaml",
             repo_path=repo_path,
             worktrees_root=worktrees_root,
-            topology_path=f"{WORKFLOWS_ROOT}/linear_v1.yaml",
-            resolve_command=lambda spec: test_command,
-            model_base_url=MODEL_BASE_URL,
             trajectory_db_path=str(tmp_path / "trajectory2.db"),
-            entry_file="README.md",
+            entry_files=("README.md",),
+            routes=(ModelRoute(base_url=MODEL_BASE_URL),),
+        )
+        result = await engine.run(
+            task,
+            config2,
+            resolve_command=lambda spec: test_command,
         )
 
     assert result.gate_report.status == GateStatus.PASSED
 
 
-async def test_engine_run_passes_api_key_header(fixture_repo, tmp_path) -> None:  # noqa: ANN001
+async def test_engine_run_passes_api_key_header(fixture_repo, tmp_path, monkeypatch) -> None:  # noqa: ANN001
     repo_path, base_commit = fixture_repo
     worktrees_root = str(tmp_path / "worktrees")
     test_command = f'{sys.executable} -c "import sys; sys.exit(0)"'
+    monkeypatch.setenv("TEST_KEY_ENV", "sk-or-v1-testkey123")
     task = Task(
         task_id="smoke-task-3",  # type: ignore[arg-type]
         repo=repo_path,
@@ -162,16 +169,18 @@ async def test_engine_run_passes_api_key_header(fixture_repo, tmp_path) -> None:
             )
         )
 
-        await engine.run(
-            task,
+        config3 = RunConfig(
+            topology_path=f"{WORKFLOWS_ROOT}/linear_v1.yaml",
             repo_path=repo_path,
             worktrees_root=worktrees_root,
-            topology_path=f"{WORKFLOWS_ROOT}/linear_v1.yaml",
-            resolve_command=lambda spec: test_command,
-            model_base_url=MODEL_BASE_URL,
-            model_api_key="sk-or-v1-testkey123",
             trajectory_db_path=str(tmp_path / "trajectory3.db"),
-            entry_file="README.md",
+            entry_files=("README.md",),
+            routes=(ModelRoute(base_url=MODEL_BASE_URL, api_key_env="TEST_KEY_ENV"),),
+        )
+        await engine.run(
+            task,
+            config3,
+            resolve_command=lambda spec: test_command,
         )
 
         assert route.called
@@ -202,15 +211,18 @@ async def test_the_previously_dead_events_reach_the_trajectory_store(fixture_rep
                 200, content=_sse({"choices": [{"delta": {}, "finish_reason": "stop"}]})
             )
         )
-        result = await engine.run(
-            task,
+        config4 = RunConfig(
+            topology_path=f"{WORKFLOWS_ROOT}/linear_v1.yaml",
             repo_path=repo_path,
             worktrees_root=str(tmp_path / "worktrees"),
-            topology_path=f"{WORKFLOWS_ROOT}/linear_v1.yaml",
-            resolve_command=lambda spec: test_command,
-            model_base_url=MODEL_BASE_URL,
             trajectory_db_path=trajectory_db,
-            entry_file="README.md",
+            entry_files=("README.md",),
+            routes=(ModelRoute(base_url=MODEL_BASE_URL),),
+        )
+        result = await engine.run(
+            task,
+            config4,
+            resolve_command=lambda spec: test_command,
         )
 
     from aether.adapters.trajectory_store.sqlite import SqliteTrajectoryStore

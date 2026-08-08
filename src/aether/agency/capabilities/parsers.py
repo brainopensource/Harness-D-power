@@ -10,7 +10,7 @@ fills only the field its own contract produces.
 
 from __future__ import annotations
 
-from typing import Literal, Protocol, runtime_checkable
+from typing import Any, Literal, Protocol, runtime_checkable
 
 from aether.agency.capabilities.edit_format import EditFormat, ParsedEdit, get_edit_format
 from aether.agency.registry import Registry
@@ -33,6 +33,39 @@ class ParsedOutput(Frozen):
     kind: Literal["edit", "text"]
     edit: ParsedEdit | None = None
     text: str = ""
+
+    def into(self, payload: Any, result: Any = None, output_type: type[Any] | None = None) -> Any:
+        """Fold this parse into the node's output payload."""
+        from aether.domain.envelope import GeneratedPatch
+
+        task = getattr(payload, "task", None)
+        worktree = getattr(payload, "worktree", None)
+        iteration = getattr(payload, "iteration", 0)
+        retrieved_files = getattr(payload, "retrieved_files", ())
+        if not retrieved_files and hasattr(payload, "files"):
+            retrieved_files = tuple(f.repo_rel_path for f in getattr(payload, "files", ()))
+        stop_reason = getattr(result, "stop_reason", "end") if result else "end"
+        text = result.text if result and hasattr(result, "text") else self.text
+
+        target_cls = output_type or type(payload)
+        if target_cls.__name__ == "RetrievedContext":
+            return target_cls(
+                task=task,
+                worktree=worktree,
+                instructions=getattr(payload, "instructions", getattr(task, "instructions", "")),
+                files=getattr(payload, "files", ()),
+                missing=getattr(payload, "missing", ()),
+                plan=text,
+            )
+
+        return GeneratedPatch(
+            task=task,
+            worktree=worktree,
+            raw_output=text,
+            stop_reason=stop_reason,
+            iteration=iteration,
+            retrieved_files=retrieved_files,
+        )
 
 
 @runtime_checkable
@@ -78,7 +111,7 @@ class PlanParser:
     def instructions(self) -> str:
         return ARCHITECT_INSTRUCTIONS
 
-    def parse(self, raw: str) -> ParsedOutput:
+    def parse(self, raw: str, *args: Any, **kwargs: Any) -> ParsedOutput:
         return ParsedOutput(kind="text", text=raw.strip())
 
 
@@ -90,7 +123,7 @@ class LessonParser:
     def instructions(self) -> str:
         return REFLECTOR_INSTRUCTIONS
 
-    def parse(self, raw: str) -> ParsedOutput:
+    def parse(self, raw: str, *args: Any, **kwargs: Any) -> ParsedOutput:
         return ParsedOutput(kind="text", text=raw.strip())
 
 
@@ -102,7 +135,7 @@ class PassthroughText:
     def instructions(self) -> str:
         return ""
 
-    def parse(self, raw: str) -> ParsedOutput:
+    def parse(self, raw: str, *args: Any, **kwargs: Any) -> ParsedOutput:
         return ParsedOutput(kind="text", text=raw)
 
 

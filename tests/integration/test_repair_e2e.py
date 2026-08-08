@@ -24,6 +24,7 @@ import respx
 
 from aether import engine
 from aether.adapters.trajectory_store.sqlite import SqliteTrajectoryStore
+from aether.domain.config import ModelRoute, RunConfig
 from aether.domain.gate import GateStatus
 from aether.domain.task import Task, TaskSource
 from aether.measurement.evaluator import hash_command
@@ -94,15 +95,18 @@ async def test_a_failed_candidate_is_repaired_and_passes(failing_repo, tmp_path)
     with respx.mock:
         respx.post(f"{MODEL_BASE_URL}/chat/completions").mock(side_effect=responses)
 
-        result = await engine.run(
-            task,
+        config1 = RunConfig(
+            topology_path="workflows/linear_repair_v1.yaml",
             repo_path=repo_path,
             worktrees_root=str(tmp_path / "worktrees"),
-            topology_path="workflows/linear_repair_v1.yaml",
-            resolve_command=lambda spec: test_command,
-            model_base_url=MODEL_BASE_URL,
             trajectory_db_path=trajectory_db,
-            entry_file="README.md",
+            entry_files=("README.md",),
+            routes=(ModelRoute(base_url=MODEL_BASE_URL),),
+        )
+        result = await engine.run(
+            task,
+            config1,
+            resolve_command=lambda spec: test_command,
         )
 
     assert result.gate_report.status is GateStatus.PASSED
@@ -136,15 +140,18 @@ async def test_a_candidate_that_never_passes_stops_at_the_bound(failing_repo, tm
             return_value=httpx.Response(200, content=_sse(""))
         )
 
-        result = await engine.run(
-            task,
+        config2 = RunConfig(
+            topology_path="workflows/linear_repair_v1.yaml",
             repo_path=repo_path,
             worktrees_root=str(tmp_path / "worktrees"),
-            topology_path="workflows/linear_repair_v1.yaml",
-            resolve_command=lambda spec: test_command,
-            model_base_url=MODEL_BASE_URL,
             trajectory_db_path=trajectory_db,
-            entry_file="README.md",
+            entry_files=("README.md",),
+            routes=(ModelRoute(base_url=MODEL_BASE_URL),),
+        )
+        result = await engine.run(
+            task,
+            config2,
+            resolve_command=lambda spec: test_command,
         )
 
     assert result.gate_report.status is GateStatus.FAILED
@@ -175,15 +182,18 @@ async def test_an_instrument_error_ends_the_run_without_repairing(failing_repo, 
             return_value=httpx.Response(200, content=_sse(""))
         )
 
-        result = await engine.run(
-            task,
+        config3 = RunConfig(
+            topology_path="workflows/linear_repair_v1.yaml",
             repo_path=repo_path,
             worktrees_root=str(tmp_path / "worktrees"),
-            topology_path="workflows/linear_repair_v1.yaml",
-            resolve_command=lambda spec: f"{sys.executable} run_tests.py",
-            model_base_url=MODEL_BASE_URL,
             trajectory_db_path=trajectory_db,
-            entry_file="README.md",
+            entry_files=("README.md",),
+            routes=(ModelRoute(base_url=MODEL_BASE_URL),),
+        )
+        result = await engine.run(
+            task,
+            config3,
+            resolve_command=lambda spec: f"{sys.executable} run_tests.py",
         )
 
     assert result.gate_report.status is GateStatus.NONE

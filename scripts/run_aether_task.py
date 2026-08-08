@@ -44,6 +44,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from aether import engine  # noqa: E402
+from aether.domain.config import ModelRoute, RunConfig  # noqa: E402
 from aether.domain.ids import TaskId  # noqa: E402
 from aether.domain.task import Task, TaskSource  # noqa: E402
 from aether.measurement.evaluator import hash_command  # noqa: E402
@@ -143,17 +144,19 @@ async def run_task(args: argparse.Namespace) -> int:
     print(f"Test cmd    : {test_cmd}")
     print(f"Workspace   : {workspace}\n")
 
-    result = await engine.run(
-        task,
+    config = RunConfig(
+        topology_path=args.topology,
         repo_path=str(repo_dir),
         worktrees_root=str(worktrees_root),
-        topology_path=args.topology,
-        resolve_command=lambda spec: test_cmd,
-        model_base_url=args.base_url,
-        model_name=args.model,
         trajectory_db_path=str(trajectory_db),
-        sandbox_runtime=None,
         entry_files=tuple(args.entry_file),
+        routes=(ModelRoute(base_url=args.base_url, model=args.model),),
+        test_command=test_cmd,
+    )
+    result = await engine.run(
+        task,
+        config,
+        resolve_command=lambda spec: test_cmd,
     )
 
     print(f"run_id      : {result.run_id}")

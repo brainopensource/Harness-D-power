@@ -216,3 +216,17 @@ def test_known_absent_tcb_fragments_are_still_absent() -> None:
     """
     for frag in sorted(KNOWN_ABSENT_TCB_FRAGMENTS):
         assert list(REPO_ROOT.glob(f"{frag}*")), f"{frag} now exists — remove it from the exemption"
+
+
+def test_script_output_path_constants_have_an_existing_parent_directory() -> None:
+    """`run_aa_floor.py` wrote its report to docs/rationale/benchmarks/, which
+    does not exist, and `_write` mkdir's parents — so the floor run would have
+    created a stray tree and left the canonical noise-floor.md saying "not yet
+    taken". No gate caught it, because the drift test covered .importlinter and
+    TCB_PATHS and nothing else.
+    """
+    from scripts.run_aa_floor import DEFAULT_REPORT
+
+    assert DEFAULT_REPORT.parent.exists(), (
+        f"DEFAULT_REPORT parent directory {DEFAULT_REPORT.parent} does not exist"
+    )

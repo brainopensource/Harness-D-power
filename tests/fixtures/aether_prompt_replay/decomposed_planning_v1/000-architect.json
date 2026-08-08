@@ -5,24 +5,22 @@
     "max_tokens": 1024,
     "messages": [
       {
-        "cache_breakpoint": false,
+        "cache_breakpoint": true,
         "labels": [
           "trusted-system"
         ],
         "role": "system",
-        "text": "You are a precise software architect analyzing a bug. Output a short 3-line analysis plan listing:\n1. Target function/class\n2. Expected behavior vs current bug\n3. Proposed code fix logic",
+        "text": "You are a precise software architect planning a bug fix in a repository. You examine the task and entry files and output a clear, concise plan.\n\nOutput a short 3-line analysis plan listing:\n1. Target function/class\n2. Expected behavior vs current bug\n3. Proposed code fix logic",
         "tool_call_id": null,
         "tool_calls": []
       },
       {
-        "cache_breakpoint": false,
+        "cache_breakpoint": true,
         "labels": [
-          "operator",
-          "agent",
-          "agent"
+          "operator"
         ],
         "role": "user",
-        "text": "`add(a, b)` returns the wrong value for positive inputs. Fix it so `add(1, 2) == 3`.=== mod.py ===\ndef add(a, b):\n    return a - b  # BUG: should be a + b\n=== store.py ===\nclass Store:\n    def __init__(self):\n        self.items = []\n",
+        "text": "`add(a, b)` returns the wrong value for positive inputs. Fix it so `add(1, 2) == 3`.",
         "tool_call_id": null,
         "tool_calls": []
       }

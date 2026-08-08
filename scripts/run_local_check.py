@@ -32,7 +32,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from aether import engine  # noqa: E402
-from aether.domain.config import AblationFlags, config_hash  # noqa: E402
+from aether.domain.config import AblationFlags, ModelRoute, RunConfig, SandboxConfig, config_hash  # noqa: E402
 from aether.domain.gate import GateStatus  # noqa: E402
 from aether.domain.task import Task, TaskSource  # noqa: E402
 from aether.measurement.manifest import load_manifest, manifest_hash, tasks_in_split  # noqa: E402
@@ -138,19 +138,22 @@ async def main_async(args: argparse.Namespace, manifest: dict[str, Any]) -> int:
         )
         started = time.monotonic()
         try:
-            result = await engine.run(
-                task,
+            config = RunConfig(
+                topology_path=args.topology,
+                split=args.split,
                 repo_path=str(Path(args.suite_dir) / instance_id),
                 worktrees_root=str(Path(args.workdir) / instance_id),
-                topology_path=args.topology,
-                resolve_command=lambda spec: TEST_COMMAND,
-                model_base_url=args.base_url,
-                model_name=args.model,
                 trajectory_db_path=str(Path(args.workdir) / "trajectory.db"),
-                sandbox_runtime=None if args.uncontained else args.runtime,
-                usd_micros_ceiling=ceiling,
-                model_api_key=os.environ.get("OPENROUTER_API_KEY"),
-                entry_files=tuple(task_entry_files) if task_entry_files else None,
+                sandbox=SandboxConfig(runtime=None if args.uncontained else args.runtime),
+                budget=BudgetDims(usd_micros=ceiling or 0),
+                entry_files=tuple(task_entry_files) if task_entry_files else (),
+                routes=(ModelRoute(base_url=args.base_url, model=args.model, api_key_env="OPENROUTER_API_KEY"),),
+                test_command=TEST_COMMAND,
+            )
+            result = await engine.run(
+                task,
+                config,
+                resolve_command=lambda spec: TEST_COMMAND,
             )
             outcome = TaskOutcome(
                 task_id=instance_id,
