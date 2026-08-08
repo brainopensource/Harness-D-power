@@ -116,8 +116,19 @@ To use cloud provider endpoints:
 
 - **OpenRouter**:
   - `base_url`: `https://openrouter.ai/api/v1`
-  - `model_name`: `deepseek/deepseek-r1` or `anthropic/claude-3.5-sonnet`
-  - `model_api_key`: Env variable `OPENROUTER_API_KEY`
+  - `model_api_key`: Env variable `OPENROUTER_API_KEY` (loaded automatically from `.env`)
+  - **Verified Free Models**:
+    1. `openrouter/free`
+    2. `inclusionai/ling-3.0-tiny:free`
+    3. `poolside/laguna-s-2.1:free`
+    4. `cohere/north-mini-code:free`
+    5. `google/gemma-4-26b-a4b-it:free`
+    6. `nvidia/nemotron-3-super-120b-a12b:free`
+    7. `openai/gpt-oss-20b:free`
+  - **Verified Low-Cost Paid Models**:
+    8. `deepseek/deepseek-v4-flash`
+    9. `xiaomi/mimo-v2.5`
+  - **Frontier Cloud Models**: `z-ai/glm-5.2`, `openai/gpt-5.6-luna`, `deepseek/deepseek-v4-pro`, `minimax/minimax-m3`
 - **DeepSeek API**:
   - `base_url`: `https://api.deepseek.com/v1`
   - `model_name`: `deepseek-reasoner` or `deepseek-coder`
